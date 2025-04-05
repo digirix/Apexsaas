@@ -1,0 +1,95 @@
+Okay, great. Now that we have the detailed "what" (PRD) and a technical "how" (TDD), let's refine the PLANNING.md to reflect the key decisions and structure outlined in those documents. This revised PLANNING.md will serve as an updated high-level guide.
+
+# PLANNING.md (Revised)
+
+**Purpose:** High-level plan for the Accounting Firm Management Application project. Guides development, sets expectations, and serves as a quick reference, especially for AI-driven development (Replit). Aligned with the detailed PRD and TDD.
+
+**Source of Truth:**
+*   **Product Requirements Document (PRD):** Defines *what* the application should do (features, user stories, functional requirements). **Refer to the PRD for detailed specifications.**
+*   **Technical Design Document (TDD):** Defines *how* the application will be built (architecture, database schema, API design, tech stack). **Refer to the TDD for technical implementation details.**
+
+## 1. Project Goals & Objectives
+
+*   Develop a secure, multi-tenant web application for accounting firms hosted on Replit.
+*   Streamline core firm operations via dedicated modules: Setup, Clients, Tasks, Finance (Initial Scope), User Management, Settings, Workflow Automation.
+*   Integrate AI (Google Gemini) for intelligent suggestions (Required Services, Task Details) and enable continuous improvement ("enforced learning").
+*   Provide role-based access control for internal firm users (Super Admin, Members).
+*   Offer a secure, read-only Client Portal for client contacts.
+*   Automate routine tasks and processes using a configurable Workflow Automation module.
+*   Facilitate online payments through Stripe and PayPal integrations.
+
+## 2. Scope
+
+**In Scope (See PRD for full details):**
+
+*   **Modules:** Setup, Clients (incl. Entities, Service Subscriptions, Portal Access Mgmt), Tasks (Admin/Revenue, Compliance, Recurring Task Generation/Approval), Finance Management (Basic Invoicing, Payment Tracking via Gateways), User Management & Permissions (Granular RBAC), Client Portal (Read-only views), Settings (Global, API Keys, Payment Gateway Config), Workflow Automation (Trigger/Condition/Action rules).
+*   **Core Features:** Multi-tenancy with strict data isolation, RESTful API, PostgreSQL database, CRUD operations for core entities, AI suggestions (Gemini), Recurring Tasks, Granular Permissions, Separate Firm/Client login flows, Payment Gateway integration (Stripe, PayPal configuration & webhook handling).
+*   **AI:** Google Gemini integration for defined suggestion points, secure API key management, concept for enforced learning mechanism.
+
+**Out of Scope (for Initial Version - See PRD Section 9):**
+
+*   Advanced/customizable reporting beyond basic AR/revenue.
+*   Direct integration with external accounting software (e.g., QuickBooks, Xero).
+*   AI features beyond specified suggestions (e.g., fully automated actions without confirmation).
+*   Client Portal features beyond specified read-only views and profile management.
+*   Mobile application.
+
+## 3. Key Milestones (High-Level Phases)
+
+*These are aligned with PRD features & TDD structure. See `TODO.MD` for task breakdown.*
+
+1.  **Foundation & Setup (TDD Sections 4, 5):** Implement DB schema (Tenants, Users, Permissions, Setup Module tables), multi-tenancy structure, User Signup/Sign-in (Firm), Member CRUD, basic Permissions framework, and Setup Module APIs & UI.
+2.  **Core Operations (TDD Sections 4, 5):** Implement Clients Module (Client/Entity CRUD, Service Config APIs/UI) and Tasks Module (Admin/Revenue Task CRUD APIs/UI - Basic Info, Manual Status).
+3.  **Connectivity & Flow (TDD Sections 4, 5, 6):** Implement Recurring Task generation logic (background scheduler), link Tasks to Clients/Services, establish data flow for basic Invoice generation (Finance).
+4.  **AI Integration (TDD Sections 5.10, 6):** Integrate Gemini API client, implement API endpoints and UI elements for AI suggestions in Clients (Required Services) & Tasks (Task Details), secure API Key storage (Settings Module).
+5.  **Finance & Payments (TDD Sections 4, 5, 8):** Implement basic Finance Module APIs/UI (Invoice CRUD, Payment recording), Payment Gateway configuration in Settings, "Pay Now" link concept, basic webhook handling for payment status updates.
+6.  **Client Facing (TDD Sections 4, 5):** Implement Client Portal login, read-only views (Dashboard, Entities, Tasks, Profile), Client password change functionality. Implement Client Portal Access Management UI in main app.
+7.  **Automation (TDD Sections 4, 5, 6):** Implement Workflow Automation Module (APIs/UI for defining/managing Workflows based on Triggers, Conditions, Actions; execution engine; logging).
+8.  **Refinement & Testing:** End-to-end testing, security review (incl. permissions), performance checks, bug fixing, documentation updates.
+
+## 4. Team Roles & Responsibilities
+
+*   **You (Project Owner):** Provide scope, feedback, approval, direction. Define priorities.
+*   **AI Agent (Replit):** Analyze requirements (PRD, TDD), generate code based on prompts, assist with planning/documentation updates, debugging, and implementation according to the technical design.
+*   **User Roles (Defined in PRD):** Super Admin, Member, Client Contact (guide UI/permission implementation).
+
+## 5. Dependencies
+
+*   **Internal:** Module interdependencies as outlined in PRD/TDD (e.g., Setup feeds dropdowns, Tasks feed Finance). Correct implementation of Permissions framework is critical.
+*   **External:**
+    *   Google Gemini API availability and valid API key.
+    *   Stripe/PayPal API availability and valid API keys/secrets/webhook secrets.
+    *   Replit environment stability (Compute, PostgreSQL, Secrets).
+    *   Chosen external libraries (ORM, Scheduler, Frameworks).
+
+## 6. Risks & Mitigation Strategies
+
+*   **Risk:** Multi-tenant data leakage.
+    *   **Mitigation:** Rigorous `tenant_id` filtering in ALL queries (enforced by ORM/base repository patterns), TDD-defined schema constraints, thorough testing.
+*   **Risk:** Security vulnerabilities (AuthN/AuthZ, Injection, API Key exposure).
+    *   **Mitigation:** Implement TDD security measures: bcrypt hashing, encrypted API key storage (Replit Secrets for decryption key), ORM/parameterized queries, XSS/CSRF protection, strict permission checks via middleware/decorators.
+*   **Risk:** AI API Costs/Reliability/Inaccuracy.
+    *   **Mitigation:** Monitor API usage, efficient prompting, clear indication of AI suggestions (non-binding), error handling for API failures, implement feedback loops for learning (future).
+*   **Risk:** Scalability issues (Replit PostgreSQL limitations, inefficient queries/workflows).
+    *   **Mitigation:** Optimize queries/database schema (indexing - see TDD), monitor performance, evaluate Replit DB suitability for production load, design workflows efficiently.
+*   **Risk:** Scope Creep.
+    *   **Mitigation:** Adhere strictly to PRD scope, manage changes formally, prioritize based on milestones.
+*   **Risk:** Workflow Automation Complexity (Loops, Errors).
+    *   **Mitigation:** Implement TDD considerations: loop prevention (depth limits), clear logging, robust error handling within workflow execution.
+
+## 7. Technology Stack & Tools (Based on TDD Assumptions)
+
+*   **AI Model:** Google Gemini 2.5 Pro (API)
+*   **Development Environment:** Replit
+*   **Database:** Replit PostgreSQL
+*   **Backend:** Python (using Flask or Django framework - *Confirm final choice*) with ORM (SQLAlchemy or Django ORM). Background tasks via APScheduler or similar.
+*   **Frontend:** React or Vue.js (SPA) or Server-Side Rendering with Jinja2/HTML/CSS/JS (*Confirm final choice*).
+*   **API:** RESTful JSON API (Specification in TDD).
+*   **Version Control:** Git (via Replit or GitHub/GitLab).
+*   **Payment Gateways:** Stripe API, PayPal API.
+
+---
+*This is a living document. Updates should reflect significant changes in plan, scope, or risks. Refer to PRD and TDD for details.*
+
+
+This revised PLANNING.md now incorporates the technical decisions and structure from the TDD, providing a more concrete high-level plan while still directing you (and the AI) to the PRD and TDD for the necessary details.

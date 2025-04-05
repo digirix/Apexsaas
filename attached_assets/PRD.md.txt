@@ -1,0 +1,365 @@
+Product Requirements Document: Accounting Firm Management Application
+1. Introduction
+This document outlines the requirements for the Accounting Firm Management Application, a multi-tenant web application designed to streamline operations for accounting firms. The application will provide comprehensive modules for managing clients, entities, services, tasks, compliance, internal users, basic finances, and workflow automation. A key differentiator is the deep integration of Artificial Intelligence (AI), specifically Google Gemini, to provide intelligent assistance, enhance decision-making, facilitate actions, and enable continuous system improvement through enforced learning. The system will also feature a dedicated, secure portal for client access.
+2. Goals & Objectives
+Streamline Operations: Provide a unified platform to manage core accounting firm workflows, reducing manual effort and disparate systems.
+Enhance Efficiency: Leverage AI and workflow automation to improve task management, compliance tracking, and service delivery.
+Improve Decision Making: Utilize AI suggestions and organized data presentation to help users make informed decisions regarding client services, compliance, and task prioritization.
+Facilitate Compliance: Implement robust tracking of compliance requirements linked to client entities and services, including recurring task generation.
+Enable Collaboration: Provide role-based access for internal team members (Members) under the supervision of a Super Admin.
+Improve Client Communication: Offer a secure Client Portal for clients to view relevant information about their services and tasks.
+Support Financial Tracking: Include basic invoicing and payment tracking capabilities linked to completed tasks and services.
+Ensure Scalability & Security: Build a secure, multi-tenant architecture capable of handling individual firm growth.
+3. Target Audience / User Personas
+Super Admin: The primary user who signs up the firm (tenant). Has full access to all modules, configures the system (Setup, Settings), manages users (Members) and their permissions, approves recurring tasks, manages API keys, and oversees all tenant data.
+Member: An internal employee of the accounting firm. Access and capabilities are determined by permissions set by the Super Admin. Performs day-to-day tasks related to clients, task management, etc., within their allowed scope.
+Client Contact: An authorized contact person for a specific client firm. Accesses the secure, read-only Client Portal using their unique credentials (managed by the Super Admin/authorized Members). Can view information pertinent only to their associated Client record (Entities, Tasks, Services, Profile).
+4. Assumptions
+The application will be developed using Replit as the primary environment.
+The database will be Replit's PostgreSQL. Scalability and production limitations of this choice need ongoing evaluation.
+Google Gemini 2.5 Pro will be the AI model, accessed via API.
+Stripe and PayPal will be the integrated payment gateways.
+Users require a modern web browser to access the application and client portal.
+Basic internet connectivity is required for all users and API interactions.
+5. Functional Requirements
+5.1. System Wide / Core
+Multi-Tenancy: The application MUST enforce strict data isolation between tenants. Each tenant (firm) has its own users, clients, setup data, tasks, etc. Tenant context must be applied to all data operations.
+Authentication:
+Separate login pages/flows for Firm Users (Super Admin/Members) and Client Contacts.
+Firm User signup creates a new tenant and assigns the signup user as Super Admin.
+Login uses Email and Password.
+Passwords MUST be securely hashed and salted (e.g., bcrypt).
+"Forgot Password" functionality required for Firm Users (secure reset mechanism).
+Client Portal login uses Client Contact Email and assigned/updated password.
+
+
+User Interface (General):
+Clean, intuitive web-based interface.
+Consistent navigation (e.g., sidebar for modules).
+Use of dropdowns populated from Setup module data where specified.
+Clear visual distinction between Firm application and Client Portal.
+Responsive design (functional on standard desktop/laptop screen sizes).
+
+
+5.2. Setup Module (Module 1)
+Purpose: Define foundational data used throughout the application. Full CRUD operations required for all sections, restricted by permissions (likely Super Admin only).
+Regions of Operations:
+Country: Text input (add new if not found), unique validation.
+Currency: Text input (add new if not found), unique validation.
+State: Text input (add new if not found), unique validation (globally within tenant). Implicitly linked to the currently active/selected Country during creation.
+
+
+VAT/Sales Tax Jurisdictions:
+Country: Dropdown (from Setup > Regions > Country).
+State: Dropdown (from Setup > Regions > State, filtered by selected Country).
+Validation: Unique combination of Country+State required per record.
+
+
+Entity Type Definition:
+Entity Type: Text input (add new if not found).
+Country: Dropdown (from Setup > Regions > Country).
+Validation: Unique combination of Entity Type + Country required per record.
+
+
+Service Type:
+Service Name: Text input (add new if not found).
+Description: Text input (duplicates allowed).
+Currency: Dropdown (from Setup > Regions > Currency).
+Service Rate: Positive number input (> 0 validation).
+Basis of Billing: Text input (add new if not found), unique validation. Pre-populated defaults: Per Hour, Per Day, Per Week, Per Month, Per Quarter, Per Year, Per Filing, Per Transaction, Per Project, Other.
+Country: Dropdown (from Setup > Regions > Country).
+Validation: Unique combination of Service Name + Country required per record.
+
+
+Task Variables:
+Task Categories:
+Admin Task Category Name: Text input (add new), unique validation.
+Revenue Task Category Name: Text input (add new), unique validation.
+
+
+Task Statuses:
+Rank: Number input. Rank 1 fixed ("New"), Rank 3 fixed ("Completed"). User can define ranks starting with '2' (e.g., 2, 2.1, 2.11). Unique Rank validation.
+Status Name: Text input (add new), unique validation. Pre-populated defaults (editable, except potentially "New"/"Completed"): New, In Progress, Under Process - Invoice Sent, Overdue, Ready for Review, Reviewed, Pending Client Approval, Approved by Client, On Hold, Canceled, Task Delivered Unpaid, Invoice Sent, Invoice Paid, Delivered Paid, Completed. Each Status Name must be linked to a unique Rank.
+Description: Text input (duplicates allowed).
+
+
+
+
+Team Designations:
+Designation: Text input (add new), unique validation.
+Department: Text input (add new), unique validation.
+
+
+5.3. Clients Module (Module 2)
+Purpose: Manage client information and their associated business entities. Full CRUD based on permissions.
+Client Management:
+Add/View/Edit/Delete Clients.
+Fields: Client Display name (Text, unique within tenant), Client Email (Email format, unique within tenant), Mobile (Mobile format, unique within tenant).
+
+
+Entity Management (per Client):
+Add/View/Edit/Delete Entities associated with a Client.
+Fields:
+Entity Name: Text, unique within the parent Client.
+Country: Dropdown (from Setup > Regions > Country), required. Link/button to add new Country in Setup.
+State: Dropdown (from Setup > Regions > State, filtered by Country), required if applicable. Link/button to add new State in Setup.
+Address: Text input (multi-line).
+Entity Type: Dropdown (from Setup > Entity Types, filtered by Country), required. Link/button to add new Entity Type in Setup.
+Business Tax ID: Alphanumeric, unique within tenant.
+Is Registered for Sales Tax or VAT?: Yes/No input.
+SalesTax/VAT ID: Alphanumeric, unique within tenant. Conditionally displayed/required if 'Yes' above.
+File Access Link: URL/Text input.
+
+
+
+
+Entity Configuration (per Entity):
+VAT/Sales Tax Jurisdictions:
+Displayed only if Is Registered for Sales Tax or VAT? is 'Yes'.
+Allow multi-selection of applicable jurisdictions (from Setup > VAT/Sales Tax Jurisdictions) for the entity. UI: Multi-select dropdown, checkboxes, or cards.
+
+
+Services:
+List all Service Types (from Setup) matching the Entity's Country.
+For each service, provide two checkboxes/indicators: Required and Subscribed.
+User marks services as Required.
+User marks services as Subscribed.
+Validation: Subscribed can only be marked if Required is also marked.
+[AI Opportunity]: System should suggest which services might be Required based on Entity's Country, State, Entity Type, VAT/Sales Tax status, potentially leveraging Gemini API. Suggestion should be clearly indicated and non-binding.
+
+
+
+
+Client Portal Access Management (Section 2.1 - within Client Detail View):
+UI section to Add/View/Update/Delete Client Contacts authorized for portal access.
+Fields per Contact:
+Client Contact Name: Text.
+Client Contact Email: Email format, unique across ALL client contacts within the tenant (serves as login username).
+Portal Access Enabled: Toggle/Dropdown (Yes/No), default No.
+Assigned Initial Password: Password input (visible only on creation/reset), hashed on storage. Client must change on first login.
+Last Login Date: Read-only, system-populated timestamp.
+
+
+Permissions: Ability to manage portal access controlled by User Management permissions (e.g., Clients Module -> Manage Client Portal Access -> Yes/No).
+
+
+5.4. Tasks Module (Module 3)
+Purpose: Manage operational tasks (Administrative and Revenue-generating). Drives daily work, reporting, notifications. Full CRUD based on permissions.
+Task Views: UI should allow viewing/filtering tasks (e.g., by status, assignee, client, due date). Mechanism for easy updates (inline editing for key fields, full edit form). Bulk update capability considered.
+Add Administrative Task:
+Fields: Creation Date (Auto), Task Type (Dropdown: "Regular", "Medium", "Urgent" - fixed values), Assignee (Dropdown: Active Members), Due Date (Date input), Admin Task Category (Dropdown from Setup), Task Details (Text area), Next to do (Text area).
+
+
+Add Revenue Task (Tabbed Form):
+Tab: Basic Information:
+Creation Date (Auto).
+Client name: Dropdown (from Clients).
+Entity Name: Dropdown (Entities linked to selected Client).
+Service Name: Dropdown (from Setup > Service Types, filtered by Entity's Country).
+Revenue Task Category: Optional Dropdown (from Setup).
+Task Type: Dropdown ("Regular", "Medium", "Urgent" - fixed values).
+Assignee: Dropdown (Active Members).
+Due Date: Date input.
+Task Details: Text area. [AI Opportunity]: Suggest details based on Client, Entity, Service, history, via Gemini API.
+Next to do: Text area.
+
+
+Tab: Compliance Configuration:
+Compliance Frequency: Dropdown (5 Years, 4 years, 3 Years, 2 Years, Annual, Bi-Annually, Quarterly, Monthly, One Time).
+Conditional Fields based on Frequency:
+Year(s): Input (comma-separated or single based on frequency).
+Duration: Dropdown (e.g., First Half, Q1, Jan) or read-only ("One Time").
+
+
+Compliance Duration Start date: Date input (user settable).
+Compliance Duration End Date: Date, auto-calculated based on Start Date, Frequency, Year(s), Duration.
+Is this task recurring?: Yes/No radio button.
+
+
+Tab: Invoice Information:
+Currency: Auto-populated from Entity's Country/Setup, editable dropdown restricted to Setup currencies.
+Service Rate: Auto-populated from selected Service Type (Setup), editable for this task instance.
+
+
+
+
+Task Creation/Status:
+On submission, task created with Status set to the name associated with Rank 1 ("New") from Setup.
+
+
+Recurring Tasks (If 'Yes' selected):
+The initial task is created immediately.
+Future task instances are scheduled.
+Auto-Generated Tasks View: A separate module/view lists scheduled, auto-generated tasks.
+Generation Timing: Tasks appear in the Auto-Generated list N days before the next calculated Compliance Duration Start Date. N is configurable in Settings (default 25).
+Approval: Auto-generated tasks require approval (by Super Admin or delegated Member) before becoming active in the main Tasks Module.
+Data Inheritance: Auto-generated tasks inherit Client, Entity, Service, etc. Dates are recalculated. Service Rate defaults to the rate from the most recently completed task instance in the series.
+
+
+5.5. Finance Management Module (Module 4 - Initial High-Level)
+Purpose: Manage invoicing and payment tracking related to tasks.
+Integration: Uses Currency and Service Rate from the Invoice Information tab of Revenue Tasks.
+Key Features:
+Invoice Generation: Ability to create invoices, potentially by selecting completed/eligible Revenue Tasks. Must include Client, Entity, Service details, Rate, Currency.
+Invoice Management: Track status (Draft, Sent, Paid, Overdue). View, limited Edit, Send (conceptual), Record Payments. Option to include "Pay Now" link if payment gateways are configured.
+Payment Tracking: Record full/partial payments against invoices. Update invoice status automatically via payment gateway webhooks if configured.
+Accounts Receivable: Basic reporting on outstanding invoices (Aging report).
+Financial Reporting: Potential for basic revenue reports (by client, service, etc.).
+
+
+[Note]: Requires significant further detailed specification.
+5.6. User Management & Permissions Module (Module 6)
+Purpose: Manage internal firm users (Members) and their access rights. Primarily managed by Super Admin.
+Member Management:
+UI for Add/View/Edit/Delete Members.
+Add New Member Form/Wizard:
+Member Name: Text, unique within tenant.
+Designation: Dropdown (from Setup > Team Designations), required.
+Department: Dropdown (from Setup > Team Departments), required.
+
+
+
+
+Access Permissions (per Member):
+UI: Matrix/list showing Modules vs. Permissions.
+Per Module (Setup, Clients, Tasks, Finance, Users, Settings, Workflow Automation, etc.):
+Access Level: Dropdown/Radio (Full, Partial, Restricted).
+CRUD Permissions (conditionally enabled based on Access Level): Create (Yes/No), Read (Yes/No), Update (Yes/No), Delete (Yes/No).
+
+
+Logic: Full=All Yes, Restricted=All No (module potentially hidden), Partial=Individual CRUD selection.
+
+
+Credentials Creation (per Member):
+Linked to Member profile.
+Email Address: Email format, unique across all tenant users (Super Admin, Members).
+Assigned Password: Password input, basic complexity, hashed storage.
+Members should be able to change their own password after login.
+
+
+Activation: Member can log in with credentials and access is governed by permissions.
+5.7. Client Portal (Module 7)
+Purpose: Secure, read-only web interface for authorized Client Contacts.
+Access: Via dedicated "Client Login" using Client Contact Email and password.
+Data Scope: Strictly limited to data associated with the logged-in Client Contact's parent Client record. No access to other client data or internal firm operational details.
+Key Features:
+Dashboard (7.1): Landing page summary. Widgets for Client/Entity names, Upcoming Task Deadlines (Task Name, Entity, Due Date), Overdue Tasks (Task Name, Entity, Due Date), Optional Recent Activity Feed.
+My Entities (7.2): List associated Entities. View basic details (Name, Country, State, Address, Type, Tax IDs). View list of Subscribed services for each entity.
+My Tasks (7.3): View tasks associated with their Entities. Filter options (Entity, Status, Date). Display Task Identifier, Service, Entity, Due Date, Current Status, optional Assignee Name. Consider carefully if full Task Details/Next To Do are exposed. Potential display area for client-facing AI summaries.
+Compliance Calendar (7.4 - Potential): Visualize compliance task deadlines (End Date or Due Date).
+Document Access (7.5 - Future): Potential read-only access to links in Entity File Access Link field.
+My Profile / Security (7.6): View Contact Name/Email. Crucially, allow Client Contact to change their own password. Future: MFA options.
+
+
+5.8. Settings Module (Module 8)
+Purpose: Manage global, tenant-wide settings not in the main Setup module. Access likely restricted to Super Admin.
+Potential Settings:
+Recurring Task Generation Lead Time: Configurable number of days (Default 25).
+API Key Management (Google Gemini): Secure input/storage for Gemini API Key.
+Tenant Profile: Firm Name, Address etc. (if needed).
+Notification Preferences: (If in-app/email notifications are implemented later).
+
+
+Payment Gateway Integrations:
+UI Section (Tabs/Sections for Stripe, PayPal).
+Stripe: Enable toggle, Publishable Key input, Secret Key input (masked, encrypted), Webhook Signing Secret input (masked, encrypted), Accepted Card Types checkboxes.
+PayPal: Enable toggle, Client ID input, Client Secret input (masked, encrypted), optional Webhook ID input.
+Integration: Configuration here enables "Pay Now" links in Finance Module and allows listening to webhooks for automatic payment status updates.
+
+
+5.9. Workflow Automation Module (Module 9)
+Purpose: Allow authorized users (Super Admin or delegated) to automate routine actions based on triggers and conditions.
+Core Concept: Workflow = Trigger + Optional Conditions + Actions.
+Features:
+Workflow Management UI (9.1): List, Create, Edit, Enable/Disable, Delete workflows. Display Name, Trigger, Status.
+Workflow Definition UI (9.2): Form/builder.
+Workflow Name: Text, unique, descriptive.
+Description: Text area.
+Trigger Event: Dropdown (Initial: Task Created (Admin/Revenue), Task Status Changed, Assignee Changed, Due Date Arrives, Due Date X Days Away. Future: Client/Entity Created, Invoice Status Change).
+Conditions (Optional): Condition builder ([Field] [Operator] [Value]), AND/OR logic. Available fields/operators depend on trigger/context.
+Actions (Required): Add sequence of actions. (Initial: Change Task Status, Change Assignee, Set Due Date, Add Task Comment, Send In-App Notification, Create New Task. Future: Send Email, Update Client Field, Generate Draft Invoice, Call Webhook).
+
+
+Workflow Execution Log (9.3): Log workflow triggers, execution status (Success/Failure), timestamp, details/errors.
+
+
+Integration: Interacts heavily with Tasks, Setup, Users, potentially Clients modules.
+Permissions: Controlled via User Management (Workflow Automation Module -> Access Level).
+Considerations: Loop prevention mechanisms, robust error handling, clear naming/testing, performance monitoring.
+5.10. AI Requirements (Consolidated)
+Model: Google Gemini 2.5 Pro (via API).
+Goal: Assist users, improve efficiency, enable learning.
+Core Functions:
+Suggestions (Clearly Labeled, Non-Binding):
+Required Services for an Entity (Clients Module) based on Country, State, Type, VAT status.
+Task Details for Revenue Tasks (Tasks Module) based on Client, Entity, Service, history.
+
+
+Potential Future Actions (User Confirmation Recommended): Auto-task categorization, draft communications, risk identification, workflow optimization.
+Enforced Learning:
+Goal: Improve AI suggestions and workflow efficiency over time.
+Data Sources: User actions within the app, direct feedback (e.g., rating suggestions - if implemented), contextual data, potentially anonymized external data (if integrated securely).
+Mechanisms: Monitor AI performance, incorporate feedback loops. Specific technical implementation requires further design. Privacy/anonymization critical.
+
+
+
+
+Management (AI Assistance Management - Section in Settings or Setup):
+Enable/disable specific AI features (suggestions).
+Potentially adjust suggestion sensitivity/confidence.
+View logs of significant AI suggestions/actions (transparency).
+
+
+Security: Secure storage and use of Google Gemini API Key (Settings Module). AI processing must respect data privacy and tenant isolation.
+6. Non-Functional Requirements
+Performance: Application should be responsive under typical load for a small-to-medium accounting firm. Task generation, reporting, and AI API calls should execute within acceptable time limits. Workflow execution should not unduly impact overall system performance.
+Scalability: Architecture should support adding new tenants and growth in data volume per tenant (Clients, Tasks). Database performance needs monitoring (especially Replit PostgreSQL limitations).
+Security:
+Authentication & Authorization: Secure password handling, robust session/token management, strict enforcement of role-based permissions at the API level.
+Data Isolation: Prevent any possibility of data leakage between tenants.
+API Security: Secure storage and handling of external API keys (Gemini, Stripe, PayPal). Protect against common web vulnerabilities (OWASP Top 10).
+Client Portal Security: Ensure Client Contacts can only access their own data.
+
+
+Usability: Intuitive navigation, clear labeling, consistent UI patterns. AI suggestions should be helpful and easy to understand/action. Error messages should be informative.
+Reliability: The system should be available during expected usage hours. Recurring task generation and workflow execution should be reliable. Implement robust error handling for API calls and background processes.
+Maintainability: Code should be well-structured, commented, and follow good practices. Modular design should facilitate updates and bug fixing.
+7. Design & UX Considerations
+Clear visual separation and branding for the Client Portal vs. the internal Firm application.
+Use of tabbed interfaces for complex forms (e.g., Add Revenue Task).
+Dynamic filtering of dropdowns based on context (e.g., States by Country, Services by Country).
+Conditional display of fields based on user input (e.g., VAT ID).
+Consider UI patterns for managing lists with CRUD operations (inline actions, modals, dedicated pages).
+Provide clear feedback to the user after actions (e.g., success/error messages).
+AI suggestions should be presented unobtrusively, allowing users to easily accept or ignore them.
+8. Release Criteria (Minimum Viable Product - MVP)
+Functional Multi-Tenant Signup & Firm Login.
+Functional User Management (Super Admin can add Members, basic permissions).
+Full CRUD for Setup Module core items (Country, Currency, State, Entity Type, Service Type, Task Statuses/Categories).
+Functional Client & Entity CRUD (Clients Module).
+Functional Service Subscription configuration (Required/Subscribed - Clients Module).
+Functional Task CRUD (Admin & Revenue Tasks - Basic Info Tab, Manual Status Updates).
+Basic AI Suggestion for Required Services (Clients Module).
+Basic AI Suggestion for Task Details (Tasks Module).
+Secure API Key storage for Gemini (Settings Module).
+Core application structure and navigation functional.
+9. Future Considerations / Out of Scope (for V1.0)
+Advanced Reporting & Analytics Dashboards.
+Direct Integration with external accounting software (QuickBooks, Xero, etc.).
+Client Portal: Document upload/management, direct task interaction/comments.
+Advanced AI Actions (auto-communication drafting, proactive risk alerts without confirmation).
+Mobile Application.
+Time Tracking features beyond basic service billing basis.
+Full Budgeting/Financial Planning features.
+Email integration for notifications/sending invoices (beyond basic Pay Now link concept).
+10. Open Issues / Questions
+Detailed field specification and workflow design for the Finance Management Module.
+Specific technical implementation details for the AI "enforced learning" mechanism and feedback loops.
+Detailed error handling strategy for external API calls (Gemini, Payment Gateways) and background jobs (recurring tasks, workflows).
+Final decision on data exposure in Client Portal Task view (Task Details, Next To Do).
+Specific password complexity rules.
+Need to define relationships (e.g., Manager) in User Management if required for workflow actions.
+Confirmation of backend/frontend technology stack choice within Replit.
+
+This PRD provides a comprehensive translation of your scope into requirements. It should serve as a solid foundation for the AI agent to begin development, referencing back to the original scope document for any fine-grained details or clarifications when needed.
+
