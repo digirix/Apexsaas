@@ -127,17 +127,41 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
       }
       
       try {
+        console.log(`Sending request to: /api/v1/clients/${clientId}/entities`);
+        console.log("With data:", data);
+        
         const response = await apiRequest("POST", `/api/v1/clients/${clientId}/entities`, data);
         console.log("API Response status:", response.status);
+        console.log("API Response ok:", response.ok);
         
         if (!response.ok) {
-          const errorData = await response.json();
-          console.error("API error:", errorData);
+          const errorText = await response.text();
+          console.error("API error response text:", errorText);
+          
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch (e) {
+            console.error("Failed to parse error response as JSON:", e);
+            throw new Error(`Failed to create entity: ${response.status} ${response.statusText}`);
+          }
+          
+          console.error("API error data:", errorData);
           throw new Error(errorData.message || "Failed to create entity");
         }
         
-        const responseData = await response.json();
-        console.log("API Success response:", responseData);
+        const responseText = await response.text();
+        console.log("API Success response text:", responseText);
+        
+        let responseData;
+        try {
+          responseData = responseText ? JSON.parse(responseText) : {};
+        } catch (e) {
+          console.error("Failed to parse success response as JSON:", e);
+          return {}; // Return empty object if we can't parse the response
+        }
+        
+        console.log("API Success response data:", responseData);
         return responseData;
       } catch (err) {
         console.error("API call error:", err);
@@ -170,29 +194,36 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
+    console.log("Form submit triggered!");
     // Check for form validation errors
     console.log("Form errors:", form.formState.errors);
+    console.log("Form values:", values);
     
     setIsSubmitting(true);
+    
     // Make sure tenantId is set
     if (!values.tenantId && user?.tenantId) {
+      console.log("Setting tenantId from user context:", user.tenantId);
       values.tenantId = user.tenantId;
     }
     
     // Validate required fields
     if (!values.name) {
+      console.log("Entity name is missing");
       form.setError("name", { message: "Entity name is required" });
       setIsSubmitting(false);
       return;
     }
     
     if (!values.countryId || values.countryId === 0) {
+      console.log("Country is missing or 0");
       form.setError("countryId", { message: "Country is required" });
       setIsSubmitting(false);
       return;
     }
     
     if (!values.entityTypeId || values.entityTypeId === 0) {
+      console.log("Entity type is missing or 0");
       form.setError("entityTypeId", { message: "Entity type is required" });
       setIsSubmitting(false);
       return;
@@ -257,7 +288,13 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
           <DialogTitle>Add New Entity</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form 
+            onSubmit={(e) => {
+              console.log("Form submitted via native submit");
+              e.preventDefault();
+              form.handleSubmit(onSubmit)(e);
+            }} 
+            className="space-y-4">
             <FormField
               control={form.control}
               name="name"
@@ -478,7 +515,17 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting}>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+                onClick={(e) => {
+                  console.log("Create Button clicked");
+                  if (!form.formState.isSubmitting) {
+                    console.log("Manually triggering submit");
+                    form.handleSubmit(onSubmit)();
+                  }
+                }}
+              >
                 {isSubmitting ? "Creating..." : "Create Entity"}
               </Button>
             </DialogFooter>
