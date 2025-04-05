@@ -5,7 +5,8 @@ import { storage } from "./storage";
 import { 
   insertCountrySchema, insertCurrencySchema, insertStateSchema, 
   insertEntityTypeSchema, insertTaskStatusSchema, insertServiceTypeSchema,
-  insertClientSchema, insertEntitySchema, insertTaskSchema
+  insertClientSchema, insertEntitySchema, insertTaskSchema,
+  insertDesignationSchema, insertDepartmentSchema, insertUserSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -664,6 +665,235 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete entity" });
+    }
+  });
+
+  // Member Management Routes
+  
+  // 1. Designations
+  app.get("/api/v1/designations", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const designations = await storage.getDesignations(tenantId);
+      res.json(designations);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch designations" });
+    }
+  });
+
+  app.post("/api/v1/designations", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const data = { ...req.body, tenantId };
+      
+      const validatedData = insertDesignationSchema.parse(data);
+      const designation = await storage.createDesignation(validatedData);
+      
+      res.status(201).json(designation);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create designation" });
+    }
+  });
+
+  app.put("/api/v1/designations/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if designation belongs to tenant
+      const existingDesignation = await storage.getDesignation(id, tenantId);
+      if (!existingDesignation) {
+        return res.status(404).json({ message: "Designation not found" });
+      }
+      
+      const updatedDesignation = await storage.updateDesignation(id, req.body);
+      res.json(updatedDesignation);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update designation" });
+    }
+  });
+
+  app.delete("/api/v1/designations/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const success = await storage.deleteDesignation(id, tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "Designation not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete designation" });
+    }
+  });
+
+  // 2. Departments
+  app.get("/api/v1/departments", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const departments = await storage.getDepartments(tenantId);
+      res.json(departments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch departments" });
+    }
+  });
+
+  app.post("/api/v1/departments", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const data = { ...req.body, tenantId };
+      
+      const validatedData = insertDepartmentSchema.parse(data);
+      const department = await storage.createDepartment(validatedData);
+      
+      res.status(201).json(department);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create department" });
+    }
+  });
+
+  app.put("/api/v1/departments/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if department belongs to tenant
+      const existingDepartment = await storage.getDepartment(id, tenantId);
+      if (!existingDepartment) {
+        return res.status(404).json({ message: "Department not found" });
+      }
+      
+      const updatedDepartment = await storage.updateDepartment(id, req.body);
+      res.json(updatedDepartment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update department" });
+    }
+  });
+
+  app.delete("/api/v1/departments/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const success = await storage.deleteDepartment(id, tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "Department not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete department" });
+    }
+  });
+
+  // 3. Members (Users)
+  app.get("/api/v1/members", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const users = await storage.getUsers(tenantId);
+      
+      // Don't send password data to the client
+      const members = users.map(user => {
+        const { password, ...memberData } = user;
+        return memberData;
+      });
+      
+      res.json(members);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch members" });
+    }
+  });
+
+  app.post("/api/v1/members", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const data = { ...req.body, tenantId };
+      
+      // Validate the user data
+      const validatedData = insertUserSchema.parse(data);
+      
+      // Check if email already exists
+      const existingUser = await storage.getUserByEmail(validatedData.email, tenantId);
+      if (existingUser) {
+        return res.status(409).json({ message: "A user with this email already exists" });
+      }
+      
+      // Create the user
+      const user = await storage.createUser(validatedData);
+      
+      // Don't send password back to client
+      const { password, ...memberData } = user;
+      
+      res.status(201).json(memberData);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create member" });
+    }
+  });
+
+  app.put("/api/v1/members/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if user belongs to tenant
+      const existingUser = await storage.getUser(id);
+      if (!existingUser || existingUser.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Member not found" });
+      }
+      
+      // Update user
+      const updatedUser = await storage.updateUser(id, req.body);
+      if (!updatedUser) {
+        return res.status(404).json({ message: "Member not found" });
+      }
+      
+      // Don't send password back to client
+      const { password, ...memberData } = updatedUser;
+      
+      res.json(memberData);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update member" });
+    }
+  });
+
+  app.delete("/api/v1/members/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Prevent deleting yourself
+      if (id === (req.user as any).id) {
+        return res.status(403).json({ message: "You cannot delete your own account" });
+      }
+      
+      const success = await storage.deleteUser(id, tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "Member not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete member" });
     }
   });
 

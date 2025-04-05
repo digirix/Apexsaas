@@ -1,5 +1,7 @@
-import { tenants, users, countries, currencies, states, entityTypes, taskStatuses, serviceTypes, clients, entities, tasks } from "@shared/schema";
-import type { Tenant, User, InsertUser, InsertTenant, Country, InsertCountry, Currency, InsertCurrency, 
+import { tenants, users, designations, departments, countries, currencies, states, entityTypes, taskStatuses, serviceTypes, clients, entities, tasks } from "@shared/schema";
+import type { Tenant, User, InsertUser, InsertTenant, 
+  Designation, InsertDesignation, Department, InsertDepartment,
+  Country, InsertCountry, Currency, InsertCurrency, 
   State, InsertState, EntityType, InsertEntityType, TaskStatus, InsertTaskStatus, ServiceType, 
   InsertServiceType, Client, InsertClient, Entity, InsertEntity, Task, InsertTask } from "@shared/schema";
 import session from "express-session";
@@ -7,8 +9,8 @@ import createMemoryStore from "memorystore";
 
 const MemoryStore = createMemoryStore(session);
 
-// Allow proper type inference for the session store
-type MemoryStoreType = ReturnType<typeof createMemoryStore>;
+// Define the session store interface
+type MemoryStoreType = session.Store;
 
 export interface IStorage {
   // Session store
@@ -19,9 +21,26 @@ export interface IStorage {
   createTenant(tenant: InsertTenant): Promise<Tenant>;
   
   // User operations
+  getUsers(tenantId: number): Promise<User[]>;
   getUser(id: number): Promise<User | undefined>;
   getUserByEmail(email: string, tenantId?: number): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
+  deleteUser(id: number, tenantId: number): Promise<boolean>;
+  
+  // Designation operations
+  getDesignations(tenantId: number): Promise<Designation[]>;
+  getDesignation(id: number, tenantId: number): Promise<Designation | undefined>;
+  createDesignation(designation: InsertDesignation): Promise<Designation>;
+  updateDesignation(id: number, designation: Partial<InsertDesignation>): Promise<Designation | undefined>;
+  deleteDesignation(id: number, tenantId: number): Promise<boolean>;
+  
+  // Department operations
+  getDepartments(tenantId: number): Promise<Department[]>;
+  getDepartment(id: number, tenantId: number): Promise<Department | undefined>;
+  createDepartment(department: InsertDepartment): Promise<Department>;
+  updateDepartment(id: number, department: Partial<InsertDepartment>): Promise<Department | undefined>;
+  deleteDepartment(id: number, tenantId: number): Promise<boolean>;
   
   // Country operations
   getCountries(tenantId: number): Promise<Country[]>;
@@ -90,6 +109,8 @@ export interface IStorage {
 export class MemStorage implements IStorage {
   private tenants: Map<number, Tenant>;
   private users: Map<number, User>;
+  private designations: Map<number, Designation>;
+  private departments: Map<number, Department>;
   private countries: Map<number, Country>;
   private currencies: Map<number, Currency>;
   private states: Map<number, State>;
@@ -104,6 +125,8 @@ export class MemStorage implements IStorage {
   
   private tenantId: number = 1;
   private userId: number = 1;
+  private designationId: number = 1;
+  private departmentId: number = 1;
   private countryId: number = 1;
   private currencyId: number = 1;
   private stateId: number = 1;
@@ -117,6 +140,8 @@ export class MemStorage implements IStorage {
   constructor() {
     this.tenants = new Map();
     this.users = new Map();
+    this.designations = new Map();
+    this.departments = new Map();
     this.countries = new Map();
     this.currencies = new Map();
     this.states = new Map();
@@ -172,15 +197,27 @@ export class MemStorage implements IStorage {
     return foundUser;
   }
 
+  // User operations
+  async getUsers(tenantId: number): Promise<User[]> {
+    return Array.from(this.users.values()).filter(user => user.tenantId === tenantId);
+  }
+
   async createUser(user: InsertUser): Promise<User> {
     const id = this.userId++;
     
-    // Ensure isSuperAdmin is properly set with default value to avoid type errors
-    const newUser: User = { 
-      ...user, 
-      id, 
-      createdAt: new Date(),
-      isSuperAdmin: user.isSuperAdmin === undefined ? false : user.isSuperAdmin
+    // Create the user with explicit type casting to avoid TypeScript errors
+    const newUser: User = {
+      id,
+      tenantId: user.tenantId,
+      username: user.username,
+      email: user.email,
+      password: user.password,
+      displayName: user.displayName,
+      designationId: user.designationId !== undefined ? user.designationId : null,
+      departmentId: user.departmentId !== undefined ? user.departmentId : null,
+      isSuperAdmin: user.isSuperAdmin !== undefined ? user.isSuperAdmin : false,
+      isActive: user.isActive !== undefined ? user.isActive : true,
+      createdAt: new Date()
     };
     
     console.log("Creating user in storage:", { 
@@ -192,6 +229,105 @@ export class MemStorage implements IStorage {
     
     this.users.set(id, newUser);
     return newUser;
+  }
+  
+  async updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined> {
+    const existingUser = this.users.get(id);
+    if (!existingUser) return undefined;
+    
+    const updatedUser = { ...existingUser, ...user };
+    this.users.set(id, updatedUser);
+    return updatedUser;
+  }
+  
+  async deleteUser(id: number, tenantId: number): Promise<boolean> {
+    const user = this.users.get(id);
+    if (user && user.tenantId === tenantId) {
+      return this.users.delete(id);
+    }
+    return false;
+  }
+  
+  // Designation operations
+  async getDesignations(tenantId: number): Promise<Designation[]> {
+    return Array.from(this.designations.values()).filter(designation => designation.tenantId === tenantId);
+  }
+  
+  async getDesignation(id: number, tenantId: number): Promise<Designation | undefined> {
+    const designation = this.designations.get(id);
+    if (designation && designation.tenantId === tenantId) {
+      return designation;
+    }
+    return undefined;
+  }
+  
+  async createDesignation(designation: InsertDesignation): Promise<Designation> {
+    const id = this.designationId++;
+    const newDesignation: Designation = { 
+      ...designation, 
+      id, 
+      createdAt: new Date() 
+    };
+    this.designations.set(id, newDesignation);
+    return newDesignation;
+  }
+  
+  async updateDesignation(id: number, designation: Partial<InsertDesignation>): Promise<Designation | undefined> {
+    const existingDesignation = this.designations.get(id);
+    if (!existingDesignation) return undefined;
+    
+    const updatedDesignation = { ...existingDesignation, ...designation };
+    this.designations.set(id, updatedDesignation);
+    return updatedDesignation;
+  }
+  
+  async deleteDesignation(id: number, tenantId: number): Promise<boolean> {
+    const designation = this.designations.get(id);
+    if (designation && designation.tenantId === tenantId) {
+      return this.designations.delete(id);
+    }
+    return false;
+  }
+  
+  // Department operations
+  async getDepartments(tenantId: number): Promise<Department[]> {
+    return Array.from(this.departments.values()).filter(department => department.tenantId === tenantId);
+  }
+  
+  async getDepartment(id: number, tenantId: number): Promise<Department | undefined> {
+    const department = this.departments.get(id);
+    if (department && department.tenantId === tenantId) {
+      return department;
+    }
+    return undefined;
+  }
+  
+  async createDepartment(department: InsertDepartment): Promise<Department> {
+    const id = this.departmentId++;
+    const newDepartment: Department = { 
+      ...department, 
+      id, 
+      createdAt: new Date() 
+    };
+    this.departments.set(id, newDepartment);
+    return newDepartment;
+  }
+  
+  async updateDepartment(id: number, department: Partial<InsertDepartment>): Promise<Department | undefined> {
+    const existingDepartment = this.departments.get(id);
+    if (!existingDepartment) return undefined;
+    
+    const updatedDepartment = { ...existingDepartment, ...department };
+    this.departments.set(id, updatedDepartment);
+    return updatedDepartment;
+  }
+  
+  async deleteDepartment(id: number, tenantId: number): Promise<boolean> {
+    const department = this.departments.get(id);
+    if (department && department.tenantId === tenantId) {
+      return this.departments.delete(id);
+    }
+    return false;
   }
 
   // Country operations

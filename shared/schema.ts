@@ -13,6 +13,40 @@ export const insertTenantSchema = createInsertSchema(tenants).pick({
   name: true,
 });
 
+// Designations setup table
+export const designations = pgTable("designations", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantDesignationUnique: unique().on(table.tenantId, table.name),
+  };
+});
+
+export const insertDesignationSchema = createInsertSchema(designations).pick({
+  tenantId: true,
+  name: true,
+});
+
+// Departments setup table
+export const departments = pgTable("departments", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantDepartmentUnique: unique().on(table.tenantId, table.name),
+  };
+});
+
+export const insertDepartmentSchema = createInsertSchema(departments).pick({
+  tenantId: true,
+  name: true,
+});
+
 // Users table with tenant reference
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -21,7 +55,10 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   password: text("password").notNull(),
   displayName: text("display_name").notNull(),
+  designationId: integer("designation_id"),
+  departmentId: integer("department_id"),
   isSuperAdmin: boolean("is_super_admin").default(false).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => {
   return {
@@ -35,7 +72,10 @@ export const insertUserSchema = createInsertSchema(users).pick({
   email: true,
   password: true,
   displayName: true,
+  designationId: true,
+  departmentId: true,
   isSuperAdmin: true,
+  isActive: true,
 });
 
 // Countries setup table
@@ -257,6 +297,12 @@ export const insertTaskSchema = createInsertSchema(tasks).pick({
 // Export types
 export type Tenant = typeof tenants.$inferSelect;
 export type InsertTenant = z.infer<typeof insertTenantSchema>;
+
+export type Designation = typeof designations.$inferSelect;
+export type InsertDesignation = z.infer<typeof insertDesignationSchema>;
+
+export type Department = typeof departments.$inferSelect;
+export type InsertDepartment = z.infer<typeof insertDepartmentSchema>;
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;

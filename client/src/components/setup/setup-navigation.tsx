@@ -7,11 +7,12 @@ import {
   MapPin, 
   Building2, 
   List, 
-  Briefcase
+  Briefcase,
+  UsersRound,
+  Building
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-type SetupSection = 'countries' | 'currencies' | 'states' | 'entity-types' | 'task-statuses' | 'service-types';
+import { SetupSection } from "@/types/setup";
 
 interface SetupNavigationProps {
   activeSection: SetupSection;
@@ -26,6 +27,7 @@ interface NavItem {
 
 export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigationProps) {
   const setupItems: NavItem[] = [
+    // Location Configuration
     {
       id: 'countries',
       label: 'Countries',
@@ -41,47 +43,126 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
       label: 'States/Provinces',
       icon: <MapPin className="h-5 w-5" />
     },
+    
+    // Business Configuration
     {
       id: 'entity-types',
       label: 'Entity Types',
       icon: <Building2 className="h-5 w-5" />
     },
     {
+      id: 'service-types',
+      label: 'Service Types',
+      icon: <Briefcase className="h-5 w-5" />
+    },
+    {
       id: 'task-statuses',
       label: 'Task Statuses',
       icon: <List className="h-5 w-5" />
     },
+    
+    // HR Configuration
     {
-      id: 'service-types',
-      label: 'Service Types',
-      icon: <Briefcase className="h-5 w-5" />
+      id: 'designations',
+      label: 'Designations',
+      icon: <UsersRound className="h-5 w-5" />
+    },
+    {
+      id: 'departments',
+      label: 'Departments',
+      icon: <Building className="h-5 w-5" />
     }
   ];
+
+  // Group items by category
+  const locationItems = setupItems.slice(0, 3);
+  const businessItems = setupItems.slice(3, 6);
+  const hrItems = setupItems.slice(6, 8);
 
   return (
     <Card className="p-4">
       <h2 className="text-lg font-semibold mb-4">Setup Configuration</h2>
-      <div className="space-y-2">
-        {setupItems.map((item) => (
-          <Button
-            key={item.id}
-            variant="ghost"
-            className={cn(
-              "w-full justify-start",
-              activeSection === item.id ? "bg-blue-50 text-blue-700" : "text-slate-600"
-            )}
-            onClick={() => onSectionChange(item.id)}
-          >
-            {React.cloneElement(item.icon as React.ReactElement, {
-              className: cn(
-                (item.icon as React.ReactElement).props.className,
-                "mr-2",
-                activeSection === item.id ? "text-blue-700" : "text-slate-500"
-              ),
-            })}
-            {item.label}
-          </Button>
-        ))}
+      <div className="space-y-4">
+        {/* Location Configuration */}
+        <div>
+          <h3 className="text-sm font-medium text-slate-500 mb-2 px-2">Location Configuration</h3>
+          <div className="space-y-1">
+            {locationItems.map((item) => (
+              <Button
+                key={item.id}
+                variant="ghost"
+                className={cn(
+                  "w-full justify-start",
+                  activeSection === item.id ? "bg-blue-50 text-blue-700" : "text-slate-600"
+                )}
+                onClick={() => onSectionChange(item.id)}
+              >
+                {React.cloneElement(item.icon as React.ReactElement, {
+                  className: cn(
+                    (item.icon as React.ReactElement).props.className,
+                    "mr-2",
+                    activeSection === item.id ? "text-blue-700" : "text-slate-500"
+                  ),
+                })}
+                {item.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+        
+        {/* Business Configuration */}
+        <div>
+          <h3 className="text-sm font-medium text-slate-500 mb-2 px-2">Business Configuration</h3>
+          <div className="space-y-1">
+            {businessItems.map((item) => (
+              <Button
+                key={item.id}
+                variant="ghost"
+                className={cn(
+                  "w-full justify-start",
+                  activeSection === item.id ? "bg-blue-50 text-blue-700" : "text-slate-600"
+                )}
+                onClick={() => onSectionChange(item.id)}
+              >
+                {React.cloneElement(item.icon as React.ReactElement, {
+                  className: cn(
+                    (item.icon as React.ReactElement).props.className,
+                    "mr-2",
+                    activeSection === item.id ? "text-blue-700" : "text-slate-500"
+                  ),
+                })}
+                {item.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+        
+        {/* HR Configuration */}
+        <div>
+          <h3 className="text-sm font-medium text-slate-500 mb-2 px-2">HR Configuration</h3>
+          <div className="space-y-1">
+            {hrItems.map((item) => (
+              <Button
+                key={item.id}
+                variant="ghost"
+                className={cn(
+                  "w-full justify-start",
+                  activeSection === item.id ? "bg-blue-50 text-blue-700" : "text-slate-600"
+                )}
+                onClick={() => onSectionChange(item.id)}
+              >
+                {React.cloneElement(item.icon as React.ReactElement, {
+                  className: cn(
+                    (item.icon as React.ReactElement).props.className,
+                    "mr-2",
+                    activeSection === item.id ? "text-blue-700" : "text-slate-500"
+                  ),
+                })}
+                {item.label}
+              </Button>
+            ))}
+          </div>
+        </div>
       </div>
     </Card>
   );
