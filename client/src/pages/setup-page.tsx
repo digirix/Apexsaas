@@ -4,6 +4,9 @@ import { SetupNavigation } from "@/components/setup/setup-navigation";
 import { CountriesManager } from "@/components/setup/countries-manager";
 import { CurrenciesManager } from "@/components/setup/currencies-manager";
 import { StatesManager } from "@/components/setup/states-manager";
+import { EntityTypesManager } from "@/components/setup/entity-types-manager";
+import { TaskStatusesManager } from "@/components/setup/task-statuses-manager";
+import { ServiceTypesManager } from "@/components/setup/service-types-manager";
 
 type SetupSection = 'countries' | 'currencies' | 'states' | 'entity-types' | 'task-statuses' | 'service-types';
 
@@ -24,24 +27,9 @@ export default function SetupPage() {
           {activeSection === 'countries' && <CountriesManager />}
           {activeSection === 'currencies' && <CurrenciesManager />}
           {activeSection === 'states' && <StatesManager />}
-          {activeSection === 'entity-types' && (
-            <div className="bg-white shadow rounded-md p-6">
-              <h2 className="text-lg font-semibold mb-4">Entity Types</h2>
-              <p className="text-slate-500">Entity Types management coming soon</p>
-            </div>
-          )}
-          {activeSection === 'task-statuses' && (
-            <div className="bg-white shadow rounded-md p-6">
-              <h2 className="text-lg font-semibold mb-4">Task Statuses</h2>
-              <p className="text-slate-500">Task Statuses management coming soon</p>
-            </div>
-          )}
-          {activeSection === 'service-types' && (
-            <div className="bg-white shadow rounded-md p-6">
-              <h2 className="text-lg font-semibold mb-4">Service Types</h2>
-              <p className="text-slate-500">Service Types management coming soon</p>
-            </div>
-          )}
+          {activeSection === 'entity-types' && <EntityTypesManager />}
+          {activeSection === 'task-statuses' && <TaskStatusesManager />}
+          {activeSection === 'service-types' && <ServiceTypesManager />}
         </div>
       </div>
     </AppLayout>

@@ -229,6 +229,266 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 4. Entity Types
+  app.get("/api/v1/setup/entity-types", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const countryId = req.query.countryId ? parseInt(req.query.countryId as string) : undefined;
+      
+      const entityTypes = await storage.getEntityTypes(tenantId, countryId);
+      res.json(entityTypes);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch entity types" });
+    }
+  });
+
+  app.post("/api/v1/setup/entity-types", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const data = { ...req.body, tenantId };
+      
+      const validatedData = insertEntityTypeSchema.parse(data);
+      const entityType = await storage.createEntityType(validatedData);
+      
+      res.status(201).json(entityType);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create entity type" });
+    }
+  });
+
+  app.put("/api/v1/setup/entity-types/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if entity type belongs to tenant
+      const existingEntityType = await storage.getEntityType(id, tenantId);
+      if (!existingEntityType) {
+        return res.status(404).json({ message: "Entity type not found" });
+      }
+      
+      const updatedEntityType = await storage.updateEntityType(id, req.body);
+      res.json(updatedEntityType);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update entity type" });
+    }
+  });
+
+  app.delete("/api/v1/setup/entity-types/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const success = await storage.deleteEntityType(id, tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "Entity type not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete entity type" });
+    }
+  });
+
+  // 5. Task Statuses
+  app.get("/api/v1/setup/task-statuses", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const taskStatuses = await storage.getTaskStatuses(tenantId);
+      res.json(taskStatuses);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch task statuses" });
+    }
+  });
+
+  app.post("/api/v1/setup/task-statuses", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const data = { ...req.body, tenantId };
+      
+      // Verify rank constraints - New is rank 1, Completed is rank 3
+      if (data.rank === 1 && data.name !== "New") {
+        return res.status(400).json({ message: "Rank 1 is reserved for the 'New' status" });
+      }
+      
+      if (data.rank === 3 && data.name !== "Completed") {
+        return res.status(400).json({ message: "Rank 3 is reserved for the 'Completed' status" });
+      }
+      
+      const validatedData = insertTaskStatusSchema.parse(data);
+      const taskStatus = await storage.createTaskStatus(validatedData);
+      
+      res.status(201).json(taskStatus);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create task status" });
+    }
+  });
+
+  app.put("/api/v1/setup/task-statuses/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if task status belongs to tenant
+      const existingStatus = await storage.getTaskStatus(id, tenantId);
+      if (!existingStatus) {
+        return res.status(404).json({ message: "Task status not found" });
+      }
+      
+      // Verify rank constraints for updates
+      if (req.body.rank) {
+        // Prevent changing a New or Completed status rank
+        if ((existingStatus.name === "New" && req.body.rank !== 1) ||
+            (existingStatus.name === "Completed" && req.body.rank !== 3)) {
+          return res.status(400).json({ 
+            message: "Cannot change rank for 'New' or 'Completed' statuses" 
+          });
+        }
+        
+        // Prevent changing another status to rank 1 or 3
+        if ((existingStatus.name !== "New" && req.body.rank === 1) ||
+            (existingStatus.name !== "Completed" && req.body.rank === 3)) {
+          return res.status(400).json({ 
+            message: "Ranks 1 and 3 are reserved for 'New' and 'Completed' statuses respectively" 
+          });
+        }
+      }
+      
+      // Prevent renaming New or Completed statuses
+      if (req.body.name) {
+        if ((existingStatus.name === "New" && req.body.name !== "New") ||
+            (existingStatus.name === "Completed" && req.body.name !== "Completed")) {
+          return res.status(400).json({ 
+            message: "Cannot rename 'New' or 'Completed' statuses" 
+          });
+        }
+      }
+      
+      const updatedStatus = await storage.updateTaskStatus(id, req.body);
+      res.json(updatedStatus);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update task status" });
+    }
+  });
+
+  app.delete("/api/v1/setup/task-statuses/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Get the status first to check if it's New or Completed
+      const status = await storage.getTaskStatus(id, tenantId);
+      if (!status) {
+        return res.status(404).json({ message: "Task status not found" });
+      }
+      
+      // Prevent deleting New or Completed statuses
+      if (status.name === "New" || status.name === "Completed") {
+        return res.status(400).json({ 
+          message: "Cannot delete 'New' or 'Completed' statuses as they are required by the system" 
+        });
+      }
+      
+      const success = await storage.deleteTaskStatus(id, tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "Task status not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete task status" });
+    }
+  });
+
+  // 6. Service Types
+  app.get("/api/v1/setup/service-types", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const countryId = req.query.countryId ? parseInt(req.query.countryId as string) : undefined;
+      
+      const serviceTypes = await storage.getServiceTypes(tenantId, countryId);
+      res.json(serviceTypes);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch service types" });
+    }
+  });
+
+  app.post("/api/v1/setup/service-types", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const data = { ...req.body, tenantId };
+      
+      // Validate rate is greater than 0
+      if (data.rate <= 0) {
+        return res.status(400).json({ message: "Service rate must be greater than 0" });
+      }
+      
+      const validatedData = insertServiceTypeSchema.parse(data);
+      const serviceType = await storage.createServiceType(validatedData);
+      
+      res.status(201).json(serviceType);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create service type" });
+    }
+  });
+
+  app.put("/api/v1/setup/service-types/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if service type belongs to tenant
+      const existingServiceType = await storage.getServiceType(id, tenantId);
+      if (!existingServiceType) {
+        return res.status(404).json({ message: "Service type not found" });
+      }
+      
+      // Validate rate if provided
+      if (req.body.rate !== undefined && req.body.rate <= 0) {
+        return res.status(400).json({ message: "Service rate must be greater than 0" });
+      }
+      
+      const updatedServiceType = await storage.updateServiceType(id, req.body);
+      res.json(updatedServiceType);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update service type" });
+    }
+  });
+
+  app.delete("/api/v1/setup/service-types/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const success = await storage.deleteServiceType(id, tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "Service type not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete service type" });
+    }
+  });
+
   // Clients Module Routes
   app.get("/api/v1/clients", isAuthenticated, async (req, res) => {
     try {
