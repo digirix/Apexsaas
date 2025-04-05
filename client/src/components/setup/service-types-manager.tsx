@@ -118,7 +118,7 @@ export function ServiceTypesManager() {
     queryKey: ["/api/v1/setup/service-types", filterCountryId],
     queryFn: async ({ queryKey }) => {
       const countryId = queryKey[1];
-      const url = countryId 
+      const url = countryId && countryId !== "all"
         ? `/api/v1/setup/service-types?countryId=${countryId}` 
         : "/api/v1/setup/service-types";
       
@@ -315,7 +315,7 @@ export function ServiceTypesManager() {
                   <SelectValue placeholder="Filter by country" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Countries</SelectItem>
+                  <SelectItem value="all">All Countries</SelectItem>
                   {countries.map((country) => (
                     <SelectItem key={country.id} value={country.id.toString()}>
                       {country.name}

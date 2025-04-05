@@ -84,7 +84,7 @@ export function EntityTypesManager() {
     queryKey: ["/api/v1/setup/entity-types", filterCountryId],
     queryFn: async ({ queryKey }) => {
       const countryId = queryKey[1];
-      const url = countryId 
+      const url = countryId && countryId !== "all"
         ? `/api/v1/setup/entity-types?countryId=${countryId}` 
         : "/api/v1/setup/entity-types";
       
@@ -235,7 +235,7 @@ export function EntityTypesManager() {
                   <SelectValue placeholder="Filter by country" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Countries</SelectItem>
+                  <SelectItem value="all">All Countries</SelectItem>
                   {countries.map((country) => (
                     <SelectItem key={country.id} value={country.id.toString()}>
                       {country.name}
