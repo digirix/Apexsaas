@@ -1,0 +1,305 @@
+import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, varchar, unique } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+// Tenants table
+export const tenants = pgTable("tenants", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertTenantSchema = createInsertSchema(tenants).pick({
+  name: true,
+});
+
+// Users table with tenant reference
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  username: text("username").notNull(),
+  email: text("email").notNull(),
+  password: text("password").notNull(),
+  displayName: text("display_name").notNull(),
+  isSuperAdmin: boolean("is_super_admin").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantUserUnique: unique().on(table.tenantId, table.email),
+  };
+});
+
+export const insertUserSchema = createInsertSchema(users).pick({
+  tenantId: true,
+  username: true,
+  email: true,
+  password: true,
+  displayName: true,
+  isSuperAdmin: true,
+});
+
+// Countries setup table
+export const countries = pgTable("countries", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantCountryUnique: unique().on(table.tenantId, table.name),
+  };
+});
+
+export const insertCountrySchema = createInsertSchema(countries).pick({
+  tenantId: true,
+  name: true,
+});
+
+// Currencies setup table
+export const currencies = pgTable("currencies", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  code: text("code").notNull(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantCurrencyUnique: unique().on(table.tenantId, table.code),
+  };
+});
+
+export const insertCurrencySchema = createInsertSchema(currencies).pick({
+  tenantId: true,
+  code: true,
+  name: true,
+});
+
+// States/provinces setup table
+export const states = pgTable("states", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  countryId: integer("country_id").notNull(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantStateUnique: unique().on(table.tenantId, table.countryId, table.name),
+  };
+});
+
+export const insertStateSchema = createInsertSchema(states).pick({
+  tenantId: true,
+  countryId: true,
+  name: true,
+});
+
+// Entity types setup table
+export const entityTypes = pgTable("entity_types", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  countryId: integer("country_id").notNull(),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantEntityTypeUnique: unique().on(table.tenantId, table.countryId, table.name),
+  };
+});
+
+export const insertEntityTypeSchema = createInsertSchema(entityTypes).pick({
+  tenantId: true,
+  countryId: true,
+  name: true,
+});
+
+// Task statuses setup table
+export const taskStatuses = pgTable("task_statuses", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  rank: doublePrecision("rank").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantStatusNameUnique: unique().on(table.tenantId, table.name),
+    tenantStatusRankUnique: unique().on(table.tenantId, table.rank),
+  };
+});
+
+export const insertTaskStatusSchema = createInsertSchema(taskStatuses).pick({
+  tenantId: true,
+  name: true,
+  description: true,
+  rank: true,
+});
+
+// Service types setup table
+export const serviceTypes = pgTable("service_types", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  countryId: integer("country_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  currencyId: integer("currency_id").notNull(),
+  rate: doublePrecision("rate").notNull(),
+  billingBasis: text("billing_basis").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantServiceTypeUnique: unique().on(table.tenantId, table.countryId, table.name),
+  };
+});
+
+export const insertServiceTypeSchema = createInsertSchema(serviceTypes).pick({
+  tenantId: true,
+  countryId: true,
+  name: true,
+  description: true,
+  currencyId: true,
+  rate: true,
+  billingBasis: true,
+});
+
+// Clients table
+export const clients = pgTable("clients", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  displayName: text("display_name").notNull(),
+  email: text("email").notNull(),
+  mobile: text("mobile").notNull(),
+  status: text("status").notNull().default("Active"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantClientNameUnique: unique().on(table.tenantId, table.displayName),
+    tenantClientEmailUnique: unique().on(table.tenantId, table.email),
+    tenantClientMobileUnique: unique().on(table.tenantId, table.mobile),
+  };
+});
+
+export const insertClientSchema = createInsertSchema(clients).pick({
+  tenantId: true,
+  displayName: true,
+  email: true,
+  mobile: true,
+  status: true,
+});
+
+// Entities table (linked to clients)
+export const entities = pgTable("entities", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  clientId: integer("client_id").notNull(),
+  name: text("name").notNull(),
+  countryId: integer("country_id").notNull(),
+  stateId: integer("state_id"),
+  address: text("address"),
+  entityTypeId: integer("entity_type_id").notNull(),
+  businessTaxId: text("business_tax_id"),
+  isVatRegistered: boolean("is_vat_registered").default(false).notNull(),
+  vatId: text("vat_id"),
+  fileAccessLink: text("file_access_link"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantEntityUnique: unique().on(table.tenantId, table.clientId, table.name),
+  };
+});
+
+export const insertEntitySchema = createInsertSchema(entities).pick({
+  tenantId: true,
+  clientId: true,
+  name: true,
+  countryId: true,
+  stateId: true,
+  address: true,
+  entityTypeId: true,
+  businessTaxId: true,
+  isVatRegistered: true,
+  vatId: true,
+  fileAccessLink: true,
+});
+
+// Tasks table
+export const tasks = pgTable("tasks", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  isAdmin: boolean("is_admin").notNull(),
+  taskType: text("task_type").notNull(),
+  clientId: integer("client_id"),
+  entityId: integer("entity_id"),
+  serviceTypeId: integer("service_type_id"),
+  assigneeId: integer("assignee_id").notNull(),
+  dueDate: timestamp("due_date").notNull(),
+  statusId: integer("status_id").notNull(),
+  taskDetails: text("task_details"),
+  nextToDo: text("next_to_do"),
+  isRecurring: boolean("is_recurring").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertTaskSchema = createInsertSchema(tasks).pick({
+  tenantId: true,
+  isAdmin: true,
+  taskType: true,
+  clientId: true,
+  entityId: true,
+  serviceTypeId: true,
+  assigneeId: true,
+  dueDate: true,
+  statusId: true,
+  taskDetails: true,
+  nextToDo: true,
+  isRecurring: true,
+});
+
+// Export types
+export type Tenant = typeof tenants.$inferSelect;
+export type InsertTenant = z.infer<typeof insertTenantSchema>;
+
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+
+export type Country = typeof countries.$inferSelect;
+export type InsertCountry = z.infer<typeof insertCountrySchema>;
+
+export type Currency = typeof currencies.$inferSelect;
+export type InsertCurrency = z.infer<typeof insertCurrencySchema>;
+
+export type State = typeof states.$inferSelect;
+export type InsertState = z.infer<typeof insertStateSchema>;
+
+export type EntityType = typeof entityTypes.$inferSelect;
+export type InsertEntityType = z.infer<typeof insertEntityTypeSchema>;
+
+export type TaskStatus = typeof taskStatuses.$inferSelect;
+export type InsertTaskStatus = z.infer<typeof insertTaskStatusSchema>;
+
+export type ServiceType = typeof serviceTypes.$inferSelect;
+export type InsertServiceType = z.infer<typeof insertServiceTypeSchema>;
+
+export type Client = typeof clients.$inferSelect;
+export type InsertClient = z.infer<typeof insertClientSchema>;
+
+export type Entity = typeof entities.$inferSelect;
+export type InsertEntity = z.infer<typeof insertEntitySchema>;
+
+export type Task = typeof tasks.$inferSelect;
+export type InsertTask = z.infer<typeof insertTaskSchema>;
+
+// Auth schemas
+export const loginSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+export const registerSchema = z.object({
+  tenantName: z.string().min(2, "Firm name must be at least 2 characters"),
+  displayName: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+export type LoginData = z.infer<typeof loginSchema>;
+export type RegisterData = z.infer<typeof registerSchema>;
