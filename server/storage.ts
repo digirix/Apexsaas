@@ -7,9 +7,12 @@ import createMemoryStore from "memorystore";
 
 const MemoryStore = createMemoryStore(session);
 
+// Allow proper type inference for the session store
+type MemoryStoreType = ReturnType<typeof createMemoryStore>;
+
 export interface IStorage {
   // Session store
-  sessionStore: session.SessionStore;
+  sessionStore: MemoryStoreType;
   
   // Tenant operations
   getTenant(id: number): Promise<Tenant | undefined>;
@@ -97,7 +100,7 @@ export class MemStorage implements IStorage {
   private entities: Map<number, Entity>;
   private tasks: Map<number, Task>;
   
-  sessionStore: session.SessionStore;
+  sessionStore: MemoryStoreType;
   
   private tenantId: number = 1;
   private userId: number = 1;

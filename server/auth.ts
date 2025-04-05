@@ -1,6 +1,6 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { Express } from "express";
+import { Express, Request, Response, NextFunction } from "express";
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
@@ -9,6 +9,7 @@ import { User as SelectUser } from "@shared/schema";
 
 declare global {
   namespace Express {
+    // Extend the User interface to include our User type
     interface User extends SelectUser {}
   }
 }
@@ -95,7 +96,7 @@ export function setupAuth(app: Express) {
   });
 
   // Middleware to check if user is authenticated
-  const isAuthenticated = (req: any, res: any, next: any) => {
+  const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
     if (req.isAuthenticated()) {
       return next();
     }
@@ -103,7 +104,7 @@ export function setupAuth(app: Express) {
   };
 
   // Middleware to check if user belongs to specified tenant
-  const hasTenantAccess = (req: any, res: any, next: any) => {
+  const hasTenantAccess = (req: Request, res: Response, next: NextFunction) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
@@ -148,7 +149,7 @@ export function setupAuth(app: Express) {
       console.log("User created:", { id: user.id, email: user.email, username: user.username });
       
       // Verify the user was stored
-      const allUsers = Array.from((storage as any).users.values());
+      const allUsers = Array.from((storage as any).users.values()) as SelectUser[];
       console.log(`Total users after registration: ${allUsers.length}`);
       console.log("Users:", allUsers.map(u => ({ id: u.id, email: u.email })));
       
@@ -179,10 +180,10 @@ export function setupAuth(app: Express) {
     console.log("Login attempt:", req.body);
     
     // DEBUG: Check user store before login
-    const allUsers = Array.from((storage as any).users.values());
+    const allUsers = Array.from((storage as any).users.values()) as SelectUser[];
     console.log(`Total users before login: ${allUsers.length}`);
     if (allUsers.length > 0) {
-      console.log("Available users:", allUsers.map((u: any) => ({ id: u.id, email: u.email })));
+      console.log("Available users:", allUsers.map(u => ({ id: u.id, email: u.email })));
     }
     
     passport.authenticate('firm-local', (err: any, user: SelectUser | false, info: { message?: string } | undefined) => {
@@ -232,7 +233,8 @@ export function setupAuth(app: Express) {
   app.get("/api/v1/auth/debug", async (req, res) => {
     try {
       const email = req.query.email as string;
-      const users = Array.from((storage as any).users.values()).map(u => ({
+      const userValues = Array.from((storage as any).users.values());
+      const users = userValues.map((u: any) => ({
         id: u.id,
         email: u.email,
         username: u.username
