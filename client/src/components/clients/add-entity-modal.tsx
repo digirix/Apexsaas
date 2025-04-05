@@ -91,9 +91,9 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      countryId: undefined,
-      entityTypeId: undefined,
-      stateId: undefined,
+      countryId: 0, // Default to 0 instead of undefined
+      entityTypeId: 0, // Default to 0 instead of undefined
+      stateId: 0, // Default to 0 instead of undefined
       businessTaxId: "",
       isVatRegistered: false,
       vatId: "",
@@ -112,14 +112,40 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
 
   const createEntityMutation = useMutation({
     mutationFn: async (data: InsertEntity) => {
-      const response = await apiRequest("POST", `/api/v1/clients/${clientId}/entities`, data);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to create entity");
+      console.log("Mutation function executing with data:", data);
+      
+      // Check required fields
+      if (!data.name || !data.countryId || !data.entityTypeId || !data.tenantId || !data.clientId) {
+        console.error("Missing required fields:", { 
+          name: data.name, 
+          countryId: data.countryId, 
+          entityTypeId: data.entityTypeId,
+          tenantId: data.tenantId,
+          clientId: data.clientId 
+        });
+        throw new Error("Missing required fields");
       }
-      return response.json();
+      
+      try {
+        const response = await apiRequest("POST", `/api/v1/clients/${clientId}/entities`, data);
+        console.log("API Response status:", response.status);
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("API error:", errorData);
+          throw new Error(errorData.message || "Failed to create entity");
+        }
+        
+        const responseData = await response.json();
+        console.log("API Success response:", responseData);
+        return responseData;
+      } catch (err) {
+        console.error("API call error:", err);
+        throw err;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Mutation successful with data:", data);
       queryClient.invalidateQueries({ queryKey: [`/api/v1/clients/${clientId}/entities`] });
       toast({
         title: "Success",
@@ -128,28 +154,100 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
       form.reset();
       onClose();
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
+      console.error("Mutation error:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "An error occurred while creating the entity",
         variant: "destructive",
       });
+      setIsSubmitting(false);
     },
     onSettled: () => {
+      console.log("Mutation settled");
       setIsSubmitting(false);
     },
   });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
+    // Check for form validation errors
+    console.log("Form errors:", form.formState.errors);
+    
     setIsSubmitting(true);
     // Make sure tenantId is set
     if (!values.tenantId && user?.tenantId) {
       values.tenantId = user.tenantId;
     }
-    createEntityMutation.mutate({
+    
+    // Validate required fields
+    if (!values.name) {
+      form.setError("name", { message: "Entity name is required" });
+      setIsSubmitting(false);
+      return;
+    }
+    
+    if (!values.countryId || values.countryId === 0) {
+      form.setError("countryId", { message: "Country is required" });
+      setIsSubmitting(false);
+      return;
+    }
+    
+    if (!values.entityTypeId || values.entityTypeId === 0) {
+      form.setError("entityTypeId", { message: "Entity type is required" });
+      setIsSubmitting(false);
+      return;
+    }
+    
+    // Debug what's being submitted
+    console.log("Submitting entity:", {
       ...values,
       clientId,
-    } as InsertEntity);
+      tenantId: values.tenantId
+    });
+    
+    try {
+      // Create the complete entity object
+      const entityData: InsertEntity = {
+        name: values.name,
+        countryId: values.countryId,
+        entityTypeId: values.entityTypeId,
+        clientId: clientId,
+        tenantId: values.tenantId,
+        isVatRegistered: values.isVatRegistered || false
+      };
+      
+      // Handle optional fields - only include if they have a value and are not the default "0" for numeric fields
+      if (values.stateId && values.stateId !== 0) {
+        entityData.stateId = values.stateId;
+      }
+      
+      if (values.businessTaxId && values.businessTaxId.trim() !== '') {
+        entityData.businessTaxId = values.businessTaxId;
+      }
+      
+      if (values.vatId && values.vatId.trim() !== '') {
+        entityData.vatId = values.vatId;
+      }
+      
+      if (values.address && values.address.trim() !== '') {
+        entityData.address = values.address;
+      }
+      
+      if (values.fileAccessLink && values.fileAccessLink.trim() !== '') {
+        entityData.fileAccessLink = values.fileAccessLink;
+      }
+      
+      console.log("Final entity data:", entityData);
+      createEntityMutation.mutate(entityData);
+    } catch (error) {
+      console.error("Error submitting entity:", error);
+      toast({
+        title: "Submission Error",
+        description: "Error submitting form. Check console for details.",
+        variant: "destructive"
+      });
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -183,9 +281,9 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
                     <FormLabel>Country</FormLabel>
                     <Select
                       onValueChange={(value) => {
-                        field.onChange(value);
+                        field.onChange(Number(value));
                         setSelectedCountryId(Number(value));
-                        // Reset dependent fields
+                        // Reset dependent fields with 0 to avoid errors
                         form.setValue("entityTypeId", 0);
                         form.setValue("stateId", 0);
                       }}
@@ -216,7 +314,7 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
                   <FormItem>
                     <FormLabel>Entity Type</FormLabel>
                     <Select
-                      onValueChange={field.onChange}
+                      onValueChange={(value) => field.onChange(Number(value))}
                       value={field.value?.toString()}
                       disabled={!selectedCountryId}
                     >
@@ -250,7 +348,7 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
                   <FormItem>
                     <FormLabel>State/Province (Optional)</FormLabel>
                     <Select
-                      onValueChange={field.onChange}
+                      onValueChange={(value) => field.onChange(Number(value))}
                       value={field.value?.toString()}
                       disabled={!selectedCountryId || states.length === 0}
                     >
