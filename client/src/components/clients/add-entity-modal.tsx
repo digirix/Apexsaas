@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -7,6 +7,7 @@ import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
 import { insertEntitySchema, InsertEntity, Country, EntityType, State } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 import {
   Dialog,
@@ -44,6 +45,7 @@ interface AddEntityModalProps {
 
 export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCountryId, setSelectedCountryId] = useState<number | null>(null);
   
@@ -81,6 +83,8 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
     vatId: z.string().optional().or(z.literal('')),
     address: z.string().optional().or(z.literal('')),
     fileAccessLink: z.string().optional().or(z.literal('')),
+    // Add tenantId
+    tenantId: z.number(),
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -95,8 +99,16 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
       vatId: "",
       address: "",
       fileAccessLink: "",
+      tenantId: user?.tenantId || 0, // Set initial value if user is available
     },
   });
+  
+  // Set tenantId when user data is available
+  useEffect(() => {
+    if (user?.tenantId) {
+      form.setValue("tenantId", user.tenantId);
+    }
+  }, [user, form]);
 
   const createEntityMutation = useMutation({
     mutationFn: async (data: InsertEntity) => {
@@ -130,10 +142,14 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
+    // Make sure tenantId is set
+    if (!values.tenantId && user?.tenantId) {
+      values.tenantId = user.tenantId;
+    }
     createEntityMutation.mutate({
       ...values,
       clientId,
-    });
+    } as InsertEntity);
   }
 
   return (
@@ -170,8 +186,8 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
                         field.onChange(value);
                         setSelectedCountryId(Number(value));
                         // Reset dependent fields
-                        form.setValue("entityTypeId", undefined);
-                        form.setValue("stateId", undefined);
+                        form.setValue("entityTypeId", 0);
+                        form.setValue("stateId", 0);
                       }}
                       value={field.value?.toString()}
                     >

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -7,6 +7,7 @@ import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
 import { insertClientSchema, InsertClient } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 import {
   Dialog,
@@ -40,6 +41,7 @@ interface AddClientModalProps {
 
 export function AddClientModal({ isOpen, onClose }: AddClientModalProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Extend schema with validation
@@ -47,6 +49,8 @@ export function AddClientModal({ isOpen, onClose }: AddClientModalProps) {
     displayName: z.string().min(2, "Name must be at least 2 characters"),
     email: z.string().email("Please enter a valid email address"),
     mobile: z.string().min(10, "Mobile number must be at least 10 digits"),
+    // Make sure tenantId is included but hidden - it will be set from the user context
+    tenantId: z.number(),
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -56,14 +60,19 @@ export function AddClientModal({ isOpen, onClose }: AddClientModalProps) {
       email: "",
       mobile: "",
       status: "Active",
+      tenantId: user?.tenantId || 0, // Set initial value if user is available
     },
   });
 
   const createClientMutation = useMutation({
     mutationFn: async (data: InsertClient) => {
+      // Using the same format as the server expects
+      console.log("Sending request to create client:", data);
       const response = await apiRequest("POST", "/api/v1/clients", data);
+      console.log("Response status:", response.status);
       if (!response.ok) {
         const errorData = await response.json();
+        console.error("Error creating client:", errorData);
         throw new Error(errorData.message || "Failed to create client");
       }
       return response.json();
@@ -89,9 +98,22 @@ export function AddClientModal({ isOpen, onClose }: AddClientModalProps) {
     },
   });
 
+  // Set tenantId when user data is available
+  useEffect(() => {
+    if (user?.tenantId) {
+      form.setValue("tenantId", user.tenantId);
+    }
+  }, [user, form]);
+
   function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
-    createClientMutation.mutate(values);
+    // Make sure tenantId is set
+    if (!values.tenantId && user?.tenantId) {
+      values.tenantId = user.tenantId;
+    }
+    // Log the values to debug
+    console.log("Submitting client:", values);
+    createClientMutation.mutate(values as InsertClient);
   }
 
   return (
