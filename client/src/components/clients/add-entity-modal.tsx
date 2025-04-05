@@ -1,18 +1,40 @@
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
+import { insertEntitySchema, InsertEntity, Country, EntityType, State } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  FormDescription,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Loader2 } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Country, EntityType } from "@shared/schema";
 
 interface AddEntityModalProps {
   isOpen: boolean;
@@ -20,118 +42,106 @@ interface AddEntityModalProps {
   clientId: number;
 }
 
-const formSchema = z.object({
-  name: z.string().min(2, "Entity name must be at least 2 characters"),
-  countryId: z.string().min(1, "Please select a country"),
-  stateId: z.string().optional(),
-  address: z.string().optional(),
-  entityTypeId: z.string().min(1, "Please select an entity type"),
-  businessTaxId: z.string().optional(),
-  isVatRegistered: z.boolean().default(false),
-  vatId: z.string().optional(),
-  fileAccessLink: z.string().optional(),
-});
-
-type FormValues = z.infer<typeof formSchema>;
-
 export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProps) {
   const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedCountryId, setSelectedCountryId] = useState<number | null>(null);
   
-  // Fetch countries for dropdown
-  const { data: countries = [], isLoading: isLoadingCountries } = useQuery<Country[]>({
+  // Fetch countries
+  const { data: countries = [] } = useQuery<Country[]>({
     queryKey: ["/api/v1/setup/countries"],
     enabled: isOpen,
   });
   
-  // We would fetch entity types based on selected country, 
-  // but for now let's just mock some data
-  const { data: entityTypes = [], isLoading: isLoadingEntityTypes } = useQuery<EntityType[]>({
-    queryKey: ["/api/v1/setup/entity-types"],
-    enabled: isOpen,
-    queryFn: async () => {
-      // Mock data since we haven't implemented entity types API yet
-      return [{
-        id: 1,
-        tenantId: 1,
-        countryId: 1,
-        name: "Corporation",
-        createdAt: new Date()
-      }, {
-        id: 2,
-        tenantId: 1,
-        countryId: 1,
-        name: "Limited Company",
-        createdAt: new Date()
-      }];
-    }
+  // Fetch entity types
+  const { data: entityTypes = [] } = useQuery<EntityType[]>({
+    queryKey: ["/api/v1/setup/entity-types", selectedCountryId],
+    enabled: isOpen && !!selectedCountryId,
   });
   
-  const form = useForm<FormValues>({
+  // Fetch states for selected country
+  const { data: states = [] } = useQuery<State[]>({
+    queryKey: ["/api/v1/setup/states", selectedCountryId],
+    enabled: isOpen && !!selectedCountryId,
+  });
+  
+  // Extend schema with validation
+  const formSchema = insertEntitySchema.extend({
+    name: z.string().min(2, "Name must be at least 2 characters"),
+    countryId: z.coerce.number({ 
+      required_error: "Country is required",
+      invalid_type_error: "Must be a number"
+    }),
+    entityTypeId: z.coerce.number({ 
+      required_error: "Entity type is required",
+      invalid_type_error: "Must be a number"
+    }),
+    stateId: z.coerce.number().optional(),
+    businessTaxId: z.string().optional(),
+    vatId: z.string().optional().or(z.literal('')),
+    address: z.string().optional().or(z.literal('')),
+    fileAccessLink: z.string().optional().or(z.literal('')),
+  });
+
+  const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      countryId: "",
-      stateId: "",
-      address: "",
-      entityTypeId: "",
+      countryId: undefined,
+      entityTypeId: undefined,
+      stateId: undefined,
       businessTaxId: "",
       isVatRegistered: false,
       vatId: "",
+      address: "",
       fileAccessLink: "",
     },
   });
 
-  const isVatRegistered = form.watch("isVatRegistered");
-  
   const createEntityMutation = useMutation({
-    mutationFn: async (data: FormValues) => {
-      const response = await apiRequest("POST", `/api/v1/clients/${clientId}/entities`, {
-        ...data,
-        countryId: parseInt(data.countryId),
-        entityTypeId: parseInt(data.entityTypeId),
-        stateId: data.stateId ? parseInt(data.stateId) : undefined,
-      });
+    mutationFn: async (data: InsertEntity) => {
+      const response = await apiRequest("POST", `/api/v1/clients/${clientId}/entities`, data);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create entity");
+      }
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/v1/clients/${clientId}/entities`] });
       toast({
         title: "Success",
-        description: "Entity has been created successfully.",
+        description: "Entity created successfully",
       });
       form.reset();
       onClose();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to create entity. Please try again.",
+        description: error.message,
         variant: "destructive",
       });
     },
+    onSettled: () => {
+      setIsSubmitting(false);
+    },
   });
 
-  function onSubmit(data: FormValues) {
-    createEntityMutation.mutate(data);
+  function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsSubmitting(true);
+    createEntityMutation.mutate({
+      ...values,
+      clientId,
+    });
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-start">
-            <div className="mr-4 bg-blue-100 p-2 rounded-full">
-              <PlusCircle className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <DialogTitle className="text-lg">Add New Entity</DialogTitle>
-              <DialogDescription className="mt-1">
-                Add a business entity for this client. Fields marked with * are required.
-              </DialogDescription>
-            </div>
-          </div>
+          <DialogTitle>Add New Entity</DialogTitle>
         </DialogHeader>
-        
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
@@ -139,7 +149,7 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Entity Name*</FormLabel>
+                  <FormLabel>Entity Name</FormLabel>
                   <FormControl>
                     <Input placeholder="Enter entity name" {...field} />
                   </FormControl>
@@ -154,10 +164,16 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
                 name="countryId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Country*</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
+                    <FormLabel>Country</FormLabel>
+                    <Select
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        setSelectedCountryId(Number(value));
+                        // Reset dependent fields
+                        form.setValue("entityTypeId", undefined);
+                        form.setValue("stateId", undefined);
+                      }}
+                      value={field.value?.toString()}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -165,21 +181,11 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {isLoadingCountries ? (
-                          <div className="flex justify-center items-center py-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          </div>
-                        ) : countries.length === 0 ? (
-                          <SelectItem value="empty" disabled>
-                            No countries available
+                        {countries.map((country) => (
+                          <SelectItem key={country.id} value={country.id.toString()}>
+                            {country.name}
                           </SelectItem>
-                        ) : (
-                          countries.map((country) => (
-                            <SelectItem key={country.id} value={country.id.toString()}>
-                              {country.name}
-                            </SelectItem>
-                          ))
-                        )}
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -192,10 +198,11 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
                 name="entityTypeId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Entity Type*</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
+                    <FormLabel>Entity Type</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value?.toString()}
+                      disabled={!selectedCountryId}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -203,23 +210,66 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {isLoadingEntityTypes ? (
-                          <div className="flex justify-center items-center py-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          </div>
-                        ) : entityTypes.length === 0 ? (
-                          <SelectItem value="empty" disabled>
-                            No entity types available
+                        {entityTypes.map((entityType) => (
+                          <SelectItem key={entityType.id} value={entityType.id.toString()}>
+                            {entityType.name}
                           </SelectItem>
-                        ) : (
-                          entityTypes.map((type) => (
-                            <SelectItem key={type.id} value={type.id.toString()}>
-                              {type.name}
-                            </SelectItem>
-                          ))
-                        )}
+                        ))}
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                    {!selectedCountryId && (
+                      <FormDescription>
+                        Select a country first
+                      </FormDescription>
+                    )}
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="stateId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>State/Province (Optional)</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value?.toString()}
+                      disabled={!selectedCountryId || states.length === 0}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select state" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {states.map((state) => (
+                          <SelectItem key={state.id} value={state.id.toString()}>
+                            {state.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    {selectedCountryId && states.length === 0 && (
+                      <FormDescription>
+                        No states available for this country
+                      </FormDescription>
+                    )}
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="businessTaxId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Business Tax ID (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter business tax ID" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -231,10 +281,10 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
               name="address"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Address</FormLabel>
+                  <FormLabel>Address (Optional)</FormLabel>
                   <FormControl>
                     <Textarea 
-                      placeholder="Enter address" 
+                      placeholder="Enter entity address" 
                       className="resize-none" 
                       {...field} 
                     />
@@ -244,92 +294,78 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
               )}
             />
             
-            <FormField
-              control={form.control}
-              name="businessTaxId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Business Tax ID</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter business tax ID" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="isVatRegistered"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>
-                      Is Registered for Sales Tax or VAT?
-                    </FormLabel>
-                    <p className="text-sm text-muted-foreground">
-                      Check this if the entity is registered for VAT or sales tax.
-                    </p>
-                  </div>
-                </FormItem>
-              )}
-            />
-            
-            {isVatRegistered && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="isVatRegistered"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 p-4 border rounded-md">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={(checked) => {
+                            field.onChange(checked);
+                            if (!checked) {
+                              form.setValue("vatId", "");
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>VAT Registered</FormLabel>
+                        <FormDescription>
+                          Is this entity registered for VAT?
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                
+                {form.watch("isVatRegistered") && (
+                  <FormField
+                    control={form.control}
+                    name="vatId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>VAT ID</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter VAT ID" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </div>
+              
               <FormField
                 control={form.control}
-                name="vatId"
+                name="fileAccessLink"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>VAT/Sales Tax ID</FormLabel>
+                    <FormLabel>File Access Link (Optional)</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter VAT or sales tax ID" {...field} />
+                      <Input 
+                        placeholder="Enter file access link" 
+                        {...field} 
+                      />
                     </FormControl>
+                    <FormDescription>
+                      URL to client files (e.g., Google Drive, OneDrive)
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            )}
+            </div>
             
-            <FormField
-              control={form.control}
-              name="fileAccessLink"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>File Access Link</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter file access link (URL)" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <DialogFooter className="mt-6">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={onClose}
-                disabled={createEntityMutation.isPending}
-              >
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button 
-                type="submit" 
-                disabled={createEntityMutation.isPending}
-              >
-                {createEntityMutation.isPending ? (
-                  <>
-                    <div className="animate-spin mr-2 h-4 w-4 border-t-2 border-b-2 border-current rounded-full" />
-                    Saving...
-                  </>
-                ) : "Save Entity"}
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Creating..." : "Create Entity"}
               </Button>
             </DialogFooter>
           </form>
