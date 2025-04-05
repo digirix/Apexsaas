@@ -58,12 +58,24 @@ export function setupAuth(app: Express) {
     { usernameField: 'email' },
     async (email, password, done) => {
       try {
+        console.log(`Login attempt with email: ${email}`);
         const user = await storage.getUserByEmail(email);
-        if (!user || !(await comparePasswords(password, user.password))) {
+        console.log(`User found:`, user ? 'Yes' : 'No');
+        
+        if (!user) {
           return done(null, false, { message: 'Invalid email or password' });
         }
+        
+        const passwordMatch = await comparePasswords(password, user.password);
+        console.log(`Password match:`, passwordMatch ? 'Yes' : 'No');
+        
+        if (!passwordMatch) {
+          return done(null, false, { message: 'Invalid email or password' });
+        }
+        
         return done(null, user);
       } catch (err) {
+        console.error('Authentication error:', err);
         return done(err);
       }
     }
@@ -110,14 +122,18 @@ export function setupAuth(app: Express) {
     try {
       const { tenantName, displayName, email, password } = req.body;
       
+      console.log("Registration attempt:", { tenantName, displayName, email });
+      
       // Check if user with this email already exists
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
+        console.log("Registration failed: Email already in use");
         return res.status(400).json({ message: "Email already in use" });
       }
       
       // Create new tenant
       const tenant = await storage.createTenant({ name: tenantName });
+      console.log("Tenant created:", tenant);
       
       // Create super admin user
       const hashedPassword = await hashPassword(password);
@@ -129,10 +145,21 @@ export function setupAuth(app: Express) {
         displayName,
         isSuperAdmin: true
       });
+      console.log("User created:", { id: user.id, email: user.email, username: user.username });
+      
+      // Verify the user was stored
+      const allUsers = Array.from((storage as any).users.values());
+      console.log(`Total users after registration: ${allUsers.length}`);
+      console.log("Users:", allUsers.map(u => ({ id: u.id, email: u.email })));
       
       // Auto login after signup
       req.login(user, err => {
-        if (err) return next(err);
+        if (err) {
+          console.error("Login after signup failed:", err);
+          return next(err);
+        }
+        
+        console.log("Login after signup successful");
         
         // Don't send the password back
         const { password, ...userWithoutPassword } = user;
@@ -142,18 +169,42 @@ export function setupAuth(app: Express) {
         });
       });
     } catch (error) {
+      console.error("Registration error:", error);
       next(error);
     }
   });
 
   // Login firm user
   app.post("/api/v1/auth/login/firm", (req, res, next) => {
+    console.log("Login attempt:", req.body);
+    
+    // DEBUG: Check user store before login
+    const allUsers = Array.from((storage as any).users.values());
+    console.log(`Total users before login: ${allUsers.length}`);
+    if (allUsers.length > 0) {
+      console.log("Available users:", allUsers.map((u: any) => ({ id: u.id, email: u.email })));
+    }
+    
     passport.authenticate('firm-local', (err: any, user: SelectUser | false, info: { message?: string } | undefined) => {
-      if (err) return next(err);
-      if (!user) return res.status(401).json({ message: info?.message || 'Invalid email or password' });
+      if (err) {
+        console.error("Login authentication error:", err);
+        return next(err);
+      }
+      
+      if (!user) {
+        console.log("Login failed:", info?.message || 'Invalid email or password');
+        return res.status(401).json({ message: info?.message || 'Invalid email or password' });
+      }
+      
+      console.log("Authentication successful, logging in user:", user.email);
       
       req.login(user, (err) => {
-        if (err) return next(err);
+        if (err) {
+          console.error("Login session error:", err);
+          return next(err);
+        }
+        
+        console.log("Login successful for:", user.email);
         
         // Don't send the password back
         const { password, ...userWithoutPassword } = user as SelectUser;
@@ -175,6 +226,28 @@ export function setupAuth(app: Express) {
     // Don't send the password back
     const { password, ...userWithoutPassword } = req.user as SelectUser;
     res.json({ user: userWithoutPassword });
+  });
+  
+  // Debug route to check users
+  app.get("/api/v1/auth/debug", async (req, res) => {
+    try {
+      const email = req.query.email as string;
+      const users = Array.from((storage as any).users.values()).map(u => ({
+        id: u.id,
+        email: u.email,
+        username: u.username
+      }));
+      
+      res.json({
+        userCount: users.length,
+        users,
+        searchEmail: email,
+        foundUser: email ? Boolean(await storage.getUserByEmail(email)) : null
+      });
+    } catch (error) {
+      console.error("Debug route error:", error);
+      res.status(500).json({ error: "Server error" });
+    }
   });
 
   return { isAuthenticated, hasTenantAccess };

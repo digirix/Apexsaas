@@ -152,21 +152,41 @@ export class MemStorage implements IStorage {
 
   async getUserByEmail(email: string, tenantId?: number): Promise<User | undefined> {
     const users = Array.from(this.users.values());
+    console.log(`Looking for user with email: ${email}`);
+    console.log(`Total users in storage: ${users.length}`);
+    
+    if (users.length > 0) {
+      console.log('Available users:', users.map(u => ({ id: u.id, email: u.email, tenantId: u.tenantId })));
+    }
     
     if (tenantId) {
+      console.log(`Filtering by tenantId: ${tenantId}`);
       return users.find(user => user.email === email && user.tenantId === tenantId);
     }
     
-    return users.find(user => user.email === email);
+    const foundUser = users.find(user => user.email === email);
+    console.log(`Found user: ${foundUser ? 'Yes' : 'No'}`);
+    return foundUser;
   }
 
   async createUser(user: InsertUser): Promise<User> {
     const id = this.userId++;
+    
+    // Ensure isSuperAdmin is properly set with default value to avoid type errors
     const newUser: User = { 
       ...user, 
       id, 
-      createdAt: new Date() 
+      createdAt: new Date(),
+      isSuperAdmin: user.isSuperAdmin === undefined ? false : user.isSuperAdmin
     };
+    
+    console.log("Creating user in storage:", { 
+      id: newUser.id, 
+      email: newUser.email, 
+      username: newUser.username,
+      isSuperAdmin: newUser.isSuperAdmin
+    });
+    
     this.users.set(id, newUser);
     return newUser;
   }
@@ -367,7 +387,8 @@ export class MemStorage implements IStorage {
     const newTaskStatus: TaskStatus = { 
       ...taskStatus, 
       id, 
-      createdAt: new Date() 
+      createdAt: new Date(),
+      description: taskStatus.description ?? null
     };
     this.taskStatuses.set(id, newTaskStatus);
     return newTaskStatus;
@@ -414,7 +435,8 @@ export class MemStorage implements IStorage {
     const newServiceType: ServiceType = { 
       ...serviceType, 
       id, 
-      createdAt: new Date() 
+      createdAt: new Date(),
+      description: serviceType.description ?? null
     };
     this.serviceTypes.set(id, newServiceType);
     return newServiceType;
@@ -452,11 +474,15 @@ export class MemStorage implements IStorage {
 
   async createClient(client: InsertClient): Promise<Client> {
     const id = this.clientId++;
+    
+    // Apply defaults for required fields
     const newClient: Client = { 
       ...client, 
       id, 
-      createdAt: new Date() 
+      createdAt: new Date(),
+      status: client.status || "Active" // Set default status if not provided
     };
+    
     this.clients.set(id, newClient);
     return newClient;
   }
@@ -499,11 +525,20 @@ export class MemStorage implements IStorage {
 
   async createEntity(entity: InsertEntity): Promise<Entity> {
     const id = this.entityId++;
+    
+    // Set defaults for nullable fields
     const newEntity: Entity = { 
       ...entity, 
       id, 
-      createdAt: new Date() 
+      createdAt: new Date(),
+      stateId: entity.stateId ?? null,
+      address: entity.address ?? null,
+      businessTaxId: entity.businessTaxId ?? null,
+      isVatRegistered: entity.isVatRegistered ?? false,
+      vatId: entity.vatId ?? null,
+      fileAccessLink: entity.fileAccessLink ?? null 
     };
+    
     this.entities.set(id, newEntity);
     return newEntity;
   }
@@ -550,11 +585,20 @@ export class MemStorage implements IStorage {
 
   async createTask(task: InsertTask): Promise<Task> {
     const id = this.taskId++;
+    
+    // Set defaults for nullable fields
     const newTask: Task = { 
       ...task, 
       id, 
-      createdAt: new Date() 
+      createdAt: new Date(),
+      clientId: task.clientId ?? null,
+      entityId: task.entityId ?? null,
+      serviceTypeId: task.serviceTypeId ?? null,
+      taskDetails: task.taskDetails ?? null,
+      nextToDo: task.nextToDo ?? null,
+      isRecurring: task.isRecurring ?? false
     };
+    
     this.tasks.set(id, newTask);
     return newTask;
   }
