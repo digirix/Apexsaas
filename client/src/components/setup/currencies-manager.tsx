@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Currency, insertCurrencySchema } from "@shared/schema";
+import { Currency, Country, insertCurrencySchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,6 +9,13 @@ import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue 
+} from "@/components/ui/select";
 import { 
   Form, 
   FormControl, 
@@ -45,8 +52,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 
-// Extend the schema to include both code and name
+// Extend the schema to include code, name, and countryId
 const currencyFormSchema = z.object({
+  countryId: z.string().min(1, "Please select a country"),
   code: z.string().min(2, "Currency code must be at least 2 characters").max(5, "Currency code must be 5 characters or less"),
   name: z.string().min(2, "Currency name must be at least 2 characters"),
 });
@@ -64,9 +72,14 @@ export function CurrenciesManager() {
     queryKey: ["/api/v1/setup/currencies"],
   });
   
+  const { data: countries = [], isLoading: isCountriesLoading } = useQuery<Country[]>({
+    queryKey: ["/api/v1/setup/countries"],
+  });
+  
   const form = useForm<CurrencyFormValues>({
     resolver: zodResolver(currencyFormSchema),
     defaultValues: {
+      countryId: "",
       code: "",
       name: "",
     },
@@ -153,7 +166,11 @@ export function CurrenciesManager() {
 
   function handleEdit(currency: Currency) {
     setSelectedCurrency(currency);
-    form.reset({ code: currency.code, name: currency.name });
+    form.reset({ 
+      countryId: currency.countryId ? currency.countryId.toString() : "",
+      code: currency.code, 
+      name: currency.name 
+    });
     setIsEditDialogOpen(true);
   }
 
@@ -174,7 +191,7 @@ export function CurrenciesManager() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Currencies</CardTitle>
           <Button size="sm" onClick={() => {
-            form.reset({ code: "", name: "" });
+            form.reset({ countryId: "", code: "", name: "" });
             setIsAddDialogOpen(true);
           }}>
             <Plus className="h-4 w-4 mr-2" />
@@ -190,7 +207,7 @@ export function CurrenciesManager() {
             <div className="flex flex-col items-center justify-center py-10">
               <p className="text-slate-500 mb-4">No currencies found</p>
               <Button onClick={() => {
-                form.reset({ code: "", name: "" });
+                form.reset({ countryId: "", code: "", name: "" });
                 setIsAddDialogOpen(true);
               }}>
                 <Plus className="h-4 w-4 mr-2" />
@@ -203,36 +220,41 @@ export function CurrenciesManager() {
                 <TableRow>
                   <TableHead>Code</TableHead>
                   <TableHead>Name</TableHead>
+                  <TableHead>Country</TableHead>
                   <TableHead>Created At</TableHead>
                   <TableHead className="w-[100px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {currencies.map((currency) => (
-                  <TableRow key={currency.id}>
-                    <TableCell className="font-medium">{currency.code}</TableCell>
-                    <TableCell>{currency.name}</TableCell>
-                    <TableCell>{new Date(currency.createdAt).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(currency)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(currency)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {currencies.map((currency) => {
+                  const country = countries.find(c => c.id === currency.countryId);
+                  return (
+                    <TableRow key={currency.id}>
+                      <TableCell className="font-medium">{currency.code}</TableCell>
+                      <TableCell>{currency.name}</TableCell>
+                      <TableCell>{country?.name || 'Unknown'}</TableCell>
+                      <TableCell>{new Date(currency.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(currency)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(currency)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -251,6 +273,40 @@ export function CurrenciesManager() {
           
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onAddSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="countryId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Country</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                      disabled={isCountriesLoading || countries.length === 0}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select country" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {countries.map((country) => (
+                          <SelectItem key={country.id} value={country.id.toString()}>
+                            {country.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {countries.length === 0 && !isCountriesLoading && (
+                      <p className="text-sm text-amber-600">
+                        Please add at least one country first
+                      </p>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
               <FormField
                 control={form.control}
                 name="code"
@@ -317,6 +373,40 @@ export function CurrenciesManager() {
           
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onEditSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="countryId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Country</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                      disabled={isCountriesLoading || countries.length === 0}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select country" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {countries.map((country) => (
+                          <SelectItem key={country.id} value={country.id.toString()}>
+                            {country.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {countries.length === 0 && !isCountriesLoading && (
+                      <p className="text-sm text-amber-600">
+                        Please add at least one country first
+                      </p>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
               <FormField
                 control={form.control}
                 name="code"

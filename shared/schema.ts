@@ -99,6 +99,7 @@ export const insertCountrySchema = createInsertSchema(countries).pick({
 export const currencies = pgTable("currencies", {
   id: serial("id").primaryKey(),
   tenantId: integer("tenant_id").notNull(),
+  countryId: integer("country_id").notNull(),
   code: text("code").notNull(),
   name: text("name").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -110,6 +111,7 @@ export const currencies = pgTable("currencies", {
 
 export const insertCurrencySchema = createInsertSchema(currencies).pick({
   tenantId: true,
+  countryId: true,
   code: true,
   name: true,
 });
