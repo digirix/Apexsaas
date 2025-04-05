@@ -52,14 +52,20 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 
-// Extend the schema to include code, name, and countryId
+// Define the form schema with string inputs
 const currencyFormSchema = z.object({
-  countryId: z.string().min(1, "Please select a country"),
+  countryId: z.string().min(1, "Please select a country")
+    .transform(val => parseInt(val)), // Transform string to number for API
   code: z.string().min(2, "Currency code must be at least 2 characters").max(5, "Currency code must be 5 characters or less"),
   name: z.string().min(2, "Currency name must be at least 2 characters"),
 });
 
-type CurrencyFormValues = z.infer<typeof currencyFormSchema>;
+// Type for the form values (before transformation)
+type CurrencyFormValues = {
+  countryId: string;
+  code: string;
+  name: string;
+};
 
 export function CurrenciesManager() {
   const { toast } = useToast();
