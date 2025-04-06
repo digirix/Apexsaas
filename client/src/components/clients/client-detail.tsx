@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Client, Entity } from "@shared/schema";
-import { ArrowLeft, Edit, Plus, MapPin, Building, FileText } from "lucide-react";
+import { Client, Entity, Country, State, EntityType } from "@shared/schema";
+import { ArrowLeft, Edit, Plus, MapPin, Building, FileText, Settings } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AddEntityModal } from "./add-entity-modal";
+import { EntityConfigModal } from "./entity-config-modal";
 
 interface ClientDetailProps {
   clientId: number;
@@ -17,6 +18,8 @@ interface ClientDetailProps {
 export function ClientDetail({ clientId }: ClientDetailProps) {
   const [, setLocation] = useLocation();
   const [isAddEntityModalOpen, setIsAddEntityModalOpen] = useState(false);
+  const [isEntityConfigModalOpen, setIsEntityConfigModalOpen] = useState(false);
+  const [selectedEntityId, setSelectedEntityId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("entities");
 
   const { data: client, isLoading: isClientLoading } = useQuery<Client>({
@@ -26,6 +29,21 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
   const { data: entities = [], isLoading: isEntitiesLoading } = useQuery<Entity[]>({
     queryKey: [`/api/v1/clients/${clientId}/entities`],
     enabled: !!clientId,
+  });
+  
+  // Fetch countries for reference
+  const { data: countries = [] } = useQuery<Country[]>({
+    queryKey: ["/api/v1/setup/countries"],
+  });
+  
+  // Fetch states for reference
+  const { data: states = [] } = useQuery<State[]>({
+    queryKey: ["/api/v1/setup/states"],
+  });
+  
+  // Fetch entity types for reference
+  const { data: entityTypes = [] } = useQuery<EntityType[]>({
+    queryKey: ["/api/v1/setup/entity-types"],
   });
 
   function getInitials(name: string): string {
@@ -212,12 +230,17 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
                           <div className="mt-2 flex flex-col sm:flex-row sm:flex-wrap sm:mt-0 sm:space-x-6">
                             <div className="mt-2 flex items-center text-sm text-slate-500 sm:mt-0">
                               <MapPin className="flex-shrink-0 mr-1.5 h-5 w-5 text-slate-400" />
-                              <span>{entity.countryId}</span>
-                              {entity.stateId && <span>, {entity.stateId}</span>}
+                              <span>
+                                {countries.find((c: Country) => c.id === entity.countryId)?.name || 'Unknown Country'}
+                                {entity.stateId && states.find((s: State) => s.id === entity.stateId) && 
+                                  `, ${states.find((s: State) => s.id === entity.stateId)?.name}`}
+                              </span>
                             </div>
                             <div className="mt-2 flex items-center text-sm text-slate-500 sm:mt-0">
                               <Building className="flex-shrink-0 mr-1.5 h-5 w-5 text-slate-400" />
-                              <span>{entity.entityTypeId}</span>
+                              <span>
+                                {entityTypes.find((t: EntityType) => t.id === entity.entityTypeId)?.name || 'Unknown Type'}
+                              </span>
                             </div>
                             {entity.businessTaxId && (
                               <div className="mt-2 flex items-center text-sm text-slate-500 sm:mt-0">
@@ -229,13 +252,25 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
                         </div>
                         
                         <div className="flex space-x-2">
-                          <Button variant="outline" size="icon" className="h-9 w-9">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            className="h-9 w-9"
+                            title="Configure Entity"
+                            onClick={() => {
+                              setSelectedEntityId(entity.id);
+                              setIsEntityConfigModalOpen(true);
+                            }}
+                          >
+                            <Settings className="h-5 w-5" />
                           </Button>
-                          <Button variant="outline" size="icon" className="h-9 w-9">
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            className="h-9 w-9"
+                            title="Edit Entity"
+                            onClick={() => {/* TODO: Add entity edit modal */}}
+                          >
                             <Edit className="h-5 w-5" />
                           </Button>
                         </div>
@@ -295,6 +330,16 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
       <AddEntityModal
         isOpen={isAddEntityModalOpen}
         onClose={() => setIsAddEntityModalOpen(false)}
+        clientId={clientId}
+      />
+      
+      <EntityConfigModal 
+        isOpen={isEntityConfigModalOpen}
+        onClose={() => {
+          setIsEntityConfigModalOpen(false);
+          setSelectedEntityId(null);
+        }}
+        entityId={selectedEntityId}
         clientId={clientId}
       />
     </>
