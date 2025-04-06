@@ -490,6 +490,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Tax Jurisdictions
+  app.get("/api/v1/setup/tax-jurisdictions", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const countryId = req.query.countryId ? parseInt(req.query.countryId as string) : undefined;
+      
+      const taxJurisdictions = await storage.getTaxJurisdictions(tenantId, countryId);
+      res.json(taxJurisdictions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tax jurisdictions" });
+    }
+  });
+
+  app.post("/api/v1/setup/tax-jurisdictions", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const data = { ...req.body, tenantId };
+      
+      const validatedData = insertTaxJurisdictionSchema.parse(data);
+      const newTaxJurisdiction = await storage.createTaxJurisdiction(validatedData);
+      res.status(201).json(newTaxJurisdiction);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid data", errors: error.errors });
+      } else {
+        console.error("Error creating tax jurisdiction:", error);
+        res.status(500).json({ message: "Failed to create tax jurisdiction" });
+      }
+    }
+  });
+
+  app.put("/api/v1/setup/tax-jurisdictions/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if tax jurisdiction belongs to tenant
+      const existingTaxJurisdiction = await storage.getTaxJurisdiction(id, tenantId);
+      if (!existingTaxJurisdiction) {
+        return res.status(404).json({ message: "Tax jurisdiction not found" });
+      }
+      
+      const data = { ...req.body };
+      const updatedTaxJurisdiction = await storage.updateTaxJurisdiction(id, data);
+      res.json(updatedTaxJurisdiction);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to update tax jurisdiction" });
+      }
+    }
+  });
+
+  app.delete("/api/v1/setup/tax-jurisdictions/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const success = await storage.deleteTaxJurisdiction(id, tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "Tax jurisdiction not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete tax jurisdiction" });
+    }
+  });
+
   // Clients Module Routes
   app.get("/api/v1/clients", isAuthenticated, async (req, res) => {
     try {

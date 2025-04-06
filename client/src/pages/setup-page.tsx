@@ -7,6 +7,7 @@ import { StatesManager } from "@/components/setup/states-manager";
 import { EntityTypesManager } from "@/components/setup/entity-types-manager";
 import { TaskStatusesManager } from "@/components/setup/task-statuses-manager";
 import { ServiceTypesManager } from "@/components/setup/service-types-manager";
+import { TaxJurisdictionsManager } from "@/components/setup/tax-jurisdictions-manager";
 import DesignationsManager from "@/components/setup/designations-manager";
 import DepartmentsManager from "@/components/setup/departments-manager";
 import { SetupSection } from "@/types/setup";
@@ -31,6 +32,7 @@ export default function SetupPage() {
           {activeSection === 'entity-types' && <EntityTypesManager />}
           {activeSection === 'task-statuses' && <TaskStatusesManager />}
           {activeSection === 'service-types' && <ServiceTypesManager />}
+          {activeSection === 'tax-jurisdictions' && <TaxJurisdictionsManager />}
           {activeSection === 'designations' && <DesignationsManager />}
           {activeSection === 'departments' && <DepartmentsManager />}
         </div>

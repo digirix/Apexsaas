@@ -176,6 +176,29 @@ export const insertTaskStatusSchema = createInsertSchema(taskStatuses).pick({
   rank: true,
 });
 
+// Tax jurisdictions setup table (for VAT/Sales Tax)
+export const taxJurisdictions = pgTable("tax_jurisdictions", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  countryId: integer("country_id").notNull(),
+  stateId: integer("state_id"),
+  name: text("name").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantTaxJurisdictionUnique: unique().on(table.tenantId, table.countryId, table.stateId ?? 0),
+  };
+});
+
+export const insertTaxJurisdictionSchema = createInsertSchema(taxJurisdictions).pick({
+  tenantId: true,
+  countryId: true,
+  stateId: true,
+  name: true,
+  description: true,
+});
+
 // Service types setup table
 export const serviceTypes = pgTable("service_types", {
   id: serial("id").primaryKey(),
@@ -323,6 +346,9 @@ export type InsertEntityType = z.infer<typeof insertEntityTypeSchema>;
 
 export type TaskStatus = typeof taskStatuses.$inferSelect;
 export type InsertTaskStatus = z.infer<typeof insertTaskStatusSchema>;
+
+export type TaxJurisdiction = typeof taxJurisdictions.$inferSelect;
+export type InsertTaxJurisdiction = z.infer<typeof insertTaxJurisdictionSchema>;
 
 export type ServiceType = typeof serviceTypes.$inferSelect;
 export type InsertServiceType = z.infer<typeof insertServiceTypeSchema>;

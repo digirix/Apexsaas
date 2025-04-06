@@ -1,8 +1,8 @@
-import { tenants, users, designations, departments, countries, currencies, states, entityTypes, taskStatuses, serviceTypes, clients, entities, tasks } from "@shared/schema";
+import { tenants, users, designations, departments, countries, currencies, states, entityTypes, taskStatuses, taxJurisdictions, serviceTypes, clients, entities, tasks } from "@shared/schema";
 import type { Tenant, User, InsertUser, InsertTenant, 
   Designation, InsertDesignation, Department, InsertDepartment,
   Country, InsertCountry, Currency, InsertCurrency, 
-  State, InsertState, EntityType, InsertEntityType, TaskStatus, InsertTaskStatus, ServiceType, 
+  State, InsertState, EntityType, InsertEntityType, TaskStatus, InsertTaskStatus, TaxJurisdiction, InsertTaxJurisdiction, ServiceType, 
   InsertServiceType, Client, InsertClient, Entity, InsertEntity, Task, InsertTask } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -77,6 +77,13 @@ export interface IStorage {
   updateTaskStatus(id: number, taskStatus: Partial<InsertTaskStatus>): Promise<TaskStatus | undefined>;
   deleteTaskStatus(id: number, tenantId: number): Promise<boolean>;
   
+  // Tax jurisdiction operations
+  getTaxJurisdictions(tenantId: number, countryId?: number): Promise<TaxJurisdiction[]>;
+  getTaxJurisdiction(id: number, tenantId: number): Promise<TaxJurisdiction | undefined>;
+  createTaxJurisdiction(taxJurisdiction: InsertTaxJurisdiction): Promise<TaxJurisdiction>;
+  updateTaxJurisdiction(id: number, taxJurisdiction: Partial<InsertTaxJurisdiction>): Promise<TaxJurisdiction | undefined>;
+  deleteTaxJurisdiction(id: number, tenantId: number): Promise<boolean>;
+  
   // Service type operations
   getServiceTypes(tenantId: number, countryId?: number): Promise<ServiceType[]>;
   getServiceType(id: number, tenantId: number): Promise<ServiceType | undefined>;
@@ -116,6 +123,7 @@ export class MemStorage implements IStorage {
   private states: Map<number, State>;
   private entityTypes: Map<number, EntityType>;
   private taskStatuses: Map<number, TaskStatus>;
+  private taxJurisdictions: Map<number, TaxJurisdiction>;
   private serviceTypes: Map<number, ServiceType>;
   private clients: Map<number, Client>;
   private entities: Map<number, Entity>;
@@ -132,6 +140,7 @@ export class MemStorage implements IStorage {
   private stateId: number = 1;
   private entityTypeId: number = 1;
   private taskStatusId: number = 1;
+  private taxJurisdictionId: number = 1;
   private serviceTypeId: number = 1;
   private clientId: number = 1;
   private entityId: number = 1;
@@ -147,6 +156,7 @@ export class MemStorage implements IStorage {
     this.states = new Map();
     this.entityTypes = new Map();
     this.taskStatuses = new Map();
+    this.taxJurisdictions = new Map();
     this.serviceTypes = new Map();
     this.clients = new Map();
     this.entities = new Map();
@@ -546,6 +556,57 @@ export class MemStorage implements IStorage {
     const taskStatus = this.taskStatuses.get(id);
     if (taskStatus && taskStatus.tenantId === tenantId) {
       return this.taskStatuses.delete(id);
+    }
+    return false;
+  }
+
+  // Tax jurisdiction operations
+  async getTaxJurisdictions(tenantId: number, countryId?: number): Promise<TaxJurisdiction[]> {
+    let taxJurisdictions = Array.from(this.taxJurisdictions.values()).filter(tj => tj.tenantId === tenantId);
+    
+    if (countryId) {
+      taxJurisdictions = taxJurisdictions.filter(tj => tj.countryId === countryId);
+    }
+    
+    return taxJurisdictions;
+  }
+
+  async getTaxJurisdiction(id: number, tenantId: number): Promise<TaxJurisdiction | undefined> {
+    const taxJurisdiction = this.taxJurisdictions.get(id);
+    if (taxJurisdiction && taxJurisdiction.tenantId === tenantId) {
+      return taxJurisdiction;
+    }
+    return undefined;
+  }
+
+  async createTaxJurisdiction(taxJurisdiction: InsertTaxJurisdiction): Promise<TaxJurisdiction> {
+    const id = this.taxJurisdictionId++;
+    const newTaxJurisdiction: TaxJurisdiction = { 
+      id, 
+      tenantId: taxJurisdiction.tenantId,
+      countryId: taxJurisdiction.countryId,
+      stateId: taxJurisdiction.stateId ?? null,
+      name: taxJurisdiction.name,
+      description: taxJurisdiction.description ?? null,
+      createdAt: new Date()
+    };
+    this.taxJurisdictions.set(id, newTaxJurisdiction);
+    return newTaxJurisdiction;
+  }
+
+  async updateTaxJurisdiction(id: number, taxJurisdiction: Partial<InsertTaxJurisdiction>): Promise<TaxJurisdiction | undefined> {
+    const existingTaxJurisdiction = this.taxJurisdictions.get(id);
+    if (!existingTaxJurisdiction) return undefined;
+    
+    const updatedTaxJurisdiction = { ...existingTaxJurisdiction, ...taxJurisdiction };
+    this.taxJurisdictions.set(id, updatedTaxJurisdiction);
+    return updatedTaxJurisdiction;
+  }
+
+  async deleteTaxJurisdiction(id: number, tenantId: number): Promise<boolean> {
+    const taxJurisdiction = this.taxJurisdictions.get(id);
+    if (taxJurisdiction && taxJurisdiction.tenantId === tenantId) {
+      return this.taxJurisdictions.delete(id);
     }
     return false;
   }

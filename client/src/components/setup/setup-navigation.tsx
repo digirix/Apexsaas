@@ -9,7 +9,8 @@ import {
   List, 
   Briefcase,
   UsersRound,
-  Building
+  Building,
+  Receipt
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SetupSection } from "@/types/setup";
@@ -56,6 +57,11 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
       icon: <Briefcase className="h-5 w-5" />
     },
     {
+      id: 'tax-jurisdictions',
+      label: 'VAT/Sales Tax Jurisdictions',
+      icon: <Receipt className="h-5 w-5" />
+    },
+    {
       id: 'task-statuses',
       label: 'Task Statuses',
       icon: <List className="h-5 w-5" />
@@ -76,8 +82,8 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
 
   // Group items by category
   const locationItems = setupItems.slice(0, 3);
-  const businessItems = setupItems.slice(3, 6);
-  const hrItems = setupItems.slice(6, 8);
+  const businessItems = setupItems.slice(3, 7);
+  const hrItems = setupItems.slice(7, 9);
 
   return (
     <Card className="p-4">
