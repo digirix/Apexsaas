@@ -6,7 +6,8 @@ import {
   insertCountrySchema, insertCurrencySchema, insertStateSchema, 
   insertEntityTypeSchema, insertTaskStatusSchema, insertServiceTypeSchema,
   insertClientSchema, insertEntitySchema, insertTaskSchema,
-  insertDesignationSchema, insertDepartmentSchema, insertUserSchema
+  insertDesignationSchema, insertDepartmentSchema, insertUserSchema,
+  insertTaxJurisdictionSchema
 } from "@shared/schema";
 import { z } from "zod";
 
