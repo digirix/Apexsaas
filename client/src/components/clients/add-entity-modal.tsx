@@ -111,56 +111,13 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
   }, [user, form]);
 
   const createEntityMutation = useMutation({
-    mutationFn: async (data: InsertEntity) => {
+    mutationFn: async (data: any) => {
       console.log("Mutation function executing with data:", data);
-      
-      // Check required fields
-      if (!data.name || !data.countryId || !data.entityTypeId || !data.tenantId || !data.clientId) {
-        console.error("Missing required fields:", { 
-          name: data.name, 
-          countryId: data.countryId, 
-          entityTypeId: data.entityTypeId,
-          tenantId: data.tenantId,
-          clientId: data.clientId 
-        });
-        throw new Error("Missing required fields");
-      }
       
       try {
         console.log(`Sending request to: /api/v1/clients/${clientId}/entities`);
-        console.log("With data:", data);
-        
         const response = await apiRequest("POST", `/api/v1/clients/${clientId}/entities`, data);
-        console.log("API Response status:", response.status);
-        console.log("API Response ok:", response.ok);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("API error response text:", errorText);
-          
-          let errorData;
-          try {
-            errorData = JSON.parse(errorText);
-          } catch (e) {
-            console.error("Failed to parse error response as JSON:", e);
-            throw new Error(`Failed to create entity: ${response.status} ${response.statusText}`);
-          }
-          
-          console.error("API error data:", errorData);
-          throw new Error(errorData.message || "Failed to create entity");
-        }
-        
-        const responseText = await response.text();
-        console.log("API Success response text:", responseText);
-        
-        let responseData;
-        try {
-          responseData = responseText ? JSON.parse(responseText) : {};
-        } catch (e) {
-          console.error("Failed to parse success response as JSON:", e);
-          return {}; // Return empty object if we can't parse the response
-        }
-        
+        const responseData = await response.json();
         console.log("API Success response data:", responseData);
         return responseData;
       } catch (err) {
@@ -195,81 +152,49 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     console.log("Form submit triggered!");
-    // Check for form validation errors
-    console.log("Form errors:", form.formState.errors);
     console.log("Form values:", values);
     
     setIsSubmitting(true);
     
     // Make sure tenantId is set
     if (!values.tenantId && user?.tenantId) {
-      console.log("Setting tenantId from user context:", user.tenantId);
       values.tenantId = user.tenantId;
     }
     
-    // Validate required fields
-    if (!values.name) {
-      console.log("Entity name is missing");
-      form.setError("name", { message: "Entity name is required" });
-      setIsSubmitting(false);
-      return;
-    }
-    
-    if (!values.countryId || values.countryId === 0) {
-      console.log("Country is missing or 0");
-      form.setError("countryId", { message: "Country is required" });
-      setIsSubmitting(false);
-      return;
-    }
-    
-    if (!values.entityTypeId || values.entityTypeId === 0) {
-      console.log("Entity type is missing or 0");
-      form.setError("entityTypeId", { message: "Entity type is required" });
-      setIsSubmitting(false);
-      return;
-    }
-    
-    // Debug what's being submitted
-    console.log("Submitting entity:", {
-      ...values,
-      clientId,
-      tenantId: values.tenantId
-    });
-    
     try {
-      // Create the complete entity object
-      const entityData: InsertEntity = {
+      // Prepare data for submission
+      const submissionData = {
         name: values.name,
         countryId: values.countryId,
         entityTypeId: values.entityTypeId,
         clientId: clientId,
         tenantId: values.tenantId,
-        isVatRegistered: values.isVatRegistered || false
-      };
+        isVatRegistered: values.isVatRegistered || false,
+      } as any; // Use any type temporarily to allow for property assignment
       
-      // Handle optional fields - only include if they have a value and are not the default "0" for numeric fields
+      // Add optional fields if they have valid values
       if (values.stateId && values.stateId !== 0) {
-        entityData.stateId = values.stateId;
+        submissionData.stateId = values.stateId;
       }
       
-      if (values.businessTaxId && values.businessTaxId.trim() !== '') {
-        entityData.businessTaxId = values.businessTaxId;
+      if (values.businessTaxId?.trim()) {
+        submissionData.businessTaxId = values.businessTaxId.trim();
       }
       
-      if (values.vatId && values.vatId.trim() !== '') {
-        entityData.vatId = values.vatId;
+      if (values.vatId?.trim()) {
+        submissionData.vatId = values.vatId.trim();
       }
       
-      if (values.address && values.address.trim() !== '') {
-        entityData.address = values.address;
+      if (values.address?.trim()) {
+        submissionData.address = values.address.trim();
       }
       
-      if (values.fileAccessLink && values.fileAccessLink.trim() !== '') {
-        entityData.fileAccessLink = values.fileAccessLink;
+      if (values.fileAccessLink?.trim()) {
+        submissionData.fileAccessLink = values.fileAccessLink.trim();
       }
       
-      console.log("Final entity data:", entityData);
-      createEntityMutation.mutate(entityData);
+      console.log("Submitting entity data:", submissionData);
+      createEntityMutation.mutate(submissionData as InsertEntity);
     } catch (error) {
       console.error("Error submitting entity:", error);
       toast({
