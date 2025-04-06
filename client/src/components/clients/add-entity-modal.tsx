@@ -5,13 +5,14 @@ import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
-import { insertEntitySchema, InsertEntity, Country, EntityType, State } from "@shared/schema";
+import { Country, EntityType, State } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -43,6 +44,20 @@ interface AddEntityModalProps {
   clientId: number;
 }
 
+// Define a simple schema for our form
+const formSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  countryId: z.coerce.number().min(1, "Country is required"),
+  entityTypeId: z.coerce.number().min(1, "Entity type is required"),
+  stateId: z.coerce.number().optional(),
+  businessTaxId: z.string().optional(),
+  isVatRegistered: z.boolean().default(false),
+  vatId: z.string().optional(),
+  address: z.string().optional(),
+  fileAccessLink: z.string().optional(),
+  tenantId: z.number().min(1, "Tenant ID is required"),
+});
+
 export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProps) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -57,8 +72,8 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
   
   // Fetch entity types
   const { data: entityTypes = [] } = useQuery<EntityType[]>({
-    queryKey: ["/api/v1/setup/entity-types", selectedCountryId],
-    enabled: isOpen && !!selectedCountryId,
+    queryKey: ["/api/v1/setup/entity-types"],
+    enabled: isOpen,
   });
   
   // Fetch states for selected country
@@ -67,155 +82,130 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
     enabled: isOpen && !!selectedCountryId,
   });
   
-  // Extend schema with validation
-  const formSchema = insertEntitySchema.extend({
-    name: z.string().min(2, "Name must be at least 2 characters"),
-    countryId: z.coerce.number({ 
-      required_error: "Country is required",
-      invalid_type_error: "Must be a number"
-    }),
-    entityTypeId: z.coerce.number({ 
-      required_error: "Entity type is required",
-      invalid_type_error: "Must be a number"
-    }),
-    stateId: z.coerce.number().optional(),
-    businessTaxId: z.string().optional(),
-    vatId: z.string().optional().or(z.literal('')),
-    address: z.string().optional().or(z.literal('')),
-    fileAccessLink: z.string().optional().or(z.literal('')),
-    // Add tenantId
-    tenantId: z.number(),
-  });
-
+  // Initialize form
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      countryId: 0, // Default to 0 instead of undefined
-      entityTypeId: 0, // Default to 0 instead of undefined
-      stateId: 0, // Default to 0 instead of undefined
+      countryId: 0,
+      entityTypeId: 0,
+      stateId: 0,
       businessTaxId: "",
       isVatRegistered: false,
       vatId: "",
       address: "",
       fileAccessLink: "",
-      tenantId: user?.tenantId || 0, // Set initial value if user is available
+      tenantId: user?.tenantId || 0,
     },
   });
   
-  // Set tenantId when user data is available
+  // Set tenant ID when user data changes
   useEffect(() => {
     if (user?.tenantId) {
       form.setValue("tenantId", user.tenantId);
     }
   }, [user, form]);
-
-  const createEntityMutation = useMutation({
-    mutationFn: async (data: any) => {
-      console.log("Mutation function executing with data:", data);
+  
+  // Create entity mutation
+  const createEntity = useMutation({
+    mutationFn: async (values: z.infer<typeof formSchema>) => {
+      console.log("Creating entity with data:", values);
       
-      try {
-        console.log(`Sending request to: /api/v1/clients/${clientId}/entities`);
-        const response = await apiRequest("POST", `/api/v1/clients/${clientId}/entities`, data);
-        const responseData = await response.json();
-        console.log("API Success response data:", responseData);
-        return responseData;
-      } catch (err) {
-        console.error("API call error:", err);
-        throw err;
-      }
-    },
-    onSuccess: (data) => {
-      console.log("Mutation successful with data:", data);
-      queryClient.invalidateQueries({ queryKey: [`/api/v1/clients/${clientId}/entities`] });
-      toast({
-        title: "Success",
-        description: "Entity created successfully",
-      });
-      form.reset();
-      onClose();
-    },
-    onError: (error: any) => {
-      console.error("Mutation error:", error);
-      toast({
-        title: "Error",
-        description: error.message || "An error occurred while creating the entity",
-        variant: "destructive",
-      });
-      setIsSubmitting(false);
-    },
-    onSettled: () => {
-      console.log("Mutation settled");
-      setIsSubmitting(false);
-    },
-  });
-
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log("Form submit triggered!");
-    console.log("Form values:", values);
-    
-    setIsSubmitting(true);
-    
-    // Make sure tenantId is set
-    if (!values.tenantId && user?.tenantId) {
-      values.tenantId = user.tenantId;
-    }
-    
-    try {
-      // Prepare data for submission
-      const submissionData = {
+      // Create submission data
+      const data = {
         name: values.name,
         countryId: values.countryId,
         entityTypeId: values.entityTypeId,
         clientId: clientId,
         tenantId: values.tenantId,
-        isVatRegistered: values.isVatRegistered || false,
-      } as any; // Use any type temporarily to allow for property assignment
+        isVatRegistered: values.isVatRegistered,
+      };
       
-      // Add optional fields if they have valid values
-      if (values.stateId && values.stateId !== 0) {
-        submissionData.stateId = values.stateId;
+      // Add optional fields if they have values
+      if (values.stateId && values.stateId > 0) {
+        (data as any).stateId = values.stateId;
       }
       
-      if (values.businessTaxId?.trim()) {
-        submissionData.businessTaxId = values.businessTaxId.trim();
+      if (values.businessTaxId) {
+        (data as any).businessTaxId = values.businessTaxId;
       }
       
-      if (values.vatId?.trim()) {
-        submissionData.vatId = values.vatId.trim();
+      if (values.vatId) {
+        (data as any).vatId = values.vatId;
       }
       
-      if (values.address?.trim()) {
-        submissionData.address = values.address.trim();
+      if (values.address) {
+        (data as any).address = values.address;
       }
       
-      if (values.fileAccessLink?.trim()) {
-        submissionData.fileAccessLink = values.fileAccessLink.trim();
+      if (values.fileAccessLink) {
+        (data as any).fileAccessLink = values.fileAccessLink;
       }
       
-      console.log("Submitting entity data:", submissionData);
-      createEntityMutation.mutate(submissionData as InsertEntity);
-    } catch (error) {
-      console.error("Error submitting entity:", error);
-      toast({
-        title: "Submission Error",
-        description: "Error submitting form. Check console for details.",
-        variant: "destructive"
+      const response = await apiRequest(
+        "POST", 
+        `/api/v1/clients/${clientId}/entities`, 
+        data
+      );
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate queries to refetch data
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/v1/clients/${clientId}/entities`] 
       });
+      
+      // Show success message
+      toast({
+        title: "Success",
+        description: "Entity created successfully",
+      });
+      
+      // Reset form and close modal
+      form.reset();
+      onClose();
+    },
+    onError: (error: any) => {
+      console.error("Error creating entity:", error);
+      
+      // Show error message
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create entity",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
       setIsSubmitting(false);
+    },
+  });
+  
+  // Form submission handler
+  function onSubmit(values: z.infer<typeof formSchema>) {
+    console.log("Form submitted with values:", values);
+    setIsSubmitting(true);
+    
+    // Make sure tenant ID is set
+    if (!values.tenantId && user?.tenantId) {
+      values.tenantId = user.tenantId;
     }
+    
+    createEntity.mutate(values);
   }
-
+  
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Entity</DialogTitle>
+          <DialogDescription>
+            Create a new entity for this client
+          </DialogDescription>
         </DialogHeader>
+        
         <Form {...form}>
-          <form 
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="name"
@@ -241,11 +231,10 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
                       onValueChange={(value) => {
                         field.onChange(Number(value));
                         setSelectedCountryId(Number(value));
-                        // Reset dependent fields with 0 to avoid errors
                         form.setValue("entityTypeId", 0);
                         form.setValue("stateId", 0);
                       }}
-                      value={field.value?.toString()}
+                      value={field.value > 0 ? field.value.toString() : undefined}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -273,7 +262,7 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
                     <FormLabel>Entity Type</FormLabel>
                     <Select
                       onValueChange={(value) => field.onChange(Number(value))}
-                      value={field.value?.toString()}
+                      value={field.value > 0 ? field.value.toString() : undefined}
                       disabled={!selectedCountryId}
                     >
                       <FormControl>
@@ -307,7 +296,7 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
                     <FormLabel>State/Province (Optional)</FormLabel>
                     <Select
                       onValueChange={(value) => field.onChange(Number(value))}
-                      value={field.value?.toString()}
+                      value={field.value > 0 ? field.value.toString() : undefined}
                       disabled={!selectedCountryId || states.length === 0}
                     >
                       <FormControl>
