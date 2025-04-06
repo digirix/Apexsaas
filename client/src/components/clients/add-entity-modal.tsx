@@ -289,11 +289,7 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
         </DialogHeader>
         <Form {...form}>
           <form 
-            onSubmit={(e) => {
-              console.log("Form submitted via native submit");
-              e.preventDefault();
-              form.handleSubmit(onSubmit)(e);
-            }} 
+            onSubmit={form.handleSubmit(onSubmit)}
             className="space-y-4">
             <FormField
               control={form.control}
@@ -518,13 +514,6 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
               <Button 
                 type="submit" 
                 disabled={isSubmitting}
-                onClick={(e) => {
-                  console.log("Create Button clicked");
-                  if (!form.formState.isSubmitting) {
-                    console.log("Manually triggering submit");
-                    form.handleSubmit(onSubmit)();
-                  }
-                }}
               >
                 {isSubmitting ? "Creating..." : "Create Entity"}
               </Button>
