@@ -385,7 +385,7 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                               <Loader2 className="h-4 w-4 animate-spin" />
                             </div>
                           ) : adminTaskCategories.length === 0 ? (
-                            <SelectItem value="" disabled>
+                            <SelectItem value="none" disabled>
                               No categories available
                             </SelectItem>
                           ) : (
@@ -588,7 +588,7 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                 </div>
                               ) : revenueTaskCategories.length === 0 ? (
-                                <SelectItem value="" disabled>
+                                <SelectItem value="none" disabled>
                                   No categories available
                                 </SelectItem>
                               ) : (

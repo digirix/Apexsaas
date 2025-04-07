@@ -89,14 +89,14 @@ export function TaskList() {
         
         <div className="w-full md:w-[200px]">
           <Select
-            value={statusFilter || ""}
-            onValueChange={(value) => setStatusFilter(value || null)}
+            value={statusFilter || "all"}
+            onValueChange={(value) => setStatusFilter(value === "all" ? null : value)}
           >
             <SelectTrigger>
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Statuses</SelectItem>
+              <SelectItem value="all">All Statuses</SelectItem>
               {taskStatuses.map((status) => (
                 <SelectItem key={status.id} value={status.id.toString()}>
                   {status.name}
