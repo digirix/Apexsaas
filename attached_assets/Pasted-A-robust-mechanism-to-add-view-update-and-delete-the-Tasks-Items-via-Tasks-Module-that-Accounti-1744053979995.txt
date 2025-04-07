@@ -1,0 +1,58 @@
+A robust mechanism to add, view, update and delete the "Tasks Items" via Tasks Module, that Accounting firm needs to do in order to carry out their daily operations, these tasks will be used across the app for reporting, notifications, and other related purposes. The UI of this module shall have tabs as follows.
+
+Add Task: there will be two types of tasks a) Administrative Tasks b) Revenue Task
+
+when clicked on the Admin Task, this will open a form to capture task having fields as follows		
+I. Creation data: auto generated, on which task is being created		
+Ii. Task Type: a drop down of Regular, Medium, Urgent.		
+Iii. Assignee: Drop down of Users having the roles as defined by the system for the Users of tenant		
+Iv. Due Date: this is the date by which the task must be completed		
+V. Admin Task Category: (Dropdown of all the Service names from the “Admin Task Category” field of the Task Variables Section of the Setup Module.)	
+Vi. Task details: a text for details of the task to be done
+Vii. Next to do: a text for the details of the task what is next to be done		
+When clicked on the Revenue Task, this will open a form to capture task having fields as follows in a tabbed form		
+Tab: Basic Information: having fields 		
+I. Creation data: auto generated, on which task is being created
+I.i ) Client name: dropdown from the “Client Display name” field of the Clients Module. 
+i.ii) Entity Name: Dropdown of all the entity names from the “Entity Name” field of the “Entity” section of the clients module tied to the client name that is selected above. 
+Ii. Service Name: (Dropdown of all the Service names from the “Service Name” field of the Service Type Section of the Setup Module. Validation: Only show those services that matches the country of the Service name and Entity Country)
+Iii. Revenue Task Category: (Optional-Dropdown of all the Service names from the “Revenue Task Category” field of the Task Variables Section of the Setup Module. )
+Iv. Task Type: a drop down of Regular, Medium, Urgent.
+V. Assignee: Drop Down of Users from the field “User Name” of the User management Module.
+Vi. Due Date: this is the date by which the task must be completed
+Vii. Task details: a text for details of the task to be done - Add suggestions by the AI here based on the information added so far, which user can adopt or reject
+Viii. Next to do: a text for the details of the task what is next to be done 		
+Tab: Compliance Configuration: having fields 		
+I. Compliance Frequency: Drop down of values (5 Years, 4 years, 3 Years, 2 Years, Annual, Bi-Annually, Quarterly, Monthly, One Time)		
+a) Based on this input, next field should be "Year(s)",  and it should be as per previous entry, with following logic		
+a1) if Compliance Frequency is 5 years, 4 years, 3 years, or 2 years, "Year(s)" should take input of those years separated by commas.
+a2) if Compliance Frequency is Annual, "Year(s)" should take input of Only one Year.		
+a3) if Compliance Frequency is Bi-Annual, "Year(s)" should take input of Only one year and should show new field Called, "Duration" showing value in dropdown (First Half, Second half)	.
+a4) if Compliance Frequency is Quarterly, "Year(s)" should take input of Only one year and should show new field Called, "Duration" showing value in dropdown (Q1, Q2, Q3, Q4).	
+a5) if Compliance Frequency is Monthly, "Year(s)" should take input of Only one year and should show new field Called, "Duration" showing value in dropdown (Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec).
+a6) if Compliance Frequency is One Time, "Year(s)" should take input of Only one year and should show new field Called, "Duration" Capturing Value here as One Time.		
+
+Ii. Compliance Duration Start date: This field can be set at any date by the authorized user.		
+Iii. Compliance Duration End Date: Must be intelligently set by the system dynamically, on its own, by looking at the Compliance Frequency, Years(s), and Duration and Start date Fields, for example if the “Compliance Frequency” is Monthly, “Year(s)” is 2025, “Duration” says Jan, and “Compliance Duration Start date” is Jan 1st, 2025, the end date would be Jan 31st, 2025. and similar for all other cases.		
+Iv. A Radio button, Is this task recurring ? with a Yes or No option.		
+If It says No, that means No need to add this task next time anywhere in the system, just this task will be created and executed.		
+If It says Yes, that means this task needs to be added next time as well on the basis of “Compliance Frequency”, “Duration”, “Compliance Duration Start date” and “Compliance Duration End date” fields values that have been saved by the user input. 
+
+The Recurring tasks will be auto generated in a Separate module, Called "Auto Generated Tasks" all those tasks will be listed in that module at least 25 Days (By default, but in settings module, this should be made changeable) before the Next “Compliance Duration End date” that has been set for this task.
+For example: if the “Compliance Duration End date” of a certain Current Active task is June 30, 2024. The Next Auto Generated Task should appear in the "Auto Generated Tasks" Module May 05, 2025.
+
+and with the approval of the authorised user, those will be added in the active tasks for execution. such tasks will not be assigned to anyone unless added to the active tasks here in this module.
+
+Note: These auto generated tasks should have the updated values in terms of dates, but should have the same values that are discrete like client name, entity names, rates, currencies etc. 
+For the rates, please take the value of that is set by the user in last “Service Rate” Field of the “Invoice information” tab of Task form.
+
+		
+Tab: Invoice information: having fields 			
+Currency: Auto populated on the basis of the following
+System will get the “Currency” value from the Currency Field of the “Regions of Operations” Section of the “Setup Module” by matching the Country of the Entity from the Entity section of the Clients Module. However, this will be Editable but the Values here should be one of those as stored in the Currency Field of the “Regions of Operations” Section of the “Setup Module”.		
+Service Rate: this will also be auto populated from the “Service Rate” field of the “Service Type” section of the Setup Module. But this will also be editable by the user. 
+
+After all this form is completed the task will be created. The status of all the tasks created will be assigned Rank 1 by default as defined by the logic in the “Task Rank” field of subsection “Task Statuses” of the section “Task Variables” of the Setup Module. 
+
+
+System should intelligently make an easy and robust mechanism of updating the tasks whenever the user wants to update it after its creation

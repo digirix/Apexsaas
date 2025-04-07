@@ -1,0 +1,612 @@
+Technical Design Document (TDD): Accounting Firm Management Application
+Version: 1.0
+Date: [YYYY-MM-DD]
+Author: Waqas Shoukat
+1. Introduction
+This document outlines the technical design for the Accounting Firm Management Application. It details the system architecture, technology stack, database schema, API specifications, and key implementation considerations required to build the application described in the Product Requirements Document (PRD). The primary goal is to provide a clear technical blueprint for development, particularly guiding AI-driven code generation via Replit. Emphasis is placed on the database structure and API design to ensure a robust and scalable foundation.
+2. Technology Stack (Confirmation & Assumptions)
+Development Environment: Replit
+Database: Replit PostgreSQL
+AI Model: Google Gemini 2.5 Pro (via REST API)
+Payment Gateways: Stripe (API), PayPal (API)
+Backend Language/Framework: Assumption: Python with Flask or Django. (Final choice to be confirmed, but design leans towards these patterns). Flask is often simpler to start with on Replit.
+Frontend Language/Framework: Assumption: React or Vue.js. (Final choice to be confirmed). Alternatively, server-side rendering with HTML/CSS/JavaScript using templates (e.g., Jinja2 if using Flask/Django).
+API Communication: RESTful principles using JSON.
+Background Tasks (Recurring Tasks, Workflows): Requires a scheduling mechanism (e.g., APScheduler library for Python, or Replit Background Workers if suitable).
+3. Architecture Overview
+The application will follow a multi-tenant monolithic architecture initially, hosted on Replit.
+Frontend: Web-based interface (React/Vue/Server-Rendered HTML) served by the backend framework. Separate builds or routing logic for the main Firm Application and the Client Portal.
+Backend: Python (Flask/Django) application handling:
+API request routing and processing.
+Business logic implementation.
+Database interactions (likely via an ORM like SQLAlchemy for Flask or Django ORM).
+Authentication and authorization (session-based or JWT).
+Interaction with external APIs (Gemini, Stripe, PayPal).
+Serving frontend assets or rendered pages.
+
+
+Database: Replit PostgreSQL instance storing all tenant data, ensuring strict separation via tenant_id.
+Background Worker/Scheduler: Separate process or library managing scheduled tasks (recurring task generation, workflow triggers based on time).
+External Services: Google Cloud (Gemini API), Stripe, PayPal.
+     graph LR
+    User(Firm User) --> Browser(Browser - Firm App)
+    ClientUser(Client Contact) --> BrowserClient(Browser - Client Portal)
+
+    Browser -- HTTPS --> ReplitApp[Replit App Server (Python/Flask + Frontend)]
+    BrowserClient -- HTTPS --> ReplitApp
+
+    ReplitApp -- SQL --> ReplitDB[(Replit PostgreSQL)]
+    ReplitApp -- API Call --> Gemini[Google Gemini API]
+    ReplitApp -- API Call --> Stripe[Stripe API]
+    ReplitApp -- API Call --> PayPal[PayPal API]
+    ReplitApp -- Manages/Triggers --> Scheduler[Background Scheduler/Worker]
+
+    Scheduler -- Reads/Writes --> ReplitDB
+    Scheduler -- Triggers Logic --> ReplitApp
+
+4. Database Schema Design
+Naming Convention: snake_case for tables and columns.
+Primary Keys: id (BIGSERIAL or SERIAL) unless otherwise specified.
+Foreign Keys: Enforced with constraints. ON DELETE RESTRICT is the default assumption unless specified otherwise, to prevent accidental data loss.
+Timestamps: Use TIMESTAMP WITH TIME ZONE for creation/update times (created_at, updated_at). Add these standard columns to most tables.
+Multi-Tenancy: A tenant_id column (referencing tenants.id) is required on almost all tables containing tenant-specific data.
+Schema Definitions:
+     -- =======================================
+-- Core Tenant & User Management
+-- =======================================
+
+CREATE TABLE tenants (
+    id BIGSERIAL PRIMARY KEY,
+    firm_name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    -- Potentially add tenant-specific profile info here (address etc.) later
+);
+
+CREATE TABLE users ( -- Internal Firm Users (Super Admin, Members)
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE, -- Cascade delete users if tenant is deleted
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE, -- Unique across the whole system
+    password_hash VARCHAR(255) NOT NULL, -- Securely hashed (bcrypt)
+    designation_id BIGINT REFERENCES designations(id) ON DELETE SET NULL, -- Link to designation
+    department_id BIGINT REFERENCES departments(id) ON DELETE SET NULL, -- Link to department
+    is_super_admin BOOLEAN NOT NULL DEFAULT FALSE,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, email) -- Email unique within a tenant (redundant due to global unique email, but good practice)
+);
+-- Note: Permissions are handled separately, potentially in a linking table or role-based system linked here.
+
+CREATE TABLE roles ( -- Optional: For RBAC implementation
+    id SERIAL PRIMARY KEY,
+    tenant_id BIGINT REFERENCES tenants(id) ON DELETE CASCADE, -- Roles can be tenant-specific or global (tenant_id NULL)
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    UNIQUE (tenant_id, name) -- Role name unique within a tenant (or globally if tenant_id is NULL)
+);
+
+CREATE TABLE user_roles ( -- Optional: Linking users to roles
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role_id INT NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    PRIMARY KEY (user_id, role_id)
+);
+
+CREATE TABLE permissions ( -- Granular permissions
+    id SERIAL PRIMARY KEY,
+    resource VARCHAR(100) NOT NULL, -- e.g., 'Client', 'Task', 'Setup.Country'
+    action VARCHAR(50) NOT NULL, -- e.g., 'Create', 'Read', 'Update', 'Delete', 'ManagePortalAccess'
+    description TEXT,
+    UNIQUE (resource, action)
+);
+
+CREATE TABLE role_permissions ( -- Optional: Linking roles to permissions
+    role_id INT NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    permission_id INT NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+    PRIMARY KEY (role_id, permission_id)
+);
+
+CREATE TABLE user_permissions ( -- Optional: Direct user permissions (overrides roles)
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    permission_id INT NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+    has_permission BOOLEAN NOT NULL DEFAULT TRUE, -- Allows explicitly denying a permission
+    PRIMARY KEY (user_id, permission_id)
+);
+
+
+-- =======================================
+-- Setup Module Tables
+-- =======================================
+
+CREATE TABLE countries (
+    id SERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, name)
+);
+
+CREATE TABLE currencies (
+    id SERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    name VARCHAR(50) NOT NULL, -- e.g., "USD", "GBP"
+    symbol VARCHAR(10), -- e.g., "$", "£"
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, name)
+);
+
+CREATE TABLE states ( -- Or regions/provinces
+    id SERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    country_id INT NOT NULL REFERENCES countries(id) ON DELETE CASCADE, -- Explicit link to country
+    name VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, name) -- As per clarification, state name is globally unique within tenant
+    -- UNIQUE (tenant_id, country_id, name) -- Alternative if state name only unique within country
+);
+
+CREATE TABLE vat_sales_tax_jurisdictions (
+    id SERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    country_id INT NOT NULL REFERENCES countries(id) ON DELETE CASCADE,
+    state_id INT REFERENCES states(id) ON DELETE CASCADE, -- Nullable if not applicable for the country
+    name VARCHAR(255) GENERATED ALWAYS AS ( -- Generated name for display
+        CASE
+            WHEN state_id IS NULL THEN (SELECT name FROM countries WHERE id = country_id)
+            ELSE (SELECT name FROM countries WHERE id = country_id) || ' - ' || (SELECT name FROM states WHERE id = state_id)
+        END
+    ) STORED,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, country_id, state_id)
+);
+
+
+CREATE TABLE entity_types (
+    id SERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    country_id INT NOT NULL REFERENCES countries(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL, -- e.g., "LLC", "Ltd"
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, country_id, name)
+);
+
+CREATE TABLE service_billing_basis (
+    id SERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, name)
+);
+
+CREATE TABLE service_types (
+    id SERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    country_id INT NOT NULL REFERENCES countries(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    default_currency_id INT REFERENCES currencies(id) ON DELETE SET NULL,
+    default_service_rate NUMERIC(12, 2) CHECK (default_service_rate > 0),
+    default_billing_basis_id INT REFERENCES service_billing_basis(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, country_id, name)
+);
+
+CREATE TABLE task_categories (
+    id SERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    type VARCHAR(20) NOT NULL CHECK (type IN ('Admin', 'Revenue')), -- 'Admin' or 'Revenue'
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, type, name)
+);
+
+CREATE TABLE task_statuses (
+    id SERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    rank VARCHAR(10) NOT NULL, -- Using VARCHAR to allow '2.1', '2.11'. Validation logic in backend.
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    is_editable BOOLEAN NOT NULL DEFAULT TRUE, -- To potentially lock 'New' and 'Completed'
+    is_start_status BOOLEAN NOT NULL DEFAULT FALSE, -- Mark Rank '1'
+    is_end_status BOOLEAN NOT NULL DEFAULT FALSE, -- Mark Rank '3'
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, rank),
+    UNIQUE (tenant_id, name)
+);
+
+CREATE TABLE designations (
+    id SERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, name)
+);
+
+CREATE TABLE departments (
+    id SERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, name)
+);
+
+-- =======================================
+-- Clients & Entities Module Tables
+-- =======================================
+
+CREATE TABLE clients (
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    display_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255), -- Allow null? PRD says unique if present
+    mobile VARCHAR(50), -- Allow null? PRD says unique if present
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, display_name),
+    UNIQUE (tenant_id, email),
+    UNIQUE (tenant_id, mobile)
+);
+
+CREATE TABLE entities (
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    client_id BIGINT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    country_id INT NOT NULL REFERENCES countries(id) ON DELETE RESTRICT, -- Don't delete entity if country deleted
+    state_id INT REFERENCES states(id) ON DELETE RESTRICT, -- Don't delete entity if state deleted
+    address TEXT,
+    entity_type_id INT NOT NULL REFERENCES entity_types(id) ON DELETE RESTRICT,
+    business_tax_id VARCHAR(100),
+    is_vat_registered BOOLEAN NOT NULL DEFAULT FALSE,
+    vat_sales_tax_id VARCHAR(100),
+    file_access_link TEXT, -- Store URL or path
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, client_id, name), -- Entity name unique per client
+    UNIQUE (tenant_id, business_tax_id), -- Globally unique within tenant
+    UNIQUE (tenant_id, vat_sales_tax_id) -- Globally unique within tenant
+);
+
+CREATE TABLE entity_jurisdiction_map ( -- Many-to-Many link
+    entity_id BIGINT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+    jurisdiction_id INT NOT NULL REFERENCES vat_sales_tax_jurisdictions(id) ON DELETE CASCADE,
+    PRIMARY KEY (entity_id, jurisdiction_id)
+);
+
+CREATE TABLE entity_service_subscriptions ( -- Many-to-Many link for Required/Subscribed
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE, -- For easy tenant-level queries
+    entity_id BIGINT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+    service_type_id INT NOT NULL REFERENCES service_types(id) ON DELETE CASCADE,
+    is_required BOOLEAN NOT NULL DEFAULT FALSE,
+    is_subscribed BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (entity_id, service_type_id),
+    CONSTRAINT chk_subscribed_requires_required CHECK (is_subscribed = FALSE OR (is_subscribed = TRUE AND is_required = TRUE))
+);
+
+CREATE TABLE client_contacts ( -- Client Portal Users
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    client_id BIGINT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL, -- Login username
+    password_hash VARCHAR(255) NOT NULL, -- Securely hashed
+    portal_access_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    last_login_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, email) -- Email must be unique across all client contacts in a tenant
+);
+
+-- =======================================
+-- Tasks Module Tables
+-- =======================================
+
+CREATE TABLE tasks (
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    task_type VARCHAR(20) NOT NULL CHECK (task_type IN ('Admin', 'Revenue')), -- Differentiator
+
+    -- Common Fields
+    priority VARCHAR(20) CHECK (priority IN ('Regular', 'Medium', 'Urgent')), -- Fixed values from PRD
+    assignee_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    due_date DATE,
+    details TEXT,
+    next_steps TEXT,
+    status_id INT NOT NULL REFERENCES task_statuses(id) ON DELETE RESTRICT, -- Don't delete task if status deleted
+    created_by_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+    -- Admin Task Specific
+    admin_task_category_id INT REFERENCES task_categories(id) ON DELETE SET NULL, -- Where type='Admin'
+
+    -- Revenue Task Specific
+    client_id BIGINT REFERENCES clients(id) ON DELETE CASCADE, -- Cascade delete task if client deleted? Or SET NULL?
+    entity_id BIGINT REFERENCES entities(id) ON DELETE CASCADE, -- Cascade delete task if entity deleted? Or SET NULL?
+    service_type_id INT REFERENCES service_types(id) ON DELETE RESTRICT,
+    revenue_task_category_id INT REFERENCES task_categories(id) ON DELETE SET NULL, -- Where type='Revenue'
+
+    -- Compliance Fields (Revenue Task)
+    compliance_frequency VARCHAR(50), -- '5 Years', 'Annual', 'Monthly', etc.
+    compliance_year VARCHAR(100), -- Comma-separated or single year
+    compliance_duration VARCHAR(50), -- 'First Half', 'Q1', 'Jan', 'One Time'
+    compliance_start_date DATE,
+    compliance_end_date DATE, -- Auto-calculated
+
+    -- Recurring Task Fields
+    is_recurring BOOLEAN DEFAULT FALSE,
+    original_task_id BIGINT REFERENCES tasks(id) ON DELETE SET NULL, -- Link recurring tasks back to the first one
+    recurrence_rule TEXT, -- Store rule if needed (e.g., iCalendar RRULE) - Optional
+    is_auto_generated BOOLEAN DEFAULT FALSE, -- Flag for tasks created by the system
+    approved_by_id BIGINT REFERENCES users(id) ON DELETE SET NULL, -- Who approved the auto-generated task
+    approved_at TIMESTAMP WITH TIME ZONE,
+
+    -- Invoice Info Fields (Revenue Task)
+    invoice_currency_id INT REFERENCES currencies(id) ON DELETE RESTRICT,
+    invoice_service_rate NUMERIC(12, 2)
+);
+
+-- Consider adding indexes on frequently queried columns like tenant_id, status_id, assignee_id, client_id, entity_id, due_date
+
+-- =======================================
+-- Finance Module Tables (Initial Sketch)
+-- =======================================
+
+CREATE TABLE invoices (
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    client_id BIGINT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    entity_id BIGINT REFERENCES entities(id) ON DELETE SET NULL, -- Optional link if specific to entity
+    invoice_number VARCHAR(50) NOT NULL, -- Generate unique per tenant
+    issue_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    due_date DATE,
+    currency_id INT NOT NULL REFERENCES currencies(id) ON DELETE RESTRICT,
+    total_amount NUMERIC(14, 2) NOT NULL DEFAULT 0.00,
+    amount_paid NUMERIC(14, 2) NOT NULL DEFAULT 0.00,
+    status VARCHAR(50) NOT NULL CHECK (status IN ('Draft', 'Sent', 'Paid', 'Partial', 'Overdue', 'Void')),
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, invoice_number)
+);
+
+CREATE TABLE invoice_lines (
+    id BIGSERIAL PRIMARY KEY,
+    invoice_id BIGINT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+    task_id BIGINT REFERENCES tasks(id) ON DELETE SET NULL, -- Link back to the task if applicable
+    service_type_id INT REFERENCES service_types(id) ON DELETE SET NULL, -- Or store service name directly?
+    description TEXT NOT NULL,
+    quantity NUMERIC(10, 2) NOT NULL DEFAULT 1,
+    unit_price NUMERIC(12, 2) NOT NULL,
+    line_total NUMERIC(14, 2) GENERATED ALWAYS AS (quantity * unit_price) STORED,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE payments (
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    invoice_id BIGINT REFERENCES invoices(id) ON DELETE SET NULL, -- Link to invoice if applicable
+    client_id BIGINT NOT NULL REFERENCES clients(id) ON DELETE CASCADE, -- Or link payment directly to client
+    payment_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    amount NUMERIC(14, 2) NOT NULL,
+    currency_id INT NOT NULL REFERENCES currencies(id) ON DELETE RESTRICT,
+    payment_method VARCHAR(50), -- e.g., 'Stripe', 'PayPal', 'Bank Transfer', 'Check'
+    transaction_id VARCHAR(255), -- From gateway
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- =======================================
+-- Settings & Workflow Module Tables
+-- =======================================
+
+CREATE TABLE tenant_settings ( -- Generic key-value or specific columns
+    id SERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE UNIQUE, -- One settings row per tenant
+    recurring_task_lead_days INT NOT NULL DEFAULT 25,
+    gemini_api_key_encrypted TEXT, -- Store encrypted value, key managed elsewhere
+    stripe_publishable_key TEXT,
+    stripe_secret_key_encrypted TEXT,
+    stripe_webhook_secret_encrypted TEXT,
+    paypal_client_id TEXT,
+    paypal_secret_encrypted TEXT,
+    paypal_webhook_id TEXT,
+    stripe_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    paypal_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    -- Add columns for accepted card types (Stripe) if needed as structured data
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE TABLE workflows (
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    trigger_event VARCHAR(100) NOT NULL, -- e.g., 'task.created', 'task.status_changed'
+    conditions JSONB, -- Store condition structure as JSON { "operator": "AND", "rules": [...] }
+    is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, name)
+);
+
+CREATE TABLE workflow_actions (
+    id BIGSERIAL PRIMARY KEY,
+    workflow_id BIGINT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    execution_order INT NOT NULL, -- To define sequence of actions
+    action_type VARCHAR(100) NOT NULL, -- e.g., 'change_status', 'change_assignee', 'send_notification'
+    action_params JSONB, -- Store parameters for the action, e.g., { "target_status_id": 5, "notification_recipient": "assignee" }
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (workflow_id, execution_order)
+);
+
+CREATE TABLE workflow_execution_logs (
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    workflow_id BIGINT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    triggering_event_source_type VARCHAR(50), -- e.g., 'Task'
+    triggering_event_source_id BIGINT, -- e.g., Task ID
+    triggered_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('Success', 'Failure', 'Running')),
+    details TEXT, -- Log messages or error details
+    finished_at TIMESTAMP WITH TIME ZONE
+);
+
+IGNORE_WHEN_COPYING_START
+content_copy download
+Use code with caution.SQL
+IGNORE_WHEN_COPYING_END
+5. API Design (RESTful - JSON)
+Base Path: /api/v1
+Authentication: Assume Bearer Token (JWT) or Session Cookie sent with requests. A middleware must verify token/session validity and attach user and tenant context to the request object.
+Authorization: Endpoint logic or middleware must check user permissions based on the attached user context and the operation being performed. Use permissions defined in the schema (permissions, role_permissions, user_permissions).
+Multi-Tenancy: All API endpoints operating on tenant-specific data MUST implicitly use the tenant_id from the authenticated user's context in database queries.
+Responses:
+Success (2xx): 200 OK, 201 Created, 204 No Content. Usually return JSON data.
+Client Error (4xx): 400 Bad Request (validation errors), 401 Unauthorized (not logged in), 403 Forbidden (insufficient permissions), 404 Not Found, 409 Conflict (duplicate data). Return JSON error object: { "error": "message", "details": { ... } }.
+Server Error (5xx): 500 Internal Server Error. Return generic error message.
+
+
+Pagination/Filtering: List endpoints (GET) should support ?limit=, ?offset=, and relevant filter parameters (e.g., ?status=New, ?client_id=123).
+API Endpoint Definitions (Illustrative - Not Exhaustive):
+Auth:
+POST /auth/signup (Body: name, firm_name, email, password) -> 201 Created { user, token/session }
+POST /auth/login/firm (Body: email, password) -> 200 OK { user, token/session }
+POST /auth/login/client (Body: email, password) -> 200 OK { client_contact, token/session }
+POST /auth/logout -> 204 No Content
+POST /auth/forgot-password (Body: email) -> 200 OK (Sends reset link)
+POST /auth/reset-password (Body: token, new_password) -> 200 OK
+Users (Firm - requires permissions):
+GET /users (Query Params: ?limit, ?offset, ?designation_id, ?department_id) -> 200 OK { users: [], total: N }
+POST /users (Body: name, email, password, designation_id, department_id) -> 201 Created { user }
+GET /users/{user_id} -> 200 OK { user }
+PUT /users/{user_id} (Body: name, designation_id, department_id, is_active) -> 200 OK { user }
+DELETE /users/{user_id} -> 204 No Content
+GET /users/{user_id}/permissions -> 200 OK { permissions }
+PUT /users/{user_id}/permissions (Body: { permission_id: boolean, ...} or role assignments) -> 200 OK { permissions }
+Setup Module (requires setup permissions):
+GET /setup/countries -> 200 OK { countries: [] }
+POST /setup/countries (Body: name) -> 201 Created { country }
+PUT /setup/countries/{country_id} (Body: name) -> 200 OK { country }
+DELETE /setup/countries/{country_id} -> 204 No Content
+(Similar CRUD endpoints for Currencies, States, VATJurisdictions, EntityTypes, ServiceTypes, TaskCategories, TaskStatuses, Designations, Departments)
+GET /setup/states?country_id={id} -> 200 OK { states: [] } (Filtered)
+GET /setup/entity-types?country_id={id} -> 200 OK { entity_types: [] } (Filtered)
+GET /setup/service-types?country_id={id} -> 200 OK { service_types: [] } (Filtered)
+Clients & Entities (requires client permissions):
+GET /clients (Query Params: ?limit, ?offset, ?search=...) -> 200 OK { clients: [], total: N }
+POST /clients (Body: display_name, email, mobile) -> 201 Created { client }
+GET /clients/{client_id} -> 200 OK { client }
+PUT /clients/{client_id} (Body: display_name, email, mobile) -> 200 OK { client }
+DELETE /clients/{client_id} -> 204 No Content
+GET /clients/{client_id}/entities -> 200 OK { entities: [] }
+POST /clients/{client_id}/entities (Body: name, country_id, state_id, ..., file_access_link) -> 201 Created { entity }
+GET /clients/{client_id}/entities/{entity_id} -> 200 OK { entity }
+PUT /clients/{client_id}/entities/{entity_id} (Body: ...) -> 200 OK { entity }
+DELETE /clients/{client_id}/entities/{entity_id} -> 204 No Content
+GET /entities/{entity_id}/jurisdictions -> 200 OK { jurisdictions: [] }
+PUT /entities/{entity_id}/jurisdictions (Body: { jurisdiction_ids: [] }) -> 200 OK { jurisdictions }
+GET /entities/{entity_id}/services -> 200 OK { services: [{ service_type_id, name, is_required, is_subscribed }] }
+PUT /entities/{entity_id}/services (Body: { service_updates: [{ service_type_id, is_required, is_subscribed }] }) -> 200 OK { services }
+POST /entities/{entity_id}/suggest-required-services -> 200 OK { suggested_service_type_ids: [] } (Calls Gemini internally)
+Client Portal Access (requires client permissions - manage portal access):
+GET /clients/{client_id}/portal-access -> 200 OK { contacts: [] }
+POST /clients/{client_id}/portal-access (Body: name, email, initial_password, portal_access_enabled) -> 201 Created { contact }
+PUT /clients/{client_id}/portal-access/{contact_id} (Body: name, portal_access_enabled) -> 200 OK { contact }
+POST /clients/{client_id}/portal-access/{contact_id}/reset-password (Body: new_password) -> 200 OK (Admin reset)
+DELETE /clients/{client_id}/portal-access/{contact_id} -> 204 No Content
+Tasks (requires task permissions):
+GET /tasks (Query Params: ?limit, ?offset, ?status_id, ?assignee_id, ?client_id, ?entity_id, ?due_before, ?due_after, ?type=Admin/Revenue) -> 200 OK { tasks: [], total: N }
+POST /tasks (Body: { type: 'Admin', priority, assignee_id, due_date, details, ... } or { type: 'Revenue', client_id, entity_id, service_type_id, ... }) -> 201 Created { task }
+GET /tasks/{task_id} -> 200 OK { task }
+PUT /tasks/{task_id} (Body: { fields to update }) -> 200 OK { task }
+DELETE /tasks/{task_id} -> 204 No Content
+POST /tasks/suggest-details (Body: { client_id, entity_id, service_type_id, ...}) -> 200 OK { suggested_details: "..." } (Calls Gemini)
+GET /tasks/auto-generated (Query Params: ?approved=false) -> 200 OK { tasks: [] } (View for approval)
+POST /tasks/{task_id}/approve -> 200 OK { task } (Approves an auto-generated task)
+Finance (requires finance permissions):
+GET /invoices (Query Params: ?limit, ?offset, ?client_id, ?status) -> 200 OK { invoices: [], total: N }
+POST /invoices (Body: { client_id, entity_id, issue_date, ..., lines: [{...}] }) -> 201 Created { invoice }
+POST /invoices/from-tasks (Body: { task_ids: [] }) -> 201 Created { invoice } (Generates draft invoice from tasks)
+GET /invoices/{invoice_id} -> 200 OK { invoice }
+PUT /invoices/{invoice_id} (Limited updates allowed, e.g., status, notes) -> 200 OK { invoice }
+POST /invoices/{invoice_id}/send -> 200 OK { invoice } (Marks as Sent, potentially sends email)
+POST /invoices/{invoice_id}/record-payment (Body: amount, payment_date, payment_method, transaction_id) -> 200 OK { payment }
+GET /payments (Query Params: ...) -> 200 OK { payments: [] }
+POST /webhooks/stripe (Receives events from Stripe) -> 200 OK
+POST /webhooks/paypal (Receives events from PayPal) -> 200 OK
+Settings (requires specific admin/settings permissions):
+GET /settings -> 200 OK { settings }
+PUT /settings (Body: { recurring_task_lead_days, stripe_enabled, paypal_enabled, ... }) -> 200 OK { settings }
+PUT /settings/api-keys/gemini (Body: { api_key }) -> 200 OK (Handles secure storage)
+PUT /settings/payment-gateways/stripe (Body: { publishable_key, secret_key, webhook_secret }) -> 200 OK
+PUT /settings/payment-gateways/paypal (Body: { client_id, secret, webhook_id }) -> 200 OK
+Workflows (requires workflow permissions):
+GET /workflows -> 200 OK { workflows: [] }
+POST /workflows (Body: name, description, trigger_event, conditions, actions: [{...}]) -> 201 Created { workflow }
+GET /workflows/{workflow_id} -> 200 OK { workflow }
+PUT /workflows/{workflow_id} (Body: ...) -> 200 OK { workflow }
+DELETE /workflows/{workflow_id} -> 204 No Content
+GET /workflows/logs (Query Params: ?workflow_id, ?status, ?limit, ?offset) -> 200 OK { logs: [], total: N }
+Client Portal APIs (Accessed by Client Contacts):
+/portal/dashboard -> 200 OK { overview, upcoming_tasks, overdue_tasks, recent_activity }
+/portal/entities -> 200 OK { entities: [] } // Includes subscribed services
+/portal/tasks (Query Params: ?entity_id, ?status, ?date_range) -> 200 OK { tasks: [] }
+/portal/profile -> 200 OK { name, email }
+PUT /portal/profile/change-password (Body: current_password, new_password) -> 200 OK
+6. Key Component Design Notes
+Recurring Task Generation: A background scheduler (e.g., APScheduler) will run periodically (e.g., daily). It queries tasks where is_recurring = TRUE. For each, it calculates the next compliance_start_date based on frequency. If the next start date is within N days (from tenant_settings) and a task for that period doesn't already exist (check original_task_id and period), it creates a new task record marked is_auto_generated = TRUE and approved_at = NULL.
+Workflow Engine:
+Triggers: Use event listeners or hooks within the application's core logic (e.g., after a task is saved, check for matching Task Status Changed triggers). Time-based triggers (Due Date Arrives) handled by the scheduler.
+Conditions: Evaluate the conditions JSON against the triggering object's data.
+Actions: Sequentially execute actions defined in workflow_actions, passing necessary context (e.g., task ID). Each action type maps to specific application logic. Log execution to workflow_execution_logs. Implement loop prevention (e.g., max execution depth per source event).
+
+
+Permissions Implementation: Use middleware that runs after authentication. The middleware loads the user's roles/direct permissions. Decorators or checks within API endpoint functions verify if the user has the required permission (e.g., check_permission('Task', 'Create')) before proceeding.
+AI Integration: Create helper functions/services that encapsulate calls to the Gemini API. These functions take relevant context data (e.g., entity details, task details) and the secure API key (from tenant settings), format the prompt, make the API call, parse the response, and handle errors.
+7. Security Considerations (Implementation)
+Password Hashing: Use bcrypt library.
+API Key Storage: Encrypt sensitive API keys (Gemini Secret, Stripe Secret, PayPal Secret) at rest in the database (tenant_settings). Use a strong encryption key managed securely outside the codebase (e.g., Replit Secrets / environment variable). Only decrypt keys in memory when needed for API calls.
+Input Validation: Validate ALL incoming data (request bodies, query parameters) rigorously on the backend to prevent injection attacks and ensure data integrity. Use libraries like Marshmallow (Flask) or Django Forms/Serializers.
+SQL Injection Prevention: Use an ORM (SQLAlchemy, Django ORM) or parameterized queries exclusively. Never construct SQL queries with raw string formatting using user input.
+Cross-Site Scripting (XSS) Prevention: Ensure frontend frameworks properly escape data rendered in HTML. Use appropriate headers (Content Security Policy).
+Cross-Site Request Forgery (CSRF) Prevention: Use standard CSRF tokens for any state-changing requests originating from web forms (if not building a pure SPA with token auth).
+Rate Limiting: Implement rate limiting on sensitive endpoints like login, password reset, and potentially AI suggestions to prevent abuse.
+HTTPS: Ensure Replit deployment uses HTTPS.
+Dependency Security: Regularly scan dependencies for known vulnerabilities.
+8. Deployment Strategy (Initial)
+Deploy as a single application process on Replit.
+Manage sensitive configurations (Database URL, API Key Encryption Key, JWT Secret) using Replit Secrets.
+Set up background worker/scheduler process if needed using Replit features or libraries compatible with the environment.
+Configure custom domain if required.
+9. Open Questions / Future Considerations
+Final confirmation needed for Backend (Flask/Django?) and Frontend (React/Vue?) frameworks.
+Detailed UI/UX design (Wireframes/Mockups).
+Specific implementation of AI 'enforced learning' feedback loop.
+Detailed design for the Finance module's reporting features.
+Need for database indexing strategy based on common query patterns.
+Error handling and logging strategy across the application.
+
+This TDD provides the technical foundation, especially focusing on the database and API structure necessary for the AI agent to start building the application. Remember to refer back to the original scope for specific business logic nuances.
+

@@ -34,6 +34,9 @@ This document provides a comprehensive overview of the progress made on the Acco
   - Clients: Client management
   - Entities: Legal entities owned by clients
   - Tasks: Work items assigned to clients/entities
+  - Tax Jurisdictions: VAT/Sales tax jurisdictions for different regions
+  - Entity Tax Jurisdictions: Link between entities and tax jurisdictions
+  - Entity Service Subscriptions: Services subscribed by entities
 
 ### Authentication System
 - User registration with firm creation (multi-tenant)
@@ -50,6 +53,7 @@ This document provides a comprehensive overview of the progress made on the Acco
   - Entity Types Manager: Add, edit, delete entity types with country relationship
   - Task Statuses Manager: Add, edit, delete task statuses with ordering
   - Service Types Manager: Add, edit, delete service types with rates and billing basis
+  - Tax Jurisdictions Manager: Add, edit, delete tax jurisdictions with country and state
 
 ### Clients Module
 - Implemented client listing with data table display
@@ -58,9 +62,22 @@ This document provides a comprehensive overview of the progress made on the Acco
 - Added entity listing for each client
 - Implemented entity creation modal with form validation
 - Established relationships between clients and entities
+- Added client and entity CRUD operations (Create, Read, Update, Delete)
+- Implemented entity configuration for services and tax jurisdictions
+- Added service subscription management for entities
+- Implemented tax jurisdiction assignment for VAT-registered entities
+
+### Entity Configuration Features
+- Service Subscription: Allows marking services as "Required" and "Subscribed"
+- Tax Jurisdiction Selection: For VAT-registered entities, enables selection of applicable tax jurisdictions
+- File Access Link: Added URL field for external document access
+- Business rules enforcement:
+  - Services can only be subscribed if they are marked as required
+  - Tax jurisdictions are only configurable for VAT-registered entities
+  - Services are filtered by the entity's country
 
 ### API Routes
-- Authentication endpoints (`/api/v1/auth/signup`, `//api/v1/auth/login`, `/api/v1/auth/logout`, `/api/v1/auth/me`)
+- Authentication endpoints (`/api/v1/auth/signup`, `/api/v1/auth/login`, `/api/v1/auth/logout`, `/api/v1/auth/me`)
 - Setup endpoints:
   - Countries (`/api/v1/setup/countries`)
   - Currencies (`/api/v1/setup/currencies`)
@@ -68,9 +85,13 @@ This document provides a comprehensive overview of the progress made on the Acco
   - Entity Types (`/api/v1/setup/entity-types`)
   - Task Statuses (`/api/v1/setup/task-statuses`)
   - Service Types (`/api/v1/setup/service-types`)
+  - Tax Jurisdictions (`/api/v1/setup/tax-jurisdictions`)
 - Client endpoints:
   - Clients CRUD (`/api/v1/clients`)
-  - Entities CRUD (`/api/v1/clients/:clientId/entities`)
+  - Entities CRUD (`/api/v1/clients/:clientId/entities`, `/api/v1/entities/:id`)
+- Entity Configuration endpoints:
+  - Entity Services (`/api/v1/entities/:entityId/services`)
+  - Entity Tax Jurisdictions (`/api/v1/entities/:entityId/tax-jurisdictions`)
 
 ### Frontend Components
 - Layout components (Sidebar, AppLayout)
@@ -80,6 +101,9 @@ This document provides a comprehensive overview of the progress made on the Acco
 - Modal dialogs for create/edit/delete operations
 - Toast notifications
 - Loading states and error handling
+- Reusable DeleteConfirmationDialog for safe deletion of resources
+- Edit modals for clients and entities
+- Entity configuration modal with service subscriptions and tax jurisdictions
 
 ### Technical Challenges Addressed
 - Resolved Select component empty string value issues in filters
@@ -87,14 +111,53 @@ This document provides a comprehensive overview of the progress made on the Acco
 - Added proper validation for all form fields
 - Implemented proper state management for complex forms (service types with custom billing basis)
 - Ensured proper relationships between entities (country/state, country/entity type)
+- Fixed error handling in API requests with unknown error types
+- Implemented proper TypeScript typings for form values and API responses
+- Optimized modal dialogs to properly reset form state on close
+- Fixed subscription conflicts when updating entity services by ensuring they exist before attempting updates
+
+## Current Development Logic Flow
+
+### Client Module Flow
+1. **Client Management:**
+   - Clients list is displayed with client name, email, and status
+   - Clients can be created through the Add Client modal
+   - Clients can be viewed by clicking on a client card
+   - Clients can be edited using the Edit Client modal
+   - Clients can be deleted using the Delete Confirmation dialog
+
+2. **Entity Management:**
+   - Entities are listed within the client detail view
+   - Entities can be created through the Add Entity modal
+   - Entities are displayed with details like name, location, type, and tax information
+   - Entity services and tax jurisdictions can be configured via the Entity Config modal
+   - Entities can be edited using the Edit Entity modal
+   - Entities can be deleted using the Delete Confirmation dialog
+
+3. **Entity Configuration:**
+   - Services tab: Lists all services available for the entity's country
+   - Each service can be marked as "Required" and "Subscribed" (subscription requires the service to be required first)
+   - Changes are persisted when the Save button is clicked
+   - If the entity is VAT-registered, a Tax Jurisdictions tab is shown
+   - Tax jurisdictions tab: Allows selection of applicable tax jurisdictions for the entity
+   - Tax jurisdictions are filtered by the entity's country and state if applicable
+
+4. **Business Rules:**
+   - Service subscription requires the service to be marked as required first
+   - Tax jurisdictions are only configurable for VAT-registered entities
+   - Tax jurisdictions must match the entity's country
+   - Entity types must match the entity's country
+   - States must match the entity's country
 
 ## In Progress / Next Steps
-- Resolving entity creation form submission issues 
 - Task Module implementation
 - Dashboard with analytics
 - User management for firms
+- Client portal access management
 - Advanced filtering and search functionality
 - Reports and exports
+- Client contact management
+- Invoice and payment tracking
 
 ## Technical Implementation Details
 
@@ -123,12 +186,10 @@ This document provides a comprehensive overview of the progress made on the Acco
 - React context for auth state
 - Local state for UI components
 
-## Known Issues
-- Session store TypeScript definition mismatches in `server/storage.ts`
-- Unknown type errors in `server/auth.ts` related to user serialization
-- Form submission conflicts in Add Entity modal causing form submission failures
-- Event handler conflicts between native form submission and button handlers
+### Error Handling
+- Comprehensive error handling in API requests
+- User-friendly error messages in toast notifications
+- Form validation errors displayed inline with fields
 
 ## Conclusion
-The project has made significant progress with a solid foundation in place. The authentication system is working correctly, and the Setup Module is fully functional, allowing users to configure all necessary reference data for the application. The Clients Module has been implemented with basic CRUD operations, but there are still some issues with the form submission for entities that need to be addressed. Next steps include fixing these issues and implementing the Tasks Module to complete the core functionality of the application.
-
+The project has made significant progress with a solid foundation in place. The authentication system is working correctly, and the Setup Module is fully functional. The Clients Module has been substantially enhanced with complete CRUD operations for clients and entities, as well as comprehensive entity configuration capabilities for services and tax jurisdictions. The next major focus will be implementing the Tasks Module to complete the core functionality of the application, followed by the User Management and Client Portal features.
