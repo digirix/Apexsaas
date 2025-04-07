@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Entity, ServiceType, TaxJurisdiction, State, Country } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, ApiError } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 
 import {
@@ -127,13 +127,34 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
     }) => {
       if (!entityId) throw new Error("Entity ID is required");
       
-      const response = await apiRequest(
-        "PUT",
-        `/api/v1/entities/${entityId}/services/${serviceId}`,
-        { isRequired, isSubscribed }
-      );
-      
-      return response.json();
+      try {
+        // Try to update first
+        const response = await apiRequest(
+          "PUT",
+          `/api/v1/entities/${entityId}/services/${serviceId}`,
+          { isRequired, isSubscribed }
+        );
+        
+        return response.json();
+      } catch (error: any) {
+        // If 404 (service subscription not found), create it
+        if (error.status === 404) {
+          console.log("Service subscription not found, creating a new one");
+          const createResponse = await apiRequest(
+            "POST",
+            `/api/v1/entities/${entityId}/services`,
+            { 
+              serviceTypeId: serviceId, 
+              isRequired, 
+              isSubscribed 
+            }
+          );
+          
+          return createResponse.json();
+        }
+        // Re-throw for other errors
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({

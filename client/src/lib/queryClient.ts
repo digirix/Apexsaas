@@ -1,14 +1,30 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// Custom error class to include additional response information
+export class ApiError extends Error {
+  status: number;
+  statusText: string;
+  
+  constructor(res: Response, message: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = res.status;
+    this.statusText = res.statusText;
+  }
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     try {
       const text = (await res.text()) || res.statusText;
       console.error(`API Error (${res.status})`, text);
-      throw new Error(`${res.status}: ${text}`);
+      throw new ApiError(res, `${res.status}: ${text}`);
     } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
       console.error(`Failed to parse API error response:`, error);
-      throw new Error(`${res.status}: ${res.statusText}`);
+      throw new ApiError(res, `${res.status}: ${res.statusText}`);
     }
   }
 }
