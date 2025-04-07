@@ -7,7 +7,8 @@ import {
   insertEntityTypeSchema, insertTaskStatusSchema, insertServiceTypeSchema,
   insertClientSchema, insertEntitySchema, insertTaskSchema,
   insertDesignationSchema, insertDepartmentSchema, insertUserSchema,
-  insertTaxJurisdictionSchema
+  insertTaxJurisdictionSchema, insertEntityTaxJurisdictionSchema,
+  insertEntityServiceSubscriptionSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -738,6 +739,244 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete entity" });
+    }
+  });
+  
+  // Entity Tax Jurisdictions
+  app.get("/api/v1/entities/:entityId/tax-jurisdictions", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const entityId = parseInt(req.params.entityId);
+      
+      // Ensure entity exists and belongs to tenant
+      const entity = await storage.getEntity(entityId, tenantId);
+      if (!entity) {
+        return res.status(404).json({ message: "Entity not found" });
+      }
+      
+      const taxJurisdictions = await storage.getTaxJurisdictionsForEntity(tenantId, entityId);
+      res.json(taxJurisdictions);
+    } catch (error) {
+      console.error("Error fetching entity tax jurisdictions:", error);
+      res.status(500).json({ message: "Failed to fetch tax jurisdictions for entity" });
+    }
+  });
+  
+  app.post("/api/v1/entities/:entityId/tax-jurisdictions", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const entityId = parseInt(req.params.entityId);
+      
+      // Ensure entity exists and belongs to tenant
+      const entity = await storage.getEntity(entityId, tenantId);
+      if (!entity) {
+        return res.status(404).json({ message: "Entity not found" });
+      }
+      
+      // Ensure tax jurisdiction exists and belongs to tenant
+      const taxJurisdictionId = req.body.taxJurisdictionId;
+      const taxJurisdiction = await storage.getTaxJurisdiction(taxJurisdictionId, tenantId);
+      if (!taxJurisdiction) {
+        return res.status(404).json({ message: "Tax jurisdiction not found" });
+      }
+      
+      const data = {
+        tenantId,
+        entityId,
+        taxJurisdictionId
+      };
+      
+      const validatedData = insertEntityTaxJurisdictionSchema.parse(data);
+      
+      try {
+        const entityTaxJurisdiction = await storage.addTaxJurisdictionToEntity(validatedData);
+        res.status(201).json(entityTaxJurisdiction);
+      } catch (err) {
+        if (err instanceof Error && err.message.includes("already associated")) {
+          return res.status(400).json({ message: err.message });
+        }
+        throw err;
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      console.error("Error adding tax jurisdiction to entity:", error);
+      res.status(500).json({ message: "Failed to add tax jurisdiction to entity" });
+    }
+  });
+  
+  app.delete("/api/v1/entities/:entityId/tax-jurisdictions/:taxJurisdictionId", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const entityId = parseInt(req.params.entityId);
+      const taxJurisdictionId = parseInt(req.params.taxJurisdictionId);
+      
+      // Ensure entity exists and belongs to tenant
+      const entity = await storage.getEntity(entityId, tenantId);
+      if (!entity) {
+        return res.status(404).json({ message: "Entity not found" });
+      }
+      
+      const success = await storage.removeTaxJurisdictionFromEntity(tenantId, entityId, taxJurisdictionId);
+      if (!success) {
+        return res.status(404).json({ message: "Tax jurisdiction not associated with this entity" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error removing tax jurisdiction from entity:", error);
+      res.status(500).json({ message: "Failed to remove tax jurisdiction from entity" });
+    }
+  });
+  
+  // Entity Service Subscriptions
+  app.get("/api/v1/entities/:entityId/services", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const entityId = parseInt(req.params.entityId);
+      
+      // Ensure entity exists and belongs to tenant
+      const entity = await storage.getEntity(entityId, tenantId);
+      if (!entity) {
+        return res.status(404).json({ message: "Entity not found" });
+      }
+      
+      // Get all service types for the entity's country
+      const serviceTypes = await storage.getServiceTypes(tenantId, entity.countryId);
+      
+      // Get existing subscriptions
+      const subscriptions = await storage.getEntityServiceSubscriptions(tenantId, entityId);
+      
+      // Merge service types with subscription status
+      const servicesWithStatus = serviceTypes.map(serviceType => {
+        const subscription = subscriptions.find(sub => sub.serviceTypeId === serviceType.id);
+        return {
+          ...serviceType,
+          isRequired: subscription ? subscription.isRequired : false,
+          isSubscribed: subscription ? subscription.isSubscribed : false
+        };
+      });
+      
+      res.json(servicesWithStatus);
+    } catch (error) {
+      console.error("Error fetching entity services:", error);
+      res.status(500).json({ message: "Failed to fetch services for entity" });
+    }
+  });
+  
+  app.post("/api/v1/entities/:entityId/services", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const entityId = parseInt(req.params.entityId);
+      
+      // Ensure entity exists and belongs to tenant
+      const entity = await storage.getEntity(entityId, tenantId);
+      if (!entity) {
+        return res.status(404).json({ message: "Entity not found" });
+      }
+      
+      // Ensure service type exists and belongs to tenant
+      const serviceTypeId = req.body.serviceTypeId;
+      const serviceType = await storage.getServiceType(serviceTypeId, tenantId);
+      if (!serviceType) {
+        return res.status(404).json({ message: "Service type not found" });
+      }
+      
+      // Ensure service type matches entity country
+      if (serviceType.countryId !== entity.countryId) {
+        return res.status(400).json({ 
+          message: "Service type country does not match entity country"
+        });
+      }
+      
+      const data = {
+        tenantId,
+        entityId,
+        serviceTypeId,
+        isRequired: req.body.isRequired || false,
+        isSubscribed: req.body.isSubscribed || false
+      };
+      
+      // Business rule: If isSubscribed is true, isRequired must also be true
+      if (data.isSubscribed && !data.isRequired) {
+        data.isRequired = true;
+      }
+      
+      const validatedData = insertEntityServiceSubscriptionSchema.parse(data);
+      const subscription = await storage.createServiceSubscription(validatedData);
+      
+      res.status(201).json(subscription);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      console.error("Error adding service subscription to entity:", error);
+      res.status(500).json({ message: "Failed to add service subscription to entity" });
+    }
+  });
+  
+  app.put("/api/v1/entities/:entityId/services/:serviceTypeId", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const entityId = parseInt(req.params.entityId);
+      const serviceTypeId = parseInt(req.params.serviceTypeId);
+      
+      // Ensure entity exists and belongs to tenant
+      const entity = await storage.getEntity(entityId, tenantId);
+      if (!entity) {
+        return res.status(404).json({ message: "Entity not found" });
+      }
+      
+      // Ensure service type exists and belongs to tenant
+      const serviceType = await storage.getServiceType(serviceTypeId, tenantId);
+      if (!serviceType) {
+        return res.status(404).json({ message: "Service type not found" });
+      }
+      
+      const isRequired = req.body.isRequired || false;
+      const isSubscribed = req.body.isSubscribed || false;
+      
+      const subscription = await storage.updateServiceSubscription(
+        tenantId, 
+        entityId, 
+        serviceTypeId, 
+        isRequired, 
+        isSubscribed
+      );
+      
+      if (!subscription) {
+        return res.status(404).json({ message: "Service subscription not found" });
+      }
+      
+      res.json(subscription);
+    } catch (error) {
+      console.error("Error updating service subscription:", error);
+      res.status(500).json({ message: "Failed to update service subscription" });
+    }
+  });
+  
+  app.delete("/api/v1/entities/:entityId/services/:serviceTypeId", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const entityId = parseInt(req.params.entityId);
+      const serviceTypeId = parseInt(req.params.serviceTypeId);
+      
+      // Ensure entity exists and belongs to tenant
+      const entity = await storage.getEntity(entityId, tenantId);
+      if (!entity) {
+        return res.status(404).json({ message: "Entity not found" });
+      }
+      
+      const success = await storage.deleteServiceSubscription(tenantId, entityId, serviceTypeId);
+      if (!success) {
+        return res.status(404).json({ message: "Service subscription not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error removing service subscription:", error);
+      res.status(500).json({ message: "Failed to remove service subscription" });
     }
   });
 

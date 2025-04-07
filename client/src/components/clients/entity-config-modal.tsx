@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Entity, ServiceType } from "@shared/schema";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Entity, ServiceType, TaxJurisdiction, State, Country } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 
 import {
   Dialog,
@@ -16,11 +18,28 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertCircle,
   CheckCircle2,
   PlusCircle,
+  MinusCircle,
+  XCircle,
+  InfoIcon
 } from "lucide-react";
+
+// Extended service type with subscription status
+interface ServiceWithStatus extends ServiceType {
+  isRequired: boolean;
+  isSubscribed: boolean;
+}
 
 interface EntityConfigModalProps {
   isOpen: boolean;
@@ -33,6 +52,7 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
   const { toast } = useToast();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("services");
+  const [selectedTaxJurisdictionId, setSelectedTaxJurisdictionId] = useState<number | null>(null);
   
   // Get entity details
   const { data: entity, isLoading: isEntityLoading } = useQuery<Entity>({
@@ -40,24 +60,217 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
     enabled: isOpen && !!entityId,
   });
   
-  // Get available service types
-  const { data: serviceTypes = [], isLoading: isServiceTypesLoading } = useQuery<ServiceType[]>({
-    queryKey: ["/api/v1/setup/service-types", entity?.countryId],
-    enabled: isOpen && !!entity?.countryId,
+  // Get entity services with status
+  const { 
+    data: services = [], 
+    isLoading: isServicesLoading,
+    refetch: refetchServices
+  } = useQuery<ServiceWithStatus[]>({
+    queryKey: [`/api/v1/entities/${entityId}/services`],
+    enabled: isOpen && !!entityId,
   });
+  
+  // Get entity tax jurisdictions
+  const { 
+    data: entityTaxJurisdictions = [], 
+    isLoading: isEntityTaxJurisdictionsLoading,
+    refetch: refetchEntityTaxJurisdictions
+  } = useQuery<TaxJurisdiction[]>({
+    queryKey: [`/api/v1/entities/${entityId}/tax-jurisdictions`],
+    enabled: isOpen && !!entityId && !!entity?.isVatRegistered,
+  });
+  
+  // Get available tax jurisdictions for the country
+  const { 
+    data: availableTaxJurisdictions = [], 
+    isLoading: isAvailableTaxJurisdictionsLoading 
+  } = useQuery<TaxJurisdiction[]>({
+    queryKey: ["/api/v1/setup/tax-jurisdictions", entity?.countryId],
+    enabled: isOpen && !!entityId && !!entity?.isVatRegistered && !!entity?.countryId,
+  });
+  
+  // Fetch countries for reference
+  const { data: countries = [] } = useQuery<Country[]>({
+    queryKey: ["/api/v1/setup/countries"],
+    enabled: isOpen,
+  });
+  
+  // Fetch states for reference
+  const { data: states = [] } = useQuery<State[]>({
+    queryKey: ["/api/v1/setup/states"],
+    enabled: isOpen,
+  });
+  
+  // Filter available tax jurisdictions to exclude those already added
+  const filteredTaxJurisdictions = availableTaxJurisdictions.filter(
+    tj => !entityTaxJurisdictions.some(etj => etj.id === tj.id)
+  );
   
   // Reset active tab when modal is opened
   useEffect(() => {
     if (isOpen) {
       setActiveTab("services");
+      setSelectedTaxJurisdictionId(null);
     }
   }, [isOpen]);
+  
+  // Update service subscription mutation
+  const updateServiceSubscription = useMutation({
+    mutationFn: async ({ 
+      serviceId, 
+      isRequired, 
+      isSubscribed 
+    }: { 
+      serviceId: number; 
+      isRequired: boolean; 
+      isSubscribed: boolean;
+    }) => {
+      if (!entityId) throw new Error("Entity ID is required");
+      
+      const response = await apiRequest(
+        "PUT",
+        `/api/v1/entities/${entityId}/services/${serviceId}`,
+        { isRequired, isSubscribed }
+      );
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/v1/entities/${entityId}/services`]
+      });
+      
+      toast({
+        title: "Service updated",
+        description: "Service subscription updated successfully",
+      });
+      
+      refetchServices();
+    },
+    onError: (error: any) => {
+      console.error("Error updating service subscription:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update service subscription",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Add tax jurisdiction mutation
+  const addTaxJurisdiction = useMutation({
+    mutationFn: async (taxJurisdictionId: number) => {
+      if (!entityId) throw new Error("Entity ID is required");
+      
+      const response = await apiRequest(
+        "POST",
+        `/api/v1/entities/${entityId}/tax-jurisdictions`,
+        { taxJurisdictionId }
+      );
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/v1/entities/${entityId}/tax-jurisdictions`]
+      });
+      
+      toast({
+        title: "Tax jurisdiction added",
+        description: "Tax jurisdiction added successfully",
+      });
+      
+      setSelectedTaxJurisdictionId(null);
+      refetchEntityTaxJurisdictions();
+    },
+    onError: (error: any) => {
+      console.error("Error adding tax jurisdiction:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add tax jurisdiction",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Remove tax jurisdiction mutation
+  const removeTaxJurisdiction = useMutation({
+    mutationFn: async (taxJurisdictionId: number) => {
+      if (!entityId) throw new Error("Entity ID is required");
+      
+      const response = await apiRequest(
+        "DELETE",
+        `/api/v1/entities/${entityId}/tax-jurisdictions/${taxJurisdictionId}`,
+        {}
+      );
+      
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/v1/entities/${entityId}/tax-jurisdictions`]
+      });
+      
+      toast({
+        title: "Tax jurisdiction removed",
+        description: "Tax jurisdiction removed successfully",
+      });
+      
+      refetchEntityTaxJurisdictions();
+    },
+    onError: (error: any) => {
+      console.error("Error removing tax jurisdiction:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to remove tax jurisdiction",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Handle service subscription toggle
+  const handleServiceToggle = (
+    serviceId: number,
+    isRequiredCurrent: boolean,
+    isSubscribedCurrent: boolean,
+    field: 'isRequired' | 'isSubscribed'
+  ) => {
+    let isRequired = isRequiredCurrent;
+    let isSubscribed = isSubscribedCurrent;
+    
+    if (field === 'isRequired') {
+      isRequired = !isRequired;
+      // If turning off required, also turn off subscribed
+      if (!isRequired) {
+        isSubscribed = false;
+      }
+    } else {
+      isSubscribed = !isSubscribed;
+      // If turning on subscribed, also turn on required
+      if (isSubscribed) {
+        isRequired = true;
+      }
+    }
+    
+    updateServiceSubscription.mutate({
+      serviceId,
+      isRequired,
+      isSubscribed
+    });
+  };
+  
+  // Handle tax jurisdiction add
+  const handleAddTaxJurisdiction = () => {
+    if (selectedTaxJurisdictionId) {
+      addTaxJurisdiction.mutate(selectedTaxJurisdictionId);
+    }
+  };
   
   if (!isOpen || !entityId) return null;
   
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Configure Entity: {entity?.name}</DialogTitle>
           <DialogDescription>
@@ -83,11 +296,11 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
               </TabsList>
               
               <TabsContent value="services" className="pt-4 space-y-4">
-                {isServiceTypesLoading ? (
+                {isServicesLoading ? (
                   <div className="flex justify-center items-center py-10">
                     <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
                   </div>
-                ) : serviceTypes.length === 0 ? (
+                ) : services.length === 0 ? (
                   <Card>
                     <CardContent className="flex flex-col items-center justify-center py-10">
                       <AlertCircle className="h-10 w-10 text-yellow-500 mb-4" />
@@ -99,26 +312,23 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
                   </Card>
                 ) : (
                   <>
-                    <div className="mb-4 flex justify-between items-center">
+                    <div className="mb-4">
                       <h3 className="text-sm font-medium">Available Services</h3>
-                      <Button size="sm" variant="outline">
-                        <PlusCircle className="h-4 w-4 mr-2" />
-                        Add Service
-                      </Button>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        For each service, indicate if it's Required and/or Subscribed
+                      </p>
                     </div>
                     
                     <div className="space-y-2">
-                      {/* Placeholder for services list */}
-                      {serviceTypes.map((service) => (
+                      {services.map((service) => (
                         <Card key={service.id} className="overflow-hidden">
-                          <CardContent className="p-4 flex justify-between items-center">
-                            <div>
+                          <CardContent className="p-4 grid grid-cols-12 gap-4 items-center">
+                            <div className="col-span-6">
                               <h4 className="font-medium">{service.name}</h4>
-                              <p className="text-sm text-slate-500">
+                              <p className="text-sm text-slate-500 line-clamp-1">
                                 {service.description || "No description"}
                               </p>
                               <div className="mt-1">
-                                {/* Service type details */}
                                 <Badge variant="outline" className="mr-2">
                                   Rate: {service.rate}
                                 </Badge>
@@ -128,20 +338,65 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
                               </div>
                             </div>
                             
-                            {/* Status indicator - not subscribed (placeholder) */}
-                            <Badge variant="secondary" className="bg-slate-100 text-slate-800">
-                              Not Subscribed
-                            </Badge>
+                            <div className="col-span-3 flex items-center">
+                              <div className="flex items-center space-x-2">
+                                <Checkbox 
+                                  id={`required-${service.id}`}
+                                  checked={service.isRequired}
+                                  onCheckedChange={() => handleServiceToggle(
+                                    service.id,
+                                    service.isRequired,
+                                    service.isSubscribed,
+                                    'isRequired'
+                                  )}
+                                />
+                                <label
+                                  htmlFor={`required-${service.id}`}
+                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                >
+                                  Required
+                                </label>
+                              </div>
+                            </div>
                             
-                            {/* Toggle status button - placeholder
-                            <Button variant="outline" size="sm">
-                              <PlusCircle className="h-4 w-4 mr-2" />
-                              Subscribe
-                            </Button>
-                            */}
+                            <div className="col-span-3 flex items-center">
+                              <div className="flex items-center space-x-2">
+                                <Checkbox 
+                                  id={`subscribed-${service.id}`}
+                                  checked={service.isSubscribed}
+                                  disabled={!service.isRequired}
+                                  onCheckedChange={() => handleServiceToggle(
+                                    service.id,
+                                    service.isRequired,
+                                    service.isSubscribed,
+                                    'isSubscribed'
+                                  )}
+                                />
+                                <label
+                                  htmlFor={`subscribed-${service.id}`}
+                                  className={`text-sm font-medium leading-none ${!service.isRequired ? 'text-slate-400' : ''}`}
+                                >
+                                  Subscribed
+                                </label>
+                              </div>
+                            </div>
                           </CardContent>
                         </Card>
                       ))}
+                    </div>
+                    
+                    <div className="mt-4 p-4 rounded-md bg-slate-50">
+                      <div className="flex items-start">
+                        <InfoIcon className="h-5 w-5 text-blue-500 mt-0.5" />
+                        <div className="ml-3">
+                          <h4 className="text-sm font-medium text-slate-900">Service Configuration Info</h4>
+                          <ul className="text-sm text-slate-500 mt-1 list-disc list-inside space-y-1">
+                            <li><strong>Required:</strong> Services that must be provided to this entity</li>
+                            <li><strong>Subscribed:</strong> Services that the entity is currently paying for</li>
+                            <li>A service must be marked as Required before it can be Subscribed</li>
+                          </ul>
+                        </div>
+                      </div>
                     </div>
                   </>
                 )}
@@ -173,19 +428,111 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
                         </h4>
                         <p className="text-sm text-slate-500 mt-1">
                           {entity.isVatRegistered
-                            ? `VAT ID: ${entity.vatId}`
-                            : 'This entity is not registered for VAT'
+                            ? `VAT ID: ${entity.vatId || 'Not provided'}`
+                            : 'This entity is not registered for VAT/Sales Tax'
                           }
                         </p>
                       </div>
                     </div>
                     
-                    {/* Placeholder for tax jurisdictions configuration */}
-                    <div className="mb-4 text-center py-6">
-                      <p className="text-slate-500 text-sm">
-                        Tax jurisdictions configuration coming soon
-                      </p>
-                    </div>
+                    {!entity.isVatRegistered ? (
+                      <div className="text-center py-4">
+                        <p className="text-slate-500 text-sm">
+                          VAT/Sales Tax registration is not enabled for this entity.
+                          <br />
+                          To enable it, edit the entity and set "VAT Registered" to Yes.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Add tax jurisdiction */}
+                        <div className="mb-6 mt-6">
+                          <h4 className="text-sm font-medium mb-2">Add Tax Jurisdiction</h4>
+                          <div className="flex space-x-2">
+                            <div className="flex-1">
+                              <Select 
+                                value={selectedTaxJurisdictionId?.toString() || ""} 
+                                onValueChange={(value) => setSelectedTaxJurisdictionId(Number(value))}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select tax jurisdiction" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {filteredTaxJurisdictions.length === 0 ? (
+                                    <div className="p-2 text-center text-sm text-slate-500">
+                                      No available tax jurisdictions
+                                    </div>
+                                  ) : (
+                                    filteredTaxJurisdictions.map((tj) => (
+                                      <SelectItem key={tj.id} value={tj.id.toString()}>
+                                        {tj.name}
+                                      </SelectItem>
+                                    ))
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <Button 
+                              type="button" 
+                              size="sm"
+                              onClick={handleAddTaxJurisdiction}
+                              disabled={!selectedTaxJurisdictionId || filteredTaxJurisdictions.length === 0}
+                            >
+                              <PlusCircle className="h-4 w-4 mr-2" />
+                              Add
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        {/* List of assigned tax jurisdictions */}
+                        <div className="mt-4">
+                          <h4 className="text-sm font-medium mb-2">Assigned Tax Jurisdictions</h4>
+                          
+                          {isEntityTaxJurisdictionsLoading ? (
+                            <div className="flex justify-center items-center py-6">
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                            </div>
+                          ) : entityTaxJurisdictions.length === 0 ? (
+                            <div className="text-center py-6 border rounded-md">
+                              <p className="text-slate-500 text-sm">
+                                No tax jurisdictions assigned yet
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {entityTaxJurisdictions.map((tj) => (
+                                <div 
+                                  key={tj.id} 
+                                  className="flex justify-between items-center p-3 border rounded-md"
+                                >
+                                  <div>
+                                    <p className="font-medium">{tj.name}</p>
+                                    <p className="text-sm text-slate-500">
+                                      {tj.description || 
+                                        `${countries.find(c => c.id === entity?.countryId)?.name || 'Country'}${
+                                          tj.stateId && states.find(s => s.id === tj.stateId) 
+                                            ? ` - ${states.find(s => s.id === tj.stateId)?.name}` 
+                                            : ''
+                                        }`
+                                      }
+                                    </p>
+                                  </div>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={() => removeTaxJurisdiction.mutate(tj.id)}
+                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                    <span className="sr-only">Remove</span>
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>

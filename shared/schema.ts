@@ -319,6 +319,48 @@ export const insertTaskSchema = createInsertSchema(tasks).pick({
   isRecurring: true,
 });
 
+// Entity Tax Jurisdictions table (links entities to tax jurisdictions)
+export const entityTaxJurisdictions = pgTable("entity_tax_jurisdictions", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  entityId: integer("entity_id").notNull(),
+  taxJurisdictionId: integer("tax_jurisdiction_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    entityTaxJurisdictionUnique: unique().on(table.entityId, table.taxJurisdictionId),
+  };
+});
+
+export const insertEntityTaxJurisdictionSchema = createInsertSchema(entityTaxJurisdictions).pick({
+  tenantId: true,
+  entityId: true,
+  taxJurisdictionId: true,
+});
+
+// Entity Service Subscriptions table (links entities to services with subscription status)
+export const entityServiceSubscriptions = pgTable("entity_service_subscriptions", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  entityId: integer("entity_id").notNull(),
+  serviceTypeId: integer("service_type_id").notNull(),
+  isRequired: boolean("is_required").default(false).notNull(),
+  isSubscribed: boolean("is_subscribed").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    entityServiceUnique: unique().on(table.entityId, table.serviceTypeId),
+  };
+});
+
+export const insertEntityServiceSubscriptionSchema = createInsertSchema(entityServiceSubscriptions).pick({
+  tenantId: true,
+  entityId: true,
+  serviceTypeId: true,
+  isRequired: true,
+  isSubscribed: true,
+});
+
 // Export types
 export type Tenant = typeof tenants.$inferSelect;
 export type InsertTenant = z.infer<typeof insertTenantSchema>;
@@ -358,6 +400,12 @@ export type InsertClient = z.infer<typeof insertClientSchema>;
 
 export type Entity = typeof entities.$inferSelect;
 export type InsertEntity = z.infer<typeof insertEntitySchema>;
+
+export type EntityTaxJurisdiction = typeof entityTaxJurisdictions.$inferSelect;
+export type InsertEntityTaxJurisdiction = z.infer<typeof insertEntityTaxJurisdictionSchema>;
+
+export type EntityServiceSubscription = typeof entityServiceSubscriptions.$inferSelect;
+export type InsertEntityServiceSubscription = z.infer<typeof insertEntityServiceSubscriptionSchema>;
 
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;

@@ -1,9 +1,10 @@
-import { tenants, users, designations, departments, countries, currencies, states, entityTypes, taskStatuses, taxJurisdictions, serviceTypes, clients, entities, tasks } from "@shared/schema";
+import { tenants, users, designations, departments, countries, currencies, states, entityTypes, taskStatuses, taxJurisdictions, serviceTypes, clients, entities, tasks, entityTaxJurisdictions, entityServiceSubscriptions } from "@shared/schema";
 import type { Tenant, User, InsertUser, InsertTenant, 
   Designation, InsertDesignation, Department, InsertDepartment,
   Country, InsertCountry, Currency, InsertCurrency, 
   State, InsertState, EntityType, InsertEntityType, TaskStatus, InsertTaskStatus, TaxJurisdiction, InsertTaxJurisdiction, ServiceType, 
-  InsertServiceType, Client, InsertClient, Entity, InsertEntity, Task, InsertTask } from "@shared/schema";
+  InsertServiceType, Client, InsertClient, Entity, InsertEntity, Task, InsertTask,
+  EntityTaxJurisdiction, InsertEntityTaxJurisdiction, EntityServiceSubscription, InsertEntityServiceSubscription } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 
@@ -105,6 +106,19 @@ export interface IStorage {
   updateEntity(id: number, entity: Partial<InsertEntity>): Promise<Entity | undefined>;
   deleteEntity(id: number, tenantId: number): Promise<boolean>;
   
+  // Entity Tax Jurisdiction operations
+  getEntityTaxJurisdictions(tenantId: number, entityId: number): Promise<EntityTaxJurisdiction[]>;
+  getTaxJurisdictionsForEntity(tenantId: number, entityId: number): Promise<TaxJurisdiction[]>;
+  addTaxJurisdictionToEntity(entityTaxJurisdiction: InsertEntityTaxJurisdiction): Promise<EntityTaxJurisdiction>;
+  removeTaxJurisdictionFromEntity(tenantId: number, entityId: number, taxJurisdictionId: number): Promise<boolean>;
+  
+  // Entity Service Subscription operations
+  getEntityServiceSubscriptions(tenantId: number, entityId: number): Promise<EntityServiceSubscription[]>;
+  getServiceSubscription(tenantId: number, entityId: number, serviceTypeId: number): Promise<EntityServiceSubscription | undefined>;
+  createServiceSubscription(subscription: InsertEntityServiceSubscription): Promise<EntityServiceSubscription>;
+  updateServiceSubscription(tenantId: number, entityId: number, serviceTypeId: number, isRequired: boolean, isSubscribed: boolean): Promise<EntityServiceSubscription | undefined>;
+  deleteServiceSubscription(tenantId: number, entityId: number, serviceTypeId: number): Promise<boolean>;
+  
   // Task operations
   getTasks(tenantId: number, clientId?: number, entityId?: number): Promise<Task[]>;
   getTask(id: number, tenantId: number): Promise<Task | undefined>;
@@ -128,6 +142,8 @@ export class MemStorage implements IStorage {
   private clients: Map<number, Client>;
   private entities: Map<number, Entity>;
   private tasks: Map<number, Task>;
+  private entityTaxJurisdictions: Map<number, EntityTaxJurisdiction>;
+  private entityServiceSubscriptions: Map<number, EntityServiceSubscription>;
   
   sessionStore: MemoryStoreType;
   
@@ -145,6 +161,8 @@ export class MemStorage implements IStorage {
   private clientId: number = 1;
   private entityId: number = 1;
   private taskId: number = 1;
+  private entityTaxJurisdictionId: number = 1;
+  private entityServiceSubscriptionId: number = 1;
 
   constructor() {
     this.tenants = new Map();
@@ -161,6 +179,8 @@ export class MemStorage implements IStorage {
     this.clients = new Map();
     this.entities = new Map();
     this.tasks = new Map();
+    this.entityTaxJurisdictions = new Map();
+    this.entityServiceSubscriptions = new Map();
     
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000, // 24h
@@ -758,6 +778,146 @@ export class MemStorage implements IStorage {
       return this.entities.delete(id);
     }
     return false;
+  }
+  
+  // Entity Tax Jurisdiction operations
+  async getEntityTaxJurisdictions(tenantId: number, entityId: number): Promise<EntityTaxJurisdiction[]> {
+    return Array.from(this.entityTaxJurisdictions.values())
+      .filter(etj => etj.tenantId === tenantId && etj.entityId === entityId);
+  }
+
+  async getTaxJurisdictionsForEntity(tenantId: number, entityId: number): Promise<TaxJurisdiction[]> {
+    const entityTaxJurisdictions = await this.getEntityTaxJurisdictions(tenantId, entityId);
+    const taxJurisdictionIds = entityTaxJurisdictions.map(etj => etj.taxJurisdictionId);
+    return Array.from(this.taxJurisdictions.values())
+      .filter(tj => tj.tenantId === tenantId && taxJurisdictionIds.includes(tj.id));
+  }
+
+  async addTaxJurisdictionToEntity(entityTaxJurisdiction: InsertEntityTaxJurisdiction): Promise<EntityTaxJurisdiction> {
+    // Check if already exists
+    const exists = Array.from(this.entityTaxJurisdictions.values())
+      .some(etj => 
+        etj.entityId === entityTaxJurisdiction.entityId && 
+        etj.taxJurisdictionId === entityTaxJurisdiction.taxJurisdictionId
+      );
+    
+    if (exists) {
+      throw new Error("This tax jurisdiction is already associated with this entity");
+    }
+    
+    const id = this.entityTaxJurisdictionId++;
+    const newEntityTaxJurisdiction: EntityTaxJurisdiction = {
+      id,
+      tenantId: entityTaxJurisdiction.tenantId,
+      entityId: entityTaxJurisdiction.entityId,
+      taxJurisdictionId: entityTaxJurisdiction.taxJurisdictionId,
+      createdAt: new Date()
+    };
+    
+    this.entityTaxJurisdictions.set(id, newEntityTaxJurisdiction);
+    return newEntityTaxJurisdiction;
+  }
+
+  async removeTaxJurisdictionFromEntity(tenantId: number, entityId: number, taxJurisdictionId: number): Promise<boolean> {
+    const entityTaxJurisdiction = Array.from(this.entityTaxJurisdictions.values())
+      .find(etj => 
+        etj.tenantId === tenantId && 
+        etj.entityId === entityId && 
+        etj.taxJurisdictionId === taxJurisdictionId
+      );
+    
+    if (!entityTaxJurisdiction) {
+      return false;
+    }
+    
+    return this.entityTaxJurisdictions.delete(entityTaxJurisdiction.id);
+  }
+
+  // Entity Service Subscription operations
+  async getEntityServiceSubscriptions(tenantId: number, entityId: number): Promise<EntityServiceSubscription[]> {
+    return Array.from(this.entityServiceSubscriptions.values())
+      .filter(ess => ess.tenantId === tenantId && ess.entityId === entityId);
+  }
+
+  async getServiceSubscription(tenantId: number, entityId: number, serviceTypeId: number): Promise<EntityServiceSubscription | undefined> {
+    return Array.from(this.entityServiceSubscriptions.values())
+      .find(ess => 
+        ess.tenantId === tenantId && 
+        ess.entityId === entityId && 
+        ess.serviceTypeId === serviceTypeId
+      );
+  }
+
+  async createServiceSubscription(subscription: InsertEntityServiceSubscription): Promise<EntityServiceSubscription> {
+    // Check if already exists
+    const existing = await this.getServiceSubscription(
+      subscription.tenantId, 
+      subscription.entityId, 
+      subscription.serviceTypeId
+    );
+    
+    if (existing) {
+      // Update instead
+      return this.updateServiceSubscription(
+        subscription.tenantId,
+        subscription.entityId,
+        subscription.serviceTypeId,
+        subscription.isRequired || false,
+        subscription.isSubscribed || false
+      ) as Promise<EntityServiceSubscription>;
+    }
+    
+    const id = this.entityServiceSubscriptionId++;
+    const newSubscription: EntityServiceSubscription = {
+      id,
+      tenantId: subscription.tenantId,
+      entityId: subscription.entityId,
+      serviceTypeId: subscription.serviceTypeId,
+      isRequired: subscription.isRequired !== undefined ? subscription.isRequired : false,
+      isSubscribed: subscription.isSubscribed !== undefined ? subscription.isSubscribed : false,
+      createdAt: new Date()
+    };
+    
+    this.entityServiceSubscriptions.set(id, newSubscription);
+    return newSubscription;
+  }
+
+  async updateServiceSubscription(
+    tenantId: number, 
+    entityId: number, 
+    serviceTypeId: number, 
+    isRequired: boolean, 
+    isSubscribed: boolean
+  ): Promise<EntityServiceSubscription | undefined> {
+    const subscription = await this.getServiceSubscription(tenantId, entityId, serviceTypeId);
+    
+    if (!subscription) {
+      return undefined;
+    }
+    
+    // Business rule: To set isSubscribed to true, isRequired must also be true
+    if (isSubscribed && !isRequired) {
+      isRequired = true;
+    }
+    
+    const updatedSubscription: EntityServiceSubscription = {
+      ...subscription,
+      isRequired,
+      isSubscribed
+    };
+    
+    this.entityServiceSubscriptions.set(subscription.id, updatedSubscription);
+    return updatedSubscription;
+  }
+
+  async deleteServiceSubscription(tenantId: number, entityId: number, serviceTypeId: number): Promise<boolean> {
+    const subscription = await this.getServiceSubscription(tenantId, entityId, serviceTypeId);
+    
+    if (!subscription) {
+      return false;
+    }
+    
+    return this.entityServiceSubscriptions.delete(subscription.id);
   }
 
   // Task operations

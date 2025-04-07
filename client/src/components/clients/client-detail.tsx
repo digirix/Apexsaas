@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Client, Entity, Country, State, EntityType } from "@shared/schema";
 import { ArrowLeft, Edit, Plus, MapPin, Building, FileText, Settings } from "lucide-react";
@@ -30,6 +30,47 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
     queryKey: [`/api/v1/clients/${clientId}/entities`],
     enabled: !!clientId,
   });
+  
+  // Create entity service counts map
+  const [entityServiceCounts, setEntityServiceCounts] = useState<Record<number, number>>({});
+  const [entityTaxJurisdictionCounts, setEntityTaxJurisdictionCounts] = useState<Record<number, number>>({});
+  
+  // Fetch entity service counts when entities are loaded
+  useEffect(() => {
+    const fetchEntityServicesAndTaxes = async () => {
+      if (!entities.length) return;
+      
+      const serviceCounts: Record<number, number> = {};
+      const taxCounts: Record<number, number> = {};
+      
+      for (const entity of entities) {
+        try {
+          // Fetch service subscriptions
+          const servicesRes = await fetch(`/api/v1/entities/${entity.id}/services`);
+          const services = await servicesRes.json();
+          
+          // Count subscribed services
+          serviceCounts[entity.id] = services.filter(
+            (s: any) => s.isSubscribed
+          ).length;
+          
+          // Only fetch tax jurisdictions if VAT registered
+          if (entity.isVatRegistered) {
+            const taxesRes = await fetch(`/api/v1/entities/${entity.id}/tax-jurisdictions`);
+            const taxes = await taxesRes.json();
+            taxCounts[entity.id] = taxes.length;
+          }
+        } catch (error) {
+          console.error(`Error fetching data for entity ${entity.id}:`, error);
+        }
+      }
+      
+      setEntityServiceCounts(serviceCounts);
+      setEntityTaxJurisdictionCounts(taxCounts);
+    };
+    
+    fetchEntityServicesAndTaxes();
+  }, [entities]);
   
   // Fetch countries for reference
   const { data: countries = [] } = useQuery<Country[]>({
@@ -282,15 +323,23 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
                             <svg xmlns="http://www.w3.org/2000/svg" className="-ml-0.5 mr-1.5 h-3 w-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            0 Services
+                            {entityServiceCounts[entity.id] || 0} Services
                           </Badge>
                           {entity.isVatRegistered && (
-                            <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-100">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="-ml-0.5 mr-1.5 h-3 w-3 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              VAT Registered
-                            </Badge>
+                            <>
+                              <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="-ml-0.5 mr-1.5 h-3 w-3 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                VAT Registered
+                              </Badge>
+                              <Badge variant="secondary" className="bg-purple-100 text-purple-800 hover:bg-purple-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="-ml-0.5 mr-1.5 h-3 w-3 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                {entityTaxJurisdictionCounts[entity.id] || 0} Tax Jurisdictions
+                              </Badge>
+                            </>
                           )}
                         </div>
                       </div>
