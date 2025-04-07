@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Task, User } from "@shared/schema";
+import { Task, User, TaskStatus } from "@shared/schema";
 import { 
   Search, 
   Filter, 
@@ -31,31 +31,20 @@ export function TaskList() {
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   const [taskType, setTaskType] = useState<"admin" | "revenue">("admin");
   
-  // Fetch tasks
+  // Fetch tasks with proper filters
   const { data: tasks = [], isLoading: isLoadingTasks } = useQuery<Task[]>({
     queryKey: ["/api/v1/tasks"],
-    queryFn: async () => {
-      // Mock empty array for now
-      return [];
-    }
   });
 
-  // Fetch users for assignee dropdown
+  // Fetch users
   const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
     queryKey: ["/api/v1/users"],
-    queryFn: async () => {
-      // Mock empty array for now
-      return [];
-    }
   });
 
-  // Mock task statuses (would come from an API in real implementation)
-  const taskStatuses = [
-    { id: 1, name: "New", rank: 1 },
-    { id: 2, name: "In Progress", rank: 2 },
-    { id: 3, name: "Under Review", rank: 2.5 },
-    { id: 4, name: "Completed", rank: 3 },
-  ];
+  // Fetch task statuses
+  const { data: taskStatuses = [], isLoading: isLoadingStatuses } = useQuery<TaskStatus[]>({
+    queryKey: ["/api/v1/setup/task-statuses"],
+  });
 
   return (
     <>
@@ -165,50 +154,45 @@ export function TaskList() {
           </div>
         ) : (
           <>
-            {/* Mock task examples */}
-            <TaskCard
-              title="Quarterly Tax Filing"
-              client="Acme Corporation"
-              entity="US Entity"
-              dueDate="2023-06-30"
-              status="In Progress"
-              assignee="John Doe"
-              priority="medium"
-              isAdmin={false}
-            />
-            
-            <TaskCard
-              title="Review Annual Accounts"
-              client="Global Industries"
-              entity="UK Entity"
-              dueDate="2023-07-15"
-              status="New"
-              assignee="Jane Smith"
-              priority="high"
-              isAdmin={false}
-            />
-            
-            <TaskCard
-              title="Team Meeting Preparation"
-              client=""
-              entity=""
-              dueDate="2023-06-28"
-              status="New"
-              assignee="John Doe"
-              priority="low"
-              isAdmin={true}
-            />
-            
-            <TaskCard
-              title="VAT Return Filing"
-              client="Tech Titans"
-              entity="UK Entity"
-              dueDate="2023-06-20"
-              status="Overdue"
-              assignee="John Doe"
-              priority="high"
-              isAdmin={false}
-            />
+            {tasks.map((task) => {
+              // Find status name
+              const status = taskStatuses.find(s => s.id === task.statusId);
+              const statusName = status ? status.name : "Unknown";
+              
+              // Find assignee name
+              const assignee = users.find(u => u.id === task.assigneeId);
+              const assigneeName = assignee ? assignee.displayName : "Unassigned";
+              
+              // Determine priority based on task type
+              let priority: "low" | "medium" | "high";
+              switch (task.taskType) {
+                case "Regular":
+                  priority = "low";
+                  break;
+                case "Medium":
+                  priority = "medium";
+                  break;
+                case "Urgent":
+                  priority = "high";
+                  break;
+                default:
+                  priority = "medium";
+              }
+              
+              return (
+                <TaskCard
+                  key={task.id}
+                  title={task.taskDetails || `Task #${task.id}`}
+                  client={task.clientId ? "Client Name" : ""} // Will need client lookup
+                  entity={task.entityId ? "Entity Name" : ""} // Will need entity lookup
+                  dueDate={task.dueDate.toString()}
+                  status={statusName}
+                  assignee={assigneeName}
+                  priority={priority}
+                  isAdmin={task.isAdmin}
+                />
+              );
+            })}
           </>
         )}
       </div>

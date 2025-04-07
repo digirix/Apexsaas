@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Client, User } from "@shared/schema";
+import { Client, User, TaskCategory, TaskStatus, Entity, ServiceType } from "@shared/schema";
 import { 
   Dialog, 
   DialogContent, 
@@ -51,7 +51,7 @@ const adminTaskSchema = z.object({
   dueDate: z.date({
     required_error: "Please select a due date",
   }),
-  taskCategory: z.string().optional(),
+  taskCategoryId: z.string().optional(),
   taskDetails: z.string().min(5, "Task details must be at least 5 characters"),
   nextToDo: z.string().optional(),
 });
@@ -63,7 +63,7 @@ const revenueTaskBasicSchema = z.object({
   clientId: z.string().min(1, "Please select a client"),
   entityId: z.string().min(1, "Please select an entity"),
   serviceId: z.string().min(1, "Please select a service"),
-  taskCategory: z.string().optional(),
+  taskCategoryId: z.string().optional(),
   taskType: z.enum(["Regular", "Medium", "Urgent"]),
   assigneeId: z.string().min(1, "Please select an assignee"),
   dueDate: z.date({
@@ -85,6 +85,7 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
     defaultValues: {
       taskType: "Regular",
       assigneeId: "",
+      taskCategoryId: "",
       taskDetails: "",
       nextToDo: "",
     },
@@ -97,7 +98,7 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
       clientId: "",
       entityId: "",
       serviceId: "",
-      taskCategory: "",
+      taskCategoryId: "",
       taskType: "Regular",
       assigneeId: "",
       taskDetails: "",
@@ -117,15 +118,54 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
     enabled: isOpen,
   });
   
+  // Fetch admin task categories
+  const { data: adminTaskCategories = [], isLoading: isLoadingAdminCategories } = useQuery<TaskCategory[]>({
+    queryKey: ["/api/v1/setup/task-categories", { isAdmin: true }],
+    queryFn: async () => {
+      const response = await fetch("/api/v1/setup/task-categories?isAdmin=true");
+      if (!response.ok) {
+        throw new Error("Failed to fetch admin task categories");
+      }
+      return response.json();
+    },
+    enabled: isOpen && taskType === "admin",
+  });
+  
+  // Fetch revenue task categories
+  const { data: revenueTaskCategories = [], isLoading: isLoadingRevenueCategories } = useQuery<TaskCategory[]>({
+    queryKey: ["/api/v1/setup/task-categories", { isAdmin: false }],
+    queryFn: async () => {
+      const response = await fetch("/api/v1/setup/task-categories?isAdmin=false");
+      if (!response.ok) {
+        throw new Error("Failed to fetch revenue task categories");
+      }
+      return response.json();
+    },
+    enabled: isOpen && taskType === "revenue",
+  });
+  
+  // Fetch task statuses
+  const { data: taskStatuses = [], isLoading: isLoadingStatuses } = useQuery<TaskStatus[]>({
+    queryKey: ["/api/v1/setup/task-statuses"],
+    enabled: isOpen,
+  });
+  
   // Create task mutation for admin tasks
   const createAdminTaskMutation = useMutation({
     mutationFn: async (data: AdminTaskFormValues) => {
-      const response = await apiRequest("POST", "/api/v1/tasks", {
+      const payload = {
         ...data,
         isAdmin: true,
         assigneeId: parseInt(data.assigneeId),
         statusId: 1, // New status
-      });
+      };
+
+      // Include taskCategoryId only if it's provided
+      if (data.taskCategoryId) {
+        payload.taskCategoryId = data.taskCategoryId;
+      }
+
+      const response = await apiRequest("POST", "/api/v1/tasks", payload);
       return response.json();
     },
     onSuccess: () => {
@@ -149,7 +189,7 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
   // Create task mutation for revenue tasks
   const createRevenueTaskMutation = useMutation({
     mutationFn: async (data: RevenueTaskBasicFormValues) => {
-      const response = await apiRequest("POST", "/api/v1/tasks", {
+      const payload = {
         ...data,
         isAdmin: false,
         clientId: parseInt(data.clientId),
@@ -157,7 +197,14 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
         serviceTypeId: parseInt(data.serviceId),
         assigneeId: parseInt(data.assigneeId),
         statusId: 1, // New status
-      });
+      };
+
+      // Include taskCategoryId only if it's provided
+      if (data.taskCategoryId) {
+        payload.taskCategoryId = data.taskCategoryId;
+      }
+
+      const response = await apiRequest("POST", "/api/v1/tasks", payload);
       return response.json();
     },
     onSuccess: () => {
@@ -319,7 +366,7 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                 
                 <FormField
                   control={adminTaskForm.control}
-                  name="taskCategory"
+                  name="taskCategoryId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Task Category (Optional)</FormLabel>
@@ -333,10 +380,21 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="Meeting">Meeting</SelectItem>
-                          <SelectItem value="Documentation">Documentation</SelectItem>
-                          <SelectItem value="Research">Research</SelectItem>
-                          <SelectItem value="Other">Other</SelectItem>
+                          {isLoadingAdminCategories ? (
+                            <div className="flex justify-center items-center py-2">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            </div>
+                          ) : adminTaskCategories.length === 0 ? (
+                            <SelectItem value="" disabled>
+                              No categories available
+                            </SelectItem>
+                          ) : (
+                            adminTaskCategories.map((category) => (
+                              <SelectItem key={category.id} value={category.id.toString()}>
+                                {category.name}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -511,7 +569,7 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                     
                     <FormField
                       control={revenueTaskForm.control}
-                      name="taskCategory"
+                      name="taskCategoryId"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Task Category (Optional)</FormLabel>
@@ -525,9 +583,21 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="Compliance">Compliance</SelectItem>
-                              <SelectItem value="Advisory">Advisory</SelectItem>
-                              <SelectItem value="Other">Other</SelectItem>
+                              {isLoadingRevenueCategories ? (
+                                <div className="flex justify-center items-center py-2">
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                </div>
+                              ) : revenueTaskCategories.length === 0 ? (
+                                <SelectItem value="" disabled>
+                                  No categories available
+                                </SelectItem>
+                              ) : (
+                                revenueTaskCategories.map((category) => (
+                                  <SelectItem key={category.id} value={category.id.toString()}>
+                                    {category.name}
+                                  </SelectItem>
+                                ))
+                              )}
                             </SelectContent>
                           </Select>
                           <FormMessage />
