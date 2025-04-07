@@ -110,6 +110,16 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
   const { data: clients = [], isLoading: isLoadingClients } = useQuery<Client[]>({
     queryKey: ["/api/v1/clients"],
     enabled: isOpen && taskType === "revenue",
+    queryFn: async () => {
+      console.log("Fetching clients");
+      const response = await fetch("/api/v1/clients");
+      if (!response.ok) {
+        throw new Error("Failed to fetch clients");
+      }
+      const data = await response.json();
+      console.log("Fetched clients:", data);
+      return data;
+    }
   });
   
   // Get selected client ID
@@ -119,6 +129,16 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
   const { data: entities = [], isLoading: isLoadingEntities } = useQuery<Entity[]>({
     queryKey: ["/api/v1/clients", selectedClientId, "entities"],
     enabled: isOpen && taskType === "revenue" && !!selectedClientId,
+    queryFn: async () => {
+      console.log("Fetching entities for client:", selectedClientId);
+      const response = await fetch(`/api/v1/clients/${selectedClientId}/entities`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch entities for client");
+      }
+      const data = await response.json();
+      console.log("Fetched client entities:", data);
+      return data;
+    }
   });
   
   // Get selected entity ID
@@ -127,7 +147,17 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
   // Fetch services for the selected entity
   const { data: entityServices = [], isLoading: isLoadingServices } = useQuery<ServiceType[]>({
     queryKey: ["/api/v1/entities", selectedEntityId, "services"],
-    enabled: isOpen && taskType === "revenue" && !!selectedEntityId
+    enabled: isOpen && taskType === "revenue" && !!selectedEntityId,
+    queryFn: async () => {
+      console.log("Fetching services for entity:", selectedEntityId);
+      const response = await fetch(`/api/v1/entities/${selectedEntityId}/services`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch services for entity");
+      }
+      const data = await response.json();
+      console.log("Fetched entity services:", data);
+      return data;
+    }
   });
   
   // Fetch users for assignee dropdown
@@ -540,44 +570,65 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                     <FormField
                       control={revenueTaskForm.control}
                       name="entityId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Entity</FormLabel>
-                          <Select 
-                            onValueChange={(value) => {
-                              field.onChange(value);
-                              // Reset service field when entity changes
-                              revenueTaskForm.setValue("serviceId", "");
-                            }} 
-                            value={field.value}
-                            disabled={!revenueTaskForm.watch("clientId")}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select entity" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {isLoadingEntities ? (
-                                <div className="flex justify-center items-center py-2">
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                </div>
-                              ) : !entities || entities.length === 0 ? (
-                                <SelectItem value="no-entities" disabled>
-                                  No entities available
-                                </SelectItem>
-                              ) : (
-                                entities.map((entity) => (
-                                  <SelectItem key={entity.id} value={entity.id.toString()}>
-                                    {entity.name}
+                      render={({ field }) => {
+                        // For debugging: Log the current field value and available entities
+                        console.log("Current entityId:", field.value);
+                        console.log("Available entities:", entities);
+                        // Entities are getting loaded incorrectly - entities is actually clients
+                        
+                        // Function to find the entity name based on the selected ID
+                        const getEntityName = () => {
+                          if (!field.value) return "Select entity";
+                          if (!entities || entities.length === 0) return "Select entity";
+                          // Entities are client objects that have displayName instead of name
+                          console.log("Looking for entity with ID:", field.value, "in", entities);
+                          const entity = entities.find(e => e.id.toString() === field.value);
+                          // This handles both Entity objects (with name) and Client objects (with displayName)
+                          return entity ? ((entity as any).name || (entity as any).displayName) : "Select entity";
+                        };
+                        
+                        return (
+                          <FormItem>
+                            <FormLabel>Entity</FormLabel>
+                            <Select 
+                              onValueChange={(value) => {
+                                console.log("Entity selection changed to:", value);
+                                field.onChange(value);
+                                // Reset service field when entity changes
+                                revenueTaskForm.setValue("serviceId", "");
+                              }} 
+                              value={field.value || ""}
+                              disabled={!revenueTaskForm.watch("clientId")}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select entity">
+                                    {getEntityName()}
+                                  </SelectValue>
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {isLoadingEntities ? (
+                                  <div className="flex justify-center items-center py-2">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  </div>
+                                ) : !entities || entities.length === 0 ? (
+                                  <SelectItem value="no-entities" disabled>
+                                    No entities available
                                   </SelectItem>
-                                ))
-                              )}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                                ) : (
+                                  entities.map((entity) => (
+                                    <SelectItem key={entity.id} value={entity.id.toString()}>
+                                      {(entity as any).name || (entity as any).displayName}
+                                    </SelectItem>
+                                  ))
+                                )}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
                     />
                   </div>
                   
@@ -585,40 +636,60 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                     <FormField
                       control={revenueTaskForm.control}
                       name="serviceId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Service</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange} 
-                            value={field.value}
-                            disabled={!revenueTaskForm.watch("entityId")}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select service" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {isLoadingServices ? (
-                                <div className="flex justify-center items-center py-2">
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                </div>
-                              ) : !entityServices || entityServices.length === 0 ? (
-                                <SelectItem value="no-services" disabled>
-                                  No services available
-                                </SelectItem>
-                              ) : (
-                                entityServices.map((service: ServiceType) => (
-                                  <SelectItem key={service.id} value={service.id.toString()}>
-                                    {service.name}
+                      render={({ field }) => {
+                        // For debugging: Log the current field value and available services
+                        console.log("Current serviceId:", field.value);
+                        console.log("Available services:", entityServices);
+                        
+                        // Function to find the service name based on the selected ID
+                        const getServiceName = () => {
+                          if (!field.value) return "Select service";
+                          if (!entityServices || entityServices.length === 0) return "Select service";
+                          console.log("Looking for service with ID:", field.value, "in", entityServices);
+                          const service = entityServices.find(s => s.id.toString() === field.value);
+                          return service ? service.name : "Select service";
+                        };
+                        
+                        return (
+                          <FormItem>
+                            <FormLabel>Service</FormLabel>
+                            <Select 
+                              onValueChange={(value) => {
+                                console.log("Service selection changed to:", value);
+                                field.onChange(value);
+                              }} 
+                              value={field.value || ""}
+                              disabled={!revenueTaskForm.watch("entityId")}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select service">
+                                    {getServiceName()}
+                                  </SelectValue>
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {isLoadingServices ? (
+                                  <div className="flex justify-center items-center py-2">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  </div>
+                                ) : !entityServices || entityServices.length === 0 ? (
+                                  <SelectItem value="no-services" disabled>
+                                    No services available
                                   </SelectItem>
-                                ))
-                              )}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                                ) : (
+                                  entityServices.map((service: ServiceType) => (
+                                    <SelectItem key={service.id} value={service.id.toString()}>
+                                      {service.name}
+                                    </SelectItem>
+                                  ))
+                                )}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
                     />
                     
                     <FormField
