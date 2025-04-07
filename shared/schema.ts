@@ -450,6 +450,119 @@ export type InsertEntityServiceSubscription = z.infer<typeof insertEntityService
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 
+// Roles table for Role-Based Access Control
+export const roles = pgTable("roles", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantRoleUnique: unique().on(table.tenantId, table.name),
+  };
+});
+
+export const insertRoleSchema = createInsertSchema(roles).pick({
+  tenantId: true,
+  name: true,
+  description: true,
+});
+
+// Permissions table
+export const permissions = pgTable("permissions", {
+  id: serial("id").primaryKey(),
+  resource: text("resource").notNull(), // E.g., 'clients', 'users', 'setup', etc.
+  action: text("action").notNull(), // E.g., 'create', 'read', 'update', 'delete'
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    resourceActionUnique: unique().on(table.resource, table.action),
+  };
+});
+
+export const insertPermissionSchema = createInsertSchema(permissions).pick({
+  resource: true,
+  action: true,
+  description: true,
+});
+
+// Role Permissions linking table
+export const rolePermissions = pgTable("role_permissions", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  roleId: integer("role_id").notNull(),
+  permissionId: integer("permission_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    rolePermissionUnique: unique().on(table.roleId, table.permissionId),
+  };
+});
+
+export const insertRolePermissionSchema = createInsertSchema(rolePermissions).pick({
+  tenantId: true,
+  roleId: true,
+  permissionId: true,
+});
+
+// User Roles linking table
+export const userRoles = pgTable("user_roles", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  userId: integer("user_id").notNull(),
+  roleId: integer("role_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    userRoleUnique: unique().on(table.userId, table.roleId),
+  };
+});
+
+export const insertUserRoleSchema = createInsertSchema(userRoles).pick({
+  tenantId: true,
+  userId: true,
+  roleId: true,
+});
+
+// User direct permissions (overrides roles)
+export const userPermissions = pgTable("user_permissions", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  userId: integer("user_id").notNull(),
+  permissionId: integer("permission_id").notNull(),
+  hasPermission: boolean("has_permission").default(true).notNull(), // Can explicitly grant or deny
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    userPermissionUnique: unique().on(table.userId, table.permissionId),
+  };
+});
+
+export const insertUserPermissionSchema = createInsertSchema(userPermissions).pick({
+  tenantId: true,
+  userId: true,
+  permissionId: true,
+  hasPermission: true,
+});
+
+// Type exports for permissions
+export type Role = typeof roles.$inferSelect;
+export type InsertRole = z.infer<typeof insertRoleSchema>;
+
+export type Permission = typeof permissions.$inferSelect;
+export type InsertPermission = z.infer<typeof insertPermissionSchema>;
+
+export type RolePermission = typeof rolePermissions.$inferSelect;
+export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
+
+export type UserRole = typeof userRoles.$inferSelect;
+export type InsertUserRole = z.infer<typeof insertUserRoleSchema>;
+
+export type UserPermission = typeof userPermissions.$inferSelect;
+export type InsertUserPermission = z.infer<typeof insertUserPermissionSchema>;
+
 // Auth schemas
 export const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),

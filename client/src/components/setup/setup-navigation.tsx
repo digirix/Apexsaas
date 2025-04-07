@@ -10,7 +10,9 @@ import {
   Briefcase,
   UsersRound,
   Building,
-  Receipt
+  Receipt,
+  UserCog,
+  Shield
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SetupSection } from "@/types/setup";
@@ -77,6 +79,18 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
       id: 'departments',
       label: 'Departments',
       icon: <Building className="h-5 w-5" />
+    },
+    
+    // User Management
+    {
+      id: 'users',
+      label: 'Users & Permissions',
+      icon: <UserCog className="h-5 w-5" />
+    },
+    {
+      id: 'roles',
+      label: 'Roles & Access',
+      icon: <Shield className="h-5 w-5" />
     }
   ];
 
@@ -84,6 +98,7 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
   const locationItems = setupItems.slice(0, 3);
   const businessItems = setupItems.slice(3, 7);
   const hrItems = setupItems.slice(7, 9);
+  const usersItems = setupItems.slice(9, 11);
 
   return (
     <Card className="p-4">
@@ -148,6 +163,33 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
           <h3 className="text-sm font-medium text-slate-500 mb-2 px-2">HR Configuration</h3>
           <div className="space-y-1">
             {hrItems.map((item) => (
+              <Button
+                key={item.id}
+                variant="ghost"
+                className={cn(
+                  "w-full justify-start",
+                  activeSection === item.id ? "bg-blue-50 text-blue-700" : "text-slate-600"
+                )}
+                onClick={() => onSectionChange(item.id)}
+              >
+                {React.cloneElement(item.icon as React.ReactElement, {
+                  className: cn(
+                    (item.icon as React.ReactElement).props.className,
+                    "mr-2",
+                    activeSection === item.id ? "text-blue-700" : "text-slate-500"
+                  ),
+                })}
+                {item.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+        
+        {/* User Management */}
+        <div>
+          <h3 className="text-sm font-medium text-slate-500 mb-2 px-2">User Management</h3>
+          <div className="space-y-1">
+            {usersItems.map((item) => (
               <Button
                 key={item.id}
                 variant="ghost"

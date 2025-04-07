@@ -1,10 +1,12 @@
-import { tenants, users, designations, departments, countries, currencies, states, entityTypes, taskStatuses, taxJurisdictions, serviceTypes, clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions } from "@shared/schema";
+import { tenants, users, designations, departments, countries, currencies, states, entityTypes, taskStatuses, taxJurisdictions, serviceTypes, clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions, roles, permissions, rolePermissions, userRoles, userPermissions } from "@shared/schema";
 import type { Tenant, User, InsertUser, InsertTenant, 
   Designation, InsertDesignation, Department, InsertDepartment,
   Country, InsertCountry, Currency, InsertCurrency, 
   State, InsertState, EntityType, InsertEntityType, TaskStatus, InsertTaskStatus, TaxJurisdiction, InsertTaxJurisdiction, ServiceType, 
   InsertServiceType, Client, InsertClient, Entity, InsertEntity, Task, InsertTask, TaskCategory, InsertTaskCategory,
-  EntityTaxJurisdiction, InsertEntityTaxJurisdiction, EntityServiceSubscription, InsertEntityServiceSubscription } from "@shared/schema";
+  EntityTaxJurisdiction, InsertEntityTaxJurisdiction, EntityServiceSubscription, InsertEntityServiceSubscription,
+  Role, InsertRole, Permission, InsertPermission, RolePermission, InsertRolePermission, UserRole, InsertUserRole,
+  UserPermission, InsertUserPermission } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 
@@ -132,6 +134,41 @@ export interface IStorage {
   createTask(task: InsertTask): Promise<Task>;
   updateTask(id: number, task: Partial<InsertTask>): Promise<Task | undefined>;
   deleteTask(id: number, tenantId: number): Promise<boolean>;
+  
+  // Roles operations
+  getRoles(tenantId: number): Promise<Role[]>;
+  getRole(id: number, tenantId: number): Promise<Role | undefined>;
+  createRole(role: InsertRole): Promise<Role>;
+  updateRole(id: number, role: Partial<InsertRole>): Promise<Role | undefined>;
+  deleteRole(id: number, tenantId: number): Promise<boolean>;
+  
+  // Permissions operations
+  getPermissions(): Promise<Permission[]>;
+  getPermissionsByResource(resource: string): Promise<Permission[]>;
+  getPermission(id: number): Promise<Permission | undefined>;
+  createPermission(permission: InsertPermission): Promise<Permission>;
+  updatePermission(id: number, permission: Partial<InsertPermission>): Promise<Permission | undefined>;
+  deletePermission(id: number): Promise<boolean>;
+  
+  // Role Permission operations
+  getRolePermissions(tenantId: number, roleId: number): Promise<RolePermission[]>;
+  getPermissionsForRole(tenantId: number, roleId: number): Promise<Permission[]>;
+  addPermissionToRole(rolePermission: InsertRolePermission): Promise<RolePermission>;
+  removePermissionFromRole(tenantId: number, roleId: number, permissionId: number): Promise<boolean>;
+  
+  // User Role operations
+  getUserRoles(tenantId: number, userId: number): Promise<UserRole[]>;
+  getRolesForUser(tenantId: number, userId: number): Promise<Role[]>;
+  addRoleToUser(userRole: InsertUserRole): Promise<UserRole>;
+  removeRoleFromUser(tenantId: number, userId: number, roleId: number): Promise<boolean>;
+  
+  // User Permission operations
+  getUserPermissions(tenantId: number, userId: number): Promise<UserPermission[]>;
+  getDirectPermissionsForUser(tenantId: number, userId: number): Promise<Permission[]>;
+  addPermissionToUser(userPermission: InsertUserPermission): Promise<UserPermission>;
+  removePermissionFromUser(tenantId: number, userId: number, permissionId: number): Promise<boolean>;
+  getUserEffectivePermissions(tenantId: number, userId: number, resource?: string): Promise<Permission[]>;
+  hasPermission(tenantId: number, userId: number, resource: string, action: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -152,6 +189,11 @@ export class MemStorage implements IStorage {
   private tasks: Map<number, Task>;
   private entityTaxJurisdictions: Map<number, EntityTaxJurisdiction>;
   private entityServiceSubscriptions: Map<number, EntityServiceSubscription>;
+  private roles: Map<number, Role>;
+  private permissions: Map<number, Permission>;
+  private rolePermissions: Map<number, RolePermission>;
+  private userRoles: Map<number, UserRole>;
+  private userPermissions: Map<number, UserPermission>;
   
   sessionStore: MemoryStoreType;
   
@@ -172,6 +214,11 @@ export class MemStorage implements IStorage {
   private taskId: number = 1;
   private entityTaxJurisdictionId: number = 1;
   private entityServiceSubscriptionId: number = 1;
+  private roleId: number = 1;
+  private permissionId: number = 1;
+  private rolePermissionId: number = 1;
+  private userRoleId: number = 1;
+  private userPermissionId: number = 1;
 
   constructor() {
     this.tenants = new Map();
@@ -191,6 +238,11 @@ export class MemStorage implements IStorage {
     this.tasks = new Map();
     this.entityTaxJurisdictions = new Map();
     this.entityServiceSubscriptions = new Map();
+    this.roles = new Map();
+    this.permissions = new Map();
+    this.rolePermissions = new Map();
+    this.userRoles = new Map();
+    this.userPermissions = new Map();
     
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000, // 24h
@@ -1068,6 +1120,291 @@ export class MemStorage implements IStorage {
       return this.tasks.delete(id);
     }
     return false;
+  }
+  
+  // Role operations
+  async getRoles(tenantId: number): Promise<Role[]> {
+    return Array.from(this.roles.values()).filter(role => role.tenantId === tenantId);
+  }
+  
+  async getRole(id: number, tenantId: number): Promise<Role | undefined> {
+    const role = this.roles.get(id);
+    if (role && role.tenantId === tenantId) {
+      return role;
+    }
+    return undefined;
+  }
+  
+  async createRole(role: InsertRole): Promise<Role> {
+    const id = this.roleId++;
+    const newRole: Role = {
+      ...role,
+      id,
+      createdAt: new Date(),
+      description: role.description ?? null
+    };
+    this.roles.set(id, newRole);
+    return newRole;
+  }
+  
+  async updateRole(id: number, role: Partial<InsertRole>): Promise<Role | undefined> {
+    const existingRole = this.roles.get(id);
+    if (!existingRole) return undefined;
+    
+    const updatedRole = { ...existingRole, ...role };
+    this.roles.set(id, updatedRole);
+    return updatedRole;
+  }
+  
+  async deleteRole(id: number, tenantId: number): Promise<boolean> {
+    const role = this.roles.get(id);
+    if (role && role.tenantId === tenantId) {
+      // Remove all role permissions and user roles related to this role
+      const rolePermissions = Array.from(this.rolePermissions.values())
+        .filter(rp => rp.roleId === id);
+      
+      for (const rp of rolePermissions) {
+        this.rolePermissions.delete(rp.id);
+      }
+      
+      const userRoles = Array.from(this.userRoles.values())
+        .filter(ur => ur.roleId === id);
+      
+      for (const ur of userRoles) {
+        this.userRoles.delete(ur.id);
+      }
+      
+      return this.roles.delete(id);
+    }
+    return false;
+  }
+  
+  // Permission operations
+  async getPermissions(): Promise<Permission[]> {
+    return Array.from(this.permissions.values());
+  }
+  
+  async getPermissionsByResource(resource: string): Promise<Permission[]> {
+    return Array.from(this.permissions.values())
+      .filter(permission => permission.resource === resource);
+  }
+  
+  async getPermission(id: number): Promise<Permission | undefined> {
+    return this.permissions.get(id);
+  }
+  
+  async createPermission(permission: InsertPermission): Promise<Permission> {
+    const id = this.permissionId++;
+    const newPermission: Permission = {
+      ...permission,
+      id,
+      createdAt: new Date(),
+      description: permission.description ?? null
+    };
+    this.permissions.set(id, newPermission);
+    return newPermission;
+  }
+  
+  async updatePermission(id: number, permission: Partial<InsertPermission>): Promise<Permission | undefined> {
+    const existingPermission = this.permissions.get(id);
+    if (!existingPermission) return undefined;
+    
+    const updatedPermission = { ...existingPermission, ...permission };
+    this.permissions.set(id, updatedPermission);
+    return updatedPermission;
+  }
+  
+  async deletePermission(id: number): Promise<boolean> {
+    // Remove all role permissions and user permissions related to this permission
+    const rolePermissions = Array.from(this.rolePermissions.values())
+      .filter(rp => rp.permissionId === id);
+    
+    for (const rp of rolePermissions) {
+      this.rolePermissions.delete(rp.id);
+    }
+    
+    const userPermissions = Array.from(this.userPermissions.values())
+      .filter(up => up.permissionId === id);
+    
+    for (const up of userPermissions) {
+      this.userPermissions.delete(up.id);
+    }
+    
+    return this.permissions.delete(id);
+  }
+  
+  // Role Permission operations
+  async getRolePermissions(tenantId: number, roleId: number): Promise<RolePermission[]> {
+    return Array.from(this.rolePermissions.values())
+      .filter(rp => rp.tenantId === tenantId && rp.roleId === roleId);
+  }
+  
+  async getPermissionsForRole(tenantId: number, roleId: number): Promise<Permission[]> {
+    const rolePermissions = await this.getRolePermissions(tenantId, roleId);
+    
+    return rolePermissions.map(rp => {
+      const permission = this.permissions.get(rp.permissionId);
+      return permission!;
+    }).filter(Boolean);
+  }
+  
+  async addPermissionToRole(rolePermission: InsertRolePermission): Promise<RolePermission> {
+    const id = this.rolePermissionId++;
+    const newRolePermission: RolePermission = {
+      ...rolePermission,
+      id,
+      createdAt: new Date()
+    };
+    this.rolePermissions.set(id, newRolePermission);
+    return newRolePermission;
+  }
+  
+  async removePermissionFromRole(tenantId: number, roleId: number, permissionId: number): Promise<boolean> {
+    const rolePermissionId = Array.from(this.rolePermissions.values())
+      .find(rp => rp.tenantId === tenantId && rp.roleId === roleId && rp.permissionId === permissionId)?.id;
+    
+    if (rolePermissionId) {
+      return this.rolePermissions.delete(rolePermissionId);
+    }
+    
+    return false;
+  }
+  
+  // User Role operations
+  async getUserRoles(tenantId: number, userId: number): Promise<UserRole[]> {
+    return Array.from(this.userRoles.values())
+      .filter(ur => ur.tenantId === tenantId && ur.userId === userId);
+  }
+  
+  async getRolesForUser(tenantId: number, userId: number): Promise<Role[]> {
+    const userRoles = await this.getUserRoles(tenantId, userId);
+    
+    return userRoles.map(ur => {
+      const role = this.roles.get(ur.roleId);
+      return role!;
+    }).filter(Boolean);
+  }
+  
+  async addRoleToUser(userRole: InsertUserRole): Promise<UserRole> {
+    const id = this.userRoleId++;
+    const newUserRole: UserRole = {
+      ...userRole,
+      id,
+      createdAt: new Date()
+    };
+    this.userRoles.set(id, newUserRole);
+    return newUserRole;
+  }
+  
+  async removeRoleFromUser(tenantId: number, userId: number, roleId: number): Promise<boolean> {
+    const userRoleId = Array.from(this.userRoles.values())
+      .find(ur => ur.tenantId === tenantId && ur.userId === userId && ur.roleId === roleId)?.id;
+    
+    if (userRoleId) {
+      return this.userRoles.delete(userRoleId);
+    }
+    
+    return false;
+  }
+  
+  // User Permission operations
+  async getUserPermissions(tenantId: number, userId: number): Promise<UserPermission[]> {
+    return Array.from(this.userPermissions.values())
+      .filter(up => up.tenantId === tenantId && up.userId === userId);
+  }
+  
+  async getDirectPermissionsForUser(tenantId: number, userId: number): Promise<Permission[]> {
+    const userPermissions = await this.getUserPermissions(tenantId, userId);
+    
+    return userPermissions
+      .filter(up => up.hasPermission) // Only include granted permissions
+      .map(up => {
+        const permission = this.permissions.get(up.permissionId);
+        return permission!;
+      }).filter(Boolean);
+  }
+  
+  async addPermissionToUser(userPermission: InsertUserPermission): Promise<UserPermission> {
+    const id = this.userPermissionId++;
+    const newUserPermission: UserPermission = {
+      ...userPermission,
+      id,
+      hasPermission: userPermission.hasPermission !== undefined ? userPermission.hasPermission : true,
+      createdAt: new Date()
+    };
+    this.userPermissions.set(id, newUserPermission);
+    return newUserPermission;
+  }
+  
+  async removePermissionFromUser(tenantId: number, userId: number, permissionId: number): Promise<boolean> {
+    const userPermissionId = Array.from(this.userPermissions.values())
+      .find(up => up.tenantId === tenantId && up.userId === userId && up.permissionId === permissionId)?.id;
+    
+    if (userPermissionId) {
+      return this.userPermissions.delete(userPermissionId);
+    }
+    
+    return false;
+  }
+  
+  async getUserEffectivePermissions(tenantId: number, userId: number, resource?: string): Promise<Permission[]> {
+    const user = await this.getUser(userId);
+    if (!user) return [];
+    
+    // Super admin has all permissions
+    if (user.isSuperAdmin) {
+      const allPermissions = await this.getPermissions();
+      if (resource) {
+        return allPermissions.filter(p => p.resource === resource);
+      }
+      return allPermissions;
+    }
+    
+    // Start with direct user permissions
+    const directPermissions = await this.getDirectPermissionsForUser(tenantId, userId);
+    
+    // Add permissions from roles
+    const userRoles = await this.getRolesForUser(tenantId, userId);
+    
+    const rolePermissions: Permission[] = [];
+    for (const role of userRoles) {
+      const permissions = await this.getPermissionsForRole(tenantId, role.id);
+      rolePermissions.push(...permissions);
+    }
+    
+    // Merge and deduplicate permissions
+    const allPermissions = [...directPermissions, ...rolePermissions];
+    const uniquePermissions = allPermissions.filter((p, index, self) => 
+      index === self.findIndex(p2 => p2.id === p.id)
+    );
+    
+    // Check for explicitly denied permissions
+    const deniedPermissionIds = (await this.getUserPermissions(tenantId, userId))
+      .filter(up => !up.hasPermission)
+      .map(up => up.permissionId);
+    
+    const effectivePermissions = uniquePermissions.filter(p => !deniedPermissionIds.includes(p.id));
+    
+    // Filter by resource if provided
+    if (resource) {
+      return effectivePermissions.filter(p => p.resource === resource);
+    }
+    
+    return effectivePermissions;
+  }
+  
+  async hasPermission(tenantId: number, userId: number, resource: string, action: string): Promise<boolean> {
+    const user = await this.getUser(userId);
+    if (!user) return false;
+    
+    // Super admin has all permissions
+    if (user.isSuperAdmin) return true;
+    
+    // Get all effective permissions for the user
+    const effectivePermissions = await this.getUserEffectivePermissions(tenantId, userId);
+    
+    // Check if the user has the specific permission
+    return effectivePermissions.some(p => p.resource === resource && p.action === action);
   }
 }
 
