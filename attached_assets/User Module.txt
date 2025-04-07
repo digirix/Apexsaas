@@ -1,0 +1,117 @@
+User Management/Permissions Module:
+A robust mechanism for the Super Admin to add, view, update, and delete "Members" (internal team users) for the tenant's console. Granular permissions control access to different application modules and operations.
+1. Members
+UI for listing and managing members.
+Action to "Add New Member" opens a form/wizard:
+i. Field Name: Member Name
+Input behaviour: (Text input)
+Validations: Duplicate not allowed (within the tenant)
+ii. Field Name: Designation
+Input behaviour: (Dropdown of values from “Designation” Field (Setup Module 6.i))
+Validations: Selection required.
+iii. Field Name: Department
+Input behaviour: (Dropdown of values from “Department” Field (Setup Module 6.ii))
+Validations: Selection required.
+[Linking Process Note]: Once basic Member details are saved, the Super Admin proceeds to configure permissions (Section 2) and credentials (Section 3) for this Member. The system must clearly link these three aspects (Details, Permissions, Credentials) to the single Member identity. UI suggestions: a multi-step wizard for adding a member, or action buttons ("Set Permissions", "Set Credentials") next to each member in the list view.*
+2. Access Permissions
+UI displays a matrix or list showing Modules vs. Permissions for a selected Member.
+For each Module (Clients, Tasks, Setup, Finance, User Management, etc.):
+Access Level: Dropdown/Radio buttons: "Full", "Partial", "Restricted".
+CRUD Operations (conditionally enabled):
+Create (e.g., Create Client): Checkbox (Yes/No)
+Read (e.g., Read Clients): Checkbox (Yes/No)
+Update (e.g., Update Clients): Checkbox (Yes/No)
+Delete (e.g., Delete Clients): Checkbox (Yes/No)
+Logic:
+If Access Level = "Full", all CRUD permissions below are automatically set to "Yes" and potentially greyed out.
+If Access Level = "Partial", the Super Admin can individually set each CRUD permission to "Yes" or "No".
+If Access Level = "Restricted", all CRUD permissions below are automatically set to "No" and greyed out. The corresponding module might be hidden entirely from this Member's UI (including sidebar navigation).
+This permission structure applies consistently to all current and future modules.
+Credentials Creation
+This section is linked to a specific Member defined in Section 1.
+i. Field Name: Email Address
+Input behaviour: (Email Input via text)
+Validations: Duplicate not allowed (across all users within the tenant, including the Super Admin). Must be a valid email format.
+ii. Field Name: Assigned Password
+Input behaviour: (Password input field)
+Validations: Duplicate allowed (though strongly discouraged). Should enforce basic complexity.
+[Security Note - Password Management]:
+Passwords must be securely hashed and salted (e.g., using bcrypt) before storage. Never store plain text passwords.
+Implement basic password complexity rules (minimum length, mix of character types).
+Provide a secure "Forgot Password" mechanism (e.g., email link with temporary token).
+Allow Members to change their own password after their initial login.*
+Activation: Once credentials are set, the Member can log in using this Email Address and Assigned Password and will have access according to the permissions defined in Section 2.
+
+===============================
+
+More Specific Details are as under
+=====================================
+
+We will not make any roles for permissions, instead we will give permissions on a granular basis to each user for their access. Here is how this will be accomplished.
+
+A robust mechanism to add, view, update and delete the "Memebers" via This Module by Super Admin, that Accounting firm needs in order to Manage the users of tenants console, these users will have access of various parts of the application based on the permissions granted to them like, Tasks Module, Clients Module, Setup Module, Reporting Module,User Management Module or any other modules that we will add in application in future. The UI of this module shall have following sections.
+
+1. Members
+
+
+i. Field Name: Member Name
+Input behaviour: (Text input)  
+Validations: Duplicate not allowed
+
+ii. Field Name: Designation
+Input behaviour: (Dropdown of values from “Designation” Field of Team Designations Section of Setup Module)  
+Validations: Duplicate not allowed
+
+	iii. Field Name: Department
+Input behaviour: (Dropdown of values from “Department” Field of Team Designations Section of Setup Module)  
+Validations: Duplicate not allowed
+Once this member is created, he should start appearing in the list of users and then should be able to grant permissions from next sections of “Access Permissions”
+
+2. Access Permissions
+
+The UI of this section will be as follows
+	
+Example:
+Module Name		Operations				Permission
+
+Clients Module	Access Level				Full		
+Create Client				Yes
+Read Clients				Yes
+Update Clients			Yes
+Delete Clients				Yes
+Clients Module	Access Level				Partial		
+Create Client				No
+Read Clients				Yes
+Update Clients			Yes
+Delete Clients				No
+
+Clients Module	Access Level				Restricted		
+Create Client				No
+Read Clients				No
+Update Clients			No
+Delete Clients				No
+
+
+
+
+Note: the behaviour of the “Access Level” if that is set to “Full” system will automatically set the below CRUD Access to Yes, but if it is Set to “Partial”, “Super Admin” will set the below CRUD to Yes or No. AND if it is set to “Restricted” system will automatically set the below CRUD Access to No. and this whole module will not be shown to this user, Not even in Sidebar.
+
+The logic will be the same for all the other modules e.g. Tasks Module, Setup Module, that have been added, or will be added in the future while scaling this application.
+
+
+Once all the permissions are set, the Super admin will move to next step, i.e. Credentials Creation for this “Member”
+	
+3. Credentials Creation
+
+	i. Field Name: Email Address
+Input behaviour: (Email Input via text)  
+Validations: Duplicate not allowed
+
+	ii. Field Name: Assigned Password
+Input behaviour: (Any Text, Number, special characters input)  
+Validations: Duplicate allowed
+
+Special Note: The “Email Address” and “Assigned Password” set here shall be given to that user who should be able to signin with these credentials and should have access to only those application parts to which he is given access.
+
+With all these three sections, a Member will be created and should be able to user the system.
+

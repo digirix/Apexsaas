@@ -1,10 +1,11 @@
-import { tenants, users, designations, departments, countries, currencies, states, entityTypes, taskStatuses, taxJurisdictions, serviceTypes, clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions } from "@shared/schema";
+import { tenants, users, designations, departments, countries, currencies, states, entityTypes, taskStatuses, taxJurisdictions, serviceTypes, clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions, modulePermissions } from "@shared/schema";
 import type { Tenant, User, InsertUser, InsertTenant, 
   Designation, InsertDesignation, Department, InsertDepartment,
   Country, InsertCountry, Currency, InsertCurrency, 
   State, InsertState, EntityType, InsertEntityType, TaskStatus, InsertTaskStatus, TaxJurisdiction, InsertTaxJurisdiction, ServiceType, 
   InsertServiceType, Client, InsertClient, Entity, InsertEntity, Task, InsertTask, TaskCategory, InsertTaskCategory,
-  EntityTaxJurisdiction, InsertEntityTaxJurisdiction, EntityServiceSubscription, InsertEntityServiceSubscription } from "@shared/schema";
+  EntityTaxJurisdiction, InsertEntityTaxJurisdiction, EntityServiceSubscription, InsertEntityServiceSubscription,
+  ModulePermission, InsertModulePermission } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 
@@ -28,6 +29,14 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
   deleteUser(id: number, tenantId: number): Promise<boolean>;
+  
+  // Module Permission operations
+  getModulePermissions(userId: number): Promise<ModulePermission[]>;
+  getModulePermission(userId: number, module: string): Promise<ModulePermission | undefined>;
+  createModulePermission(permission: InsertModulePermission): Promise<ModulePermission>;
+  updateModulePermission(id: number, permission: Partial<InsertModulePermission>): Promise<ModulePermission | undefined>;
+  deleteModulePermission(id: number): Promise<boolean>;
+  getUserPermissions(userId: number, tenantId: number): Promise<ModulePermission[]>;
   
   // Designation operations
   getDesignations(tenantId: number): Promise<Designation[]>;
@@ -152,6 +161,7 @@ export class MemStorage implements IStorage {
   private tasks: Map<number, Task>;
   private entityTaxJurisdictions: Map<number, EntityTaxJurisdiction>;
   private entityServiceSubscriptions: Map<number, EntityServiceSubscription>;
+  private modulePermissions: Map<number, ModulePermission>;
   
   sessionStore: MemoryStoreType;
   
@@ -172,6 +182,7 @@ export class MemStorage implements IStorage {
   private taskId: number = 1;
   private entityTaxJurisdictionId: number = 1;
   private entityServiceSubscriptionId: number = 1;
+  private modulePermissionId: number = 1;
 
   constructor() {
     this.tenants = new Map();
@@ -191,6 +202,7 @@ export class MemStorage implements IStorage {
     this.tasks = new Map();
     this.entityTaxJurisdictions = new Map();
     this.entityServiceSubscriptions = new Map();
+    this.modulePermissions = new Map();
     
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000, // 24h
@@ -286,6 +298,50 @@ export class MemStorage implements IStorage {
       return this.users.delete(id);
     }
     return false;
+  }
+  
+  // Module Permission operations
+  async getModulePermissions(userId: number): Promise<ModulePermission[]> {
+    return Array.from(this.modulePermissions.values()).filter(permission => permission.userId === userId);
+  }
+  
+  async getModulePermission(userId: number, module: string): Promise<ModulePermission | undefined> {
+    return Array.from(this.modulePermissions.values()).find(
+      permission => permission.userId === userId && permission.module === module
+    );
+  }
+  
+  async createModulePermission(permission: InsertModulePermission): Promise<ModulePermission> {
+    const id = this.modulePermissionId++;
+    const newPermission: ModulePermission = { 
+      ...permission, 
+      id, 
+      canCreate: permission.canCreate ?? false,
+      canRead: permission.canRead ?? false,
+      canUpdate: permission.canUpdate ?? false,
+      canDelete: permission.canDelete ?? false,
+      createdAt: new Date() 
+    };
+    this.modulePermissions.set(id, newPermission);
+    return newPermission;
+  }
+  
+  async updateModulePermission(id: number, permission: Partial<InsertModulePermission>): Promise<ModulePermission | undefined> {
+    const existingPermission = this.modulePermissions.get(id);
+    if (!existingPermission) return undefined;
+    
+    const updatedPermission = { ...existingPermission, ...permission };
+    this.modulePermissions.set(id, updatedPermission);
+    return updatedPermission;
+  }
+  
+  async deleteModulePermission(id: number): Promise<boolean> {
+    return this.modulePermissions.delete(id);
+  }
+  
+  async getUserPermissions(userId: number, tenantId: number): Promise<ModulePermission[]> {
+    return Array.from(this.modulePermissions.values())
+      .filter(permission => permission.userId === userId && permission.tenantId === tenantId);
   }
   
   // Designation operations

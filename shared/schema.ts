@@ -450,6 +450,50 @@ export type InsertEntityServiceSubscription = z.infer<typeof insertEntityService
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 
+// Permissions schema for user access control
+export const modulePermissions = pgTable("module_permissions", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  userId: integer("user_id").notNull(),
+  module: text("module").notNull(), // e.g., 'clients', 'tasks', 'setup', etc.
+  accessLevel: text("access_level").notNull(), // 'full', 'partial', 'restricted'
+  canCreate: boolean("can_create").default(false).notNull(),
+  canRead: boolean("can_read").default(false).notNull(),
+  canUpdate: boolean("can_update").default(false).notNull(),
+  canDelete: boolean("can_delete").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    userModuleUnique: unique().on(table.userId, table.module),
+  };
+});
+
+export const insertModulePermissionSchema = createInsertSchema(modulePermissions).pick({
+  tenantId: true,
+  userId: true,
+  module: true,
+  accessLevel: true,
+  canCreate: true,
+  canRead: true,
+  canUpdate: true,
+  canDelete: true,
+});
+
+export type ModulePermission = typeof modulePermissions.$inferSelect;
+export type InsertModulePermission = z.infer<typeof insertModulePermissionSchema>;
+
+// Permission schemas for validation
+export const permissionSchema = z.object({
+  module: z.string(),
+  accessLevel: z.enum(['full', 'partial', 'restricted']),
+  canCreate: z.boolean(),
+  canRead: z.boolean(),
+  canUpdate: z.boolean(),
+  canDelete: z.boolean(),
+});
+
+export const userPermissionsSchema = z.array(permissionSchema);
+
 // Auth schemas
 export const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -463,5 +507,16 @@ export const registerSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
+// Member forms validation schemas
+export const memberFormSchema = z.object({
+  displayName: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Please enter a valid email address"),
+  designationId: z.number().nullable().optional(),
+  departmentId: z.number().nullable().optional(),
+  isActive: z.boolean().default(true),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
 export type LoginData = z.infer<typeof loginSchema>;
 export type RegisterData = z.infer<typeof registerSchema>;
+export type MemberFormValues = z.infer<typeof memberFormSchema>;

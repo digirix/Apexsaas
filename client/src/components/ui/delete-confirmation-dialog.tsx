@@ -1,54 +1,61 @@
-import { AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import React from "react";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { AlertCircle } from "lucide-react";
 
 interface DeleteConfirmationDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onDelete: () => void;
   title: string;
   description: string;
-  isDeleting: boolean;
+  isPending: boolean;
 }
 
 export function DeleteConfirmationDialog({
-  isOpen,
-  onClose,
-  onConfirm,
+  open,
+  onOpenChange,
+  onDelete,
   title,
   description,
-  isDeleting = false,
+  isPending
 }: DeleteConfirmationDialogProps) {
   return (
-    <AlertDialog open={isOpen} onOpenChange={onClose}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
           <div className="flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 text-red-500" />
-            <AlertDialogTitle>{title}</AlertDialogTitle>
+            <AlertCircle className="h-6 w-6 text-red-500" />
+            <DialogTitle>{title}</DialogTitle>
           </div>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-          <Button 
-            variant="destructive" 
-            onClick={onConfirm} 
-            disabled={isDeleting}
+          <DialogDescription className="pt-2">{description}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
           >
-            {isDeleting ? "Deleting..." : "Delete"}
+            Cancel
           </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={onDelete}
+            disabled={isPending}
+          >
+            {isPending ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

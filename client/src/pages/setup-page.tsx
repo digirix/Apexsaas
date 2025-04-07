@@ -10,6 +10,7 @@ import { ServiceTypesManager } from "@/components/setup/service-types-manager";
 import { TaxJurisdictionsManager } from "@/components/setup/tax-jurisdictions-manager";
 import DesignationsManager from "@/components/setup/designations-manager";
 import DepartmentsManager from "@/components/setup/departments-manager";
+import MembersManager from "@/components/setup/members-manager";
 import { SetupSection } from "@/types/setup";
 
 export default function SetupPage() {
@@ -35,6 +36,7 @@ export default function SetupPage() {
           {activeSection === 'tax-jurisdictions' && <TaxJurisdictionsManager />}
           {activeSection === 'designations' && <DesignationsManager />}
           {activeSection === 'departments' && <DepartmentsManager />}
+          {activeSection === 'members' && <MembersManager />}
         </div>
       </div>
     </AppLayout>
