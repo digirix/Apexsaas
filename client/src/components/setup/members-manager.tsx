@@ -122,7 +122,7 @@ const MembersManager: React.FC = () => {
   // Add member mutation
   const addMemberMutation = useMutation({
     mutationFn: (data: z.infer<typeof memberFormSchema>) => {
-      return apiRequest({
+      return apiRequest<any>({
         url: '/api/v1/members',
         method: 'POST',
         data,
@@ -148,7 +148,7 @@ const MembersManager: React.FC = () => {
   // Update member mutation
   const updateMemberMutation = useMutation({
     mutationFn: (data: { id: number; member: Partial<z.infer<typeof memberFormSchema>> }) => {
-      return apiRequest({
+      return apiRequest<any>({
         url: `/api/v1/members/${data.id}`,
         method: 'PUT',
         data: data.member,
@@ -174,7 +174,7 @@ const MembersManager: React.FC = () => {
   // Delete member mutation
   const deleteMemberMutation = useMutation({
     mutationFn: (id: number) => {
-      return apiRequest({
+      return apiRequest<any>({
         url: `/api/v1/members/${id}`,
         method: 'DELETE',
       });
@@ -200,7 +200,7 @@ const MembersManager: React.FC = () => {
   // Add permission mutation
   const addPermissionMutation = useMutation({
     mutationFn: (data: { userId: number; permission: z.infer<typeof permissionFormSchema> }) => {
-      return apiRequest({
+      return apiRequest<any>({
         url: `/api/v1/members/${data.userId}/permissions`,
         method: 'POST',
         data: data.permission,
@@ -233,7 +233,7 @@ const MembersManager: React.FC = () => {
       permissionId: number; 
       permission: Partial<z.infer<typeof permissionFormSchema>> 
     }) => {
-      return apiRequest({
+      return apiRequest<any>({
         url: `/api/v1/members/${data.userId}/permissions/${data.permissionId}`,
         method: 'PUT',
         data: data.permission,
@@ -262,7 +262,7 @@ const MembersManager: React.FC = () => {
   // Delete permission mutation
   const deletePermissionMutation = useMutation({
     mutationFn: (data: { userId: number; permissionId: number }) => {
-      return apiRequest({
+      return apiRequest<any>({
         url: `/api/v1/members/${data.userId}/permissions/${data.permissionId}`,
         method: 'DELETE',
       });
