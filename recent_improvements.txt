@@ -1,0 +1,23 @@
+## Recent Improvements
+- Implemented Compliance Configuration tab for Revenue Tasks:
+  - Added support for multiple frequency options (5 Years, 4 Years, 3 Years, 2 Years, Annual, Bi-Annually, Quarterly, Monthly, One Time)
+  - Created conditional fields that adapt based on frequency selection
+  - Implemented year field with contextual help text for single or multiple years
+  - Built dynamic duration dropdown that changes options based on frequency (months for Monthly, quarters for Quarterly, etc.)
+  - Added date pickers for compliance start date with proper formatting
+  - Implemented automatic calculation of end date based on frequency and start date using date-fns library
+  - Added recurring task toggle for future task scheduling
+
+- Implemented Invoice Information tab for Revenue Tasks:
+  - Added auto-population of currency based on entity's country
+  - Implemented auto-population of service rate from selected service type
+  - Kept fields editable for flexibility in specific task instances
+  - Added currency selection with standard currency options
+  - Improved number input handling for service rate with proper parsing
+
+- Fixed entity and service selection in the Revenue Task form:
+  - Implemented explicit queryFn with proper error handling for client/entity/service API calls
+  - Resolved display issues in dropdowns by making them correctly show and maintain selected values
+  - Added improved empty state handling for dropdowns
+  - Fixed type issues with entity objects having different property structures using type casting
+  - Added comprehensive debugging information to trace data flow through the cascading selections

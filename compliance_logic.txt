@@ -1,0 +1,17 @@
+3. **Task Status Flow:**
+   - Tasks are created with the "New" status (rank 1)
+   - Status changes follow the rank ordering defined in the Setup module
+   - Completion moves tasks to the "Completed" status (highest rank)
+
+4. **Compliance Date Calculation Logic:**
+   - When a compliance frequency and start date are selected, end date is automatically calculated
+   - Calculation logic varies by frequency type:
+     - Multi-year frequencies (5/4/3/2 Years): Adds the specified number of years to the start date
+     - Annual: Adds 1 year to the start date
+     - Bi-Annually: Adds 6 months to the start date
+     - Quarterly: Adds 3 months to the start date (one quarter)
+     - Monthly: Adds 1 month to the start date
+     - One Time: Sets end date equal to start date
+   - useEffect hook monitors changes to frequency and start date, recalculating end date in real-time
+   - date-fns library (addYears, addMonths, addQuarters) handles date arithmetic with timezone consistency
+   - End date field is read-only and visually indicates its calculated nature

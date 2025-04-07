@@ -1,0 +1,81 @@
+# Task Creation Process
+
+## 1. Task Creation Flow
+When a user creates a new task, the process follows these steps:
+
+1. User clicks the "Add Task" button from the Tasks page
+2. The Add Task Modal appears with a choice between Administrative and Revenue task types
+3. Based on the selection, the appropriate form is displayed:
+   - Administrative Tasks: Single form with basic fields
+   - Revenue Tasks: Three-tab form with progressive data entry
+
+## 2. Administrative Task Creation
+Administrative tasks follow a simple form with these fields:
+- Task Type (Required): Text field for the task type
+- Assignee (Required): Select dropdown for user assignment
+- Due Date (Required): Date picker
+- Task Category: Optional select field for administrative categories
+- Task Details: Text area for detailed description
+- Next To Do: Text area for next steps
+
+On submission, the system:
+- Validates all required fields
+- Creates the task with "New" status (rank 1)
+- Adds the task to the task list
+
+## 3. Revenue Task Creation
+Revenue tasks follow a three-tab process:
+
+### Tab 1: Basic Information
+- Client (Required): Select dropdown from client list
+  - When selected, loads entities for that client
+- Entity (Required): Select dropdown of entities (filtered by client)
+  - When selected, loads services for that entity
+- Service (Required): Select dropdown of services (filtered by entity)
+- Task Type (Required): Text field
+- Assignee (Required): Select dropdown
+- Due Date (Required): Date picker
+- Task Category: Select field for revenue categories
+- Task Details: Text area
+- Next To Do: Text area
+
+### Tab 2: Compliance Configuration
+- Compliance Frequency (Required): Select with options:
+  - 5 Years
+  - 4 Years
+  - 3 Years
+  - 2 Years
+  - Annual
+  - Bi-Annually
+  - Quarterly
+  - Monthly
+  - One Time
+- Year(s) Field: Text input with different behavior based on frequency:
+  - For multi-year options: Accepts comma-separated years
+  - For single-year options: Accepts a single year
+  - Help text adapts to explain the expected format
+- Duration: Select dropdown that changes based on frequency:
+  - For Quarterly: Q1, Q2, Q3, Q4
+  - For Monthly: January-December
+  - For Bi-Annually: H1, H2
+  - For other frequencies: Appropriate options
+- Start Date (Required): Date picker for compliance period start
+- End Date: Read-only field calculated based on frequency and start date
+- Recurring: Toggle switch to enable/disable recurring task creation
+
+### Tab 3: Invoice Information
+- Currency: Select dropdown defaulting to the entity's country currency
+- Service Rate: Number input defaulting to the rate for the selected service
+
+On completion of all tabs, the system:
+- Validates all required fields across all tabs
+- Creates the task with "New" status (rank 1)
+- Sets up compliance tracking based on the configuration
+- Prepares invoice information for future billing
+- If recurring is enabled, schedules future task generation
+
+## 4. Form Validation and Navigation
+- Users can navigate between tabs even if required fields are not filled
+- Final submission validates all required fields across all tabs
+- Validation errors are displayed with appropriate messages
+- Tab navigation maintains form state between tab switches

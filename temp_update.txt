@@ -1,0 +1,58 @@
+# Next Features to Implement:
+
+## Tasks Module Completion
+1. **Task Editing Functionality:**
+   - Create Edit Task modal for both Administrative and Revenue tasks
+   - Implement ability to update task information
+   - Allow changing task assignee and due dates
+   - Persist changes to the database
+
+2. **Task Status Management:**
+   - Add ability to change task status through dropdown or button actions
+   - Implement task status workflow based on rank ordering
+   - Add visual indicators for different task statuses in the task list
+   - Restrict certain status changes based on business rules
+
+3. **Recurring Tasks Implementation:**
+   - Develop the backend mechanism for generating recurring task instances
+   - Create a review/approval system for recurring tasks
+   - Implement proper date calculation for future task instances
+   - Add ability to view and manage recurring task series
+
+4. **Task Deletion and Archiving:**
+   - Add task deletion functionality with confirmation dialog
+   - Implement task archiving for completed tasks
+   - Create a view for archived tasks
+   - Add ability to restore archived tasks
+
+5. **Additional Task List Enhancements:**
+   - Implement pagination for the task list
+   - Add advanced filtering options
+   - Add sorting by different columns
+   - Implement search functionality for tasks
+   - Add export capabilities (CSV/Excel)
+
+## Additional Modules to Develop
+1. **Dashboard Module:**
+   - Create analytics dashboard with task status summaries
+   - Add upcoming deadline visualizations
+   - Implement workload distribution charts
+   - Add client/revenue statistics
+
+2. **User Management:**
+   - Create user roles and permissions
+   - Implement user creation and management
+   - Add department assignments for users
+   - Implement time tracking features
+
+3. **Client Portal:**
+   - Develop client login and dashboard
+   - Add document sharing capabilities
+   - Implement client task approval workflows
+   - Add client communication features
+
+4. **Invoice Management:**
+   - Create invoice generation from completed tasks
+   - Implement invoice tracking and management
+   - Add payment tracking functionality
+   - Create invoice templates and customization
