@@ -4,7 +4,7 @@ import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { 
   insertCountrySchema, insertCurrencySchema, insertStateSchema, 
-  insertEntityTypeSchema, insertTaskStatusSchema, insertServiceTypeSchema,
+  insertEntityTypeSchema, insertTaskStatusSchema, insertTaskCategorySchema, insertServiceTypeSchema,
   insertClientSchema, insertEntitySchema, insertTaskSchema,
   insertDesignationSchema, insertDepartmentSchema, insertUserSchema,
   insertTaxJurisdictionSchema, insertEntityTaxJurisdictionSchema,
@@ -1206,6 +1206,205 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete member" });
+    }
+  });
+  
+  // Task Category Operations
+  app.get("/api/v1/setup/task-categories", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const isAdmin = req.query.isAdmin === "true" ? true : 
+                      req.query.isAdmin === "false" ? false : undefined;
+      
+      const categories = await storage.getTaskCategories(tenantId, isAdmin);
+      res.json(categories);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch task categories" });
+    }
+  });
+
+  app.post("/api/v1/setup/task-categories", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const data = { ...req.body, tenantId };
+      
+      const validatedData = insertTaskCategorySchema.parse(data);
+      const category = await storage.createTaskCategory(validatedData);
+      
+      res.status(201).json(category);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create task category" });
+    }
+  });
+
+  app.put("/api/v1/setup/task-categories/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if category belongs to tenant
+      const existingCategory = await storage.getTaskCategory(id, tenantId);
+      if (!existingCategory) {
+        return res.status(404).json({ message: "Task category not found" });
+      }
+      
+      const updatedCategory = await storage.updateTaskCategory(id, req.body);
+      res.json(updatedCategory);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update task category" });
+    }
+  });
+
+  app.delete("/api/v1/setup/task-categories/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const success = await storage.deleteTaskCategory(id, tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "Task category not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete task category" });
+    }
+  });
+  
+  // Tasks Operations
+  app.get("/api/v1/tasks", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const clientId = req.query.clientId ? parseInt(req.query.clientId as string) : undefined;
+      const entityId = req.query.entityId ? parseInt(req.query.entityId as string) : undefined;
+      const isAdmin = req.query.isAdmin === "true" ? true : 
+                      req.query.isAdmin === "false" ? false : undefined;
+      const categoryId = req.query.categoryId ? parseInt(req.query.categoryId as string) : undefined;
+      const statusId = req.query.statusId ? parseInt(req.query.statusId as string) : undefined;
+      
+      const tasks = await storage.getTasks(tenantId, clientId, entityId, isAdmin, categoryId, statusId);
+      res.json(tasks);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tasks" });
+    }
+  });
+
+  app.get("/api/v1/tasks/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const task = await storage.getTask(id, tenantId);
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      res.json(task);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch task" });
+    }
+  });
+
+  app.post("/api/v1/tasks", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const data = { ...req.body, tenantId };
+      
+      // Validate data
+      const validatedData = insertTaskSchema.parse(data);
+      
+      // For admin tasks, ensure no client or entity is attached
+      if (validatedData.isAdmin) {
+        if (validatedData.clientId) {
+          return res.status(400).json({ 
+            message: "Admin tasks cannot be associated with a client" 
+          });
+        }
+        if (validatedData.entityId) {
+          return res.status(400).json({ 
+            message: "Admin tasks cannot be associated with an entity" 
+          });
+        }
+      } else {
+        // For non-admin tasks, ensure either client or entity is provided
+        if (!validatedData.clientId && !validatedData.entityId) {
+          return res.status(400).json({ 
+            message: "Non-admin tasks must be associated with either a client or an entity" 
+          });
+        }
+      }
+      
+      const task = await storage.createTask(validatedData);
+      res.status(201).json(task);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create task" });
+    }
+  });
+
+  app.put("/api/v1/tasks/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if task belongs to tenant
+      const existingTask = await storage.getTask(id, tenantId);
+      if (!existingTask) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      // For admin tasks, ensure no client or entity is being assigned
+      if (existingTask.isAdmin) {
+        if (req.body.clientId) {
+          return res.status(400).json({ 
+            message: "Admin tasks cannot be associated with a client" 
+          });
+        }
+        if (req.body.entityId) {
+          return res.status(400).json({ 
+            message: "Admin tasks cannot be associated with an entity" 
+          });
+        }
+      }
+      
+      // Prevent changing isAdmin status after creation
+      if (req.body.isAdmin !== undefined && req.body.isAdmin !== existingTask.isAdmin) {
+        return res.status(400).json({ 
+          message: "Cannot change the admin status of a task after creation" 
+        });
+      }
+      
+      const updatedTask = await storage.updateTask(id, req.body);
+      res.json(updatedTask);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update task" });
+    }
+  });
+
+  app.delete("/api/v1/tasks/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const success = await storage.deleteTask(id, tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete task" });
     }
   });
 

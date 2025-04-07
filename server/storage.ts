@@ -1,9 +1,9 @@
-import { tenants, users, designations, departments, countries, currencies, states, entityTypes, taskStatuses, taxJurisdictions, serviceTypes, clients, entities, tasks, entityTaxJurisdictions, entityServiceSubscriptions } from "@shared/schema";
+import { tenants, users, designations, departments, countries, currencies, states, entityTypes, taskStatuses, taxJurisdictions, serviceTypes, clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions } from "@shared/schema";
 import type { Tenant, User, InsertUser, InsertTenant, 
   Designation, InsertDesignation, Department, InsertDepartment,
   Country, InsertCountry, Currency, InsertCurrency, 
   State, InsertState, EntityType, InsertEntityType, TaskStatus, InsertTaskStatus, TaxJurisdiction, InsertTaxJurisdiction, ServiceType, 
-  InsertServiceType, Client, InsertClient, Entity, InsertEntity, Task, InsertTask,
+  InsertServiceType, Client, InsertClient, Entity, InsertEntity, Task, InsertTask, TaskCategory, InsertTaskCategory,
   EntityTaxJurisdiction, InsertEntityTaxJurisdiction, EntityServiceSubscription, InsertEntityServiceSubscription } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -78,6 +78,13 @@ export interface IStorage {
   updateTaskStatus(id: number, taskStatus: Partial<InsertTaskStatus>): Promise<TaskStatus | undefined>;
   deleteTaskStatus(id: number, tenantId: number): Promise<boolean>;
   
+  // Task category operations
+  getTaskCategories(tenantId: number, isAdmin?: boolean): Promise<TaskCategory[]>;
+  getTaskCategory(id: number, tenantId: number): Promise<TaskCategory | undefined>;
+  createTaskCategory(taskCategory: InsertTaskCategory): Promise<TaskCategory>;
+  updateTaskCategory(id: number, taskCategory: Partial<InsertTaskCategory>): Promise<TaskCategory | undefined>;
+  deleteTaskCategory(id: number, tenantId: number): Promise<boolean>;
+  
   // Tax jurisdiction operations
   getTaxJurisdictions(tenantId: number, countryId?: number): Promise<TaxJurisdiction[]>;
   getTaxJurisdiction(id: number, tenantId: number): Promise<TaxJurisdiction | undefined>;
@@ -120,7 +127,7 @@ export interface IStorage {
   deleteServiceSubscription(tenantId: number, entityId: number, serviceTypeId: number): Promise<boolean>;
   
   // Task operations
-  getTasks(tenantId: number, clientId?: number, entityId?: number): Promise<Task[]>;
+  getTasks(tenantId: number, clientId?: number, entityId?: number, isAdmin?: boolean, categoryId?: number, statusId?: number): Promise<Task[]>;
   getTask(id: number, tenantId: number): Promise<Task | undefined>;
   createTask(task: InsertTask): Promise<Task>;
   updateTask(id: number, task: Partial<InsertTask>): Promise<Task | undefined>;
@@ -137,6 +144,7 @@ export class MemStorage implements IStorage {
   private states: Map<number, State>;
   private entityTypes: Map<number, EntityType>;
   private taskStatuses: Map<number, TaskStatus>;
+  private taskCategories: Map<number, TaskCategory>;
   private taxJurisdictions: Map<number, TaxJurisdiction>;
   private serviceTypes: Map<number, ServiceType>;
   private clients: Map<number, Client>;
@@ -156,6 +164,7 @@ export class MemStorage implements IStorage {
   private stateId: number = 1;
   private entityTypeId: number = 1;
   private taskStatusId: number = 1;
+  private taskCategoryId: number = 1;
   private taxJurisdictionId: number = 1;
   private serviceTypeId: number = 1;
   private clientId: number = 1;
@@ -174,6 +183,7 @@ export class MemStorage implements IStorage {
     this.states = new Map();
     this.entityTypes = new Map();
     this.taskStatuses = new Map();
+    this.taskCategories = new Map();
     this.taxJurisdictions = new Map();
     this.serviceTypes = new Map();
     this.clients = new Map();
@@ -579,6 +589,53 @@ export class MemStorage implements IStorage {
     }
     return false;
   }
+  
+  // Task category operations
+  async getTaskCategories(tenantId: number, isAdmin?: boolean): Promise<TaskCategory[]> {
+    let categories = Array.from(this.taskCategories.values()).filter(cat => cat.tenantId === tenantId);
+    
+    if (isAdmin !== undefined) {
+      categories = categories.filter(cat => cat.isAdmin === isAdmin);
+    }
+    
+    return categories;
+  }
+  
+  async getTaskCategory(id: number, tenantId: number): Promise<TaskCategory | undefined> {
+    const category = this.taskCategories.get(id);
+    if (category && category.tenantId === tenantId) {
+      return category;
+    }
+    return undefined;
+  }
+  
+  async createTaskCategory(taskCategory: InsertTaskCategory): Promise<TaskCategory> {
+    const id = this.taskCategoryId++;
+    const newTaskCategory: TaskCategory = { 
+      ...taskCategory, 
+      id, 
+      createdAt: new Date() 
+    };
+    this.taskCategories.set(id, newTaskCategory);
+    return newTaskCategory;
+  }
+  
+  async updateTaskCategory(id: number, taskCategory: Partial<InsertTaskCategory>): Promise<TaskCategory | undefined> {
+    const existingTaskCategory = this.taskCategories.get(id);
+    if (!existingTaskCategory) return undefined;
+    
+    const updatedTaskCategory = { ...existingTaskCategory, ...taskCategory };
+    this.taskCategories.set(id, updatedTaskCategory);
+    return updatedTaskCategory;
+  }
+  
+  async deleteTaskCategory(id: number, tenantId: number): Promise<boolean> {
+    const taskCategory = this.taskCategories.get(id);
+    if (taskCategory && taskCategory.tenantId === tenantId) {
+      return this.taskCategories.delete(id);
+    }
+    return false;
+  }
 
   // Tax jurisdiction operations
   async getTaxJurisdictions(tenantId: number, countryId?: number): Promise<TaxJurisdiction[]> {
@@ -921,15 +978,32 @@ export class MemStorage implements IStorage {
   }
 
   // Task operations
-  async getTasks(tenantId: number, clientId?: number, entityId?: number): Promise<Task[]> {
+  async getTasks(tenantId: number, clientId?: number, entityId?: number, isAdmin?: boolean, categoryId?: number, statusId?: number): Promise<Task[]> {
     let tasks = Array.from(this.tasks.values()).filter(task => task.tenantId === tenantId);
     
-    if (clientId) {
+    // Filter by client if specified
+    if (clientId !== undefined) {
       tasks = tasks.filter(task => task.clientId === clientId);
     }
     
-    if (entityId) {
+    // Filter by entity if specified
+    if (entityId !== undefined) {
       tasks = tasks.filter(task => task.entityId === entityId);
+    }
+    
+    // Filter by admin status if specified
+    if (isAdmin !== undefined) {
+      tasks = tasks.filter(task => task.isAdmin === isAdmin);
+    }
+    
+    // Filter by category if specified
+    if (categoryId !== undefined) {
+      tasks = tasks.filter(task => task.taskCategoryId === categoryId);
+    }
+    
+    // Filter by status if specified
+    if (statusId !== undefined) {
+      tasks = tasks.filter(task => task.statusId === statusId);
     }
     
     return tasks;
@@ -948,15 +1022,31 @@ export class MemStorage implements IStorage {
     
     // Set defaults for nullable fields
     const newTask: Task = { 
-      ...task, 
       id, 
+      tenantId: task.tenantId,
+      isAdmin: task.isAdmin,
+      taskType: task.taskType,
+      assigneeId: task.assigneeId,
+      dueDate: task.dueDate,
+      statusId: task.statusId,
       createdAt: new Date(),
+      // Nullable fields with defaults
       clientId: task.clientId ?? null,
       entityId: task.entityId ?? null,
       serviceTypeId: task.serviceTypeId ?? null,
+      taskCategoryId: task.taskCategoryId ?? null,
       taskDetails: task.taskDetails ?? null,
       nextToDo: task.nextToDo ?? null,
-      isRecurring: task.isRecurring ?? false
+      isRecurring: task.isRecurring ?? false,
+      // Compliance fields with defaults
+      complianceFrequency: task.complianceFrequency ?? null,
+      complianceYear: task.complianceYear ?? null,
+      complianceDuration: task.complianceDuration ?? null,
+      complianceStartDate: task.complianceStartDate ?? null,
+      complianceEndDate: task.complianceEndDate ?? null,
+      // Invoice information with defaults
+      currency: task.currency ?? null,
+      serviceRate: task.serviceRate ?? null
     };
     
     this.tasks.set(id, newTask);

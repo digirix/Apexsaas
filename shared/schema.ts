@@ -287,20 +287,49 @@ export const insertEntitySchema = createInsertSchema(entities).pick({
 });
 
 // Tasks table
+// Table for Admin and Revenue Task Categories
+export const taskCategories = pgTable("task_categories", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  name: text("name").notNull(),
+  isAdmin: boolean("is_admin").notNull(), // true for admin task categories, false for revenue
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantCategoryUnique: unique().on(table.tenantId, table.name, table.isAdmin),
+  };
+});
+
+export const insertTaskCategorySchema = createInsertSchema(taskCategories).pick({
+  tenantId: true,
+  name: true,
+  isAdmin: true,
+});
+
 export const tasks = pgTable("tasks", {
   id: serial("id").primaryKey(),
   tenantId: integer("tenant_id").notNull(),
   isAdmin: boolean("is_admin").notNull(),
-  taskType: text("task_type").notNull(),
+  taskType: text("task_type").notNull(), // Regular, Medium, Urgent
   clientId: integer("client_id"),
   entityId: integer("entity_id"),
   serviceTypeId: integer("service_type_id"),
+  taskCategoryId: integer("task_category_id"),
   assigneeId: integer("assignee_id").notNull(),
   dueDate: timestamp("due_date").notNull(),
   statusId: integer("status_id").notNull(),
   taskDetails: text("task_details"),
   nextToDo: text("next_to_do"),
   isRecurring: boolean("is_recurring").default(false).notNull(),
+  // Compliance fields
+  complianceFrequency: text("compliance_frequency"), // Yearly, Quarterly, Monthly, etc.
+  complianceYear: text("compliance_year"), // Year(s) for the compliance
+  complianceDuration: text("compliance_duration"), // Quarter, Month, etc.
+  complianceStartDate: timestamp("compliance_start_date"),
+  complianceEndDate: timestamp("compliance_end_date"),
+  // Invoice information
+  currency: text("currency"),
+  serviceRate: doublePrecision("service_rate"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -311,12 +340,20 @@ export const insertTaskSchema = createInsertSchema(tasks).pick({
   clientId: true,
   entityId: true,
   serviceTypeId: true,
+  taskCategoryId: true,
   assigneeId: true,
   dueDate: true,
   statusId: true,
   taskDetails: true,
   nextToDo: true,
   isRecurring: true,
+  complianceFrequency: true,
+  complianceYear: true,
+  complianceDuration: true,
+  complianceStartDate: true,
+  complianceEndDate: true,
+  currency: true,
+  serviceRate: true,
 });
 
 // Entity Tax Jurisdictions table (links entities to tax jurisdictions)
@@ -388,6 +425,9 @@ export type InsertEntityType = z.infer<typeof insertEntityTypeSchema>;
 
 export type TaskStatus = typeof taskStatuses.$inferSelect;
 export type InsertTaskStatus = z.infer<typeof insertTaskStatusSchema>;
+
+export type TaskCategory = typeof taskCategories.$inferSelect;
+export type InsertTaskCategory = z.infer<typeof insertTaskCategorySchema>;
 
 export type TaxJurisdiction = typeof taxJurisdictions.$inferSelect;
 export type InsertTaxJurisdiction = z.infer<typeof insertTaxJurisdictionSchema>;
