@@ -38,8 +38,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
       console.log("Login attempt with:", credentials.email);
-      const res = await apiRequest("POST", "/api/v1/auth/login/firm", credentials);
-      return await res.json();
+      return await apiRequest<any>({
+        url: "/api/v1/auth/login/firm",
+        method: "POST",
+        data: credentials
+      });
     },
     onSuccess: (data) => {
       console.log("Login successful:", data);
@@ -63,8 +66,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterData) => {
       console.log("Registration attempt:", data.email);
-      const res = await apiRequest("POST", "/api/v1/auth/signup", data);
-      return await res.json();
+      return await apiRequest<any>({
+        url: "/api/v1/auth/signup",
+        method: "POST",
+        data: data
+      });
     },
     onSuccess: (data) => {
       console.log("Registration successful:", data);
@@ -88,7 +94,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logoutMutation = useMutation({
     mutationFn: async () => {
       console.log("Logout attempt");
-      await apiRequest("POST", "/api/v1/auth/logout");
+      await apiRequest<any>({
+        url: "/api/v1/auth/logout",
+        method: "POST"
+      });
     },
     onSuccess: () => {
       console.log("Logout successful");
