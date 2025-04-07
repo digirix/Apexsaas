@@ -1,0 +1,509 @@
+SCOPE
+The design or structure of this application will be such that it must leverage the AI functionalities in it so that AI may help the application users to not only help them to make informed decisions but also facilitate them to perform actions in the application, and also have the capability of enforced learning that may improve the application over the period of time.
+[AI Clarification - Enforced Learning]: This "enforced learning" refers to the AI's continuous improvement based on various data inputs. The goal is to enhance AI Suggestions, Workflow Efficiency, and provide better data for informed decision-making by the tenant.
+Learning Data Sources: The AI will learn from User Actions within the application, direct User Feedback (if implemented), potentially relevant External Data Sources (e.g., anonymized compliance trends, regulatory updates if integrated), and other contextual data generated during application use. [Note: Data privacy, security, and anonymization will be critical considerations during implementation.]
+Improvement Mechanisms: The system should include mechanisms to monitor AI performance and effectiveness. Feedback loops (e.g., allowing users to rate suggestion quality) could be incorporated to guide the learning process. [Note: Specific technical implementation of the learning mechanism requires further design.]
+[AI Clarification - AI Assistance Management]: This refers to the configuration and oversight of AI features. A dedicated section (potentially in Setup or a global Settings Module) might allow tenants (specifically Super Admins or designated users) to manage AI settings. This could include:
+Enabling/disabling specific AI assistance features (e.g., task detail suggestions, compliance service suggestions).
+Potentially adjusting the sensitivity or confidence level for certain AI suggestions.
+Viewing logs of significant AI actions or suggestions (for transparency).
+Providing overall assistance tailored to different user roles (Super Admin, Members, potentially Client interactions if a client portal exists) to help them navigate the application and make informed decisions based on the data presented.
+[AI Clarification - Specific AI Actions]: Beyond suggesting required services (Clients Module) and task details (Tasks Module), AI could potentially facilitate:
+Auto-categorization of tasks based on details.
+Drafting initial client communications related to tasks or compliance reminders.
+Proactively identifying potential compliance risks based on client data and task deadlines.
+Optimizing workflow suggestions based on observed patterns.
+[Note: Any AI action should enhance, not disrupt, the core application structure and user workflows. Actions performed by AI should be clearly indicated and often require user confirmation.]
+
+
+The application will revolve around the task management, services management, compliance management, clients management, user management, finance management, automations of work flows and AI assistance management of the accounting firm.
+The base of this application will be the Setup Module that will define multiple values that will appear across applications wherever needed for validations, dropdowns, filters and reporting etc, this will include but not limited to following tabs. with full CRUD operations.
+Each tenant will have its own internal team, own clients, own services, own setup etc
+1. Setup Module
+Regions of Operations
+Having following fields, input behaviour of the field, and recommended validations
+i) Field Name: “Country”
+Input behaviour: (Add new, if not found in the list, show in list as soon as added one)
+Validations: Duplicate not allowed
+Note: user should be able to add as many countries as they like, because we want the tenant to facilitate as many countries of service as they like. This will determine which countries will be shown in the application where ever necessary. So for example, if tenant want to add a service of USA, he must enter here USA first. Hope that make sense.
+ii) Field Name: “Currency”
+Input behaviour: (Add new, if not found in the list, show in list as soon as added one)
+Validations: Duplicate not allowed
+iii) Field Name: “State”
+Input behaviour: (Add new, if not found in the list, show in list as soon as added one)
+Validations: Duplicate not allowed
+[Clarification - State/Country Link]: When a State is added here, it is implicitly linked to the Country currently selected or contextually active during the setup process. The validation "Duplicate not allowed" applies to the State name globally within the tenant's setup, meaning a State name (e.g., "Victoria") can only be added once, regardless of the Country.*
+VAT/Sales Tax Jurisdictions
+Having following fields, input behaviour of the field, and recommended validations
+i) Field Name: “Country”
+Input behaviour: (Dropdown of values from “Country” Field of Regions of Operations)
+Validations: Duplicate not allowed (for the combination of Country+State)
+ii) Field Name: “State”
+Input behaviour: (Dropdown of values from “State” against that country to which it belongs to in the Regions of Operations) [Note: The UI should filter the State dropdown based on the selected Country, using the implicit link established in 1.iii]
+Validations: Duplicate not allowed (for the combination of Country+State)
+Note: both values will be saved as one record, representing a unique jurisdiction (e.g., "USA - California", "UK - N/A" if state isn't applicable). These will be used to be produced in and track configuration section of the VAT or Sales Tax of the “Entities”.
+Entity Type definition
+Having following fields, input behaviour of the field, and recommended validations
+i) Field Name: “Entity Type”
+Input behaviour: (Add new, if not found in the list, show in list as soon as added one)
+Validations: Duplicate not allowed (for the combination of Entity Type + Country)
+ii) Field Name: “Country”
+Input behaviour: (Dropdown of values from “Country” Field of Regions of Operations)
+Validations: Duplicate not allowed (for the combination of Entity Type + Country)
+[Clarification - Purpose of Country Link]: Linking Entity Type to a Country during setup allows for country-specific logic, validation rules, and filtered dropdowns elsewhere in the application (e.g., when defining an Entity for a Client). This requires defining types like "LLC - USA" and "Ltd - UK" separately if they operate under different rules or contexts defined by the tenant.*
+Service Type
+Having following fields, input behaviour of the field, and recommended validations
+i) Field Name: Service Name
+Input behaviour: (Add new, if not found in the list, show in list as soon as added one)
+Validations: Duplicate not allowed (for the combination of Service Name + Country)
+ii) Field Name: Description
+Input behaviour: (Text input)
+Validations: Duplicate allowed
+iii) Field Name: Currency
+Input behaviour: (Dropdown of values from “Currency” Field (1.ii) of Regions of Operations)
+Validations: Duplicate allowed (within the context of Service Type, multiple services can share the same currency)
+iv) Field Name: Service Rate
+Input behaviour: (Enter Positive Number)
+Validations: must be greater than zero
+v) Field Name: Basis of Billing
+Input behaviour: (Default values: Per Hour, Per Day, Per Week, Per Month, Per Quarter, Per Year, Per Filing, Per Transaction, Per Project, Other), also (Add new, if not found in the list, show in list as soon as added one)
+Validations: Duplicate not allowed
+vi) Field Name: “Country”
+Input behaviour: (Dropdown of values from “Country” Field of Regions of Operations of Setup Module)
+Validations: Duplicate not allowed (for the combination of Service Name + Country)
+[Clarification - Purpose of Country Link]: Linking Service Type to a Country during setup enables country-specific service offerings, pricing (though rate is editable later), and filtered dropdowns (e.g., showing only USA services for a USA entity). Similar services offered in different countries should be defined separately using distinct names (e.g., "Monthly Bookkeeping USA", "Monthly Bookkeeping UK").*
+Task Variables
+5.1 Task Categories
+Having following fields, input behaviour of the field, and recommended validations
+Administrative Tasks
+i) Field Name: Admin Task Category Name
+Input behaviour: (Add new, if not found in the list, show in list as soon as added one)
+Validations: Duplicate not allowed.
+Revenue Tasks
+i) Field Name: Revenue Task Category Name
+Input behaviour: (Add new, if not found in the list, show in list as soon as added one)
+Validations: Duplicate not allowed.
+5.2 Task Statuses
+Having following fields, input behaviour of the field, and recommended validations
+i) Field Name: Rank
+Input behaviour: (User defines a Rank number. Rank 1 is fixed for "New". Rank 3 is fixed for "Completed". User can add ranks like 2, 2.1, 2.2, etc. between 1 and 3).
+Validations: Duplicate Rank not allowed. Rank must be 1, 3, or start with 2 (e.g., 2, 2.1, 2.11, 2.2).
+[Clarification - Rank/Status Logic]: Ranks 1 ("New") and 3 ("Completed") represent the start and end of a task lifecycle. All Ranks starting with '2' (e.g., 2, 2.1, 2.2) are considered sub-statuses of the conceptual "In Progress" state, allowing tenants flexibility in defining their workflow stages.*
+ii) Field Name: Status Name
+Input behaviour: (Default Values: New, In Progress, Under Process - Invoice Sent, Overdue, Ready for Review, Reviewed, Pending Client Approval, Approved by Client, On Hold, Canceled, Task Delivered Unpaid, Invoice Sent, Invoice Paid, Delivered Paid, Completed. Also, “Add new”, if not found in the list, show in list as soon as added one)
+Validations: Duplicate Status Name not allowed.
+Editing: All default values (except perhaps "New" and "Completed" tied to Ranks 1 and 3) should be editable. User must associate each Status Name with a unique Rank.
+iii) Field Name: Description
+Input behaviour: (Text input)
+Validations: Duplicate allowed
+Team Designations
+Having following fields, input behaviour of the field, and recommended validations
+i) Field Name: “Designation”
+Input behaviour: (Add new, if not found in the list, show in list as soon as added one)
+Validations: Duplicate not allowed
+ii) Field Name: “Department”
+Input behaviour: (Add new, if not found in the list, show in list as soon as added one)
+Validations: Duplicate not allowed
+
+2. Clients Module
+Full CRUD operations based module at all levels. After Setup is completed, the user can manage clients.
+Add new client, having fields:
+i. Field Name: Client Display name
+Input behaviour: (Text input)
+Validations: Duplicate not allowed (within the tenant)
+ii. Field Name: Client Email
+Input behaviour: (Text input, email format validation)
+Validations: Duplicate not allowed (within the tenant)
+iii. Field Name: Mobile
+Input behaviour: (Mobile number input, potential format validation)
+Validations: Duplicate not allowed (within the tenant)
+Note: A distinct feature is that, each client will have its own one or more Entities. Each entity will have its own VAT/Sales Tax Jurisdictions (these could be multiple). Each Entity will be configured for services that has been subscribed by the entity in comparison to the the services that were required to remain in good standing. This will be defined by the user with the help of AI, on the basis of the data available by that time, which is, system will know its country, state, address, VAT/Sales Tax Status, Entity Type. So this will help the user with the help of AI to determine which services are required by the entity to be subscribed in order to remain compliant. This will also help in creating a compliance calendar for the client with the help of AI.
+So for each client, we should be able to add multiple “Entities” via form having following fields:
+i. Field Name: Entity Name
+Input behaviour: (Text input)
+Validations: Duplicate not allowed (within the same Client)
+ii. Field Name: Country
+Input behaviour: (Dropdown of values from “Country” Field of Regions of Operations from setup module. If not found, give a button “add new” redirecting to Setup Module 1.1.i)
+Validations: Selection required.
+ii.i Field Name: State
+Input behaviour: (Dropdown of values from “State” Field of Regions of Operations from setup module, filtered based on the selected Country. If not found, give a button “add new” redirecting to Setup Module 1.1.iii)
+Validations: Selection required (if applicable for the country).
+ii.ii Field Name: Address
+Input behaviour: (Text Input, potentially multi-line)
+Validations: Duplicate allowed.
+iii. Field Name: Entity Type
+Input behaviour: (Dropdown of values from “Entity Type” Field of “Entity Type definition” from setup module, filtered based on the selected Country. If not found, give a button “add new” redirecting to Setup Module 1.3)
+Validations: Selection required.
+iv. Field Name: Business Tax ID
+Input behaviour: (Alpha numeric input by the user.)
+Validations: Duplicate not allowed within the tenant.
+v. Field Name: Is Registered for Sales Tax or VAT ?
+Input behaviour: (Yes, or No radio buttons/dropdown)
+Validations: If No, Do nothing. If Yes, Ask for Next input of SalesTax/VAT ID (Field vi below appears).
+vi. Field Name: SalesTax/VAT ID
+Input behaviour: (Alpha numeric input by the user. This field is conditionally displayed based on field v.)
+Validations: Duplicate not allowed within the tenant.
+vii. Field Name: File Access Link
+Input behaviour: (Input by the user - URL/Text)
+Validations: Should accept text input. [Preference Note: While Google Workspace links are preferred, the validation should ideally allow for various common cloud storage link formats or be a simple URL validation.]
+When this form is completed and a new Entity is added, it's included in the entities list for that client. Each Entity shall have the following “Service Subscription” configuration:
+Configuration of “VAT/Sales Tax Jurisdictions”
+This configuration section appears only if “Yes” is selected for "Is Registered for Sales Tax or VAT?".
+User selects applicable jurisdictions for this Entity from the list defined in Setup Module 1.2 ("VAT/Sales Tax Jurisdictions").
+The selection UI could be multi-select dropdown, checkboxes, or cards showing all jurisdictions attached to this Entity.
+Configuration of “Services”
+The system lists all Services (from Setup Module 1.4) where the Service's "Country" matches the Entity's selected "Country".
+For each listed service, there are two check boxes/columns: “Required” and “Subscribed”.
+The user marks services as "Required" for compliance/operations for this entity.
+The user then marks services as "Subscribed" (meaning the client has engaged the firm for this service).
+Validation: A service can only be marked "Subscribed" if it is also marked "Required".
+[AI Opportunity]: AI can suggest which services might be "Required" based on Entity Country, State, Entity Type, and VAT/Sales Tax status.*
+2.1 Client Portal Access Management
+Purpose: To allow the Super Admin (or authorized Members) to grant specific client contacts access to the Client Portal. This is managed on a per-client basis.
+UI: Within each Client's detail view, there should be a section to manage "Client Contacts" allowed portal access. This section will allow adding, viewing, updating, and deleting client contact access credentials.
+Add/Update Client Contact Access form:
+i. Field Name: Client Contact Name
+Input behaviour: (Text input)
+Validations: Duplicate allowed within the same client, but recommended to be unique for clarity.
+ii. Field Name: Client Contact Email
+Input behaviour: (Email input via text)
+Validations: Must be a valid email format. Duplicate not allowed across all client contacts within the same tenant (as this serves as the login username).
+iii. Field Name: Portal Access Enabled
+Input behaviour: (Toggle Switch or Yes/No dropdown)
+Validations: Default to "No" (Disabled). Setting to "Yes" enables login for this contact.
+iv. Field Name: Assigned Initial Password
+Input behaviour: (Password input field - visible only during initial creation or explicit reset by Admin)
+Validations: Should enforce basic complexity (can be same rules as Member passwords or slightly simpler). Must be securely hashed upon storage.
+Note: This initial password should be communicated securely to the client contact. The client should be prompted or required to change this password upon their first login.
+v. Field Name: Last Login Date
+Input behaviour: (Read-only, auto-populated by the system)
+Validations: N/A. Displays the timestamp of the client contact's last successful login.
+Permissions Note: The ability to manage Client Portal Access (add contacts, enable/disable access, reset passwords) should itself be controlled by the granular permissions in the User Management/Permissions Module (Section 6). A Super Admin would have this right by default, but could potentially delegate it to specific Members if needed (e.g., add a permission line item like Clients Module -> Manage Client Portal Access -> Yes/No).
+
+
+
+3. Tasks Module:
+A robust mechanism to add, view, update and delete "Tasks Items" via Tasks Module. These tasks drive daily operations and feed into reporting, notifications, etc. UI to have tabs/sections for adding tasks.
+Add Task: Options for a) Administrative Tasks b) Revenue Task
+a) Add Administrative Task form:
+I. Creation Date: Auto-generated.
+II. Task Type: Dropdown with fixed values: "Regular", "Medium", "Urgent". [Note: These values are predefined and not configurable in Setup.]
+III. Assignee: Dropdown of active Members from the User Management Module.
+IV. Due Date: Date input.
+V. Admin Task Category: Dropdown of values from “Admin Task Category Name” (Setup Module 5.1.i).
+VI. Task Details: Text area for task description.
+VII. Next to do: Text area for next steps/notes.
+b) Add Revenue Task form (Tabbed Interface):
+Tab: Basic Information:
+I. Creation Date: Auto-generated.
+I.i ) Client name: Dropdown from “Client Display name” (Clients Module).
+I.ii) Entity Name: Dropdown of Entities linked to the selected Client Name.
+II. Service Name: Dropdown of Service Names (Setup Module 1.4.i), filtered to show only services where the Service's Country matches the selected Entity's Country.
+III. Revenue Task Category: (Optional) Dropdown of values from “Revenue Task Category Name” (Setup Module 5.1.ii).
+IV. Task Type: Dropdown with fixed values: "Regular", "Medium", "Urgent". [Note: These values are predefined and not configurable in Setup.]
+V. Assignee: Dropdown of active Members from the User Management Module.
+VI. Due Date: Date input.
+VII. Task Details: Text area for task description. [AI Opportunity: Suggest details based on Client, Entity, Service Name, and potentially historical task data.]
+VIII. Next to do: Text area for next steps/notes.
+Tab: Compliance Configuration:
+I. Compliance Frequency: Dropdown (5 Years, 4 years, 3 Years, 2 Years, Annual, Bi-Annually, Quarterly, Monthly, One Time).
+a) Based on this, conditional "Year(s)" and "Duration" fields appear:
+a1) If 5/4/3/2 years: "Year(s)" input (comma-separated years).
+a2) If Annual: "Year(s)" input (single year).
+a3) If Bi-Annual: "Year(s)" input (single year) + "Duration" dropdown (First Half, Second Half).
+a4) If Quarterly: "Year(s)" input (single year) + "Duration" dropdown (Q1, Q2, Q3, Q4).
+a5) If Monthly: "Year(s)" input (single year) + "Duration" dropdown (Jan, Feb, ..., Dec).
+a6) If One Time: "Year(s)" input (single year) + "Duration" field (pre-filled/read-only "One Time").
+II. Compliance Duration Start date: Date input, settable by user.
+III. Compliance Duration End Date: Auto-calculated by the system based on Frequency, Year(s), Duration, and Start Date. (e.g., Monthly, 2025, Jan, Start Jan 1st, 2025 -> End Jan 31st, 2025).
+IV. Is this task recurring?: Radio button (Yes/No).
+* If No: Task is created once.
+* If Yes: Task is created now, and the system schedules future occurrences.
+* Recurring Task Generation: Future tasks are auto-generated and listed in a separate "Auto Generated Tasks" Module/View.
+* Generation Timing: Tasks appear in the "Auto Generated Tasks" list N days before the next calculated "Compliance Duration Start Date" (or End Date - needs final decision, let's refine to: N days before the next Compliance Duration Start Date seems more logical for planning). 'N' is a configurable number of days (Default: 25 days, changeable in a Settings Module).
+* Example (using Start Date anchor): If a Monthly task ends Jan 31, 2025, its next instance starts Feb 1, 2025. If N=25 days, the auto-generated task for Feb appears around Jan 7th, 2025 (Feb 1st minus 25 days).
+* Approval: Auto-generated tasks require approval before becoming active in the main Tasks Module. Approval rights belong to the Super Admin by default, but can be delegated to other Members via the User Management/Permissions Module.
+* Data Inheritance: Auto-generated tasks inherit discrete data (Client, Entity, Service, etc.) from the original task. Dates (Start, End, Due) are recalculated for the new period. The "Service Rate" for the new task should default to the value entered in the "Invoice Information" tab of the most recently completed instance of this recurring task series.
+Tab: Invoice information:
+I. Currency: Auto-populated based on the selected Entity's Country, matching the Currency defined in Setup (1.1.ii). Editable, with the dropdown restricted to currencies defined in Setup (1.1.ii).
+II. Service Rate: Auto-populated from the default "Service Rate" of the selected Service Name (Setup Module 1.4.iv). Editable by the user for this specific task instance.
+[Integration Note]: The Currency and final Service Rate captured here will be used as input data for generating invoices within the Finance Management Module.*
+Task Creation & Status: Upon form submission, the task is created. Its initial status is automatically set to the Status Name associated with Rank 1 (i.e., "New") as defined in Setup Module 5.2.
+Task Updates: The system needs an easy and robust mechanism for updating tasks post-creation.
+[Update Mechanism Ideas]: Allow inline editing for key fields (Status, Assignee, Due Date) directly from task list views. Provide a clear "Edit Task" function opening the full task form. Consider possibilities for bulk updates (e.g., changing status for multiple selected tasks).
+[Future Enhancement - Workflow Automation]: A dedicated "Workflow Automation Module" could be planned to allow tenants to define rules for automatic task updates, status changes, or assignments based on triggers or conditions.*
+
+4. Finance Management Module (New Module Definition)
+Purpose: To manage the financial aspects related to the services provided, primarily focusing on invoicing and tracking payments based on completed or ongoing tasks.
+Integration: This module will receive input data primarily from the "Invoice Information" tab of completed or milestone-reached Revenue Tasks (Task Module).
+Key Features (High-Level):
+Invoice Generation: Ability to generate invoices based on task data (Client, Entity, Service, Rate, Currency). This might involve selecting tasks ready for invoicing.
+Invoice Management: Track invoice status (Draft, Sent, Paid, Overdue). View, edit (limited), send, and record payments against invoices.
+Payment Tracking: Record full or partial payments received against invoices.
+Accounts Receivable: Basic reporting on outstanding invoices and aging.
+Financial Reporting: Potential for basic reports on revenue by client, service, period, etc.
+[Note: This module requires significant further detailed specification for fields, workflows, reporting details, and potential integration with external accounting software.]
+
+5. Signup/Sign In Flow:
+I. The tenant (representing an accounting firm) signs up using their name, Firm Name, Email address, and Password.
+II. Upon successful signup, this tenant user automatically becomes the “Super Admin” for their firm's isolated environment (tenant instance).
+III. The Super Admin has full access and configures the system, including setting up other users ("Members") via the User Management/Permissions Module.
+IV. Both Super Admin and subsequently created Members sign in using their email and password.
+Note: The main application login screen should feature two distinct entry points:
+One button/link clearly labeled for "Firm Login" (or "Official Login", "Team Login") intended for the Super Admin and Members of the accounting firm.
+A separate button/link clearly labeled for "Client Login" intended for the clients of the accounting firm who have been granted portal access. Clicking this will direct users to the Client Portal login interface.
+
+6. User Management/Permissions Module:
+A robust mechanism for the Super Admin to add, view, update, and delete "Members" (internal team users) for the tenant's console. Granular permissions control access to different application modules and operations.
+Members
+UI for listing and managing members.
+Action to "Add New Member" opens a form/wizard:
+i. Field Name: Member Name
+Input behaviour: (Text input)
+Validations: Duplicate not allowed (within the tenant)
+ii. Field Name: Designation
+Input behaviour: (Dropdown of values from “Designation” Field (Setup Module 6.i))
+Validations: Selection required.
+iii. Field Name: Department
+Input behaviour: (Dropdown of values from “Department” Field (Setup Module 6.ii))
+Validations: Selection required.
+[Linking Process Note]: Once basic Member details are saved, the Super Admin proceeds to configure permissions (Section 2) and credentials (Section 3) for this Member. The system must clearly link these three aspects (Details, Permissions, Credentials) to the single Member identity. UI suggestions: a multi-step wizard for adding a member, or action buttons ("Set Permissions", "Set Credentials") next to each member in the list view.*
+Access Permissions
+UI displays a matrix or list showing Modules vs. Permissions for a selected Member.
+For each Module (Clients, Tasks, Setup, Finance, User Management, etc.):
+Access Level: Dropdown/Radio buttons: "Full", "Partial", "Restricted".
+CRUD Operations (conditionally enabled):
+Create (e.g., Create Client): Checkbox (Yes/No)
+Read (e.g., Read Clients): Checkbox (Yes/No)
+Update (e.g., Update Clients): Checkbox (Yes/No)
+Delete (e.g., Delete Clients): Checkbox (Yes/No)
+Logic:
+If Access Level = "Full", all CRUD permissions below are automatically set to "Yes" and potentially greyed out.
+If Access Level = "Partial", the Super Admin can individually set each CRUD permission to "Yes" or "No".
+If Access Level = "Restricted", all CRUD permissions below are automatically set to "No" and greyed out. The corresponding module might be hidden entirely from this Member's UI (including sidebar navigation).
+This permission structure applies consistently to all current and future modules.
+Credentials Creation
+This section is linked to a specific Member defined in Section 1.
+i. Field Name: Email Address
+Input behaviour: (Email Input via text)
+Validations: Duplicate not allowed (across all users within the tenant, including the Super Admin). Must be a valid email format.
+ii. Field Name: Assigned Password
+Input behaviour: (Password input field)
+Validations: Duplicate allowed (though strongly discouraged). Should enforce basic complexity.
+[Security Note - Password Management]:
+Passwords must be securely hashed and salted (e.g., using bcrypt) before storage. Never store plain text passwords.
+Implement basic password complexity rules (minimum length, mix of character types).
+Provide a secure "Forgot Password" mechanism (e.g., email link with temporary token).
+Allow Members to change their own password after their initial login.*
+Activation: Once credentials are set, the Member can log in using this Email Address and Assigned Password and will have access according to the permissions defined in Section 2.
+
+
+7. Client Portal
+Purpose: A dedicated, secure web interface for authorized client contacts to view information relevant to their engagement with the accounting firm. Access is granted via the "Client Portal Access Management" section within the Clients Module.
+Access: Accessed via the "Client Login" button on the main login screen, using the Client Contact Email and their current password.
+Data Scope: Critically important - A logged-in client contact MUST only see data related to the specific Client record they are associated with. They should never see data belonging to other clients of the firm or internal firm operational data beyond what is explicitly shared.
+Key Features (Read-Only Focus for Initial Scope):
+7.1 Dashboard:
+A landing page providing a high-level summary.
+Widgets/Information Displayed:
+Client & Entity Overview: Display the Client name and list associated Entity Names.
+Upcoming Task Deadlines: List of key tasks (especially compliance-related) with approaching due dates (e.g., next 30 days). Shows Task Name (possibly derived from Service Name), Entity Name, Due Date.
+Overdue Tasks: List of tasks linked to their entities whose Due Date has passed and are not yet 'Completed'. Shows Task Name, Entity Name, Due Date.
+Recent Activity/Notifications (Optional): Simple feed of recent status changes on their tasks (e.g., "Task 'Q1 VAT Filing' marked Ready for Review").
+
+
+
+
+7.2 My Entities:
+Lists all Entities associated with the Client record.
+Allows viewing basic details for each Entity (Name, Country, State, Address, Entity Type, Tax IDs - as entered in the Clients Module).
+Displays the list of "Subscribed" services for each entity (as configured in the Clients Module).
+
+
+7.3 My Tasks:
+Provides a view of tasks associated with the Client's Entities.
+Filtering/Views: Ability to filter tasks (e.g., by Entity, Status, Date Range).
+Information Displayed per Task: Task Name/Identifier, Service Name, Entity Name, Due Date, Current Status (using the Status Names from Setup Module 5.2), Assignee (optional - display Member Name or just 'Assigned'). [Note: Consider carefully if Task Details and Next To Do fields should be exposed to clients, or if a summarized view is sufficient initially.]
+AI Suggestion Display (Potential): If AI generates client-facing suggestions or summaries related to tasks, they could be displayed here.
+
+
+7.4 Compliance Calendar (Potential View):
+A calendar interface visualizing deadlines for recurring compliance tasks linked to the client's entities.
+Dates highlighted would correspond to the "Compliance Duration End Date" or "Due Date" of relevant tasks.
+
+
+7.5 Document Access (Potential Future Enhancement):
+If integrated, could provide read-only access to documents shared via the "File Access Link" field on the Entity record, assuming appropriate security and link handling.
+
+
+7.6 My Profile / Security:
+Allows the logged-in client contact to view their contact details (Name, Email).
+Crucially, provides a mechanism for the client to Change their Password.
+May include options for setting up Multi-Factor Authentication (MFA) in the future.
+
+
+
+
+
+8. Settings Module (Placeholder for global settings)
+Purpose: To manage tenant-wide configurations not covered in the main Setup module.
+Potential Settings:
+Recurring Task Generation Lead Time: Configure the 'N' days value (default 25) used for scheduling auto-generated tasks.
+API Key Management: A section for the Super Admin to securely input and manage their firm's Google Gemini API Key. [Security Note: This key must be stored securely and used only for API calls initiated by this tenant.]
+Tenant Profile (Firm Name, Address, etc.)
+Notification Preferences (if applicable)
+*   **[Existing Setting Item - Example]** Recurring Task Generation Lead Time: ...
+*   **[Existing Setting Item - Example]** API Key Management (Google Gemini): ...
+
+
+*   **Payment Gateway Integrations:**
+    *   **Purpose:** To configure connections with third-party payment processors, enabling clients to pay invoices online directly through links generated by the system. This section allows the Super Admin to manage the necessary API credentials for each supported gateway.
+    *   **UI:** This section might have sub-tabs or distinct configuration areas for each supported payment gateway (PayPal, Stripe).
+
+
+    *   **Stripe Integration:**
+        i.  Field Name: Enable Stripe Integration
+            Input behaviour: (Toggle Switch or Yes/No dropdown)
+            Validations: Default to "No". Setting to "Yes" reveals the fields below and enables Stripe as a payment option on invoices.
+
+
+        ii. Field Name: Stripe Publishable Key
+            Input behaviour: (Text input - typically starts with `pk_live_` or `pk_test_`)
+            Validations: Required if Stripe Integration is enabled. Input should be masked or partially hidden for security after entry.
+
+
+        iii. Field Name: Stripe Secret Key
+            Input behaviour: (Password input field - typically starts with `sk_live_` or `sk_test_`)
+            Validations: Required if Stripe Integration is enabled. Input must be fully masked. *[Security Note: This key is highly sensitive and must be stored encrypted at rest and handled securely.]*
+
+
+        iv. Field Name: Stripe Webhook Signing Secret
+            Input behaviour: (Password input field - typically starts with `whsec_`)
+            Validations: Required if Stripe Integration is enabled. Input must be fully masked. *[Note: This is crucial for securely receiving payment status updates (e.g., payment success, failure) from Stripe back into the application's Finance Module to automatically update invoice statuses.]*
+
+
+        v.  Field Name: Accepted Card Types (via Stripe)
+            Input behaviour: (Checkboxes: Visa, Mastercard, American Express, Discover, etc. - depending on Stripe account capabilities)
+            Validations: At least one card type typically needs to be selected if Stripe is enabled. Controls which card logos/options are presented to clients during payment.
+
+
+    *   **PayPal Integration:**
+        i.  Field Name: Enable PayPal Integration
+            Input behaviour: (Toggle Switch or Yes/No dropdown)
+            Validations: Default to "No". Setting to "Yes" reveals the fields below and enables PayPal as a payment option on invoices.
+
+
+        ii. Field Name: PayPal Client ID
+            Input behaviour: (Text input)
+            Validations: Required if PayPal Integration is enabled. Input should be masked or partially hidden after entry.
+
+
+        iii. Field Name: PayPal Client Secret
+            Input behaviour: (Password input field)
+            Validations: Required if PayPal Integration is enabled. Input must be fully masked. *[Security Note: This key is sensitive and must be stored encrypted at rest and handled securely.]*
+
+
+        iv. Field Name: PayPal Webhook ID (Optional but Recommended)
+            Input behaviour: (Text input)
+            Validations: Optional. If configured along with setting up webhooks in PayPal, this helps verify incoming payment status updates. *[Note: Similar to Stripe webhooks, this enables automatic invoice status updates upon successful PayPal payments.]*
+
+
+Integration with Finance Management Module:
+When an invoice is generated in the Finance Management Module (Section 4), if one or more payment gateways are enabled in Settings, the system should provide an option to include a "Pay Now" link/button on the invoice (or email accompanying the invoice).
+Clicking the "Pay Now" link directs the client to a secure payment page hosted or rendered via the configured gateway (Stripe Checkout, PayPal).
+The system needs to listen for webhook notifications from the configured gateways (using the Webhook Secrets/IDs) to automatically update the corresponding invoice status in the Finance Module (e.g., from "Sent" to "Paid") upon successful payment confirmation. Direct Debit / ACH payments might have different confirmation timing ('Pending' then 'Paid'/'Failed').
+Permissions: Access to configure Payment Gateway Integrations within the Settings Module should be restricted, typically only available to the Super Admin role due to the sensitive nature of API keys. This can be enforced via the standard User Management/Permissions Module.
+
+9. Workflow Automation Module
+Purpose: To provide a robust system for tenants (specifically Super Admins or authorized Members) to define and automate routine actions and processes based on specific triggers and conditions within the application. This aims to improve efficiency, ensure consistency, and reduce manual effort in managing tasks and related workflows.
+Core Concept: Users define "Workflows" consisting of a Trigger (an event occurring in the system), optional Conditions (criteria that must be met), and one or more Actions (tasks the system performs automatically).
+Key Features:
+9.1 Workflow Management Interface:
+A central place to view, create, edit, enable/disable, and delete defined workflows.
+Displays key information for each workflow: Name, Trigger, Status (Enabled/Disabled), Last Run Time (optional), Created By/Date.
+
+
+9.2 Workflow Definition:
+A form or visual builder interface to configure individual workflows.
+Fields for defining a Workflow:
+i. Field Name: Workflow Name
+Input behaviour: (Text input)
+Validations: Duplicate not allowed (within the tenant). Must be descriptive.
+ii. Field Name: Description
+Input behaviour: (Text area input)
+Validations: Optional, allows detailed explanation of the workflow's purpose.
+iii. Field Name: Trigger Event
+Input behaviour: (Dropdown selection)
+Validations: Selection required.
+* Potential Trigger Events (Initial List - can be expanded):
+* Task Created (Admin Task)
+* Task Created (Revenue Task)
+* Task Status Changed
+* Task Assignee Changed
+* Task Due Date Arrives
+* Task Due Date is X Days Away (User specifies X)
+* [Future: Client Created, Entity Created, Invoice Status Changed, etc.]
+iv. Field Name: Conditions (Optional)
+Input behaviour: (A condition builder interface allowing one or more conditions)
+Validations: Conditions define specific criteria that must be true for the actions to execute after the trigger fires.
+* Condition Structure: Typically [Field] [Operator] [Value] (e.g., Task Status Equals Ready for Review).
+* Available Fields for Conditions (Initial List): Task Status, Task Type (Priority), Task Assignee, Task Category (Admin/Revenue), Client Name, Entity Name, Service Name, Due Date (relative to Today), etc.
+* Available Operators: Equals, Not Equals, Contains, Does Not Contain, Starts With, Ends With, Is Empty, Is Not Empty, Greater Than, Less Than, etc. (Operators available depend on field type - text, number, date, dropdown).
+* Logic: Allow combining multiple conditions using AND / OR logic.
+v. Field Name: Actions
+Input behaviour: (Interface to add one or more actions to be performed sequentially)
+Validations: At least one action required per workflow.
+* Potential Actions (Initial List - can be expanded):
+* Change Task Status: (Select a target status from Setup Module 5.2)
+* Change Task Assignee: (Select a specific Member or assign based on rules e.g., 'Assignee's Manager' - requires defining manager relationships potentially in User Management)
+* Set Task Due Date: (e.g., Set to Trigger Date + X days/business days)
+* Add Task Comment: (Predefined or dynamically generated text added to Task Details/Notes)
+* Send In-App Notification: (Send a notification within the application to specific Member(s), Assignee, Super Admin)
+* Create New Task: (Create a follow-up Admin or Revenue task with predefined or dynamic details based on the trigger task)
+* [Future: Send Email Notification, Update Client Record Field, Generate Draft Invoice, Call External Webhook, etc.]
+
+
+9.3 Workflow Execution Log:
+A system log that records each time a workflow is triggered and executed (or attempted).
+Information Logged: Workflow Name, Triggering Event/Task ID, Timestamp, Status (Success/Failure), Details/Error Message (if failed).
+Purpose: Essential for monitoring automation activity, debugging issues, and understanding workflow performance.
+
+
+
+
+Integration Points:
+Heavily interacts with the Tasks Module (triggers based on task events, actions modify tasks).
+Uses data from the Setup Module (Task Statuses, Categories, etc.) for conditions and actions.
+Uses data from the User Management Module (Members list) for assigning tasks or sending notifications.
+May interact with Clients Module data for conditions.
+
+
+Permissions:
+Access to create, edit, and manage workflows should be controlled via the User Management/Permissions Module (Section 6).
+A specific permission like Workflow Automation Module -> Access Level -> Full/Partial/Restricted should be added. Full access implies ability to create/edit/delete/enable/disable. Partial might allow viewing and enabling/disabling existing ones. Restricted hides the module.
+
+
+Important Considerations & Notes:
+Loop Prevention: Careful design is needed to prevent workflows from triggering each other infinitely (e.g., Workflow A changes status to X, Workflow B triggers on status X and changes it back, triggering Workflow A again). The system might need limits on execution depth or frequency for a single task.
+Error Handling: Define how the system handles failures during action execution (e.g., log the error, stop the workflow, notify an admin).
+Clarity and Testing: Encourage users to name workflows clearly and test them thoroughly before enabling them widely, possibly in a test environment or with specific test tasks.
+Performance: Complex workflows or very frequent triggers could impact system performance. Monitoring may be required.
+
+
+Example Use Cases:
+Example 1: When a Revenue Task is Created with Task Type Equals Urgent, THEN Change Task Assignee to [Specific Manager Name].
+Example 2: When Task Status Changed to Ready for Review, AND Task Category Equals Tax Filing, THEN Change Task Assignee to [Review Team Lead] AND Send In-App Notification to [Review Team Lead].
+Example 3: When Task Due Date Is X Days Away (Value: 3), AND Task Status Not Equals Completed, THEN Send In-App Notification to Current Task Assignee.
+Example 4: When Task Status Changed to Completed, AND Service Name Equals Monthly Bookkeeping, THEN Create New Task (Admin Task, Category: 'Client Follow-up', Details: 'Schedule monthly review call for [Client Name]', Assignee: Original Task Assignee, Due Date: Trigger Date + 5 days).
+
+
+
+
+
+Technology Stack Notes:
+AI Model: Google Gemini 2.5 Pro (via API).
+Development Environment: Replit.
+Database: Replit's built-in PostgreSQL (Relational Database). [Note: For production deployment, thorough evaluation of Replit's PostgreSQL limitations regarding scalability, backups, monitoring, and SLA is recommended.]
+
+
+
