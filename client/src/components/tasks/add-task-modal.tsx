@@ -127,7 +127,7 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
   // Fetch services for the selected entity
   const { data: entityServices = [], isLoading: isLoadingServices } = useQuery<ServiceType[]>({
     queryKey: ["/api/v1/entities", selectedEntityId, "services"],
-    enabled: isOpen && taskType === "revenue" && !!selectedEntityId,
+    enabled: isOpen && taskType === "revenue" && !!selectedEntityId
   });
   
   // Fetch users for assignee dropdown
@@ -285,7 +285,7 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                       <FormLabel>Task Type</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
-                        defaultValue={field.value}
+                        value={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -311,7 +311,7 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                       <FormLabel>Assignee</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
-                        defaultValue={field.value}
+                        value={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -390,7 +390,7 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                       <FormLabel>Task Category (Optional)</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
-                        defaultValue={field.value}
+                        value={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -507,7 +507,7 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                               revenueTaskForm.setValue("entityId", "");
                               revenueTaskForm.setValue("serviceId", "");
                             }} 
-                            defaultValue={field.value}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -549,7 +549,7 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                               // Reset service field when entity changes
                               revenueTaskForm.setValue("serviceId", "");
                             }} 
-                            defaultValue={field.value}
+                            value={field.value}
                             disabled={!revenueTaskForm.watch("clientId")}
                           >
                             <FormControl>
@@ -562,8 +562,8 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                                 <div className="flex justify-center items-center py-2">
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                 </div>
-                              ) : entities.length === 0 ? (
-                                <SelectItem value="none" disabled>
+                              ) : !entities || entities.length === 0 ? (
+                                <SelectItem value="no-entities" disabled>
                                   No entities available
                                 </SelectItem>
                               ) : (
@@ -590,7 +590,7 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                           <FormLabel>Service</FormLabel>
                           <Select 
                             onValueChange={field.onChange} 
-                            defaultValue={field.value}
+                            value={field.value}
                             disabled={!revenueTaskForm.watch("entityId")}
                           >
                             <FormControl>
@@ -603,12 +603,12 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                                 <div className="flex justify-center items-center py-2">
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                 </div>
-                              ) : entityServices.length === 0 ? (
-                                <SelectItem value="none" disabled>
+                              ) : !entityServices || entityServices.length === 0 ? (
+                                <SelectItem value="no-services" disabled>
                                   No services available
                                 </SelectItem>
                               ) : (
-                                entityServices.map((service) => (
+                                entityServices.map((service: ServiceType) => (
                                   <SelectItem key={service.id} value={service.id.toString()}>
                                     {service.name}
                                   </SelectItem>
@@ -629,7 +629,7 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                           <FormLabel>Task Category (Optional)</FormLabel>
                           <Select 
                             onValueChange={field.onChange} 
-                            defaultValue={field.value}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -669,7 +669,7 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                           <FormLabel>Task Type</FormLabel>
                           <Select 
                             onValueChange={field.onChange} 
-                            defaultValue={field.value}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -695,7 +695,7 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                           <FormLabel>Assignee</FormLabel>
                           <Select 
                             onValueChange={field.onChange} 
-                            defaultValue={field.value}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
