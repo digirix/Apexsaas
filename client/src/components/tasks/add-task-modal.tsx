@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -6,6 +6,7 @@ import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Client, User, TaskCategory, TaskStatus, Entity, ServiceType } from "@shared/schema";
+import { addMonths, addYears, addQuarters } from "date-fns";
 import { 
   Dialog, 
   DialogContent, 
@@ -20,10 +21,12 @@ import {
   FormField, 
   FormItem, 
   FormLabel, 
-  FormMessage 
+  FormMessage,
+  FormDescription
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Select, 
   SelectContent, 
@@ -59,7 +62,9 @@ const adminTaskSchema = z.object({
 type AdminTaskFormValues = z.infer<typeof adminTaskSchema>;
 
 // Define form schema for revenue tasks (basic info tab)
-const revenueTaskBasicSchema = z.object({
+// Define the comprehensive revenue task schema with all tabs
+const revenueTaskSchema = z.object({
+  // Basic Information Tab
   clientId: z.string().min(1, "Please select a client"),
   entityId: z.string().min(1, "Please select an entity"),
   serviceId: z.string().min(1, "Please select a service"),
@@ -71,9 +76,21 @@ const revenueTaskBasicSchema = z.object({
   }),
   taskDetails: z.string().min(5, "Task details must be at least 5 characters"),
   nextToDo: z.string().optional(),
+  
+  // Compliance Configuration Tab
+  complianceFrequency: z.string().optional(),
+  complianceYear: z.string().optional(),
+  complianceDuration: z.string().optional(),
+  complianceStartDate: z.date().optional(),
+  complianceEndDate: z.date().optional(),
+  isRecurring: z.boolean().default(false),
+  
+  // Invoice Information Tab
+  currency: z.string().optional(),
+  serviceRate: z.number().optional(),
 });
 
-type RevenueTaskBasicFormValues = z.infer<typeof revenueTaskBasicSchema>;
+type RevenueTaskFormValues = z.infer<typeof revenueTaskSchema>;
 
 export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
   const { toast } = useToast();
@@ -92,9 +109,10 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
   });
   
   // Revenue task form
-  const revenueTaskForm = useForm<RevenueTaskBasicFormValues>({
-    resolver: zodResolver(revenueTaskBasicSchema),
+  const revenueTaskForm = useForm<RevenueTaskFormValues>({
+    resolver: zodResolver(revenueTaskSchema),
     defaultValues: {
+      // Basic Information Tab
       clientId: "",
       entityId: "",
       serviceId: "",
@@ -103,6 +121,19 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
       assigneeId: "",
       taskDetails: "",
       nextToDo: "",
+      dueDate: undefined,
+      
+      // Compliance Configuration Tab
+      complianceFrequency: undefined,
+      complianceYear: "",
+      complianceDuration: "",
+      complianceStartDate: undefined,
+      complianceEndDate: undefined,
+      isRecurring: false,
+      
+      // Invoice Information Tab
+      currency: "",
+      serviceRate: undefined,
     },
   });
   
@@ -236,7 +267,7 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
   
   // Create task mutation for revenue tasks
   const createRevenueTaskMutation = useMutation({
-    mutationFn: async (data: RevenueTaskBasicFormValues) => {
+    mutationFn: async (data: RevenueTaskFormValues) => {
       const payload = {
         ...data,
         isAdmin: false,
@@ -277,9 +308,58 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
     createAdminTaskMutation.mutate(data);
   }
   
-  function onRevenueTaskSubmit(data: RevenueTaskBasicFormValues) {
+  function onRevenueTaskSubmit(data: RevenueTaskFormValues) {
     createRevenueTaskMutation.mutate(data);
   }
+  
+  // Effect to calculate compliance end date based on frequency and start date
+  useEffect(() => {
+    const frequency = revenueTaskForm.watch("complianceFrequency");
+    const startDate = revenueTaskForm.watch("complianceStartDate");
+    
+    if (frequency && startDate) {
+      let endDate;
+      
+      switch(frequency) {
+        case "5 Years":
+          endDate = addYears(startDate, 5);
+          break;
+        case "4 Years":
+          endDate = addYears(startDate, 4);
+          break;
+        case "3 Years":
+          endDate = addYears(startDate, 3);
+          break;
+        case "2 Years":
+          endDate = addYears(startDate, 2);
+          break;
+        case "Annual":
+          endDate = addYears(startDate, 1);
+          break;
+        case "Bi-Annually":
+          endDate = addMonths(startDate, 6);
+          break;
+        case "Quarterly":
+          endDate = addQuarters(startDate, 1);
+          break;
+        case "Monthly":
+          endDate = addMonths(startDate, 1);
+          break;
+        case "One Time":
+          endDate = startDate; // Same as start date for one-time tasks
+          break;
+        default:
+          endDate = undefined;
+      }
+      
+      if (endDate) {
+        revenueTaskForm.setValue("complianceEndDate", endDate);
+      }
+    }
+  }, [
+    revenueTaskForm.watch("complianceFrequency"), 
+    revenueTaskForm.watch("complianceStartDate")
+  ]);
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -893,29 +973,409 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                 </TabsContent>
                 
                 <TabsContent value="compliance">
-                  <div className="bg-slate-50 border border-slate-200 rounded-md p-6 flex flex-col items-center justify-center">
-                    <p className="text-slate-500 mb-4">Complete the Basic Information tab first</p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setActiveTab("basic")}
-                    >
-                      Go to Basic Information
-                    </Button>
-                  </div>
+                  {!revenueTaskForm.watch("serviceId") ? (
+                    <div className="bg-slate-50 border border-slate-200 rounded-md p-6 flex flex-col items-center justify-center">
+                      <p className="text-slate-500 mb-4">Complete the Basic Information tab first</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setActiveTab("basic")}
+                      >
+                        Go to Basic Information
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 gap-4">
+                        <FormField
+                          control={revenueTaskForm.control}
+                          name="complianceFrequency"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Compliance Frequency</FormLabel>
+                              <Select 
+                                onValueChange={(value) => {
+                                  field.onChange(value);
+                                  // Reset duration when frequency changes
+                                  revenueTaskForm.setValue("complianceDuration", "");
+                                }} 
+                                value={field.value || ""}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select frequency" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="5 Years">5 Years</SelectItem>
+                                  <SelectItem value="4 Years">4 Years</SelectItem>
+                                  <SelectItem value="3 Years">3 Years</SelectItem>
+                                  <SelectItem value="2 Years">2 Years</SelectItem>
+                                  <SelectItem value="Annual">Annual</SelectItem>
+                                  <SelectItem value="Bi-Annually">Bi-Annually</SelectItem>
+                                  <SelectItem value="Quarterly">Quarterly</SelectItem>
+                                  <SelectItem value="Monthly">Monthly</SelectItem>
+                                  <SelectItem value="One Time">One Time</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      {revenueTaskForm.watch("complianceFrequency") && revenueTaskForm.watch("complianceFrequency") !== "One Time" && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <FormField
+                            control={revenueTaskForm.control}
+                            name="complianceYear"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Year(s)</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    placeholder={
+                                      ["5 Years", "4 Years", "3 Years", "2 Years"].includes(revenueTaskForm.watch("complianceFrequency") || "") 
+                                        ? "e.g., 2023, 2024, 2025" 
+                                        : "e.g., 2023"
+                                    } 
+                                    {...field} 
+                                  />
+                                </FormControl>
+                                <FormDescription>
+                                  {["5 Years", "4 Years", "3 Years", "2 Years"].includes(revenueTaskForm.watch("complianceFrequency") || "") 
+                                    ? "Enter multiple years separated by commas" 
+                                    : "Enter the compliance year"}
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={revenueTaskForm.control}
+                            name="complianceDuration"
+                            render={({ field }) => {
+                              // Define available durations based on frequency
+                              let durationOptions: { value: string, label: string }[] = [];
+                              
+                              switch(revenueTaskForm.watch("complianceFrequency")) {
+                                case "Bi-Annually":
+                                  durationOptions = [
+                                    { value: "First Half", label: "First Half" },
+                                    { value: "Second Half", label: "Second Half" }
+                                  ];
+                                  break;
+                                case "Quarterly":
+                                  durationOptions = [
+                                    { value: "Q1", label: "Q1" },
+                                    { value: "Q2", label: "Q2" },
+                                    { value: "Q3", label: "Q3" },
+                                    { value: "Q4", label: "Q4" }
+                                  ];
+                                  break;
+                                case "Monthly":
+                                  durationOptions = [
+                                    { value: "Jan", label: "January" },
+                                    { value: "Feb", label: "February" },
+                                    { value: "Mar", label: "March" },
+                                    { value: "Apr", label: "April" },
+                                    { value: "May", label: "May" },
+                                    { value: "Jun", label: "June" },
+                                    { value: "Jul", label: "July" },
+                                    { value: "Aug", label: "August" },
+                                    { value: "Sep", label: "September" },
+                                    { value: "Oct", label: "October" },
+                                    { value: "Nov", label: "November" },
+                                    { value: "Dec", label: "December" }
+                                  ];
+                                  break;
+                                default:
+                                  durationOptions = [{ value: "Full", label: "Full Year" }];
+                              }
+                              
+                              return (
+                                <FormItem>
+                                  <FormLabel>Duration</FormLabel>
+                                  <Select 
+                                    onValueChange={field.onChange} 
+                                    value={field.value || ""}
+                                    disabled={!revenueTaskForm.watch("complianceFrequency") || revenueTaskForm.watch("complianceFrequency") === "One Time"}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select duration" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {durationOptions.map(option => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                          {option.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              );
+                            }}
+                          />
+                        </div>
+                      )}
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={revenueTaskForm.control}
+                          name="complianceStartDate"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                              <FormLabel>Compliance Duration Start Date</FormLabel>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <FormControl>
+                                    <Button
+                                      variant="outline"
+                                      className={`w-full pl-3 text-left font-normal ${!field.value && "text-muted-foreground"}`}
+                                    >
+                                      {field.value ? (
+                                        format(field.value, "PPP")
+                                      ) : (
+                                        <span>Pick a date</span>
+                                      )}
+                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                  </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={field.value || undefined}
+                                    onSelect={field.onChange}
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={revenueTaskForm.control}
+                          name="complianceEndDate"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                              <FormLabel>Compliance Duration End Date</FormLabel>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <FormControl>
+                                    <Button
+                                      variant="outline"
+                                      className={`w-full pl-3 text-left font-normal ${!field.value && "text-muted-foreground"}`}
+                                      disabled
+                                    >
+                                      {field.value ? (
+                                        format(field.value, "PPP")
+                                      ) : (
+                                        <span>Auto-calculated</span>
+                                      )}
+                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                  </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={field.value || undefined}
+                                    onSelect={field.onChange}
+                                    disabled
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              <FormDescription>
+                                End date is automatically calculated based on frequency and start date
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <FormField
+                        control={revenueTaskForm.control}
+                        name="isRecurring"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                            <div className="space-y-1 leading-none">
+                              <FormLabel>
+                                Is this task recurring?
+                              </FormLabel>
+                              <FormDescription>
+                                If selected, future task instances will be automatically scheduled
+                              </FormDescription>
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <DialogFooter className="pt-4">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={onClose}
+                          disabled={createRevenueTaskMutation.isPending}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => setActiveTab("invoice")}
+                        >
+                          Next: Invoice Information
+                        </Button>
+                      </DialogFooter>
+                    </div>
+                  )}
                 </TabsContent>
                 
                 <TabsContent value="invoice">
-                  <div className="bg-slate-50 border border-slate-200 rounded-md p-6 flex flex-col items-center justify-center">
-                    <p className="text-slate-500 mb-4">Complete the Basic Information tab first</p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setActiveTab("basic")}
-                    >
-                      Go to Basic Information
-                    </Button>
-                  </div>
+                  {!revenueTaskForm.watch("serviceId") ? (
+                    <div className="bg-slate-50 border border-slate-200 rounded-md p-6 flex flex-col items-center justify-center">
+                      <p className="text-slate-500 mb-4">Complete the Basic Information tab first</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setActiveTab("basic")}
+                      >
+                        Go to Basic Information
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={revenueTaskForm.control}
+                          name="currency"
+                          render={({ field }) => {
+                            // Auto-populate currency based on selected service
+                            const selectedServiceId = revenueTaskForm.watch("serviceId");
+                            const selectedService = entityServices.find(
+                              (service) => service.id.toString() === selectedServiceId
+                            );
+                            
+                            // Use a default USD currency for now
+                            // In a real scenario, we would use the currency code from the entity's country
+                            if (!field.value && selectedService) {
+                              setTimeout(() => {
+                                revenueTaskForm.setValue("currency", "USD");
+                              }, 0);
+                            }
+                            
+                            return (
+                              <FormItem>
+                                <FormLabel>Currency</FormLabel>
+                                <Select 
+                                  onValueChange={field.onChange} 
+                                  value={field.value || ""}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select currency" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="USD">USD - United States Dollar</SelectItem>
+                                    <SelectItem value="EUR">EUR - Euro</SelectItem>
+                                    <SelectItem value="GBP">GBP - British Pound</SelectItem>
+                                    <SelectItem value="INR">INR - Indian Rupee</SelectItem>
+                                    <SelectItem value="AUD">AUD - Australian Dollar</SelectItem>
+                                    <SelectItem value="CAD">CAD - Canadian Dollar</SelectItem>
+                                    <SelectItem value="SGD">SGD - Singapore Dollar</SelectItem>
+                                    <SelectItem value="JPY">JPY - Japanese Yen</SelectItem>
+                                    <SelectItem value="CNY">CNY - Chinese Yuan</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormDescription>
+                                  Auto-populated from entity's country, but can be changed if needed
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            );
+                          }}
+                        />
+                        
+                        <FormField
+                          control={revenueTaskForm.control}
+                          name="serviceRate"
+                          render={({ field }) => {
+                            // Auto-populate service rate based on selected service
+                            const selectedServiceId = revenueTaskForm.watch("serviceId");
+                            const selectedService = entityServices.find(
+                              (service) => service.id.toString() === selectedServiceId
+                            );
+                            
+                            // If rate hasn't been set yet and we have a service with rate, set it
+                            if (!field.value && selectedService?.rate) {
+                              setTimeout(() => {
+                                revenueTaskForm.setValue("serviceRate", selectedService.rate);
+                              }, 0);
+                            }
+                            
+                            return (
+                              <FormItem>
+                                <FormLabel>Service Rate</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    placeholder="0.00"
+                                    value={field.value !== undefined ? field.value : ''}
+                                    onChange={(e) => {
+                                      const value = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                      field.onChange(value);
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormDescription>
+                                  Auto-populated from selected service type, but can be modified for this task
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            );
+                          }}
+                        />
+                      </div>
+                      
+                      <DialogFooter className="pt-4">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={onClose}
+                          disabled={createRevenueTaskMutation.isPending}
+                        >
+                          Cancel
+                        </Button>
+                        <Button 
+                          type="submit" 
+                          disabled={createRevenueTaskMutation.isPending}
+                        >
+                          {createRevenueTaskMutation.isPending ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Creating...
+                            </>
+                          ) : "Create Task"}
+                        </Button>
+                      </DialogFooter>
+                    </div>
+                  )}
                 </TabsContent>
                 
                 <DialogFooter className="pt-4">
