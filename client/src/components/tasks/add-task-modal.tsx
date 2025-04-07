@@ -112,6 +112,24 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
     enabled: isOpen && taskType === "revenue",
   });
   
+  // Get selected client ID
+  const selectedClientId = revenueTaskForm.watch("clientId");
+  
+  // Fetch entities for the selected client
+  const { data: entities = [], isLoading: isLoadingEntities } = useQuery<Entity[]>({
+    queryKey: ["/api/v1/clients", selectedClientId, "entities"],
+    enabled: isOpen && taskType === "revenue" && !!selectedClientId,
+  });
+  
+  // Get selected entity ID
+  const selectedEntityId = revenueTaskForm.watch("entityId");
+  
+  // Fetch services for the selected entity
+  const { data: entityServices = [], isLoading: isLoadingServices } = useQuery<ServiceType[]>({
+    queryKey: ["/api/v1/entities", selectedEntityId, "services"],
+    enabled: isOpen && taskType === "revenue" && !!selectedEntityId,
+  });
+  
   // Fetch users for assignee dropdown
   const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
     queryKey: ["/api/v1/users"],
@@ -483,7 +501,12 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                         <FormItem>
                           <FormLabel>Client</FormLabel>
                           <Select 
-                            onValueChange={field.onChange} 
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              // Reset dependent fields when client changes
+                              revenueTaskForm.setValue("entityId", "");
+                              revenueTaskForm.setValue("serviceId", "");
+                            }} 
                             defaultValue={field.value}
                           >
                             <FormControl>
@@ -521,7 +544,11 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                         <FormItem>
                           <FormLabel>Entity</FormLabel>
                           <Select 
-                            onValueChange={field.onChange} 
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              // Reset service field when entity changes
+                              revenueTaskForm.setValue("serviceId", "");
+                            }} 
                             defaultValue={field.value}
                             disabled={!revenueTaskForm.watch("clientId")}
                           >
@@ -531,7 +558,21 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="1">Sample Entity</SelectItem>
+                              {isLoadingEntities ? (
+                                <div className="flex justify-center items-center py-2">
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                </div>
+                              ) : entities.length === 0 ? (
+                                <SelectItem value="none" disabled>
+                                  No entities available
+                                </SelectItem>
+                              ) : (
+                                entities.map((entity) => (
+                                  <SelectItem key={entity.id} value={entity.id.toString()}>
+                                    {entity.name}
+                                  </SelectItem>
+                                ))
+                              )}
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -558,8 +599,21 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="1">Tax Filing</SelectItem>
-                              <SelectItem value="2">Bookkeeping</SelectItem>
+                              {isLoadingServices ? (
+                                <div className="flex justify-center items-center py-2">
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                </div>
+                              ) : entityServices.length === 0 ? (
+                                <SelectItem value="none" disabled>
+                                  No services available
+                                </SelectItem>
+                              ) : (
+                                entityServices.map((service) => (
+                                  <SelectItem key={service.id} value={service.id.toString()}>
+                                    {service.name}
+                                  </SelectItem>
+                                ))
+                              )}
                             </SelectContent>
                           </Select>
                           <FormMessage />
