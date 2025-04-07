@@ -199,22 +199,26 @@ This document provides a comprehensive overview of the progress made on the Acco
    - Status filtering functionality
    - Form cascading dependencies for client->entity->service
    - Task creation API integration
+   - Fixed entity and service selection in forms with proper display of selected values
 
 6. **Technical Challenges:**
    - Managing cascading dropdown dependencies properly
    - Ensuring proper reset of dependent fields when parent selections change
    - Handling form validation across multiple tabs
    - Correctly managing the empty and loading states for dynamic dropdown contents
-   - Entity selection not properly displaying the selected value
-   - Service dropdown not showing available services correctly
+   - ✓ Entity selection not properly displaying the selected value (Resolved)
+   - ✓ Service dropdown not showing available services correctly (Resolved)
+   - ✓ Type mismatches between entity and client objects causing display issues (Resolved)
+   - ✓ Explicit queryFns implementation for cascading selection of clients/entities/services (Resolved)
 
 ## In Progress / Next Steps
 - Complete Tasks Module implementation
-  - Fix entity and service selection dropdown issues
+  - ✓ Fix entity and service selection dropdown issues (Resolved)
   - Implement Compliance Configuration tab functionality
   - Implement Invoice Information tab functionality
   - Add edit and delete functionality for tasks
   - Implement recurring tasks feature
+  - Implement task status change functionality
 - Dashboard with analytics
 - User management for firms
 - Client portal access management
@@ -222,6 +226,14 @@ This document provides a comprehensive overview of the progress made on the Acco
 - Reports and exports
 - Client contact management
 - Invoice and payment tracking
+
+## Recent Improvements
+- Fixed entity and service selection in the Revenue Task form:
+  - Implemented explicit queryFn with proper error handling for client/entity/service API calls
+  - Resolved display issues in dropdowns by making them correctly show and maintain selected values
+  - Added improved empty state handling for dropdowns
+  - Fixed type issues with entity objects having different property structures using type casting
+  - Added comprehensive debugging information to trace data flow through the cascading selections
 
 ## Technical Implementation Details
 
@@ -258,4 +270,4 @@ This document provides a comprehensive overview of the progress made on the Acco
 ## Conclusion
 The project has made significant progress with a solid foundation in place. The authentication system is working correctly, and the Setup Module is fully functional. The Clients Module has been substantially enhanced with complete CRUD operations for clients and entities, as well as comprehensive entity configuration capabilities for services and tax jurisdictions. 
 
-The Tasks Module is currently under development with the basic functionality for task listing and creation implemented. The Administrative Task form is complete and functional, while the Revenue Task form is still being refined to address dropdown selection issues related to entity and service fields. The implementation of the Compliance Configuration and Invoice Information tabs is pending, along with edit/delete functionality for tasks. Future phases will include recurring tasks, dashboard analytics, and client portal access.
+The Tasks Module is currently under development with the basic functionality for task listing and creation implemented. The Administrative Task form is complete and functional, and the Revenue Task form has been improved to fix entity and service selection issues. The cascading dropdowns now correctly display selected values and maintain their state throughout the form interaction process. The implementation of the Compliance Configuration and Invoice Information tabs is pending, along with edit/delete functionality for tasks. Future phases will include recurring tasks, dashboard analytics, and client portal access.
