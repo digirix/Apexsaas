@@ -1,15 +1,21 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Client, Entity, Country, State, EntityType } from "@shared/schema";
-import { ArrowLeft, Edit, Plus, MapPin, Building, FileText, Settings } from "lucide-react";
+import { ArrowLeft, Edit, Plus, MapPin, Building, FileText, Settings, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { AddEntityModal } from "./add-entity-modal";
+import { EditEntityModal } from "./edit-entity-modal";
 import { EntityConfigModal } from "./entity-config-modal";
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
+import { EditClientModal } from "./edit-client-modal";
 
 interface ClientDetailProps {
   clientId: number;
@@ -19,8 +25,14 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
   const [, setLocation] = useLocation();
   const [isAddEntityModalOpen, setIsAddEntityModalOpen] = useState(false);
   const [isEntityConfigModalOpen, setIsEntityConfigModalOpen] = useState(false);
+  const [isEditEntityModalOpen, setIsEditEntityModalOpen] = useState(false);
+  const [isEditClientModalOpen, setIsEditClientModalOpen] = useState(false);
+  const [isDeleteEntityModalOpen, setIsDeleteEntityModalOpen] = useState(false);
   const [selectedEntityId, setSelectedEntityId] = useState<number | null>(null);
+  const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState("entities");
+  const { toast } = useToast();
 
   const { data: client, isLoading: isClientLoading } = useQuery<Client>({
     queryKey: [`/api/v1/clients/${clientId}`],
@@ -112,6 +124,65 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
     return colors[hash % colors.length];
   }
 
+  // Entity deletion
+  const deleteEntity = useMutation({
+    mutationFn: async (entityId: number) => {
+      const response = await apiRequest(
+        "DELETE",
+        `/api/v1/entities/${entityId}`,
+        {}
+      );
+      return response;
+    },
+    onSuccess: () => {
+      setIsDeleting(false);
+      setIsDeleteEntityModalOpen(false);
+      setSelectedEntity(null);
+      
+      queryClient.invalidateQueries({
+        queryKey: [`/api/v1/clients/${clientId}/entities`],
+      });
+      
+      toast({
+        title: "Entity deleted",
+        description: "Entity has been deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      setIsDeleting(false);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete entity",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Handle edit entity
+  const handleEditEntity = (entity: Entity) => {
+    setSelectedEntity(entity);
+    setIsEditEntityModalOpen(true);
+  };
+  
+  // Handle delete entity
+  const handleDeleteEntity = (entity: Entity) => {
+    setSelectedEntity(entity);
+    setIsDeleteEntityModalOpen(true);
+  };
+  
+  // Edit client
+  const handleEditClient = () => {
+    setIsEditClientModalOpen(true);
+  };
+  
+  // Confirm entity deletion
+  const confirmDeleteEntity = () => {
+    if (!selectedEntity) return;
+    
+    setIsDeleting(true);
+    deleteEntity.mutate(selectedEntity.id);
+  };
+
   const handleBackToClients = () => {
     setLocation("/clients");
   };
@@ -152,7 +223,11 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
         </div>
         
         <div className="flex space-x-3">
-          <Button variant="outline" size="sm">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleEditClient}
+          >
             <Edit className="-ml-0.5 mr-2 h-4 w-4 text-slate-500" />
             Edit Client
           </Button>
@@ -310,9 +385,18 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
                             size="icon" 
                             className="h-9 w-9"
                             title="Edit Entity"
-                            onClick={() => {/* TODO: Add entity edit modal */}}
+                            onClick={() => handleEditEntity(entity)}
                           >
                             <Edit className="h-5 w-5" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            className="h-9 w-9 text-red-500 hover:text-red-600"
+                            title="Delete Entity"
+                            onClick={() => handleDeleteEntity(entity)}
+                          >
+                            <Trash2 className="h-5 w-5" />
                           </Button>
                         </div>
                       </div>
@@ -390,6 +474,37 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
         }}
         entityId={selectedEntityId}
         clientId={clientId}
+      />
+      
+      {/* Edit Client Modal */}
+      <EditClientModal
+        isOpen={isEditClientModalOpen}
+        onClose={() => setIsEditClientModalOpen(false)}
+        client={client}
+      />
+      
+      {/* Edit Entity Modal */}
+      <EditEntityModal
+        isOpen={isEditEntityModalOpen}
+        onClose={() => {
+          setIsEditEntityModalOpen(false);
+          setSelectedEntity(null);
+        }}
+        entity={selectedEntity}
+        clientId={clientId}
+      />
+      
+      {/* Delete Entity Confirmation */}
+      <DeleteConfirmationDialog
+        isOpen={isDeleteEntityModalOpen}
+        onClose={() => {
+          setIsDeleteEntityModalOpen(false);
+          setSelectedEntity(null);
+        }}
+        onConfirm={confirmDeleteEntity}
+        title="Delete Entity"
+        description={`Are you sure you want to delete entity "${selectedEntity?.name}"? This action cannot be undone.`}
+        isDeleting={isDeleting}
       />
     </>
   );

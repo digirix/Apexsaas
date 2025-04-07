@@ -1,12 +1,24 @@
-import { Search, Filter, Plus } from "lucide-react";
+import { Search, Filter, Plus, Edit, Trash2, MoreHorizontal } from "lucide-react";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Client } from "@shared/schema";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { AddClientModal } from "./add-client-modal";
+import { EditClientModal } from "./edit-client-modal";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator
+} from "@/components/ui/dropdown-menu";
 import {
   Pagination,
   PaginationContent,
@@ -21,6 +33,11 @@ export function ClientList() {
   const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
+  const [isEditClientModalOpen, setIsEditClientModalOpen] = useState(false);
+  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { toast } = useToast();
 
   const { data: clients = [], isLoading } = useQuery<Client[]>({
     queryKey: ["/api/v1/clients"],
@@ -55,8 +72,65 @@ export function ClientList() {
     return colors[hash % colors.length];
   }
 
+  // Delete client mutation
+  const deleteClient = useMutation({
+    mutationFn: async (clientId: number) => {
+      const response = await apiRequest(
+        "DELETE",
+        `/api/v1/clients/${clientId}`,
+        {}
+      );
+      return response;
+    },
+    onSuccess: () => {
+      setIsDeleting(false);
+      setIsDeleteConfirmationOpen(false);
+      setSelectedClient(null);
+      
+      queryClient.invalidateQueries({
+        queryKey: ["/api/v1/clients"],
+      });
+      
+      toast({
+        title: "Client deleted",
+        description: "Client has been deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      setIsDeleting(false);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete client",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle view client
   function handleViewClient(clientId: number) {
     setLocation(`/clients/${clientId}`);
+  }
+  
+  // Handle edit client
+  function handleEditClient(client: Client, event: React.MouseEvent) {
+    event.stopPropagation();
+    setSelectedClient(client);
+    setIsEditClientModalOpen(true);
+  }
+  
+  // Handle delete client
+  function handleDeleteClient(client: Client, event: React.MouseEvent) {
+    event.stopPropagation();
+    setSelectedClient(client);
+    setIsDeleteConfirmationOpen(true);
+  }
+  
+  // Confirm deletion
+  function confirmDelete() {
+    if (!selectedClient) return;
+    
+    setIsDeleting(true);
+    deleteClient.mutate(selectedClient.id);
   }
 
   return (
@@ -119,43 +193,69 @@ export function ClientList() {
           <ul className="divide-y divide-slate-200">
             {filteredClients.map((client) => (
               <li key={client.id} className="hover:bg-slate-50">
-                <button
-                  className="block w-full text-left"
-                  onClick={() => handleViewClient(client.id)}
-                >
-                  <div className="px-4 py-4 sm:px-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <Avatar className={`h-10 w-10 ${getRandomColor(client.displayName)}`}>
-                          <AvatarFallback className="text-white">
-                            {getInitials(client.displayName)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-slate-900">
-                            {client.displayName}
-                          </div>
-                          <div className="text-sm text-slate-500">
-                            {client.email}
-                          </div>
+                <div className="px-4 py-4 sm:px-6">
+                  <div className="flex items-center justify-between">
+                    <button
+                      className="flex items-center text-left"
+                      onClick={() => handleViewClient(client.id)}
+                    >
+                      <Avatar className={`h-10 w-10 ${getRandomColor(client.displayName)}`}>
+                        <AvatarFallback className="text-white">
+                          {getInitials(client.displayName)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-slate-900">
+                          {client.displayName}
+                        </div>
+                        <div className="text-sm text-slate-500">
+                          {client.email}
                         </div>
                       </div>
-                      <div>
-                        <div className="flex flex-col items-end">
-                          <div className="text-sm text-slate-500">
-                            {/* Will be populated with entities count in real app */}
-                            0 Entities
-                          </div>
-                          <div className="mt-1 flex items-center">
-                            <Badge variant={client.status === 'Active' ? 'success' : 'warning'}>
-                              {client.status}
-                            </Badge>
-                          </div>
+                    </button>
+                    <div className="flex items-center space-x-4">
+                      <div className="flex flex-col items-end">
+                        <div className="text-sm text-slate-500">
+                          {/* Will be populated with entities count in real app */}
+                          0 Entities
+                        </div>
+                        <div className="mt-1 flex items-center">
+                          <Badge variant={client.status === 'Active' ? 'success' : 'warning'}>
+                            {client.status}
+                          </Badge>
                         </div>
                       </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreHorizontal className="h-5 w-5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem 
+                            onClick={(e: any) => handleEditClient(client, e)}
+                            className="cursor-pointer"
+                          >
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={(e: any) => handleDeleteClient(client, e)}
+                            className="cursor-pointer text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
-                </button>
+                </div>
               </li>
             ))}
           </ul>
@@ -209,6 +309,29 @@ export function ClientList() {
       <AddClientModal
         isOpen={isAddClientModalOpen}
         onClose={() => setIsAddClientModalOpen(false)}
+      />
+      
+      {/* Edit Client Modal */}
+      <EditClientModal
+        isOpen={isEditClientModalOpen}
+        onClose={() => {
+          setIsEditClientModalOpen(false);
+          setSelectedClient(null);
+        }}
+        client={selectedClient}
+      />
+      
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={isDeleteConfirmationOpen}
+        onClose={() => {
+          setIsDeleteConfirmationOpen(false);
+          setSelectedClient(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Delete Client"
+        description={`Are you sure you want to delete client "${selectedClient?.displayName}"? This action cannot be undone.`}
+        isDeleting={isDeleting}
       />
     </>
   );

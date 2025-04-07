@@ -701,7 +701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Zod validation errors:", error.errors);
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
-      res.status(500).json({ message: "Failed to create entity", error: error.message });
+      res.status(500).json({ message: "Failed to create entity", error: error instanceof Error ? error.message : String(error) });
     }
   });
 
