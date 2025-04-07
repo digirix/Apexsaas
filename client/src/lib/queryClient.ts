@@ -29,12 +29,11 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-export async function apiRequest<T>(options: {
-  url: string;
-  method?: string;
-  data?: unknown;
-}): Promise<T> {
-  const { url, method = 'GET', data } = options;
+export async function apiRequest(
+  method: string,
+  url: string,
+  data?: unknown | undefined,
+): Promise<Response> {
   console.log(`API Request: ${method} ${url}`, data ? data : '');
   
   try {
@@ -48,8 +47,7 @@ export async function apiRequest<T>(options: {
     console.log(`API Response: ${res.status} from ${method} ${url}`);
     
     await throwIfResNotOk(res);
-    const responseData = await res.json();
-    return responseData as T;
+    return res;
   } catch (error) {
     console.error(`API Request failed: ${method} ${url}`, error);
     throw error;
