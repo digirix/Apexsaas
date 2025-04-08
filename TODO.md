@@ -1,87 +1,55 @@
-# Accounting Firm Management Application - TODO List
+# TODO List - Accounting Management Application
 
-This document outlines the remaining tasks needed to complete the full scope of the application based on the requirements and current progress.
+## Tasks Module - Priority Tasks
+- [ ] Fix type mismatch issues in task creation/editing forms
+  - [ ] Update `taskCategoryId` handling to convert string to number before submission
+  - [ ] Fix date field handling for compliance start/end dates
+  - [ ] Ensure proper type conversion for all form fields based on backend schema
 
-## Completed Modules
-- ✅ **Setup Module**: Countries, Currencies, States, Entity Types, Task Statuses, Service Types, Tax Jurisdictions, Departments, Designations
-- ✅ **Clients Module**: Client management, Entity management, Service subscription configuration, Tax jurisdiction assignment
-- ✅ **Users Module**: User listing, User creation wizard, User editing, Permission management system with Full/Partial/Restricted access
+- [ ] Recurring Tasks Implementation
+  - [ ] Create "Auto Generated Tasks" module/view
+  - [ ] Implement automatic task generation based on compliance frequency
+  - [ ] Add approval workflow for auto-generated tasks
+  - [ ] Create task inheritance mechanism for recurring tasks
 
-## Modules in Progress
+- [ ] Task Workflow Enhancements
+  - [ ] Implement status transition rules
+  - [ ] Add validation to prevent invalid status changes
+  - [ ] Optimize the task filtering component with better UX
+  - [ ] Implement notifications for task assignments and approaching deadlines
 
-### Tasks Module (90% Complete)
-- ✅ Task creation with two-tab interface (Administrative vs. Revenue tasks)
-- ✅ Task listing with filtering
-- ⏳ Task editing and status changes
-- ⏳ Recurring tasks functionality
-- ⏳ Task completion and workflow
-- ⏳ Task comments and attachments
+## Future Enhancements - Post-MVP
+- [ ] Dashboard Analytics
+  - [ ] Task completion metrics
+  - [ ] Deadline compliance tracking
+  - [ ] Workload distribution by assignee
 
-## Remaining Modules to Implement
+- [ ] Client Portal Features
+  - [ ] Document sharing functionality
+  - [ ] Client approval workflow for tasks
+  - [ ] Client notification system
 
-### Finance Management Module
-- 🔲 Invoice creation and management
-- 🔲 Payment tracking and reconciliation
-- 🔲 Financial reporting
-- 🔲 Billing rate management
-- 🔲 Revenue recognition
-- 🔲 Payment integration
+- [ ] Finance Integration
+  - [ ] Invoice generation from task data
+  - [ ] Payment tracking connected to tasks
+  - [ ] Financial reporting
 
-### Client Portal
-- 🔲 Client login system
-- 🔲 Client dashboard
-- 🔲 Entity information view
-- 🔲 Document sharing
-- 🔲 Task approval system
-- 🔲 Communication channel
+## Technical Improvements
+- [ ] Fix TypeScript LSP errors in key components
+  - [ ] Properly type all unknown arrays and parameters
+  - [ ] Add proper type definitions for API responses
+  - [ ] Update React Query usage to properly type query results
 
-### Workflow Automation Module
-- 🔲 Workflow definition interface
-- 🔲 Workflow triggers
-- 🔲 Workflow actions
-- 🔲 Workflow conditions
-- 🔲 Workflow testing and monitoring
+- [ ] Performance Optimizations
+  - [ ] Implement query caching strategy to reduce API calls
+  - [ ] Optimize component rendering for large lists
+  - [ ] Review and improve database query performance
 
-### Settings Module
-- 🔲 Global application settings
-- 🔲 Payment gateway integration
-- 🔲 Email notification settings
-- 🔲 Default values and preferences
-
-### AI Integration Features
-- 🔲 AI assistance for service recommendations
-- 🔲 AI suggestion for task content
-- 🔲 AI-powered workflow optimization
-- 🔲 AI settings and management
-- 🔲 Learning system for ongoing improvements
-
-## Immediate Next Steps
-
-1. **Tasks Module Completion**
-   - Implement task editing functionality
-   - Add task status workflow management
-   - Complete recurring tasks feature
-   - Add task assignment notifications
-
-2. **User Module Enhancements**
-   - Add password reset functionality
-   - Implement user profile management
-   - Add user activity logging and audit trails
-   - Create bulk permission operations
-
-3. **Dashboard Development**
-   - Create firm performance analytics
-   - Add task statistics and charts
-   - Implement deadline monitoring
-   - Create compliance calendar view
-
-## Critical Bugs to Address
-- 🐞 Login issue with member accounts (salt missing from password verification)
-- 🐞 Nested `<a>` tag warning in sidebar component
-
-## Technical Debt Items
-- ⚠️ Update validation handling consistently across forms
-- ⚠️ Improve error reporting and user feedback
-- ⚠️ Refactor and optimize query invalidation patterns
-- ⚠️ Enhance mobile responsiveness
-- ⚠️ Implement consistent loading states across all components
+## Completed Tasks
+- [x] Implement task creation for Administrative tasks
+- [x] Implement task creation for Revenue tasks
+- [x] Create task details view with proper formatting
+- [x] Add task edit functionality
+- [x] Implement task completion workflow
+- [x] Add dynamic currency selection from Setup Module
+- [x] Create filtering system for tasks list
