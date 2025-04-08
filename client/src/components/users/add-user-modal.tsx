@@ -62,19 +62,36 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
   const createUserMutation = useMutation({
     mutationFn: async (userData: Omit<FormValues, 'confirmPassword'>) => {
       console.log("Creating user with data:", userData);
-      const response = await fetch('/api/v1/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData),
-        credentials: 'include'
-      });
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: "Unknown error occurred" }));
-        throw new Error(errorData.message || "Failed to create user");
+      try {
+        const response = await fetch('/api/v1/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(userData),
+          credentials: 'include'
+        });
+        
+        console.log("API Response Status:", response.status);
+        
+        if (!response.ok) {
+          let errorMessage = "Failed to create user";
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorMessage;
+            console.error("API Error Response:", errorData);
+          } catch (e) {
+            console.error("Error parsing error response:", e);
+          }
+          throw new Error(errorMessage);
+        }
+        
+        const result = await response.json();
+        console.log("API Success Response:", result);
+        return result;
+      } catch (error) {
+        console.error("API Request Failed:", error);
+        throw error;
       }
-      
-      return response.json();
     },
     onSuccess: (data) => {
       console.log("User created successfully:", data);
@@ -85,9 +102,10 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
       });
       form.reset();
       setSubmitting(false);
+      onClose(); // Close the modal after success
       onSuccess();
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       console.error("Error in mutation:", error);
       toast({
         title: "Error creating user",
@@ -98,13 +116,33 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
     },
   });
 
-  const onSubmit = (data: FormValues) => {
-    setSubmitting(true);
-    const { confirmPassword, ...userData } = data;
-    // Use mutate instead of mutateAsync to avoid double try/catch 
-    // and let the mutation's onError handle errors properly
-    createUserMutation.mutate(userData);
-    console.log("Form submitted with data:", userData);
+  // Form submission handler
+  const onSubmit = async (data: FormValues) => {
+    console.log("Form submission started", data);
+    try {
+      setSubmitting(true);
+      const { confirmPassword, ...userData } = data;
+      console.log("Form data processed, submitting:", userData);
+      
+      // Make sure the form is valid before submitting
+      await form.trigger();
+      if (!form.formState.isValid) {
+        console.error("Form validation failed:", form.formState.errors);
+        setSubmitting(false);
+        return;
+      }
+      
+      // Submit the form data
+      createUserMutation.mutate(userData);
+    } catch (error) {
+      console.error("Error in form submission:", error);
+      setSubmitting(false);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while submitting the form",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleClose = () => {
@@ -125,7 +163,12 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={(e) => {
+              e.preventDefault();
+              console.log("Form submit event triggered");
+              form.handleSubmit(onSubmit)(e);
+            }} 
+            className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -288,6 +331,13 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
               <Button 
                 type="submit" 
                 disabled={submitting}
+                onClick={(e) => {
+                  console.log("Submit button clicked");
+                  if (!form.formState.isSubmitting) {
+                    e.preventDefault();
+                    form.handleSubmit(onSubmit)();
+                  }
+                }}
               >
                 {submitting ? "Creating..." : "Create User"}
               </Button>
