@@ -1,6 +1,38 @@
-import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, varchar, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, varchar, unique, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+// Module permissions access level enum
+export const accessLevelEnum = pgEnum('access_level', ['full', 'partial', 'restricted']);
+
+// User permissions table
+export const userPermissions = pgTable("user_permissions", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  userId: integer("user_id").notNull(),
+  module: text("module").notNull(), // clients, tasks, setup, users, etc.
+  accessLevel: accessLevelEnum("access_level").notNull(),
+  canCreate: boolean("can_create").default(false).notNull(),
+  canRead: boolean("can_read").default(false).notNull(),
+  canUpdate: boolean("can_update").default(false).notNull(),
+  canDelete: boolean("can_delete").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    userModuleUnique: unique().on(table.userId, table.module),
+  };
+});
+
+export const insertUserPermissionSchema = createInsertSchema(userPermissions).pick({
+  tenantId: true,
+  userId: true,
+  module: true,
+  accessLevel: true,
+  canCreate: true,
+  canRead: true,
+  canUpdate: true,
+  canDelete: true,
+});
 
 // Tenants table
 export const tenants = pgTable("tenants", {
@@ -449,6 +481,9 @@ export type InsertEntityServiceSubscription = z.infer<typeof insertEntityService
 
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
+
+export type UserPermission = typeof userPermissions.$inferSelect;
+export type InsertUserPermission = z.infer<typeof insertUserPermissionSchema>;
 
 // Auth schemas
 export const loginSchema = z.object({

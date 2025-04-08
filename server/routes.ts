@@ -8,7 +8,7 @@ import {
   insertClientSchema, insertEntitySchema, insertTaskSchema,
   insertDesignationSchema, insertDepartmentSchema, insertUserSchema,
   insertTaxJurisdictionSchema, insertEntityTaxJurisdictionSchema,
-  insertEntityServiceSubscriptionSchema
+  insertEntityServiceSubscriptionSchema, insertUserPermissionSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -1206,6 +1206,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete member" });
+    }
+  });
+  
+  // User Permissions
+  app.get("/api/v1/members/:userId/permissions", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = parseInt(req.params.userId);
+      
+      const permissions = await storage.getUserPermissions(tenantId, userId);
+      res.json(permissions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch permissions" });
+    }
+  });
+  
+  app.get("/api/v1/members/:userId/permissions/:module", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = parseInt(req.params.userId);
+      const module = req.params.module;
+      
+      const permission = await storage.getUserPermission(tenantId, userId, module);
+      if (!permission) {
+        return res.status(404).json({ message: "Permission not found" });
+      }
+      
+      res.json(permission);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch permission" });
+    }
+  });
+  
+  app.post("/api/v1/members/:userId/permissions", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = parseInt(req.params.userId);
+      
+      // Check if user exists
+      const user = await storage.getUser(userId);
+      if (!user || user.tenantId !== tenantId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Check if permission for this module already exists
+      const existingPermission = await storage.getUserPermission(tenantId, userId, req.body.module);
+      if (existingPermission) {
+        return res.status(400).json({ message: "Permission for this module already exists" });
+      }
+      
+      const data = { ...req.body, tenantId, userId };
+      const validatedData = insertUserPermissionSchema.parse(data);
+      const permission = await storage.createUserPermission(validatedData);
+      
+      res.status(201).json(permission);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create permission" });
+    }
+  });
+  
+  app.put("/api/v1/members/:userId/permissions/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = parseInt(req.params.userId);
+      const id = parseInt(req.params.id);
+      
+      // Verify the permission belongs to this tenant and user
+      const existingPermission = await storage.getUserPermission(tenantId, userId, req.body.module);
+      if (!existingPermission || existingPermission.id !== id) {
+        return res.status(404).json({ message: "Permission not found" });
+      }
+      
+      const updatedPermission = await storage.updateUserPermission(id, req.body);
+      res.json(updatedPermission);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update permission" });
+    }
+  });
+  
+  app.delete("/api/v1/members/:userId/permissions/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const success = await storage.deleteUserPermission(id, tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "Permission not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete permission" });
     }
   });
   
