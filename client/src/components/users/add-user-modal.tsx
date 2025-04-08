@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { InsertUser, insertUserSchema, Department, Designation } from "@shared/schema";
 
 interface AddUserModalProps {
@@ -61,22 +61,12 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
   // Create user mutation
   const createUserMutation = useMutation({
     mutationFn: async (userData: Omit<FormValues, 'confirmPassword'>) => {
-      const { confirmPassword, ...userDataWithoutConfirm } = userData as any;
-      
-      const response = await fetch("/api/v1/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(userDataWithoutConfirm),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to create user");
-      }
-      
+      console.log("Creating user with data:", userData);
+      const response = await apiRequest('POST', '/api/v1/users', userData);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("User created successfully:", data);
       queryClient.invalidateQueries({ queryKey: ['/api/v1/users'] });
       toast({
         title: "User created",
@@ -87,24 +77,23 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
       onSuccess();
     },
     onError: (error: Error) => {
+      console.error("Error in mutation:", error);
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Error creating user",
+        description: error.message || "An error occurred while creating the user",
         variant: "destructive",
       });
       setSubmitting(false);
     },
   });
 
-  const onSubmit = async (data: FormValues) => {
-    try {
-      setSubmitting(true);
-      const { confirmPassword, ...userData } = data;
-      await createUserMutation.mutateAsync(userData);
-    } catch (error) {
-      console.error("Error in form submission:", error);
-      setSubmitting(false);
-    }
+  const onSubmit = (data: FormValues) => {
+    setSubmitting(true);
+    const { confirmPassword, ...userData } = data;
+    // Use mutate instead of mutateAsync to avoid double try/catch 
+    // and let the mutation's onError handle errors properly
+    createUserMutation.mutate(userData);
+    console.log("Form submitted with data:", userData);
   };
 
   const handleClose = () => {

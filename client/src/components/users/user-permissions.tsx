@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, CheckCircle2, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { UserPermission, InsertUserPermission, accessLevelEnum } from "@shared/schema";
 
 // Define available modules
@@ -89,12 +89,8 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
   // Delete permission mutation
   const deletePermissionMutation = useMutation({
     mutationFn: async (id: number) => {
-      return fetch(`/api/v1/user-permissions/${id}`, {
-        method: "DELETE"
-      }).then(res => {
-        if (!res.ok) throw new Error("Failed to delete permission");
-        return true;
-      });
+      const response = await apiRequest('DELETE', `/api/v1/user-permissions/${id}`);
+      return true;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/v1/users/${userId}/permissions`] });
@@ -118,23 +114,11 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
   const permissionMutation = useMutation({
     mutationFn: async (data: InsertUserPermission) => {
       if (selectedPermission) {
-        return fetch(`/api/v1/user-permissions/${selectedPermission.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data)
-        }).then(res => {
-          if (!res.ok) throw new Error("Failed to update permission");
-          return res.json();
-        });
+        const response = await apiRequest('PUT', `/api/v1/user-permissions/${selectedPermission.id}`, data);
+        return response.json();
       } else {
-        return fetch("/api/v1/user-permissions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data)
-        }).then(res => {
-          if (!res.ok) throw new Error("Failed to create permission");
-          return res.json();
-        });
+        const response = await apiRequest('POST', '/api/v1/user-permissions', data);
+        return response.json();
       }
     },
     onSuccess: () => {
