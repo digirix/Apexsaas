@@ -156,6 +156,12 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
     enabled: isOpen && task && !task.isAdmin,
   });
   
+  // Fetch currencies from setup module
+  const { data: currencies = [] } = useQuery({
+    queryKey: ["/api/v1/setup/currencies"],
+    enabled: isOpen && task && !task.isAdmin,
+  });
+  
   // Fetch entities for selected client
   const { data: entities = [] } = useQuery({
     queryKey: ["/api/v1/clients", task?.clientId, "entities"],
@@ -1212,12 +1218,27 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Currency</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    placeholder="E.g., USD, EUR, GBP"
-                                    {...field}
-                                  />
-                                </FormControl>
+                                <Select
+                                  onValueChange={field.onChange}
+                                  value={field.value || ""}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select currency" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {currencies.length === 0 ? (
+                                      <SelectItem value="USD">USD - United States Dollar</SelectItem>
+                                    ) : (
+                                      currencies.map((currency: any) => (
+                                        <SelectItem key={currency.id} value={currency.code}>
+                                          {currency.code} - {currency.name}
+                                        </SelectItem>
+                                      ))
+                                    )}
+                                  </SelectContent>
+                                </Select>
                                 <FormDescription>
                                   The currency for invoicing this task
                                 </FormDescription>

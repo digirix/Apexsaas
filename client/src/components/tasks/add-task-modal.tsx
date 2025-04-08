@@ -229,6 +229,12 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
     enabled: isOpen,
   });
   
+  // Fetch currencies from setup module
+  const { data: currencies = [], isLoading: isLoadingCurrencies } = useQuery({
+    queryKey: ["/api/v1/setup/currencies"],
+    enabled: isOpen && taskType === "revenue",
+  });
+  
   // Create task mutation for admin tasks
   const createAdminTaskMutation = useMutation({
     mutationFn: async (data: AdminTaskFormValues) => {
@@ -1292,15 +1298,19 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
-                                    <SelectItem value="USD">USD - United States Dollar</SelectItem>
-                                    <SelectItem value="EUR">EUR - Euro</SelectItem>
-                                    <SelectItem value="GBP">GBP - British Pound</SelectItem>
-                                    <SelectItem value="INR">INR - Indian Rupee</SelectItem>
-                                    <SelectItem value="AUD">AUD - Australian Dollar</SelectItem>
-                                    <SelectItem value="CAD">CAD - Canadian Dollar</SelectItem>
-                                    <SelectItem value="SGD">SGD - Singapore Dollar</SelectItem>
-                                    <SelectItem value="JPY">JPY - Japanese Yen</SelectItem>
-                                    <SelectItem value="CNY">CNY - Chinese Yuan</SelectItem>
+                                    {isLoadingCurrencies ? (
+                                      <div className="flex justify-center items-center py-2">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      </div>
+                                    ) : currencies.length === 0 ? (
+                                      <SelectItem value="USD">USD - United States Dollar</SelectItem>
+                                    ) : (
+                                      currencies.map((currency) => (
+                                        <SelectItem key={currency.id} value={currency.code}>
+                                          {currency.code} - {currency.name}
+                                        </SelectItem>
+                                      ))
+                                    )}
                                   </SelectContent>
                                 </Select>
                                 <FormDescription>
