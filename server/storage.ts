@@ -251,7 +251,11 @@ export class MemStorage implements IStorage {
 
   // User operations
   async getUsers(tenantId: number): Promise<User[]> {
-    return Array.from(this.users.values()).filter(user => user.tenantId === tenantId);
+    console.log("Getting users for tenant", tenantId);
+    console.log("Total users:", this.users.size);
+    const users = Array.from(this.users.values());
+    console.log("All users:", users.map(u => ({ id: u.id, email: u.email, tenantId: u.tenantId, isSuperAdmin: u.isSuperAdmin })));
+    return users.filter(user => user.tenantId === tenantId);
   }
 
   async createUser(user: InsertUser): Promise<User> {

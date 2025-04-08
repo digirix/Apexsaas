@@ -1113,6 +1113,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 3. Members (Users)
+  // Support both endpoints for users (/members for legacy, /users for new frontend)
+  app.get("/api/v1/users", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const users = await storage.getUsers(tenantId);
+      
+      // Don't send password data to the client
+      const members = users.map(user => {
+        const { password, ...memberData } = user;
+        return memberData;
+      });
+      
+      console.log(`GET /api/v1/users - Found ${members.length} users`);
+      res.json(members);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+  
+  // Legacy endpoint for backward compatibility
   app.get("/api/v1/members", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
@@ -1130,6 +1151,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // New endpoint for creating users
+  app.post("/api/v1/users", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const data = { ...req.body, tenantId };
+      
+      // Validate the user data
+      const validatedData = insertUserSchema.parse(data);
+      
+      // Check if email already exists
+      const existingUser = await storage.getUserByEmail(validatedData.email, tenantId);
+      if (existingUser) {
+        return res.status(409).json({ message: "A user with this email already exists" });
+      }
+      
+      // Create the user
+      const user = await storage.createUser(validatedData);
+      
+      // Don't send password back to client
+      const { password, ...userData } = user;
+      
+      console.log("Created new user:", userData);
+      res.status(201).json(userData);
+    } catch (error) {
+      console.error("Error creating user:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create user" });
+    }
+  });
+
+  // Legacy endpoint for creating members
   app.post("/api/v1/members", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
@@ -1159,6 +1213,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add PUT endpoint for users
+  app.put("/api/v1/users/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if user belongs to tenant
+      const existingUser = await storage.getUser(id);
+      if (!existingUser || existingUser.tenantId !== tenantId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Update user
+      const updatedUser = await storage.updateUser(id, req.body);
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Don't send password back to client
+      const { password, ...userData } = updatedUser;
+      
+      res.json(userData);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  // Add DELETE endpoint for users
+  app.delete("/api/v1/users/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Prevent deleting yourself
+      if (id === (req.user as any).id) {
+        return res.status(403).json({ message: "You cannot delete your own account" });
+      }
+      
+      const success = await storage.deleteUser(id, tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  // Legacy PUT endpoint for members
   app.put("/api/v1/members/:id", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
@@ -1188,6 +1295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Legacy DELETE endpoint for members
   app.delete("/api/v1/members/:id", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
