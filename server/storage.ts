@@ -137,6 +137,7 @@ export interface IStorage {
   // User Permission operations
   getUserPermissions(tenantId: number, userId: number): Promise<UserPermission[]>;
   getUserPermission(tenantId: number, userId: number, module: string): Promise<UserPermission | undefined>;
+  getUserPermissionById(id: number, tenantId: number): Promise<UserPermission | undefined>;
   createUserPermission(permission: InsertUserPermission): Promise<UserPermission>;
   updateUserPermission(id: number, permission: Partial<InsertUserPermission>): Promise<UserPermission | undefined>;
   deleteUserPermission(id: number, tenantId: number): Promise<boolean>;
@@ -1092,6 +1093,14 @@ export class MemStorage implements IStorage {
       .find(permission => permission.tenantId === tenantId && 
             permission.userId === userId && 
             permission.module === module);
+  }
+  
+  async getUserPermissionById(id: number, tenantId: number): Promise<UserPermission | undefined> {
+    const permission = this.userPermissions.get(id);
+    if (permission && permission.tenantId === tenantId) {
+      return permission;
+    }
+    return undefined;
   }
   
   async createUserPermission(permission: InsertUserPermission): Promise<UserPermission> {

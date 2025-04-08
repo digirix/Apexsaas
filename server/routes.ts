@@ -1210,6 +1210,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // User Permissions
+  // GET endpoint for user permissions (updated to support both paths)
+  app.get("/api/v1/users/:userId/permissions", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = parseInt(req.params.userId);
+      
+      const permissions = await storage.getUserPermissions(tenantId, userId);
+      res.json(permissions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch permissions" });
+    }
+  });
+  
+  // Legacy endpoint kept for backward compatibility
   app.get("/api/v1/members/:userId/permissions", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
@@ -1222,6 +1236,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  app.get("/api/v1/users/:userId/permissions/:module", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = parseInt(req.params.userId);
+      const module = req.params.module;
+      
+      const permission = await storage.getUserPermission(tenantId, userId, module);
+      if (!permission) {
+        return res.status(404).json({ message: "Permission not found" });
+      }
+      
+      res.json(permission);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch permission" });
+    }
+  });
+
+  // Legacy endpoint for backward compatibility
   app.get("/api/v1/members/:userId/permissions/:module", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
@@ -1239,6 +1271,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Updated endpoint for POST /api/v1/user-permissions
+  app.post("/api/v1/user-permissions", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = req.body.userId;
+      
+      // Check if user exists
+      const user = await storage.getUser(userId);
+      if (!user || user.tenantId !== tenantId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Check if permission for this module already exists
+      const existingPermission = await storage.getUserPermission(tenantId, userId, req.body.module);
+      if (existingPermission) {
+        return res.status(400).json({ message: "Permission for this module already exists" });
+      }
+      
+      const data = { ...req.body, tenantId, userId };
+      const validatedData = insertUserPermissionSchema.parse(data);
+      const permission = await storage.createUserPermission(validatedData);
+      
+      res.status(201).json(permission);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create permission" });
+    }
+  });
+  
+  // Legacy endpoint for backward compatibility
   app.post("/api/v1/members/:userId/permissions", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
@@ -1269,6 +1333,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // New endpoint for updating permissions via PUT /api/v1/user-permissions/:id
+  app.put("/api/v1/user-permissions/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Get the permission directly
+      const permissionToUpdate = await storage.getUserPermissionById(id, tenantId);
+      if (!permissionToUpdate) {
+        return res.status(404).json({ message: "Permission not found" });
+      }
+      
+      const updatedPermission = await storage.updateUserPermission(id, req.body);
+      res.json(updatedPermission);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update permission" });
+    }
+  });
+  
+  // Legacy endpoint kept for backward compatibility
   app.put("/api/v1/members/:userId/permissions/:id", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
@@ -1291,6 +1378,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // New endpoint for DELETE /api/v1/user-permissions/:id
+  app.delete("/api/v1/user-permissions/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const success = await storage.deleteUserPermission(id, tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "Permission not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete permission" });
+    }
+  });
+  
+  // Legacy endpoint for backward compatibility
   app.delete("/api/v1/members/:userId/permissions/:id", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;

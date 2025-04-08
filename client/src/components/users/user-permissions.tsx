@@ -34,8 +34,16 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
     canDelete: false
   });
 
+  // Define user type
+  interface UserDetails {
+    id: number;
+    tenantId: number;
+    displayName: string;
+    email: string;
+  }
+  
   // Fetch user details
-  const { data: user } = useQuery({
+  const { data: user } = useQuery<UserDetails>({
     queryKey: [`/api/v1/users/${userId}`],
     enabled: !!userId
   });
@@ -72,6 +80,34 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
       });
     }
   }, [selectedPermission, selectedModule]);
+
+  // Delete permission mutation
+  const deletePermissionMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return fetch(`/api/v1/user-permissions/${id}`, {
+        method: "DELETE"
+      }).then(res => {
+        if (!res.ok) throw new Error("Failed to delete permission");
+        return true;
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/v1/users/${userId}/permissions`] });
+      refetchPermissions();
+      setSelectedModule(null);
+      toast({
+        title: "Permission deleted",
+        description: "The permission has been removed successfully.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
 
   // Create or update permission mutation
   const permissionMutation = useMutation({
@@ -120,12 +156,16 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
     // For now, we'll use 1 as the default tenant ID (this would normally come from the user context)
     const tenantId = user?.tenantId || 1;
     
-
-    const permissionData: InsertUserPermission = {
+    // Create the permission data with proper typing
+    const permissionData = {
       tenantId,
       userId,
       module: selectedModule,
-      ...permissionForm
+      accessLevel: permissionForm.accessLevel,
+      canRead: !!permissionForm.canRead,
+      canCreate: !!permissionForm.canCreate,
+      canUpdate: !!permissionForm.canUpdate,
+      canDelete: !!permissionForm.canDelete
     } as InsertUserPermission;
 
     permissionMutation.mutate(permissionData);
@@ -133,12 +173,19 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
 
   // Handle permission change
   const handlePermissionChange = (field: keyof InsertUserPermission, value: any) => {
-    setPermissionForm(prev => ({ ...prev, [field]: value }));
+    if (field === 'accessLevel') {
+      // Ensure accessLevel is one of the allowed values
+      const accessLevel = value as 'full' | 'partial' | 'restricted';
+      setPermissionForm(prev => ({ ...prev, accessLevel }));
+    } else {
+      // Handle other field types normally
+      setPermissionForm(prev => ({ ...prev, [field]: value }));
+    }
   };
 
   return (
     <div>
-      {user && (
+      {user ? (
         <div className="mb-6">
           <h2 className="text-xl font-semibold mb-2">
             Permissions for {user.displayName}
@@ -146,6 +193,10 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
           <p className="text-slate-500">
             Configure what this user can access and modify in each module
           </p>
+        </div>
+      ) : (
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold mb-2">Loading user information...</h2>
         </div>
       )}
 
@@ -284,13 +335,31 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
                       </div>
                     </div>
 
-                    <div className="pt-4">
-                      <Button 
-                        onClick={handleSavePermission}
-                        disabled={permissionMutation.isPending}
-                      >
-                        {permissionMutation.isPending ? "Saving..." : "Save Permissions"}
-                      </Button>
+                    <div className="pt-4 flex justify-between">
+                      <div>
+                        <Button 
+                          onClick={handleSavePermission}
+                          disabled={permissionMutation.isPending}
+                        >
+                          {permissionMutation.isPending ? "Saving..." : "Save Permissions"}
+                        </Button>
+                      </div>
+                      
+                      {selectedPermission && (
+                        <div>
+                          <Button 
+                            variant="destructive"
+                            onClick={() => {
+                              if (selectedPermission?.id && confirm("Are you sure you want to delete this permission?")) {
+                                deletePermissionMutation.mutate(selectedPermission.id);
+                              }
+                            }}
+                            disabled={deletePermissionMutation.isPending}
+                          >
+                            {deletePermissionMutation.isPending ? "Deleting..." : "Delete Permission"}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </>
