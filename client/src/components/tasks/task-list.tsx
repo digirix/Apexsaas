@@ -1,6 +1,8 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Task, User, TaskStatus } from "@shared/schema";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Task, User, TaskStatus, Client, Entity, TaskCategory } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Search, 
   Filter, 
@@ -9,11 +11,14 @@ import {
   CalendarClock, 
   CheckCircle, 
   AlertCircle,
-  Loader2
+  Loader2,
+  FilterX,
+  X,
+  UserCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
   Select, 
@@ -23,17 +28,42 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  Popover, 
+  PopoverContent, 
+  PopoverTrigger 
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AddTaskModal } from "./add-task-modal";
+import { TaskDetails } from "./task-details";
 
 export function TaskList() {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [taskTabFilter, setTaskTabFilter] = useState("all");
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
+  const [isTaskDetailsOpen, setIsTaskDetailsOpen] = useState(false);
   const [taskType, setTaskType] = useState<"admin" | "revenue">("admin");
+  const [showFilters, setShowFilters] = useState(false);
   
+  // Get current user for "My Tasks" tab
+  const { data: currentUser } = useQuery<{ id: number }>({
+    queryKey: ["/api/v1/auth/me"],
+    select: (data) => data || { id: 0 }
+  });
+
   // Fetch tasks with proper filters
-  const { data: tasks = [], isLoading: isLoadingTasks } = useQuery<Task[]>({
-    queryKey: ["/api/v1/tasks"],
+  const { data: tasks = [], isLoading: isLoadingTasks, refetch: refetchTasks } = useQuery<Task[]>({
+    queryKey: ["/api/v1/tasks", { 
+      status: statusFilter,
+      assignee: assigneeFilter,
+      category: categoryFilter,
+      search: searchTerm.length > 2 ? searchTerm : undefined
+    }],
   });
 
   // Fetch users
@@ -45,6 +75,121 @@ export function TaskList() {
   const { data: taskStatuses = [], isLoading: isLoadingStatuses } = useQuery<TaskStatus[]>({
     queryKey: ["/api/v1/setup/task-statuses"],
   });
+  
+  // Fetch admin task categories
+  const { data: adminTaskCategories = [] } = useQuery<TaskCategory[]>({
+    queryKey: ["/api/v1/setup/task-categories", { isAdmin: true }],
+  });
+  
+  // Fetch revenue task categories
+  const { data: revenueTaskCategories = [] } = useQuery<TaskCategory[]>({
+    queryKey: ["/api/v1/setup/task-categories", { isAdmin: false }],
+  });
+  
+  // Fetch clients for lookup
+  const { data: clients = [] } = useQuery<Client[]>({
+    queryKey: ["/api/v1/clients"],
+  });
+  
+  // Complete task mutation
+  const completeTaskMutation = useMutation({
+    mutationFn: async (taskId: number) => {
+      // Find the "Completed" status (rank 3)
+      const completedStatus = taskStatuses.find(s => s.rank === 3);
+      if (!completedStatus) throw new Error("Completed status not found");
+      
+      const payload = {
+        statusId: completedStatus.id
+      };
+      
+      const response = await apiRequest("PUT", `/api/v1/tasks/${taskId}`, payload);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/tasks"] });
+      toast({
+        title: "Task Completed",
+        description: "The task has been marked as completed.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to complete task. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Filter tasks based on tab selection
+  const filteredTasks = tasks.filter(task => {
+    const isCompleted = task.statusId === taskStatuses.find(s => s.rank === 3)?.id;
+    
+    switch (taskTabFilter) {
+      case "my":
+        return currentUser?.id === task.assigneeId;
+      case "admin":
+        return task.isAdmin;
+      case "revenue":
+        return !task.isAdmin;
+      case "upcoming":
+        return !isCompleted && new Date(task.dueDate) > new Date();
+      case "completed":
+        return isCompleted;
+      default:
+        return true;
+    }
+  });
+  
+  // Reset all filters
+  const resetFilters = () => {
+    setStatusFilter(null);
+    setAssigneeFilter(null);
+    setCategoryFilter(null);
+    setSearchTerm("");
+    setTaskTabFilter("all");
+  };
+  
+  // Handle task details view
+  const handleViewTaskDetails = (taskId: number) => {
+    setSelectedTaskId(taskId);
+    setIsTaskDetailsOpen(true);
+  };
+  
+  // Handle task completion
+  const handleCompleteTask = (taskId: number) => {
+    completeTaskMutation.mutate(taskId);
+  };
+  
+  // Find all task categories
+  const allTaskCategories = [...adminTaskCategories, ...revenueTaskCategories];
+  
+  // Find all entities
+  const [entities, setEntities] = useState<Entity[]>([]);
+  
+  // Fetch all entities for client lookup
+  useEffect(() => {
+    async function fetchEntities() {
+      try {
+        const clientPromises = clients.map(client => 
+          fetch(`/api/v1/clients/${client.id}/entities`)
+            .then(res => res.json())
+            .then(data => data)
+            .catch(() => [])
+        );
+        
+        const entityResults = await Promise.all(clientPromises);
+        const allEntities = entityResults.flat();
+        setEntities(allEntities);
+      } catch (error) {
+        console.error("Error fetching entities:", error);
+      }
+    }
+    
+    if (clients.length > 0) {
+      fetchEntities();
+    }
+  }, [clients]);
 
   return (
     <>
@@ -58,14 +203,25 @@ export function TaskList() {
           </div>
           
           <div className="flex space-x-3">
-            <Button variant="outline" size="sm">
-              <Filter className="-ml-1 mr-2 h-5 w-5 text-slate-500" />
-              Filter
+            <Button 
+              variant={showFilters ? "default" : "outline"} 
+              size="sm" 
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              {showFilters ? (
+                <FilterX className="-ml-1 mr-2 h-5 w-5" />
+              ) : (
+                <Filter className="-ml-1 mr-2 h-5 w-5 text-slate-500" />
+              )}
+              {showFilters ? "Hide Filters" : "Show Filters"}
             </Button>
-            <Button size="sm" onClick={() => {
-              setTaskType("admin");
-              setIsAddTaskModalOpen(true);
-            }}>
+            <Button 
+              size="sm" 
+              onClick={() => {
+                setTaskType("admin");
+                setIsAddTaskModalOpen(true);
+              }}
+            >
               <Plus className="-ml-1 mr-2 h-5 w-5" />
               Add Task
             </Button>
@@ -74,47 +230,111 @@ export function TaskList() {
       </div>
       
       {/* Search and filter row */}
-      <div className="mb-6 flex flex-col md:flex-row gap-4">
-        <div className="flex-1">
-          <div className="relative flex items-center">
-            <Search className="absolute left-3 h-5 w-5 text-slate-400" />
-            <Input
-              placeholder="Search tasks..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+      <div className="mb-6 flex flex-col gap-4">
+        <div className="relative flex items-center">
+          <Search className="absolute left-3 h-5 w-5 text-slate-400" />
+          <Input
+            placeholder="Search tasks..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+          {searchTerm && (
+            <Button 
+              variant="ghost" 
+              className="absolute right-2 h-7 w-7 px-0" 
+              onClick={() => setSearchTerm("")}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
         
-        <div className="w-full md:w-[200px]">
-          <Select
-            value={statusFilter || "all"}
-            onValueChange={(value) => setStatusFilter(value === "all" ? null : value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              {taskStatuses.map((status) => (
-                <SelectItem key={status.id} value={status.id.toString()}>
-                  {status.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {showFilters && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Select
+                value={statusFilter || "all"}
+                onValueChange={(value) => setStatusFilter(value === "all" ? null : value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  {taskStatuses.map((status) => (
+                    <SelectItem key={status.id} value={status.id.toString()}>
+                      {status.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Select
+                value={assigneeFilter || "all"}
+                onValueChange={(value) => setAssigneeFilter(value === "all" ? null : value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by assignee" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Assignees</SelectItem>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id.toString()}>
+                      {user.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Select
+                value={categoryFilter || "all"}
+                onValueChange={(value) => setCategoryFilter(value === "all" ? null : value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {allTaskCategories.map((category) => (
+                    <SelectItem key={category.id} value={category.id.toString()}>
+                      {category.name} {category.isAdmin ? "(Admin)" : "(Revenue)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
+        
+        {(statusFilter || assigneeFilter || categoryFilter || searchTerm) && (
+          <div className="flex justify-end">
+            <Button variant="ghost" size="sm" onClick={resetFilters}>
+              <FilterX className="mr-2 h-4 w-4" />
+              Clear Filters
+            </Button>
+          </div>
+        )}
       </div>
       
       {/* Task tabs */}
-      <Tabs defaultValue="all" className="mb-6">
-        <TabsList>
+      <Tabs 
+        defaultValue="all" 
+        value={taskTabFilter} 
+        onValueChange={setTaskTabFilter} 
+        className="mb-6"
+      >
+        <TabsList className="grid grid-cols-3 md:grid-cols-6">
           <TabsTrigger value="all">All Tasks</TabsTrigger>
           <TabsTrigger value="my">My Tasks</TabsTrigger>
           <TabsTrigger value="admin">Administrative</TabsTrigger>
           <TabsTrigger value="revenue">Revenue</TabsTrigger>
           <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+          <TabsTrigger value="completed">Completed</TabsTrigger>
         </TabsList>
       </Tabs>
       
@@ -124,7 +344,7 @@ export function TaskList() {
           <div className="flex justify-center items-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
           </div>
-        ) : tasks.length === 0 ? (
+        ) : filteredTasks.length === 0 ? (
           <div className="bg-white shadow rounded-md">
             <div className="flex flex-col items-center justify-center py-20">
               <div className="h-16 w-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
@@ -132,29 +352,42 @@ export function TaskList() {
               </div>
               <h3 className="text-lg font-medium text-slate-900 mb-2">No tasks found</h3>
               <p className="text-sm text-slate-500 mb-6 max-w-md text-center">
-                You don't have any tasks yet. Create your first task to get started.
+                {(statusFilter || assigneeFilter || categoryFilter || searchTerm) ? (
+                  "No tasks match your current filter criteria. Try adjusting your filters."
+                ) : (
+                  "You don't have any tasks yet. Create your first task to get started."
+                )}
               </p>
-              <div className="flex space-x-4">
-                <Button onClick={() => {
-                  setTaskType("admin");
-                  setIsAddTaskModalOpen(true);
-                }}>
-                  <Plus className="-ml-1 mr-2 h-5 w-5" />
-                  Add Admin Task
-                </Button>
-                <Button variant="outline" onClick={() => {
-                  setTaskType("revenue");
-                  setIsAddTaskModalOpen(true);
-                }}>
-                  <Plus className="-ml-1 mr-2 h-5 w-5" />
-                  Add Revenue Task
-                </Button>
+              <div className="flex flex-wrap justify-center gap-4">
+                {(statusFilter || assigneeFilter || categoryFilter || searchTerm) ? (
+                  <Button variant="outline" onClick={resetFilters}>
+                    <FilterX className="-ml-1 mr-2 h-5 w-5" />
+                    Clear Filters
+                  </Button>
+                ) : (
+                  <>
+                    <Button onClick={() => {
+                      setTaskType("admin");
+                      setIsAddTaskModalOpen(true);
+                    }}>
+                      <Plus className="-ml-1 mr-2 h-5 w-5" />
+                      Add Admin Task
+                    </Button>
+                    <Button variant="outline" onClick={() => {
+                      setTaskType("revenue");
+                      setIsAddTaskModalOpen(true);
+                    }}>
+                      <Plus className="-ml-1 mr-2 h-5 w-5" />
+                      Add Revenue Task
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </div>
         ) : (
           <>
-            {tasks.map((task) => {
+            {filteredTasks.map((task) => {
               // Find status name
               const status = taskStatuses.find(s => s.id === task.statusId);
               const statusName = status ? status.name : "Unknown";
@@ -162,6 +395,16 @@ export function TaskList() {
               // Find assignee name
               const assignee = users.find(u => u.id === task.assigneeId);
               const assigneeName = assignee ? assignee.displayName : "Unassigned";
+              
+              // Find client name
+              const clientName = task.clientId 
+                ? clients.find(c => c.id === task.clientId)?.displayName || "Unknown Client" 
+                : "";
+              
+              // Find entity name
+              const entityName = task.entityId 
+                ? entities.find(e => e.id === task.entityId)?.name || "Unknown Entity" 
+                : "";
               
               // Determine priority based on task type
               let priority: "low" | "medium" | "high";
@@ -179,17 +422,25 @@ export function TaskList() {
                   priority = "medium";
               }
               
+              // Check if task is completed
+              const isCompleted = status?.rank === 3;
+              
               return (
                 <TaskCard
                   key={task.id}
+                  taskId={task.id}
                   title={task.taskDetails || `Task #${task.id}`}
-                  client={task.clientId ? "Client Name" : ""} // Will need client lookup
-                  entity={task.entityId ? "Entity Name" : ""} // Will need entity lookup
+                  client={clientName}
+                  entity={entityName}
                   dueDate={task.dueDate.toString()}
                   status={statusName}
+                  statusRank={status?.rank || 0}
                   assignee={assigneeName}
                   priority={priority}
                   isAdmin={task.isAdmin}
+                  onViewDetails={() => handleViewTaskDetails(task.id)}
+                  onComplete={() => handleCompleteTask(task.id)}
+                  isCompletingTask={completeTaskMutation.isPending}
                 />
               );
             })}
@@ -202,40 +453,56 @@ export function TaskList() {
         onClose={() => setIsAddTaskModalOpen(false)}
         taskType={taskType}
       />
+      
+      <TaskDetails
+        isOpen={isTaskDetailsOpen}
+        onClose={() => setIsTaskDetailsOpen(false)}
+        taskId={selectedTaskId}
+      />
     </>
   );
 }
 
 interface TaskCardProps {
+  taskId: number;
   title: string;
   client: string;
   entity: string;
   dueDate: string;
   status: string;
+  statusRank: number;
   assignee: string;
   priority: "low" | "medium" | "high";
   isAdmin: boolean;
+  onViewDetails: () => void;
+  onComplete: () => void;
+  isCompletingTask: boolean;
 }
 
 function TaskCard({ 
+  taskId,
   title, 
   client, 
   entity, 
   dueDate, 
   status, 
+  statusRank,
   assignee, 
   priority,
-  isAdmin 
+  isAdmin,
+  onViewDetails,
+  onComplete,
+  isCompletingTask
 }: TaskCardProps) {
   const formattedDueDate = new Date(dueDate).toLocaleDateString();
-  const isOverdue = status === "Overdue";
-  const isPending = ["New", "In Progress", "Under Review"].includes(status);
-  const isCompleted = status === "Completed";
+  const isOverdue = new Date(dueDate) < new Date() && statusRank !== 3;
+  const isPending = statusRank < 3;
+  const isCompleted = statusRank === 3;
   
   let statusColor = "";
   if (isOverdue) statusColor = "bg-red-100 text-red-800";
-  else if (isPending) statusColor = "bg-blue-100 text-blue-800";
   else if (isCompleted) statusColor = "bg-green-100 text-green-800";
+  else if (isPending) statusColor = "bg-blue-100 text-blue-800";
   
   let priorityColor = "";
   if (priority === "high") priorityColor = "bg-red-100 border-red-400";
@@ -248,7 +515,7 @@ function TaskCard({
         <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <h3 className="text-base font-medium text-slate-900">{title}</h3>
+              <h3 className="text-base font-medium text-slate-900 line-clamp-1">{title}</h3>
               <Badge variant="secondary" className={statusColor}>
                 {status}
               </Badge>
@@ -256,6 +523,9 @@ function TaskCard({
                 <Badge variant="outline" className="bg-slate-100">
                   Administrative
                 </Badge>
+              )}
+              {isOverdue && (
+                <Badge variant="destructive">Overdue</Badge>
               )}
             </div>
             
@@ -272,21 +542,27 @@ function TaskCard({
               </div>
               
               <div className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                </svg>
+                <UserCircle className="h-4 w-4 mr-1 flex-shrink-0" />
                 <span>Assignee: {assignee}</span>
               </div>
             </div>
           </div>
           
           <div className="flex space-x-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={onViewDetails}>
               View Details
             </Button>
             {isPending && (
-              <Button size="sm">
-                <CheckCircle className="h-4 w-4 mr-1" />
+              <Button 
+                size="sm" 
+                onClick={onComplete}
+                disabled={isCompletingTask}
+              >
+                {isCompletingTask ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                )}
                 Complete
               </Button>
             )}
