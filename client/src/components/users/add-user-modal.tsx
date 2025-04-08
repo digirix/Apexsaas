@@ -62,7 +62,18 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
   const createUserMutation = useMutation({
     mutationFn: async (userData: Omit<FormValues, 'confirmPassword'>) => {
       console.log("Creating user with data:", userData);
-      const response = await apiRequest('POST', '/api/v1/users', userData);
+      const response = await fetch('/api/v1/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData),
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: "Unknown error occurred" }));
+        throw new Error(errorData.message || "Failed to create user");
+      }
+      
       return response.json();
     },
     onSuccess: (data) => {
