@@ -88,8 +88,11 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
   });
 
   const onSubmit = (data: FormValues) => {
+    console.log("Form submitted with data:", data);
     const { confirmPassword, ...userData } = data;
+    console.log("About to mutate with:", userData);
     createUserMutation.mutate(userData);
+    console.log("Mutation triggered");
   };
 
   return (
@@ -100,7 +103,10 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={(e) => {
+                console.log("Form submit event triggered");
+                form.handleSubmit(onSubmit)(e); 
+              }} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -261,6 +267,11 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
               <Button 
                 type="submit" 
                 disabled={createUserMutation.isPending}
+                onClick={() => {
+                  console.log("Submit button clicked");
+                  // Manually trigger form validation and submission
+                  form.handleSubmit(onSubmit)();
+                }}
               >
                 {createUserMutation.isPending ? "Creating..." : "Create User"}
               </Button>

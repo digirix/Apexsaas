@@ -1153,32 +1153,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // New endpoint for creating users
   app.post("/api/v1/users", isAuthenticated, async (req, res) => {
+    console.log("POST /api/v1/users - Received request with body:", req.body);
     try {
       const tenantId = (req.user as any).tenantId;
+      console.log("Request User:", req.user);
+      console.log("Tenant ID:", tenantId);
       const data = { ...req.body, tenantId };
+      console.log("Data for validation:", data);
       
       // Validate the user data
-      const validatedData = insertUserSchema.parse(data);
-      
-      // Check if email already exists
-      const existingUser = await storage.getUserByEmail(validatedData.email, tenantId);
-      if (existingUser) {
-        return res.status(409).json({ message: "A user with this email already exists" });
+      try {
+        const validatedData = insertUserSchema.parse(data);
+        console.log("Data validated successfully:", validatedData);
+        
+        // Check if email already exists
+        const existingUser = await storage.getUserByEmail(validatedData.email, tenantId);
+        console.log("Existing user check:", existingUser ? "Found user" : "No existing user");
+        if (existingUser) {
+          console.log("User already exists with email:", validatedData.email);
+          return res.status(409).json({ message: "A user with this email already exists" });
+        }
+        
+        // Create the user
+        console.log("Creating user with data:", validatedData);
+        const user = await storage.createUser(validatedData);
+        
+        // Don't send password back to client
+        const { password, ...userData } = user;
+        
+        console.log("Created new user:", userData);
+        res.status(201).json(userData);
+      } catch (validationError) {
+        console.error("Validation error:", validationError);
+        if (validationError instanceof z.ZodError) {
+          return res.status(400).json({ message: "Validation error", errors: validationError.errors });
+        }
+        throw validationError;
       }
-      
-      // Create the user
-      const user = await storage.createUser(validatedData);
-      
-      // Don't send password back to client
-      const { password, ...userData } = user;
-      
-      console.log("Created new user:", userData);
-      res.status(201).json(userData);
     } catch (error) {
       console.error("Error creating user:", error);
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Validation error", errors: error.errors });
-      }
       res.status(500).json({ message: "Failed to create user" });
     }
   });
