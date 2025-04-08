@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -21,10 +21,11 @@ interface AddUserModalProps {
 
 export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) {
   const { toast } = useToast();
+  const [submitting, setSubmitting] = useState(false);
 
   // Extended schema with password confirmation
   const extendedSchema = insertUserSchema.extend({
-    confirmPassword: z.string(),
+    confirmPassword: z.string().min(1, "Confirm password is required"),
     password: z.string().min(8, "Password must be at least 8 characters")
   }).refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
@@ -43,6 +44,7 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
       password: "",
       confirmPassword: "",
       isActive: true,
+      isSuperAdmin: false
     },
   });
 
@@ -61,14 +63,18 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
     mutationFn: async (userData: Omit<FormValues, 'confirmPassword'>) => {
       const { confirmPassword, ...userDataWithoutConfirm } = userData as any;
       
-      return fetch("/api/v1/users", {
+      const response = await fetch("/api/v1/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(userDataWithoutConfirm),
-      }).then(res => {
-        if (!res.ok) throw new Error("Failed to create user");
-        return res.json();
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create user");
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/users'] });
@@ -76,37 +82,50 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
         title: "User created",
         description: "The user has been created successfully.",
       });
+      form.reset();
+      setSubmitting(false);
       onSuccess();
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive",
       });
+      setSubmitting(false);
     },
   });
 
-  const onSubmit = (data: FormValues) => {
-    console.log("Form submitted with data:", data);
-    const { confirmPassword, ...userData } = data;
-    console.log("About to mutate with:", userData);
-    createUserMutation.mutate(userData);
-    console.log("Mutation triggered");
+  const onSubmit = async (data: FormValues) => {
+    try {
+      setSubmitting(true);
+      const { confirmPassword, ...userData } = data;
+      await createUserMutation.mutateAsync(userData);
+    } catch (error) {
+      console.error("Error in form submission:", error);
+      setSubmitting(false);
+    }
+  };
+
+  const handleClose = () => {
+    if (!submitting) {
+      form.reset();
+      onClose();
+    }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Add New User</DialogTitle>
+          <DialogDescription>
+            Create a new team member for your organization
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={(e) => {
-                console.log("Form submit event triggered");
-                form.handleSubmit(onSubmit)(e); 
-              }} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -189,8 +208,8 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
                   <FormItem>
                     <FormLabel>Department</FormLabel>
                     <Select 
-                      onValueChange={(value) => field.onChange(parseInt(value))}
-                      defaultValue={field.value?.toString()}
+                      onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)}
+                      value={field.value?.toString()}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -198,6 +217,7 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="">None</SelectItem>
                         {departments?.map((department) => (
                           <SelectItem key={department.id} value={department.id.toString()}>
                             {department.name}
@@ -217,8 +237,8 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
                   <FormItem>
                     <FormLabel>Designation</FormLabel>
                     <Select 
-                      onValueChange={(value) => field.onChange(parseInt(value))}
-                      defaultValue={field.value?.toString()}
+                      onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)}
+                      value={field.value?.toString()}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -226,6 +246,7 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="">None</SelectItem>
                         {designations?.map((designation) => (
                           <SelectItem key={designation.id} value={designation.id.toString()}>
                             {designation.name}
@@ -261,19 +282,14 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
             />
 
             <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={onClose} className="mr-2">
+              <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>
                 Cancel
               </Button>
               <Button 
                 type="submit" 
-                disabled={createUserMutation.isPending}
-                onClick={() => {
-                  console.log("Submit button clicked");
-                  // Manually trigger form validation and submission
-                  form.handleSubmit(onSubmit)();
-                }}
+                disabled={submitting}
               >
-                {createUserMutation.isPending ? "Creating..." : "Create User"}
+                {submitting ? "Creating..." : "Create User"}
               </Button>
             </DialogFooter>
           </form>
