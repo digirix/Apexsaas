@@ -6,12 +6,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AlertCircle, CheckCircle2, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { UserPermission, InsertUserPermission, accessLevelEnum } from "@shared/schema";
 
 // Define available modules
 const availableModules = [
+  { id: "users", name: "User Management" },
   { id: "clients", name: "Clients Management" },
   { id: "tasks", name: "Tasks Management" },
   { id: "finance", name: "Finance" },
@@ -40,6 +44,7 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
     tenantId: number;
     displayName: string;
     email: string;
+    isSuperAdmin?: boolean;
   }
   
   // Fetch user details
@@ -183,20 +188,47 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
     }
   };
 
+  // Function to determine if this is a SuperAdmin
+  const isSuperAdmin = user?.isSuperAdmin;
+
+  // Function to check if modifications are locked
+  const isPermissionLocked = () => {
+    return isSuperAdmin || selectedModule === 'users' && userId === user?.id;
+  };
+
   return (
     <div>
       {user ? (
         <div className="mb-6">
-          <h2 className="text-xl font-semibold mb-2">
-            Permissions for {user.displayName}
-          </h2>
-          <p className="text-slate-500">
-            Configure what this user can access and modify in each module
+          <div className="flex flex-wrap gap-2 items-center">
+            <h2 className="text-xl font-semibold">
+              Permissions for {user.displayName}
+            </h2>
+            {isSuperAdmin && (
+              <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">
+                <ShieldCheck className="h-3 w-3 mr-1" />
+                Super Admin
+              </Badge>
+            )}
+          </div>
+          <p className="text-slate-500 mt-2">
+            {isSuperAdmin 
+              ? "Super Admins automatically have full access to all system modules"
+              : "Configure what this user can access and modify in each module"}
           </p>
+          {isSuperAdmin && (
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md flex items-center">
+              <AlertCircle className="h-5 w-5 text-blue-500 mr-2" />
+              <span className="text-sm text-blue-700">
+                Super Admin permissions cannot be modified
+              </span>
+            </div>
+          )}
         </div>
       ) : (
         <div className="mb-6">
-          <h2 className="text-xl font-semibold mb-2">Loading user information...</h2>
+          <Skeleton className="h-8 w-64 mb-2" />
+          <Skeleton className="h-4 w-96" />
         </div>
       )}
 
@@ -206,31 +238,66 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
           <Card className="h-full">
             <CardContent className="pt-6">
               <h3 className="text-lg font-medium mb-4">Modules</h3>
-              <div className="space-y-1">
-                {availableModules.map(module => {
-                  const hasPermission = permissions?.some(p => p.module === module.id);
-                  return (
-                    <div
-                      key={module.id}
-                      className={`p-3 rounded-md cursor-pointer transition-colors ${
-                        selectedModule === module.id
-                          ? "bg-blue-50 border border-blue-200"
-                          : "hover:bg-slate-50 border border-transparent"
-                      }`}
-                      onClick={() => setSelectedModule(module.id)}
-                    >
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">{module.name}</span>
-                        {hasPermission && (
-                          <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">
-                            Configured
-                          </span>
-                        )}
+              {permissionsLoading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-12 w-full" />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {availableModules.map(module => {
+                    const modulePermission = permissions?.find(p => p.module === module.id);
+                    const hasPermission = !!modulePermission;
+
+                    // If user is SuperAdmin, show all modules as configured
+                    const effectiveHasPermission = isSuperAdmin || hasPermission;
+                    
+                    // Set badge styles based on permission level
+                    let badgeVariant = "default";
+                    let badgeText = "No Access";
+                    
+                    if (isSuperAdmin) {
+                      badgeVariant = "default";
+                      badgeText = "Full Access";
+                    } else if (hasPermission) {
+                      if (modulePermission?.accessLevel === "full") {
+                        badgeVariant = "default";
+                        badgeText = "Full Access";
+                      } else if (modulePermission?.accessLevel === "partial") {
+                        badgeVariant = "secondary";
+                        badgeText = "Partial";
+                      } else {
+                        badgeVariant = "outline";
+                        badgeText = "Limited";
+                      }
+                    }
+                    
+                    return (
+                      <div
+                        key={module.id}
+                        className={`p-3 rounded-md cursor-pointer transition-colors ${
+                          selectedModule === module.id
+                            ? "bg-blue-50 border border-blue-200"
+                            : "hover:bg-slate-50 border border-transparent"
+                        }`}
+                        onClick={() => setSelectedModule(module.id)}
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium">{module.name}</span>
+                          {effectiveHasPermission && (
+                            <Badge variant={badgeVariant as any} className={
+                              badgeVariant === "default" ? "bg-green-600 hover:bg-green-700" : ""
+                            }>
+                              {badgeText}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -239,11 +306,38 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
         <div className="col-span-12 md:col-span-8">
           <Card>
             <CardContent className="pt-6">
-              {selectedModule ? (
+              {permissionsLoading ? (
+                <div className="space-y-4">
+                  <Skeleton className="h-8 w-64 mb-4" />
+                  <Skeleton className="h-24 w-full mb-2" />
+                  <Skeleton className="h-12 w-full mb-2" />
+                  <Skeleton className="h-12 w-full mb-2" />
+                  <Skeleton className="h-12 w-full mb-2" />
+                  <Skeleton className="h-12 w-full" />
+                </div>
+              ) : selectedModule ? (
                 <>
                   <h3 className="text-lg font-medium mb-6">
                     {availableModules.find(m => m.id === selectedModule)?.name} Permissions
                   </h3>
+
+                  {isPermissionLocked() ? (
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-md mb-6">
+                      <div className="flex items-center">
+                        <ShieldAlert className="h-5 w-5 text-slate-500 mr-2" />
+                        <span className="font-medium text-slate-700">
+                          {isSuperAdmin 
+                            ? "Super Admin permissions cannot be modified" 
+                            : "You cannot modify your own permissions for the Users module"}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-500 mt-2">
+                        {isSuperAdmin
+                          ? "Super Admins have full access to all modules by default"
+                          : "This is a security measure to prevent users from locking themselves out"}
+                      </p>
+                    </div>
+                  ) : null}
 
                   <div className="space-y-6">
                     {/* Access Level */}
@@ -252,6 +346,7 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
                       <Select
                         value={permissionForm.accessLevel}
                         onValueChange={(value) => handlePermissionChange("accessLevel", value)}
+                        disabled={isPermissionLocked()}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select access level" />
@@ -284,8 +379,9 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
                         </div>
                         <Switch
                           id="read"
-                          checked={permissionForm.canRead}
+                          checked={isSuperAdmin ? true : permissionForm.canRead}
                           onCheckedChange={(checked) => handlePermissionChange("canRead", checked)}
+                          disabled={isPermissionLocked()}
                         />
                       </div>
 
@@ -299,8 +395,9 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
                         </div>
                         <Switch
                           id="create"
-                          checked={permissionForm.canCreate}
+                          checked={isSuperAdmin ? true : permissionForm.canCreate}
                           onCheckedChange={(checked) => handlePermissionChange("canCreate", checked)}
+                          disabled={isPermissionLocked()}
                         />
                       </div>
 
@@ -314,8 +411,9 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
                         </div>
                         <Switch
                           id="update"
-                          checked={permissionForm.canUpdate}
+                          checked={isSuperAdmin ? true : permissionForm.canUpdate}
                           onCheckedChange={(checked) => handlePermissionChange("canUpdate", checked)}
+                          disabled={isPermissionLocked()}
                         />
                       </div>
 
@@ -329,8 +427,9 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
                         </div>
                         <Switch
                           id="delete"
-                          checked={permissionForm.canDelete}
+                          checked={isSuperAdmin ? true : permissionForm.canDelete}
                           onCheckedChange={(checked) => handlePermissionChange("canDelete", checked)}
+                          disabled={isPermissionLocked()}
                         />
                       </div>
                     </div>
@@ -339,13 +438,13 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
                       <div>
                         <Button 
                           onClick={handleSavePermission}
-                          disabled={permissionMutation.isPending}
+                          disabled={permissionMutation.isPending || isPermissionLocked()}
                         >
                           {permissionMutation.isPending ? "Saving..." : "Save Permissions"}
                         </Button>
                       </div>
                       
-                      {selectedPermission && (
+                      {selectedPermission && !isPermissionLocked() && (
                         <div>
                           <Button 
                             variant="destructive"
@@ -356,7 +455,7 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
                             }}
                             disabled={deletePermissionMutation.isPending}
                           >
-                            {deletePermissionMutation.isPending ? "Deleting..." : "Delete Permission"}
+                            {deletePermissionMutation.isPending ? "Deleting..." : "Remove Access"}
                           </Button>
                         </div>
                       )}

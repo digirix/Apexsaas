@@ -208,8 +208,8 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
                   <FormItem>
                     <FormLabel>Department</FormLabel>
                     <Select 
-                      onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)}
-                      value={field.value?.toString()}
+                      onValueChange={(value) => field.onChange(value === "none" ? undefined : parseInt(value))}
+                      value={field.value?.toString() || "none"}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -217,7 +217,7 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {departments?.map((department) => (
                           <SelectItem key={department.id} value={department.id.toString()}>
                             {department.name}
@@ -237,8 +237,8 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
                   <FormItem>
                     <FormLabel>Designation</FormLabel>
                     <Select 
-                      onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)}
-                      value={field.value?.toString()}
+                      onValueChange={(value) => field.onChange(value === "none" ? undefined : parseInt(value))}
+                      value={field.value?.toString() || "none"}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -246,7 +246,7 @@ export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) 
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {designations?.map((designation) => (
                           <SelectItem key={designation.id} value={designation.id.toString()}>
                             {designation.name}
