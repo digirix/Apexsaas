@@ -1095,6 +1095,143 @@ export class MemStorage implements IStorage {
     return false;
   }
   
+  // Generate recurring task based on a template task
+  async generateRecurringTask(
+    templateTaskId: number, 
+    tenantId: number, 
+    statusId: number
+  ): Promise<Task | null> {
+    // Get the original task
+    const templateTask = this.tasks.get(templateTaskId);
+    
+    // Check if task exists and belongs to tenant
+    if (!templateTask || templateTask.tenantId !== tenantId) {
+      return null;
+    }
+    
+    // Check if this is a valid recurring compliance task
+    if (!templateTask.isRecurring || !templateTask.complianceFrequency) {
+      return null;
+    }
+    
+    // Calculate the next due date based on compliance frequency
+    const nextDueDate = this.calculateNextDueDate(
+      new Date(templateTask.dueDate),
+      templateTask.complianceFrequency,
+      templateTask.complianceDuration
+    );
+    
+    if (!nextDueDate) {
+      return null;
+    }
+    
+    // Create a new task based on the template
+    const id = this.taskId++;
+    
+    // Calculate compliance period
+    let nextComplianceStartDate = null;
+    let nextComplianceEndDate = null;
+    
+    if (templateTask.complianceStartDate) {
+      nextComplianceStartDate = this.calculateNextDueDate(
+        new Date(templateTask.complianceStartDate),
+        templateTask.complianceFrequency,
+        templateTask.complianceDuration
+      );
+    }
+    
+    if (templateTask.complianceEndDate) {
+      nextComplianceEndDate = this.calculateNextDueDate(
+        new Date(templateTask.complianceEndDate),
+        templateTask.complianceFrequency,
+        templateTask.complianceDuration
+      );
+    }
+    
+    // Create the new task with the incremented dates
+    const newTask: Task = {
+      ...templateTask,
+      id,
+      statusId, // Use the provided status ID (usually this would be "New")
+      dueDate: nextDueDate,
+      complianceStartDate: nextComplianceStartDate,
+      complianceEndDate: nextComplianceEndDate,
+      createdAt: new Date(),
+      // We can add a reference to the original task if needed
+      // originalTaskId: templateTaskId,
+    };
+    
+    // Save the new task
+    this.tasks.set(id, newTask);
+    return newTask;
+  }
+  
+  // Generate all pending recurring tasks for a tenant
+  async generateAllPendingRecurringTasks(tenantId: number): Promise<Task[]> {
+    // Find all recurring tasks for this tenant
+    const recurringTasks = Array.from(this.tasks.values()).filter(
+      task => task.tenantId === tenantId && 
+              task.isRecurring && 
+              task.complianceFrequency && 
+              !task.isAdmin
+    );
+    
+    const newTasks: Task[] = [];
+    const today = new Date();
+    const newStatusId = 1; // Assuming "New" status has ID 1
+    
+    // For each recurring task, check if it's time to create a new instance
+    for (const task of recurringTasks) {
+      const dueDate = new Date(task.dueDate);
+      
+      // If the task is due before today and hasn't been regenerated
+      // (we would need to add tracking for this in a real implementation)
+      // Simple implementation: just create one new task per call
+      if (dueDate < today) {
+        const newTask = await this.generateRecurringTask(task.id, tenantId, newStatusId);
+        if (newTask) {
+          newTasks.push(newTask);
+        }
+      }
+    }
+    
+    return newTasks;
+  }
+  
+  // Helper to calculate the next due date based on frequency and duration
+  private calculateNextDueDate(
+    currentDate: Date, 
+    frequency: string,
+    duration?: string | null
+  ): Date | null {
+    const date = new Date(currentDate);
+    
+    switch (frequency.toLowerCase()) {
+      case 'daily':
+        date.setDate(date.getDate() + 1);
+        break;
+      case 'weekly':
+        date.setDate(date.getDate() + 7);
+        break;
+      case 'monthly':
+        date.setMonth(date.getMonth() + 1);
+        break;
+      case 'quarterly':
+        date.setMonth(date.getMonth() + 3);
+        break;
+      case 'yearly':
+        date.setFullYear(date.getFullYear() + 1);
+        break;
+      case 'semi-annual':
+        date.setMonth(date.getMonth() + 6);
+        break;
+      default:
+        return null; // Unknown frequency
+    }
+    
+    return date;
+  }
+  
   // User Permission operations
   async getUserPermissions(tenantId: number, userId: number): Promise<UserPermission[]> {
     return Array.from(this.userPermissions.values())

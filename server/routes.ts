@@ -1618,6 +1618,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch tasks" });
     }
   });
+  
+  // Recurring tasks and auto-generation endpoints
+  
+  // Generate a new task from a recurring template
+  app.post("/api/v1/tasks/:id/generate-recurring", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const templateTaskId = parseInt(req.params.id);
+      const statusId = req.body.statusId || 1; // Default to status 1 (usually "New")
+      
+      const newTask = await storage.generateRecurringTask(templateTaskId, tenantId, statusId);
+      
+      if (!newTask) {
+        return res.status(404).json({ 
+          message: "Task not found or is not configured as a recurring task" 
+        });
+      }
+      
+      res.status(201).json(newTask);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to generate recurring task" });
+    }
+  });
+  
+  // Auto-generate all pending recurring tasks
+  app.post("/api/v1/tasks/auto-generate-recurring", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const newTasks = await storage.generateAllPendingRecurringTasks(tenantId);
+      
+      res.status(201).json({
+        message: `Generated ${newTasks.length} new recurring task(s)`,
+        tasks: newTasks
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to auto-generate recurring tasks" });
+    }
+  });
 
   app.get("/api/v1/tasks/:id", isAuthenticated, async (req, res) => {
     try {
