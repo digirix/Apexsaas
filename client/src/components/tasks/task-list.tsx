@@ -479,6 +479,9 @@ interface TaskCardProps {
   isCompletingTask: boolean;
 }
 
+// Import the TaskStatusWorkflow component
+import { TaskStatusWorkflow } from "./task-status-workflow";
+
 function TaskCard({ 
   taskId,
   title, 
@@ -499,11 +502,6 @@ function TaskCard({
   const isPending = statusRank < 3;
   const isCompleted = statusRank === 3;
   
-  let statusColor = "";
-  if (isOverdue) statusColor = "bg-red-100 text-red-800";
-  else if (isCompleted) statusColor = "bg-green-100 text-green-800";
-  else if (isPending) statusColor = "bg-blue-100 text-blue-800";
-  
   let priorityColor = "";
   if (priority === "high") priorityColor = "bg-red-100 border-red-400";
   else if (priority === "medium") priorityColor = "bg-amber-100 border-amber-400";
@@ -514,11 +512,16 @@ function TaskCard({
       <CardContent className="p-6">
         <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
           <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-center flex-wrap gap-3 mb-2">
               <h3 className="text-base font-medium text-slate-900 line-clamp-1">{title}</h3>
-              <Badge variant="secondary" className={statusColor}>
-                {status}
-              </Badge>
+              
+              {/* Use TaskStatusWorkflow instead of static Badge */}
+              <TaskStatusWorkflow 
+                taskId={taskId} 
+                currentStatusId={parseInt(statusRank.toString())} 
+                variant="icon" 
+              />
+              
               {isAdmin && (
                 <Badge variant="outline" className="bg-slate-100">
                   Administrative
@@ -548,23 +551,19 @@ function TaskCard({
             </div>
           </div>
           
-          <div className="flex space-x-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={onViewDetails}>
               View Details
             </Button>
+            
+            {/* Replace the Complete button with TaskStatusWorkflow */}
             {isPending && (
-              <Button 
+              <TaskStatusWorkflow 
+                taskId={taskId} 
+                currentStatusId={parseInt(statusRank.toString())} 
                 size="sm" 
-                onClick={onComplete}
-                disabled={isCompletingTask}
-              >
-                {isCompletingTask ? (
-                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                ) : (
-                  <CheckCircle className="h-4 w-4 mr-1" />
-                )}
-                Complete
-              </Button>
+                onStatusChange={onComplete}
+              />
             )}
           </div>
         </div>

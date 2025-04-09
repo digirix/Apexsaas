@@ -69,6 +69,9 @@ import {
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
+// Import custom components
+import { TaskStatusWorkflow } from "./task-status-workflow";
+
 // Task form validation schemas
 const adminTaskSchema = z.object({
   taskDetails: z.string().min(3, "Task details must be at least 3 characters"),
@@ -482,13 +485,14 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
                         {task.isAdmin ? "Administrative Task" : "Revenue Task"}
                       </Badge>
                       
-                      <Badge variant={
-                        taskStatus?.rank === 3 ? "success" : 
-                        new Date(task.dueDate) < new Date() ? "destructive" : 
-                        "secondary"
-                      }>
-                        {taskStatus?.name || "Unknown Status"}
-                      </Badge>
+                      {/* Replace static status badge with interactive TaskStatusWorkflow */}
+                      {task.statusId && (
+                        <TaskStatusWorkflow 
+                          taskId={task.id} 
+                          currentStatusId={task.statusId} 
+                          variant="icon"
+                        />
+                      )}
                       
                       <Badge variant="outline">{task.taskType}</Badge>
                     </div>
@@ -1290,19 +1294,17 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
             
             {/* Action buttons */}
             {!isEditing && (
-              <DialogFooter>
-                {/* Complete button (only for tasks not already completed) */}
-                {taskStatus?.rank !== 3 && (
-                  <Button 
-                    variant="default" 
-                    onClick={() => completeTaskMutation.mutate()}
-                    disabled={completeTaskMutation.isPending}
-                  >
-                    {completeTaskMutation.isPending && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    Mark as Completed
-                  </Button>
+              <DialogFooter className="flex flex-wrap gap-2">
+                {/* TaskStatusWorkflow for better status transitions */}
+                {task.statusId && taskStatus?.rank !== 3 && (
+                  <TaskStatusWorkflow 
+                    taskId={task.id} 
+                    currentStatusId={task.statusId}
+                    onStatusChange={() => {
+                      // Refresh task data
+                      queryClient.invalidateQueries({ queryKey: ["/api/v1/tasks", taskId] });
+                    }}
+                  />
                 )}
                 
                 {/* Edit button */}
