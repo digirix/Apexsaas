@@ -106,43 +106,29 @@ const revenueTaskSchema = z.object({
     .superRefine((val, ctx) => {
         if (!val) return; // Allow empty values
         
-        // Get the complianceFrequency value from the form data
-        const formData = ctx.parent;
-        const frequency = formData.complianceFrequency;
-        
-        // For multi-year frequencies, validate comma-separated years
-        if (frequency && ["5 Years", "4 Years", "3 Years", "2 Years"].includes(frequency)) {
-          // Validate format: comma-separated years (e.g. "2023, 2024, 2025")
-          const years = val.split(",").map((y: string) => y.trim());
-          const isValid = years.every((year: string) => /^\d{4}$/.test(year));
-          
-          // Check that the number of years matches the frequency
-          const expectedCount = parseInt(frequency.split(" ")[0]);
-          
-          if (!isValid) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: "Years must be in 4-digit format (e.g., 2024)"
-            });
-            return;
-          }
-          
-          if (years.length !== expectedCount) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: `Please enter exactly ${expectedCount} years separated by commas`
-            });
-            return;
-          }
-        } else {
-          // For single year, validate it's a 4-digit year
-          if (!/^\d{4}$/.test(val)) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: "Please enter a valid 4-digit year (e.g., 2024)"
-            });
-          }
+        // Since we can't reliably access other form values in superRefine,
+        // we'll just do basic validation here
+
+        // First check if it's a single 4-digit year
+        if (/^\d{4}$/.test(val)) {
+          // Valid single year format
+          return;
         }
+        
+        // Next, check if it's comma-separated years
+        const years = val.split(",").map((y: string) => y.trim());
+        const isValid = years.every((year: string) => /^\d{4}$/.test(year));
+        
+        if (!isValid) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Years must be in 4-digit format (e.g., 2024)"
+          });
+          return;
+        }
+        
+        // Valid format, but we can't check if the number matches the frequency
+        // That will be handled in the UI with helpful messages
     }),
   complianceDuration: z.string().optional(),
   complianceStartDate: z.date().optional(),
