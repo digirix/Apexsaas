@@ -1289,11 +1289,13 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                               <FormItem>
                                 <FormLabel>Currency</FormLabel>
                                 <Select 
-                                  onValueChange={field.onChange} 
-                                  value={field.value || ""}
+                                  onValueChange={(value) => {
+                                    field.onChange(value);
+                                  }} 
+                                  defaultValue={field.value || ""}
                                 >
                                   <FormControl>
-                                    <SelectTrigger>
+                                    <SelectTrigger className="w-full">
                                       <SelectValue placeholder="Select currency" />
                                     </SelectTrigger>
                                   </FormControl>
