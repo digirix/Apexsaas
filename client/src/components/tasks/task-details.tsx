@@ -101,6 +101,49 @@ const revenueTaskSchema = z.object({
   serviceRate: z.coerce.number().min(0).optional(),
   currency: z.string().optional(),
   complianceFrequency: z.string().optional(),
+  complianceYear: z.string()
+    .optional()
+    .superRefine((val, ctx) => {
+        if (!val) return; // Allow empty values
+        
+        // Get the complianceFrequency value from the form data
+        const formData = ctx.parent;
+        const frequency = formData.complianceFrequency;
+        
+        // For multi-year frequencies, validate comma-separated years
+        if (frequency && ["5 Years", "4 Years", "3 Years", "2 Years"].includes(frequency)) {
+          // Validate format: comma-separated years (e.g. "2023, 2024, 2025")
+          const years = val.split(",").map((y: string) => y.trim());
+          const isValid = years.every((year: string) => /^\d{4}$/.test(year));
+          
+          // Check that the number of years matches the frequency
+          const expectedCount = parseInt(frequency.split(" ")[0]);
+          
+          if (!isValid) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Years must be in 4-digit format (e.g., 2024)"
+            });
+            return;
+          }
+          
+          if (years.length !== expectedCount) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `Please enter exactly ${expectedCount} years separated by commas`
+            });
+            return;
+          }
+        } else {
+          // For single year, validate it's a 4-digit year
+          if (!/^\d{4}$/.test(val)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Please enter a valid 4-digit year (e.g., 2024)"
+            });
+          }
+        }
+    }),
   complianceDuration: z.string().optional(),
   complianceStartDate: z.date().optional(),
   complianceEndDate: z.date().optional(),
@@ -210,6 +253,7 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
       serviceRate: 0,
       currency: "USD",
       complianceFrequency: undefined,
+      complianceYear: "",
       complianceDuration: undefined,
       complianceStartDate: undefined,
       complianceEndDate: undefined,
@@ -244,6 +288,7 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
           serviceRate: task.serviceRate || 0,
           currency: task.currency || "USD",
           complianceFrequency: task.complianceFrequency,
+          complianceYear: task.complianceYear || "",
           complianceDuration: task.complianceDuration,
           complianceStartDate: task.complianceStartDate ? new Date(task.complianceStartDate) : undefined,
           complianceEndDate: task.complianceEndDate ? new Date(task.complianceEndDate) : undefined,
@@ -359,6 +404,7 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
         serviceRate: data.serviceRate,
         currency: data.currency,
         complianceFrequency: data.complianceFrequency,
+        complianceYear: data.complianceYear,
         complianceDuration: data.complianceDuration,
         complianceStartDate: data.complianceStartDate?.toISOString(),
         complianceEndDate: data.complianceEndDate?.toISOString(),
@@ -589,6 +635,13 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
                           <p className="text-sm font-medium">Frequency</p>
                           <p>{task.complianceFrequency}</p>
                         </div>
+                        
+                        {task.complianceYear && (
+                          <div>
+                            <p className="text-sm font-medium">Year(s)</p>
+                            <p>{task.complianceYear}</p>
+                          </div>
+                        )}
                         
                         {task.complianceStartDate && (
                           <div>
@@ -1116,6 +1169,8 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
                                     <SelectItem value="Quarterly">Quarterly</SelectItem>
                                     <SelectItem value="Bi-Annually">Bi-Annually</SelectItem>
                                     <SelectItem value="Annual">Annual</SelectItem>
+                                    <SelectItem value="2 Years">2 Years</SelectItem>
+                                    <SelectItem value="3 Years">3 Years</SelectItem>
                                     <SelectItem value="4 Years">4 Years</SelectItem>
                                     <SelectItem value="5 Years">5 Years</SelectItem>
                                   </SelectContent>
@@ -1127,6 +1182,35 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
                               </FormItem>
                             )}
                           />
+                          
+                          {revenueTaskForm.watch("complianceFrequency") && (
+                            <FormField
+                              control={revenueTaskForm.control}
+                              name="complianceYear"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Year(s)</FormLabel>
+                                  <FormControl>
+                                    <Input 
+                                      {...field} 
+                                      placeholder={
+                                        ["5 Years", "4 Years", "3 Years", "2 Years"].includes(revenueTaskForm.watch("complianceFrequency") || "") 
+                                          ? `Enter ${revenueTaskForm.watch("complianceFrequency")?.split(" ")[0]} years separated by commas (e.g., 2024, 2025${revenueTaskForm.watch("complianceFrequency") === "5 Years" ? ", 2026, 2027, 2028" : ""})`
+                                          : "Enter year (e.g., 2024)"
+                                      }
+                                    />
+                                  </FormControl>
+                                  <FormDescription>
+                                    {["5 Years", "4 Years", "3 Years", "2 Years"].includes(revenueTaskForm.watch("complianceFrequency") || "") 
+                                      ? `Enter exactly ${revenueTaskForm.watch("complianceFrequency")?.split(" ")[0]} years, separated by commas`
+                                      : "Enter a single 4-digit year"
+                                    }
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
                           
                           {revenueTaskForm.watch("complianceFrequency") && (
                             <FormField

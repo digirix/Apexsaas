@@ -79,7 +79,49 @@ const revenueTaskSchema = z.object({
   
   // Compliance Configuration Tab
   complianceFrequency: z.string().optional(),
-  complianceYear: z.string().optional(),
+  complianceYear: z.string()
+    .optional()
+    .superRefine((val, ctx) => {
+        if (!val) return; // Allow empty values
+        
+        // Get the complianceFrequency value from the form data
+        const formData = ctx.parent;
+        const frequency = formData.complianceFrequency;
+        
+        // For multi-year frequencies, validate comma-separated years
+        if (frequency && ["5 Years", "4 Years", "3 Years", "2 Years"].includes(frequency)) {
+          // Validate format: comma-separated years (e.g. "2023, 2024, 2025")
+          const years = val.split(",").map((y: string) => y.trim());
+          const isValid = years.every((year: string) => /^\d{4}$/.test(year));
+          
+          // Check that the number of years matches the frequency
+          const expectedCount = parseInt(frequency.split(" ")[0]);
+          
+          if (!isValid) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Years must be in 4-digit format (e.g., 2024)"
+            });
+            return;
+          }
+          
+          if (years.length !== expectedCount) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `Please enter exactly ${expectedCount} years separated by commas`
+            });
+            return;
+          }
+        } else {
+          // For single year, validate it's a 4-digit year
+          if (!/^\d{4}$/.test(val)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Please enter a valid 4-digit year (e.g., 2024)"
+            });
+          }
+        }
+    }),
   complianceDuration: z.string().optional(),
   complianceStartDate: z.date().optional(),
   complianceEndDate: z.date().optional(),
@@ -1095,25 +1137,23 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                           name="complianceYear"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Compliance Year</FormLabel>
-                              <Select 
-                                onValueChange={field.onChange} 
-                                value={field.value || ""}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select year" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="2023">2023</SelectItem>
-                                  <SelectItem value="2024">2024</SelectItem>
-                                  <SelectItem value="2025">2025</SelectItem>
-                                  <SelectItem value="2026">2026</SelectItem>
-                                  <SelectItem value="2027">2027</SelectItem>
-                                  <SelectItem value="2028">2028</SelectItem>
-                                </SelectContent>
-                              </Select>
+                              <FormLabel>Year(s)</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  {...field} 
+                                  placeholder={
+                                    ["5 Years", "4 Years", "3 Years", "2 Years"].includes(revenueTaskForm.watch("complianceFrequency") || "") 
+                                      ? `Enter ${revenueTaskForm.watch("complianceFrequency")?.split(" ")[0]} years separated by commas (e.g., 2024, 2025${revenueTaskForm.watch("complianceFrequency") === "5 Years" ? ", 2026, 2027, 2028" : ""})`
+                                      : "Enter year (e.g., 2024)"
+                                  }
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                {["5 Years", "4 Years", "3 Years", "2 Years"].includes(revenueTaskForm.watch("complianceFrequency") || "") 
+                                  ? `Enter exactly ${revenueTaskForm.watch("complianceFrequency")?.split(" ")[0]} years, separated by commas`
+                                  : "Enter a single 4-digit year"
+                                }
+                              </FormDescription>
                               <FormMessage />
                             </FormItem>
                           )}
