@@ -34,6 +34,12 @@ import {
   PopoverTrigger 
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 import { AddTaskModal } from "./add-task-modal";
 import { TaskDetails } from "./task-details";
 
@@ -215,16 +221,28 @@ export function TaskList() {
               )}
               {showFilters ? "Hide Filters" : "Show Filters"}
             </Button>
-            <Button 
-              size="sm" 
-              onClick={() => {
-                setTaskType("admin");
-                setIsAddTaskModalOpen(true);
-              }}
-            >
-              <Plus className="-ml-1 mr-2 h-5 w-5" />
-              Add Task
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm">
+                  <Plus className="-ml-1 mr-2 h-5 w-5" />
+                  Add Task
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => {
+                  setTaskType("admin");
+                  setIsAddTaskModalOpen(true);
+                }}>
+                  Administrative Task
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  setTaskType("revenue");
+                  setIsAddTaskModalOpen(true);
+                }}>
+                  Revenue Task
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
