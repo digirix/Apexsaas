@@ -1036,6 +1036,15 @@ export class MemStorage implements IStorage {
   async createTask(task: InsertTask): Promise<Task> {
     const id = this.taskId++;
     
+    // Ensure all dates are proper Date objects
+    let dueDate = task.dueDate instanceof Date ? task.dueDate : new Date(task.dueDate);
+    let complianceStartDate = task.complianceStartDate instanceof Date 
+      ? task.complianceStartDate 
+      : task.complianceStartDate ? new Date(task.complianceStartDate) : null;
+    let complianceEndDate = task.complianceEndDate instanceof Date 
+      ? task.complianceEndDate 
+      : task.complianceEndDate ? new Date(task.complianceEndDate) : null;
+    
     // Set defaults for nullable fields
     const newTask: Task = { 
       id, 
@@ -1043,7 +1052,7 @@ export class MemStorage implements IStorage {
       isAdmin: task.isAdmin,
       taskType: task.taskType,
       assigneeId: task.assigneeId,
-      dueDate: task.dueDate,
+      dueDate: dueDate,
       statusId: task.statusId,
       createdAt: new Date(),
       // Nullable fields with defaults
@@ -1058,8 +1067,8 @@ export class MemStorage implements IStorage {
       complianceFrequency: task.complianceFrequency ?? null,
       complianceYear: task.complianceYear ?? null,
       complianceDuration: task.complianceDuration ?? null,
-      complianceStartDate: task.complianceStartDate ?? null,
-      complianceEndDate: task.complianceEndDate ?? null,
+      complianceStartDate: complianceStartDate,
+      complianceEndDate: complianceEndDate,
       // Invoice information with defaults
       currency: task.currency ?? null,
       serviceRate: task.serviceRate ?? null

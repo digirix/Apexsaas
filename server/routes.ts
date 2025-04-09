@@ -1640,20 +1640,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const data = { ...req.body, tenantId };
       
-      // Convert string dates to Date objects if they exist
-      if (data.dueDate && typeof data.dueDate === 'string') {
-        data.dueDate = new Date(data.dueDate);
-      }
-      
-      if (data.complianceStartDate && typeof data.complianceStartDate === 'string') {
-        data.complianceStartDate = new Date(data.complianceStartDate);
-      }
-      
-      if (data.complianceEndDate && typeof data.complianceEndDate === 'string') {
-        data.complianceEndDate = new Date(data.complianceEndDate);
-      }
-      
-      // Validate data
+      // Validate data - our schema now handles date conversions automatically
       const validatedData = insertTaskSchema.parse(data);
       
       // For admin tasks, ensure no client or entity is attached

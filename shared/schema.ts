@@ -365,28 +365,36 @@ export const tasks = pgTable("tasks", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertTaskSchema = createInsertSchema(tasks).pick({
-  tenantId: true,
-  isAdmin: true,
-  taskType: true,
-  clientId: true,
-  entityId: true,
-  serviceTypeId: true,
-  taskCategoryId: true,
-  assigneeId: true,
-  dueDate: true,
-  statusId: true,
-  taskDetails: true,
-  nextToDo: true,
-  isRecurring: true,
-  complianceFrequency: true,
-  complianceYear: true,
-  complianceDuration: true,
-  complianceStartDate: true,
-  complianceEndDate: true,
-  currency: true,
-  serviceRate: true,
-});
+// Create a custom task schema that properly handles dates as strings or Date objects
+export const insertTaskSchema = createInsertSchema(tasks)
+  .pick({
+    tenantId: true,
+    isAdmin: true,
+    taskType: true,
+    clientId: true,
+    entityId: true,
+    serviceTypeId: true,
+    taskCategoryId: true,
+    assigneeId: true,
+    dueDate: true,
+    statusId: true,
+    taskDetails: true,
+    nextToDo: true,
+    isRecurring: true,
+    complianceFrequency: true,
+    complianceYear: true,
+    complianceDuration: true,
+    complianceStartDate: true,
+    complianceEndDate: true,
+    currency: true,
+    serviceRate: true,
+  })
+  .extend({
+    // Make these fields accept either a Date object or a date string
+    dueDate: z.union([z.date(), z.string().transform(str => new Date(str))]),
+    complianceStartDate: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
+    complianceEndDate: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
+  });
 
 // Entity Tax Jurisdictions table (links entities to tax jurisdictions)
 export const entityTaxJurisdictions = pgTable("entity_tax_jurisdictions", {
