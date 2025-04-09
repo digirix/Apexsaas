@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format, addMonths, addYears, addQuarters } from "date-fns";
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 
 // Import UI components
 import {
@@ -419,6 +420,31 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
     },
   });
   
+  // Delete task mutation
+  const deleteTaskMutation = useMutation({
+    mutationFn: async () => {
+      if (!taskId) throw new Error("Task ID is required");
+      
+      await apiRequest("DELETE", `/api/v1/tasks/${taskId}`);
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/tasks"] });
+      toast({
+        title: "Success",
+        description: "Task deleted successfully",
+      });
+      onClose();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete task",
+        variant: "destructive",
+      });
+    },
+  });
+  
   // Handle admin task form submission
   function onAdminTaskSubmit(data: AdminTaskFormValues) {
     updateAdminTaskMutation.mutate(data);
@@ -451,18 +477,18 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
   
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
-      if (!open) {
-        onClose();
-        setIsEditing(false);
-      }
-    }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Task Details</DialogTitle>
-          <DialogDescription>
-            View and manage task information
-          </DialogDescription>
-        </DialogHeader>
+        if (!open) {
+          onClose();
+          setIsEditing(false);
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Task Details</DialogTitle>
+            <DialogDescription>
+              View and manage task information
+            </DialogDescription>
+          </DialogHeader>
         
         {isLoadingTask ? (
           <div className="flex justify-center items-center py-8">
@@ -1294,28 +1320,45 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
             
             {/* Action buttons */}
             {!isEditing && (
-              <DialogFooter className="flex flex-wrap gap-2">
-                {/* TaskStatusWorkflow for better status transitions */}
-                {task.statusId && taskStatus?.rank !== 3 && (
-                  <TaskStatusWorkflow 
-                    taskId={task.id} 
-                    currentStatusId={task.statusId}
-                    onStatusChange={() => {
-                      // Refresh task data
-                      queryClient.invalidateQueries({ queryKey: ["/api/v1/tasks", taskId] });
+              <DialogFooter className="flex flex-wrap gap-2 justify-between">
+                <div className="flex gap-2">
+                  {/* Delete button */}
+                  <Button 
+                    variant="destructive" 
+                    onClick={() => {
+                      if (confirm("Are you sure you want to delete this task? This action cannot be undone.")) {
+                        deleteTaskMutation.mutate();
+                      }
                     }}
-                  />
-                )}
+                    disabled={deleteTaskMutation.isPending}
+                  >
+                    {deleteTaskMutation.isPending ? "Deleting..." : "Delete Task"}
+                  </Button>
+                </div>
                 
-                {/* Edit button */}
-                <Button onClick={() => setIsEditing(true)}>
-                  Edit Task
-                </Button>
-                
-                {/* Close button */}
-                <DialogClose asChild>
-                  <Button variant="outline">Close</Button>
-                </DialogClose>
+                <div className="flex gap-2">
+                  {/* TaskStatusWorkflow for better status transitions */}
+                  {task.statusId && taskStatus?.rank !== 3 && (
+                    <TaskStatusWorkflow 
+                      taskId={task.id} 
+                      currentStatusId={task.statusId}
+                      onStatusChange={() => {
+                        // Refresh task data
+                        queryClient.invalidateQueries({ queryKey: ["/api/v1/tasks", taskId] });
+                      }}
+                    />
+                  )}
+                  
+                  {/* Edit button */}
+                  <Button onClick={() => setIsEditing(true)}>
+                    Edit Task
+                  </Button>
+                  
+                  {/* Close button */}
+                  <DialogClose asChild>
+                    <Button variant="outline">Close</Button>
+                  </DialogClose>
+                </div>
               </DialogFooter>
             )}
           </>
