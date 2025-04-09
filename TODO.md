@@ -1,55 +1,66 @@
-# TODO List - Accounting Management Application
+# TODO List for Accounting Firm Management Application
 
-## Tasks Module - Priority Tasks
-- [ ] Fix type mismatch issues in task creation/editing forms
-  - [ ] Update `taskCategoryId` handling to convert string to number before submission
-  - [ ] Fix date field handling for compliance start/end dates
-  - [ ] Ensure proper type conversion for all form fields based on backend schema
+## Tasks Module Enhancements
+- [ ] Implement task status update functionality in task detail view
+- [ ] Add task editing capabilities with full form support
+- [ ] Implement recurring task generation based on compliance frequency
+- [ ] Create "Auto Generated Tasks" module for approval workflow
+- [ ] Add task assignment email notifications
+- [ ] Enhance task filtering with date ranges and advanced filters
+- [ ] Implement task cloning functionality
+- [ ] Add task history tracking to see status changes over time
+- [ ] Implement task comments/notes feature
 
-- [ ] Recurring Tasks Implementation
-  - [ ] Create "Auto Generated Tasks" module/view
-  - [ ] Implement automatic task generation based on compliance frequency
-  - [ ] Add approval workflow for auto-generated tasks
-  - [ ] Create task inheritance mechanism for recurring tasks
+## Compliance Features
+- [ ] Implement compliance calendar view showing upcoming tasks
+- [ ] Add automated compliance reminders based on due dates
+- [ ] Implement compliance reporting by entity/client
+- [ ] Create dashboards showing compliance status across entities
 
-- [ ] Task Workflow Enhancements
-  - [ ] Implement status transition rules
-  - [ ] Add validation to prevent invalid status changes
-  - [ ] Optimize the task filtering component with better UX
-  - [ ] Implement notifications for task assignments and approaching deadlines
+## Invoice and Financial Management
+- [ ] Develop invoice generation based on task completion
+- [ ] Add payment tracking for invoices
+- [ ] Implement financial reporting by client/entity
+- [ ] Add revenue forecasting based on recurring tasks
 
-## Future Enhancements - Post-MVP
-- [ ] Dashboard Analytics
-  - [ ] Task completion metrics
-  - [ ] Deadline compliance tracking
-  - [ ] Workload distribution by assignee
+## Client Portal Features
+- [ ] Implement client authentication system
+- [ ] Create client portal dashboard
+- [ ] Add document sharing functionality
+- [ ] Implement approval workflows for client review
+- [ ] Add task status visibility for clients
 
-- [ ] Client Portal Features
-  - [ ] Document sharing functionality
-  - [ ] Client approval workflow for tasks
-  - [ ] Client notification system
+## UI/UX Improvements
+- [ ] Enhance mobile responsiveness
+- [ ] Implement dark mode support
+- [ ] Add more visual feedback for user actions
+- [ ] Improve loading states with skeleton screens
+- [ ] Enhance accessibility features
 
-- [ ] Finance Integration
-  - [ ] Invoice generation from task data
-  - [ ] Payment tracking connected to tasks
-  - [ ] Financial reporting
+## Technical Debt
+- [ ] Refactor form validation logic for consistency
+- [ ] Improve error handling across the application
+- [ ] Add unit and integration tests
+- [ ] Optimize database queries for performance
+- [ ] Implement proper logging for debugging
+- [ ] Add comprehensive documentation
 
-## Technical Improvements
-- [ ] Fix TypeScript LSP errors in key components
-  - [ ] Properly type all unknown arrays and parameters
-  - [ ] Add proper type definitions for API responses
-  - [ ] Update React Query usage to properly type query results
+## AI Assistance Features
+- [ ] Implement AI suggestions for task details
+- [ ] Add AI-powered service recommendations for clients
+- [ ] Create intelligent task prioritization
+- [ ] Add AI chat assistant for user help
+- [ ] Implement learning mechanisms for improved suggestions
 
-- [ ] Performance Optimizations
-  - [ ] Implement query caching strategy to reduce API calls
-  - [ ] Optimize component rendering for large lists
-  - [ ] Review and improve database query performance
+## Priority Items
+1. **Task Status Workflow**: Complete the task status update functionality to allow users to move tasks through their lifecycle
+2. **Task Editing**: Enable users to edit existing tasks with all form fields
+3. **Recurring Tasks**: Implement the generation of recurring tasks based on compliance schedules
+4. **Compliance Calendar**: Create a visual calendar view of all compliance deadlines
+5. **Invoice Integration**: Connect completed tasks to invoice generation
 
-## Completed Tasks
-- [x] Implement task creation for Administrative tasks
-- [x] Implement task creation for Revenue tasks
-- [x] Create task details view with proper formatting
-- [x] Add task edit functionality
-- [x] Implement task completion workflow
-- [x] Add dynamic currency selection from Setup Module
-- [x] Create filtering system for tasks list
+## Open Questions
+- Should task history include timestamps and user information for each change?
+- How should we handle task assignments when users are inactive or removed?
+- What metrics are most important for the dashboard analytics?
+- How granular should permission controls be for the client portal?
