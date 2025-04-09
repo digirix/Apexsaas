@@ -229,8 +229,16 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
     enabled: isOpen,
   });
   
+  // Define interface for currency
+  interface Currency {
+    id: number;
+    code: string;
+    name: string;
+    countryId: number;
+  }
+  
   // Fetch currencies from setup module
-  const { data: currencies = [], isLoading: isLoadingCurrencies } = useQuery({
+  const { data: currencies = [], isLoading: isLoadingCurrencies } = useQuery<Currency[]>({
     queryKey: ["/api/v1/setup/currencies"],
     enabled: isOpen && taskType === "revenue",
   });
@@ -238,16 +246,28 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
   // Create task mutation for admin tasks
   const createAdminTaskMutation = useMutation({
     mutationFn: async (data: AdminTaskFormValues) => {
-      const payload = {
-        ...data,
+      // Start with a cleaned payload that only includes the fields we need
+      const payload: any = {
         isAdmin: true,
-        assigneeId: parseInt(data.assigneeId),
+        taskType: data.taskType,
+        taskDetails: data.taskDetails,
+        nextToDo: data.nextToDo,
         statusId: 1, // New status
       };
+      
+      // Convert assigneeId to number
+      if (data.assigneeId) {
+        payload.assigneeId = parseInt(data.assigneeId);
+      }
 
-      // Include taskCategoryId only if it's provided
-      if (data.taskCategoryId) {
-        payload.taskCategoryId = data.taskCategoryId;
+      // Convert taskCategoryId to number if provided
+      if (data.taskCategoryId && data.taskCategoryId.trim() !== '') {
+        payload.taskCategoryId = parseInt(data.taskCategoryId);
+      }
+      
+      // Ensure dueDate is sent as a Date object
+      if (data.dueDate) {
+        payload.dueDate = new Date(data.dueDate);
       }
 
       const response = await apiRequest("POST", "/api/v1/tasks", payload);
@@ -274,20 +294,59 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
   // Create task mutation for revenue tasks
   const createRevenueTaskMutation = useMutation({
     mutationFn: async (data: RevenueTaskFormValues) => {
-      const payload = {
-        ...data,
+      // Start with a cleaned payload that only includes the fields we need
+      // This prevents any extra fields from being sent to the API
+      const payload: any = {
         isAdmin: false,
-        clientId: parseInt(data.clientId),
-        entityId: parseInt(data.entityId),
-        serviceTypeId: parseInt(data.serviceId),
-        assigneeId: parseInt(data.assigneeId),
+        taskType: data.taskType,
+        taskDetails: data.taskDetails,
+        nextToDo: data.nextToDo,
+        isRecurring: data.isRecurring || false,
+        complianceFrequency: data.complianceFrequency,
+        complianceYear: data.complianceYear,
+        complianceDuration: data.complianceDuration,
+        currency: data.currency,
+        serviceRate: data.serviceRate,
         statusId: 1, // New status
       };
 
-      // Include taskCategoryId only if it's provided
-      if (data.taskCategoryId) {
-        payload.taskCategoryId = data.taskCategoryId;
+      // Convert string IDs to numbers
+      if (data.clientId) {
+        payload.clientId = parseInt(data.clientId);
       }
+      
+      if (data.entityId) {
+        payload.entityId = parseInt(data.entityId);
+      }
+      
+      if (data.serviceId) {
+        payload.serviceTypeId = parseInt(data.serviceId);
+      }
+      
+      if (data.assigneeId) {
+        payload.assigneeId = parseInt(data.assigneeId);
+      }
+      
+      // Convert taskCategoryId to number if provided
+      if (data.taskCategoryId && data.taskCategoryId.trim() !== '') {
+        payload.taskCategoryId = parseInt(data.taskCategoryId);
+      }
+
+      // Ensure dates are sent as Date objects
+      if (data.dueDate) {
+        payload.dueDate = new Date(data.dueDate);
+      }
+      
+      if (data.complianceStartDate) {
+        payload.complianceStartDate = new Date(data.complianceStartDate);
+      }
+      
+      if (data.complianceEndDate) {
+        payload.complianceEndDate = new Date(data.complianceEndDate);
+      }
+
+      // Log the payload for debugging
+      console.log("Task creation payload:", payload);
 
       const response = await apiRequest("POST", "/api/v1/tasks", payload);
       return response.json();
