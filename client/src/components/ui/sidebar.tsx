@@ -11,6 +11,7 @@ import {
   HelpCircle,
   LogOut,
   UsersRound,
+  Calendar,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -40,6 +41,11 @@ const coreModules: NavItem[] = [
     title: "Tasks",
     href: "/tasks",
     icon: <ClipboardCheck className="h-5 w-5 mr-3 text-slate-500" />,
+  },
+  {
+    title: "Compliance Calendar",
+    href: "/compliance-calendar",
+    icon: <Calendar className="h-5 w-5 mr-3 text-slate-500" />,
   },
   {
     title: "Finance",
