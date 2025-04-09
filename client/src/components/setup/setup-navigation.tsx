@@ -10,7 +10,8 @@ import {
   Briefcase,
   UsersRound,
   Building,
-  Receipt
+  Receipt,
+  FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SetupSection } from "@/types/setup";
@@ -66,6 +67,11 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
       label: 'Task Statuses',
       icon: <List className="h-5 w-5" />
     },
+    {
+      id: 'task-categories',
+      label: 'Task Categories',
+      icon: <FileText className="h-5 w-5" />
+    },
     
     // HR Configuration
     {
@@ -82,8 +88,8 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
 
   // Group items by category
   const locationItems = setupItems.slice(0, 3);
-  const businessItems = setupItems.slice(3, 7);
-  const hrItems = setupItems.slice(7, 9);
+  const businessItems = setupItems.slice(3, 8);
+  const hrItems = setupItems.slice(8, 10);
 
   return (
     <Card className="p-4">
