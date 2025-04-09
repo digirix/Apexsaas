@@ -1,66 +1,98 @@
-# TODO List for Accounting Firm Management Application
+# TODO List - Accounting Firm Management Application
 
-## Tasks Module Enhancements
-- [ ] Implement task status update functionality in task detail view
-- [ ] Add task editing capabilities with full form support
+This list outlines the pending tasks for the Accounting Firm Management Application based on our current progress and the full project scope. Tasks are organized by module and priority.
+
+## Core Functionality
+
+### Tasks Module (In Progress - 95% Complete)
 - [ ] Implement recurring task generation based on compliance frequency
-- [ ] Create "Auto Generated Tasks" module for approval workflow
-- [ ] Add task assignment email notifications
-- [ ] Enhance task filtering with date ranges and advanced filters
-- [ ] Implement task cloning functionality
-- [ ] Add task history tracking to see status changes over time
-- [ ] Implement task comments/notes feature
+- [ ] Create "Auto Generated Tasks" approval workflow
+- [ ] Add task assignment notifications
+- [ ] Enhance task filtering capabilities
+- [ ] Fix type mismatches between frontend forms and backend schema:
+  - [ ] Convert string IDs to numbers where needed
+  - [ ] Ensure proper date formatting in submissions
 
-## Compliance Features
-- [ ] Implement compliance calendar view showing upcoming tasks
-- [ ] Add automated compliance reminders based on due dates
-- [ ] Implement compliance reporting by entity/client
-- [ ] Create dashboards showing compliance status across entities
+### Invoicing and Payments Module
+- [ ] Create database schema for invoices and payments
+- [ ] Implement invoice generation from tasks
+- [ ] Develop invoice listing and detail views
+- [ ] Create payment tracking functionality
+- [ ] Implement invoice status workflow
+- [ ] Add payment receipt generation
 
-## Invoice and Financial Management
-- [ ] Develop invoice generation based on task completion
-- [ ] Add payment tracking for invoices
-- [ ] Implement financial reporting by client/entity
-- [ ] Add revenue forecasting based on recurring tasks
+### Dashboard & Analytics
+- [ ] Implement dashboard with key metrics
+- [ ] Create task completion charts
+- [ ] Add revenue tracking visualizations
+- [ ] Develop client growth analytics
+- [ ] Add compliance tracking graphs
+- [ ] Implement user productivity metrics
 
-## Client Portal Features
-- [ ] Implement client authentication system
-- [ ] Create client portal dashboard
-- [ ] Add document sharing functionality
-- [ ] Implement approval workflows for client review
-- [ ] Add task status visibility for clients
+### Compliance Calendar
+- [ ] Enhance compliance calendar view
+- [ ] Add filtering by client, entity, and task type
+- [ ] Implement month/week/day views
+- [ ] Add calendar export functionality
+- [ ] Create compliance alerts and reminders
 
-## UI/UX Improvements
-- [ ] Enhance mobile responsiveness
-- [ ] Implement dark mode support
-- [ ] Add more visual feedback for user actions
-- [ ] Improve loading states with skeleton screens
-- [ ] Enhance accessibility features
+## Advanced Features
 
-## Technical Debt
-- [ ] Refactor form validation logic for consistency
-- [ ] Improve error handling across the application
-- [ ] Add unit and integration tests
-- [ ] Optimize database queries for performance
-- [ ] Implement proper logging for debugging
-- [ ] Add comprehensive documentation
+### AI Integration
+- [ ] Implement service suggestions for entities based on country and type
+- [ ] Add task detail suggestions based on client and service
+- [ ] Create compliance risk identification
+- [ ] Implement workflow optimization suggestions
+- [ ] Add draft communications generation
 
-## AI Assistance Features
-- [ ] Implement AI suggestions for task details
-- [ ] Add AI-powered service recommendations for clients
-- [ ] Create intelligent task prioritization
-- [ ] Add AI chat assistant for user help
-- [ ] Implement learning mechanisms for improved suggestions
+### Client Portal
+- [ ] Create client login system
+- [ ] Implement document sharing functionality
+- [ ] Add client-specific task viewing
+- [ ] Develop invoice payment portal
+- [ ] Create client communication channel
+- [ ] Add document approval workflow
 
-## Priority Items
-1. **Task Status Workflow**: Complete the task status update functionality to allow users to move tasks through their lifecycle
-2. **Task Editing**: Enable users to edit existing tasks with all form fields
-3. **Recurring Tasks**: Implement the generation of recurring tasks based on compliance schedules
-4. **Compliance Calendar**: Create a visual calendar view of all compliance deadlines
-5. **Invoice Integration**: Connect completed tasks to invoice generation
+### Workflow Automation
+- [ ] Create workflow definition interface
+- [ ] Implement trigger-based actions
+- [ ] Add time-based workflow events
+- [ ] Develop notification system
+- [ ] Create workflow execution logging
 
-## Open Questions
-- Should task history include timestamps and user information for each change?
-- How should we handle task assignments when users are inactive or removed?
-- What metrics are most important for the dashboard analytics?
-- How granular should permission controls be for the client portal?
+## Technical Enhancements
+
+### Performance Optimization
+- [ ] Implement data caching for frequently accessed information
+- [ ] Optimize database queries for large datasets
+- [ ] Add pagination for large lists
+- [ ] Optimize front-end bundle size
+- [ ] Implement lazy loading for components
+
+### Security Enhancements
+- [ ] Add two-factor authentication
+- [ ] Implement CSRF protection
+- [ ] Add session timeout functionality
+- [ ] Create audit logging for sensitive operations
+- [ ] Implement encrypted storage for sensitive data
+
+### UX Improvements
+- [ ] Create comprehensive onboarding guide
+- [ ] Add contextual help throughout the application
+- [ ] Implement customizable themes
+- [ ] Add keyboard shortcuts for common actions
+- [ ] Create responsive designs for mobile use
+
+## Documentation
+- [ ] Create user manual
+- [ ] Document API endpoints
+- [ ] Add code documentation
+- [ ] Create administrator guide
+- [ ] Document deployment process
+
+## Testing
+- [ ] Write unit tests for critical components
+- [ ] Implement integration tests for key workflows
+- [ ] Create end-to-end tests for main user journeys
+- [ ] Test performance under load
+- [ ] Conduct security testing

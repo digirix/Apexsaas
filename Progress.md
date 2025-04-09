@@ -303,7 +303,15 @@ The project has made significant progress across multiple modules:
    - Added client-entity relationship filtering to show only relevant entities for selected clients
    - Fixed date validation issues by improving schema validation in both client and server code
    - Implemented proper multi-step form navigation with Cancel/Next buttons on Basic Information and Compliance tabs
-   - Added Cancel/Create Task buttons on the Invoice tab for final submission
+   - Added task type selection dropdown in main task list to differentiate between adding Administrative and Revenue tasks
+   - Enhanced task UI to properly display complianceYear field in both view and edit modes
+   - Improved compliance year validation to work with multiple-year input for multi-year frequencies
+
+2. **Task Management UI Improvements:**
+   - Added dropdown menu for "Add Task" button to allow users to choose between creating Administrative or Revenue tasks
+   - Enhanced user experience by making task creation more intuitive with clear options
+   - Maintained separate workflow for administrative vs revenue task forms
+   - Improved task list display with better categorization and filtering Cancel/Create Task buttons on the Invoice tab for final submission
 
 2. **Data Handling Improvements:**
    - Added support for dynamic loading of currencies from the Setup Module in both task creation and editing forms
