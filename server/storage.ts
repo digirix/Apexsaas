@@ -1199,8 +1199,15 @@ export class MemStorage implements IStorage {
   async createWorkflow(workflow: InsertWorkflow): Promise<Workflow> {
     const id = this.workflowId++;
     const newWorkflow: Workflow = {
-      ...workflow,
       id,
+      tenantId: workflow.tenantId,
+      name: workflow.name,
+      description: workflow.description || null,
+      triggerEvent: workflow.triggerEvent,
+      triggerData: workflow.triggerData || null,
+      conditions: workflow.conditions || null,
+      isEnabled: workflow.isEnabled !== undefined ? workflow.isEnabled : true,
+      createdBy: workflow.createdBy,
       createdAt: new Date(),
       lastRunAt: null
     };
@@ -1298,7 +1305,8 @@ export class MemStorage implements IStorage {
     const newLog: WorkflowExecutionLog = {
       ...log,
       id,
-      executedAt: new Date()
+      executedAt: new Date(),
+      details: log.details || null
     };
     this.workflowExecutionLogs.set(id, newLog);
     return newLog;

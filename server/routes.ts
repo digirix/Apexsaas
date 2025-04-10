@@ -8,7 +8,8 @@ import {
   insertClientSchema, insertEntitySchema, insertTaskSchema,
   insertDesignationSchema, insertDepartmentSchema, insertUserSchema,
   insertTaxJurisdictionSchema, insertEntityTaxJurisdictionSchema,
-  insertEntityServiceSubscriptionSchema, insertUserPermissionSchema
+  insertEntityServiceSubscriptionSchema, insertUserPermissionSchema,
+  insertWorkflowSchema, insertWorkflowActionSchema, insertWorkflowExecutionLogSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -1729,6 +1730,235 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete task" });
+    }
+  });
+  
+  // Workflow routes
+  // 1. Workflows
+  app.get("/api/v1/workflows", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const workflows = await storage.getWorkflows(tenantId);
+      res.json(workflows);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch workflows" });
+    }
+  });
+  
+  app.get("/api/v1/workflows/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const workflow = await storage.getWorkflow(id, tenantId);
+      if (!workflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+      
+      res.json(workflow);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch workflow" });
+    }
+  });
+  
+  app.post("/api/v1/workflows", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = (req.user as any).id;
+      
+      const data = { 
+        ...req.body, 
+        tenantId,
+        createdBy: userId
+      };
+      
+      const validatedData = insertWorkflowSchema.parse(data);
+      const workflow = await storage.createWorkflow(validatedData);
+      
+      res.status(201).json(workflow);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create workflow" });
+    }
+  });
+  
+  app.put("/api/v1/workflows/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if workflow belongs to tenant
+      const existingWorkflow = await storage.getWorkflow(id, tenantId);
+      if (!existingWorkflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+      
+      const updatedWorkflow = await storage.updateWorkflow(id, req.body);
+      res.json(updatedWorkflow);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update workflow" });
+    }
+  });
+  
+  app.patch("/api/v1/workflows/:id/toggle", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      const { isEnabled } = req.body;
+      
+      if (typeof isEnabled !== 'boolean') {
+        return res.status(400).json({ message: "isEnabled must be a boolean value" });
+      }
+      
+      const workflow = await storage.toggleWorkflowStatus(id, tenantId, isEnabled);
+      if (!workflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+      
+      res.json(workflow);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to toggle workflow status" });
+    }
+  });
+  
+  app.delete("/api/v1/workflows/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const success = await storage.deleteWorkflow(id, tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete workflow" });
+    }
+  });
+  
+  // 2. Workflow Actions
+  app.get("/api/v1/workflows/:workflowId/actions", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const workflowId = parseInt(req.params.workflowId);
+      
+      // Verify the workflow belongs to the tenant
+      const workflow = await storage.getWorkflow(workflowId, tenantId);
+      if (!workflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+      
+      const actions = await storage.getWorkflowActions(workflowId);
+      res.json(actions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch workflow actions" });
+    }
+  });
+  
+  app.post("/api/v1/workflows/:workflowId/actions", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const workflowId = parseInt(req.params.workflowId);
+      
+      // Verify the workflow belongs to the tenant
+      const workflow = await storage.getWorkflow(workflowId, tenantId);
+      if (!workflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+      
+      const data = { ...req.body, workflowId };
+      
+      const validatedData = insertWorkflowActionSchema.parse(data);
+      const action = await storage.createWorkflowAction(validatedData);
+      
+      res.status(201).json(action);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create workflow action" });
+    }
+  });
+  
+  app.put("/api/v1/workflows/:workflowId/actions/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const workflowId = parseInt(req.params.workflowId);
+      const id = parseInt(req.params.id);
+      
+      // Verify the workflow belongs to the tenant
+      const workflow = await storage.getWorkflow(workflowId, tenantId);
+      if (!workflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+      
+      // Check if action exists and belongs to the workflow
+      const existingAction = await storage.getWorkflowAction(id);
+      if (!existingAction || existingAction.workflowId !== workflowId) {
+        return res.status(404).json({ message: "Workflow action not found" });
+      }
+      
+      const updatedAction = await storage.updateWorkflowAction(id, req.body);
+      res.json(updatedAction);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update workflow action" });
+    }
+  });
+  
+  app.delete("/api/v1/workflows/:workflowId/actions/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const workflowId = parseInt(req.params.workflowId);
+      const id = parseInt(req.params.id);
+      
+      // Verify the workflow belongs to the tenant
+      const workflow = await storage.getWorkflow(workflowId, tenantId);
+      if (!workflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+      
+      // Check if action exists and belongs to the workflow
+      const existingAction = await storage.getWorkflowAction(id);
+      if (!existingAction || existingAction.workflowId !== workflowId) {
+        return res.status(404).json({ message: "Workflow action not found" });
+      }
+      
+      const success = await storage.deleteWorkflowAction(id);
+      if (!success) {
+        return res.status(404).json({ message: "Workflow action not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete workflow action" });
+    }
+  });
+  
+  // 3. Workflow Execution Logs
+  app.get("/api/v1/workflows/:workflowId/logs", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const workflowId = parseInt(req.params.workflowId);
+      
+      // Verify the workflow belongs to the tenant
+      const workflow = await storage.getWorkflow(workflowId, tenantId);
+      if (!workflow) {
+        return res.status(404).json({ message: "Workflow not found" });
+      }
+      
+      const logs = await storage.getWorkflowExecutionLogs(workflowId);
+      res.json(logs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch workflow execution logs" });
     }
   });
 
