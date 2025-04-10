@@ -2,9 +2,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { InsertWorkflow } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
 
 import {
   Dialog,
@@ -39,19 +38,11 @@ interface AddWorkflowModalProps {
   onWorkflowCreated: (workflowId: number) => void;
 }
 
-// Define form schema based on the InsertWorkflow type
+// Define form schema
 const formSchema = z.object({
-  name: z.string().min(1, "Workflow name is required"),
+  name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
-  triggerEvent: z.enum([
-    "task_created_admin",
-    "task_created_revenue",
-    "task_status_changed",
-    "task_assignee_changed",
-    "task_due_date_arrives",
-    "task_due_date_approaching",
-  ], { required_error: "Trigger event is required" }),
-  isEnabled: z.boolean().default(true),
+  triggerEvent: z.string().min(1, "Trigger event is required"),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -60,13 +51,13 @@ export function AddWorkflowModal({ isOpen, onClose, onWorkflowCreated }: AddWork
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Initialize form
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
       description: "",
       triggerEvent: "task_status_changed",
-      isEnabled: true,
     },
   });
 

@@ -12,7 +12,7 @@ import ClientDetailPage from "@/pages/client-detail-page";
 import SetupPage from "@/pages/setup-page";
 import TasksPage from "@/pages/tasks-page";
 import UsersPage from "@/pages/users-page";
-import WorkflowPage from "@/pages/workflow-page";
+import { WorkflowPage } from "@/pages/workflow-page";
 import { ComplianceCalendarPage } from "@/pages/compliance-calendar-page";
 
 function Router() {

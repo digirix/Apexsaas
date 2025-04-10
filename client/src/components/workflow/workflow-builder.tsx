@@ -1,19 +1,18 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Workflow, WorkflowAction, InsertWorkflowAction } from "@shared/schema";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 import {
   Card,
-  CardContent,
   CardHeader,
+  CardContent,
   CardTitle,
   CardDescription,
-  CardFooter,
 } from "@/components/ui/card";
 import {
   Form,
@@ -146,10 +145,7 @@ export function WorkflowBuilder({ workflowId, onBack }: WorkflowBuilderProps) {
   // Update action mutation
   const updateActionMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<InsertWorkflowAction> }) =>
-      apiRequest(`/api/v1/workflows/${workflowId}/actions/${id}`, {
-        method: 'PUT',
-        body: data,
-      }),
+      apiRequest(`/api/v1/workflows/${workflowId}/actions/${id}`, 'PUT', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/v1/workflows/${workflowId}/actions`] });
       toast({
@@ -170,9 +166,7 @@ export function WorkflowBuilder({ workflowId, onBack }: WorkflowBuilderProps) {
   // Delete action mutation
   const deleteActionMutation = useMutation({
     mutationFn: (id: number) =>
-      apiRequest(`/api/v1/workflows/${workflowId}/actions/${id}`, {
-        method: 'DELETE',
-      }),
+      apiRequest(`/api/v1/workflows/${workflowId}/actions/${id}`, 'DELETE'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/v1/workflows/${workflowId}/actions`] });
       toast({
@@ -612,171 +606,114 @@ export function WorkflowBuilder({ workflowId, onBack }: WorkflowBuilderProps) {
               {actions.length === 0 ? (
                 <div className="text-center p-6 border border-dashed rounded-lg">
                   <p className="text-gray-500 mb-4">
-                    No actions configured yet. Add your first action to define what happens when this workflow is triggered.
+                    No actions configured yet. Add your first action below.
                   </p>
-                  <Button onClick={() => setSelectedAction({ id: 0 } as any)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add First Action
-                  </Button>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <Accordion type="single" collapsible className="w-full space-y-2">
                   {actions
                     .sort((a, b) => a.sortOrder - b.sortOrder)
                     .map((action, index) => (
-                      <div
+                      <AccordionItem
+                        value={`action-${action.id}`}
                         key={action.id}
-                        className="flex items-start p-4 border rounded-lg"
+                        className="border rounded-md overflow-hidden"
                       >
-                        <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 mr-3">
-                          {index + 1}
-                        </div>
-                        <div className="flex-grow">
-                          <h3 className="font-medium">
-                            {formatActionType(action.actionType)}
-                          </h3>
-                          <p className="text-sm text-gray-500 mt-1">
-                            {action.actionData}
-                          </p>
-                        </div>
-                        <div className="flex-shrink-0 space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteAction(action.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setSelectedAction(action)}
-                          >
-                            <Settings className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
+                        <AccordionTrigger className="px-4 py-2 hover:no-underline">
+                          <div className="flex items-center">
+                            <div className="bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center mr-3">
+                              {index + 1}
+                            </div>
+                            <span className="font-medium">
+                              {formatActionType(action.actionType)}
+                            </span>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="px-4 py-3 bg-gray-50">
+                          <div className="space-y-4">
+                            {/* Display action configuration */}
+                            {renderActionConfiguration(
+                              action.actionType,
+                              action.actionData ? JSON.parse(action.actionData) : {},
+                              () => {/* Read-only view */}
+                            )}
+                            
+                            {/* Action control buttons */}
+                            <div className="flex justify-end space-x-2 mt-4">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteAction(action.id)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
                     ))}
-                  <div className="flex justify-center mt-4">
-                    <Button onClick={() => setSelectedAction({ id: 0 } as any)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Another Action
+                </Accordion>
+              )}
+
+              {/* Add new action section */}
+              <div className="mt-6 space-y-4 border-t pt-6">
+                <h3 className="text-lg font-medium">Add New Action</h3>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Action Type
+                      </label>
+                      <Select
+                        value={newActionData.actionType}
+                        onValueChange={(value) => setNewActionData({
+                          actionType: value,
+                          parameters: {},
+                        })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select action type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="change_task_status">Change Task Status</SelectItem>
+                          <SelectItem value="change_task_assignee">Change Task Assignee</SelectItem>
+                          <SelectItem value="add_task_comment">Add Task Comment</SelectItem>
+                          <SelectItem value="send_notification">Send Notification</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Action configuration based on action type */}
+                  <div className="border rounded-md p-4 bg-gray-50">
+                    {renderActionConfiguration(
+                      newActionData.actionType,
+                      newActionData.parameters,
+                      (params) => setNewActionData({
+                        ...newActionData,
+                        parameters: params,
+                      })
+                    )}
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button 
+                      onClick={handleAddAction}
+                      disabled={createActionMutation.isPending}
+                    >
+                      {createActionMutation.isPending ? (
+                        <Spinner size="sm" className="mr-2" />
+                      ) : (
+                        <Plus className="h-4 w-4 mr-2" />
+                      )}
+                      Add Action
                     </Button>
                   </div>
                 </div>
-              )}
+              </div>
             </CardContent>
           </Card>
-
-          {/* Action editor modal */}
-          {selectedAction && (
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  {selectedAction.id === 0 ? "Add Action" : "Edit Action"}
-                </CardTitle>
-                <CardDescription>
-                  Configure what this action will do when the workflow is triggered
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Action Type
-                    </label>
-                    <Select
-                      value={
-                        selectedAction.id === 0
-                          ? newActionData.actionType
-                          : selectedAction.actionType
-                      }
-                      onValueChange={(value) => {
-                        if (selectedAction.id === 0) {
-                          setNewActionData({
-                            ...newActionData,
-                            actionType: value,
-                            parameters: {},
-                          });
-                        } else {
-                          setSelectedAction({
-                            ...selectedAction,
-                            actionType: value as any,
-                            actionData: "{}",
-                          });
-                        }
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select action type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="change_task_status">Change Task Status</SelectItem>
-                        <SelectItem value="change_task_assignee">Change Task Assignee</SelectItem>
-                        <SelectItem value="add_task_comment">Add Task Comment</SelectItem>
-                        <SelectItem value="send_notification">Send Notification</SelectItem>
-                        <SelectItem value="set_task_due_date">Set Task Due Date</SelectItem>
-                        <SelectItem value="create_new_task">Create New Task</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Configuration
-                    </label>
-                    {selectedAction.id === 0
-                      ? renderActionConfiguration(
-                          newActionData.actionType,
-                          newActionData.parameters,
-                          (params) => {
-                            setNewActionData({
-                              ...newActionData,
-                              parameters: params,
-                            });
-                          }
-                        )
-                      : renderActionConfiguration(
-                          selectedAction.actionType,
-                          selectedAction.actionData ? JSON.parse(selectedAction.actionData) : {},
-                          (params) => {
-                            setSelectedAction({
-                              ...selectedAction,
-                              actionData: JSON.stringify(params),
-                            });
-                          }
-                        )}
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-end space-x-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setSelectedAction(null)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => {
-                    if (selectedAction.id === 0) {
-                      handleAddAction();
-                    } else {
-                      handleUpdateAction(selectedAction);
-                    }
-                    setSelectedAction(null);
-                  }}
-                  disabled={
-                    createActionMutation.isPending || updateActionMutation.isPending
-                  }
-                >
-                  {createActionMutation.isPending || updateActionMutation.isPending ? (
-                    <Spinner size="sm" className="mr-2" />
-                  ) : null}
-                  {selectedAction.id === 0 ? "Add Action" : "Update Action"}
-                </Button>
-              </CardFooter>
-            </Card>
-          )}
         </div>
       )}
     </div>

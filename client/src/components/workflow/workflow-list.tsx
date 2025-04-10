@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Workflow } from "@shared/schema";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 import {
   Table,
@@ -12,32 +12,21 @@ import {
   TableRow,
   TableCell,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Spinner } from "@/components/ui/spinner";
-import { 
-  PlusCircle, 
-  Edit, 
-  Trash2, 
-  Zap, 
-  AlertTriangle,
-  Calendar,
-  UserCog,
-  MessageSquare,
-  CheckSquare,
-  FileText,
-  Briefcase
-} from "lucide-react";
-import { AddWorkflowModal } from "./add-workflow-modal";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
+import { Spinner } from "@/components/ui/spinner";
+import { PlusCircle, Trash2, Edit, AlertTriangle, Zap, FileText, Briefcase, CheckSquare, UserCog, Calendar, History } from "lucide-react";
+import { AddWorkflowModal } from "./add-workflow-modal";
 
 interface WorkflowListProps {
   onSelectWorkflow: (id: number) => void;
   onCreateWorkflow: (id: number) => void;
+  onViewExecutionLogs: (id: number) => void;
 }
 
-export function WorkflowList({ onSelectWorkflow, onCreateWorkflow }: WorkflowListProps) {
+export function WorkflowList({ onSelectWorkflow, onCreateWorkflow, onViewExecutionLogs }: WorkflowListProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -175,7 +164,7 @@ export function WorkflowList({ onSelectWorkflow, onCreateWorkflow }: WorkflowLis
                 <TableHead>Trigger</TableHead>
                 <TableHead className="w-[150px]">Active</TableHead>
                 <TableHead className="w-[150px]">Last Run</TableHead>
-                <TableHead className="w-[100px] text-right">Actions</TableHead>
+                <TableHead className="w-[150px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -205,7 +194,16 @@ export function WorkflowList({ onSelectWorkflow, onCreateWorkflow }: WorkflowLis
                     <Button
                       variant="ghost"
                       size="icon"
+                      onClick={() => onViewExecutionLogs(workflow.id)}
+                      title="View Execution Logs"
+                    >
+                      <History className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => onSelectWorkflow(workflow.id)}
+                      title="Edit Workflow"
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -213,6 +211,7 @@ export function WorkflowList({ onSelectWorkflow, onCreateWorkflow }: WorkflowLis
                       variant="ghost"
                       size="icon"
                       onClick={() => setWorkflowToDelete(workflow.id)}
+                      title="Delete Workflow"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
