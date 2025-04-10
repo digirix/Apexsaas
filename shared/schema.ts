@@ -592,3 +592,13 @@ export const registerSchema = z.object({
 
 export type LoginData = z.infer<typeof loginSchema>;
 export type RegisterData = z.infer<typeof registerSchema>;
+
+// Export workflow types
+export type Workflow = typeof workflows.$inferSelect;
+export type InsertWorkflow = z.infer<typeof insertWorkflowSchema>;
+
+export type WorkflowAction = typeof workflowActions.$inferSelect;
+export type InsertWorkflowAction = z.infer<typeof insertWorkflowActionSchema>;
+
+export type WorkflowExecutionLog = typeof workflowExecutionLogs.$inferSelect;
+export type InsertWorkflowExecutionLog = z.infer<typeof insertWorkflowExecutionLogSchema>;

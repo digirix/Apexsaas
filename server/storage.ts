@@ -1,11 +1,12 @@
-import { tenants, users, designations, departments, countries, currencies, states, entityTypes, taskStatuses, taxJurisdictions, serviceTypes, clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions, userPermissions } from "@shared/schema";
+import { tenants, users, designations, departments, countries, currencies, states, entityTypes, taskStatuses, taxJurisdictions, serviceTypes, clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions, userPermissions, workflows, workflowActions, workflowExecutionLogs } from "@shared/schema";
 import type { Tenant, User, InsertUser, InsertTenant, 
   Designation, InsertDesignation, Department, InsertDepartment,
   Country, InsertCountry, Currency, InsertCurrency, 
   State, InsertState, EntityType, InsertEntityType, TaskStatus, InsertTaskStatus, TaxJurisdiction, InsertTaxJurisdiction, ServiceType, 
   InsertServiceType, Client, InsertClient, Entity, InsertEntity, Task, InsertTask, TaskCategory, InsertTaskCategory,
   EntityTaxJurisdiction, InsertEntityTaxJurisdiction, EntityServiceSubscription, InsertEntityServiceSubscription,
-  UserPermission, InsertUserPermission } from "@shared/schema";
+  UserPermission, InsertUserPermission, Workflow, InsertWorkflow, WorkflowAction, InsertWorkflowAction,
+  WorkflowExecutionLog, InsertWorkflowExecutionLog } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 
@@ -141,6 +142,25 @@ export interface IStorage {
   createUserPermission(permission: InsertUserPermission): Promise<UserPermission>;
   updateUserPermission(id: number, permission: Partial<InsertUserPermission>): Promise<UserPermission | undefined>;
   deleteUserPermission(id: number, tenantId: number): Promise<boolean>;
+  
+  // Workflow operations
+  getWorkflows(tenantId: number): Promise<Workflow[]>;
+  getWorkflow(id: number, tenantId: number): Promise<Workflow | undefined>;
+  createWorkflow(workflow: InsertWorkflow): Promise<Workflow>;
+  updateWorkflow(id: number, workflow: Partial<InsertWorkflow>): Promise<Workflow | undefined>;
+  toggleWorkflowStatus(id: number, tenantId: number, isEnabled: boolean): Promise<Workflow | undefined>;
+  deleteWorkflow(id: number, tenantId: number): Promise<boolean>;
+  
+  // Workflow Action operations
+  getWorkflowActions(workflowId: number): Promise<WorkflowAction[]>;
+  getWorkflowAction(id: number): Promise<WorkflowAction | undefined>;
+  createWorkflowAction(action: InsertWorkflowAction): Promise<WorkflowAction>;
+  updateWorkflowAction(id: number, action: Partial<InsertWorkflowAction>): Promise<WorkflowAction | undefined>;
+  deleteWorkflowAction(id: number): Promise<boolean>;
+  
+  // Workflow Execution Log operations
+  getWorkflowExecutionLogs(workflowId: number): Promise<WorkflowExecutionLog[]>;
+  createWorkflowExecutionLog(log: InsertWorkflowExecutionLog): Promise<WorkflowExecutionLog>;
 }
 
 export class MemStorage implements IStorage {
@@ -162,6 +182,9 @@ export class MemStorage implements IStorage {
   private entityTaxJurisdictions: Map<number, EntityTaxJurisdiction>;
   private entityServiceSubscriptions: Map<number, EntityServiceSubscription>;
   private userPermissions: Map<number, UserPermission>;
+  private workflows: Map<number, Workflow>;
+  private workflowActions: Map<number, WorkflowAction>;
+  private workflowExecutionLogs: Map<number, WorkflowExecutionLog>;
   
   sessionStore: MemoryStoreType;
   
@@ -183,6 +206,9 @@ export class MemStorage implements IStorage {
   private entityTaxJurisdictionId: number = 1;
   private entityServiceSubscriptionId: number = 1;
   private userPermissionId: number = 1;
+  private workflowId: number = 1;
+  private workflowActionId: number = 1;
+  private workflowExecutionLogId: number = 1;
 
   constructor() {
     this.tenants = new Map();
@@ -203,6 +229,9 @@ export class MemStorage implements IStorage {
     this.entityTaxJurisdictions = new Map();
     this.entityServiceSubscriptions = new Map();
     this.userPermissions = new Map();
+    this.workflows = new Map();
+    this.workflowActions = new Map();
+    this.workflowExecutionLogs = new Map();
     
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000, // 24h
@@ -1152,6 +1181,127 @@ export class MemStorage implements IStorage {
       return this.userPermissions.delete(id);
     }
     return false;
+  }
+
+  // Workflow operations
+  async getWorkflows(tenantId: number): Promise<Workflow[]> {
+    return Array.from(this.workflows.values()).filter(workflow => workflow.tenantId === tenantId);
+  }
+  
+  async getWorkflow(id: number, tenantId: number): Promise<Workflow | undefined> {
+    const workflow = this.workflows.get(id);
+    if (workflow && workflow.tenantId === tenantId) {
+      return workflow;
+    }
+    return undefined;
+  }
+  
+  async createWorkflow(workflow: InsertWorkflow): Promise<Workflow> {
+    const id = this.workflowId++;
+    const newWorkflow: Workflow = {
+      ...workflow,
+      id,
+      createdAt: new Date(),
+      lastRunAt: null
+    };
+    this.workflows.set(id, newWorkflow);
+    return newWorkflow;
+  }
+  
+  async updateWorkflow(id: number, workflow: Partial<InsertWorkflow>): Promise<Workflow | undefined> {
+    const existingWorkflow = this.workflows.get(id);
+    if (!existingWorkflow) return undefined;
+    
+    const updatedWorkflow = { ...existingWorkflow, ...workflow };
+    this.workflows.set(id, updatedWorkflow);
+    return updatedWorkflow;
+  }
+  
+  async toggleWorkflowStatus(id: number, tenantId: number, isEnabled: boolean): Promise<Workflow | undefined> {
+    const workflow = this.workflows.get(id);
+    if (!workflow || workflow.tenantId !== tenantId) return undefined;
+    
+    workflow.isEnabled = isEnabled;
+    this.workflows.set(id, workflow);
+    return workflow;
+  }
+  
+  async deleteWorkflow(id: number, tenantId: number): Promise<boolean> {
+    const workflow = this.workflows.get(id);
+    if (workflow && workflow.tenantId === tenantId) {
+      // Delete associated actions first
+      const actions = Array.from(this.workflowActions.values())
+        .filter(action => action.workflowId === id);
+      
+      for (const action of actions) {
+        this.workflowActions.delete(action.id);
+      }
+      
+      // Delete associated logs
+      const logs = Array.from(this.workflowExecutionLogs.values())
+        .filter(log => log.workflowId === id);
+      
+      for (const log of logs) {
+        this.workflowExecutionLogs.delete(log.id);
+      }
+      
+      // Delete the workflow itself
+      return this.workflows.delete(id);
+    }
+    return false;
+  }
+  
+  // Workflow Action operations
+  async getWorkflowActions(workflowId: number): Promise<WorkflowAction[]> {
+    return Array.from(this.workflowActions.values())
+      .filter(action => action.workflowId === workflowId)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+  
+  async getWorkflowAction(id: number): Promise<WorkflowAction | undefined> {
+    return this.workflowActions.get(id);
+  }
+  
+  async createWorkflowAction(action: InsertWorkflowAction): Promise<WorkflowAction> {
+    const id = this.workflowActionId++;
+    const newAction: WorkflowAction = {
+      ...action,
+      id,
+      createdAt: new Date()
+    };
+    this.workflowActions.set(id, newAction);
+    return newAction;
+  }
+  
+  async updateWorkflowAction(id: number, action: Partial<InsertWorkflowAction>): Promise<WorkflowAction | undefined> {
+    const existingAction = this.workflowActions.get(id);
+    if (!existingAction) return undefined;
+    
+    const updatedAction = { ...existingAction, ...action };
+    this.workflowActions.set(id, updatedAction);
+    return updatedAction;
+  }
+  
+  async deleteWorkflowAction(id: number): Promise<boolean> {
+    return this.workflowActions.delete(id);
+  }
+  
+  // Workflow Execution Log operations
+  async getWorkflowExecutionLogs(workflowId: number): Promise<WorkflowExecutionLog[]> {
+    return Array.from(this.workflowExecutionLogs.values())
+      .filter(log => log.workflowId === workflowId)
+      .sort((a, b) => new Date(b.executedAt).getTime() - new Date(a.executedAt).getTime());
+  }
+  
+  async createWorkflowExecutionLog(log: InsertWorkflowExecutionLog): Promise<WorkflowExecutionLog> {
+    const id = this.workflowExecutionLogId++;
+    const newLog: WorkflowExecutionLog = {
+      ...log,
+      id,
+      executedAt: new Date()
+    };
+    this.workflowExecutionLogs.set(id, newLog);
+    return newLog;
   }
 }
 
