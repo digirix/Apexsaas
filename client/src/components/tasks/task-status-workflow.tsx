@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Task, TaskStatus } from "@shared/schema";
+import { Task, TaskStatus, TaskStatusWorkflowRule } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -13,10 +13,16 @@ import {
   ChevronDown, 
   CheckCircle2, 
   Loader2, 
-  AlertCircle,
-  ArrowRightCircle
+  ArrowRightCircle,
+  Info
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from "@/components/ui/tooltip";
 
 interface TaskStatusWorkflowProps {
   taskId: number;
@@ -41,37 +47,43 @@ export function TaskStatusWorkflow({
     queryKey: ["/api/v1/setup/task-statuses"],
   });
   
-  // Sort statuses by rank
-  const sortedStatuses = [...statuses].sort((a, b) => a.rank - b.rank);
+  // Fetch workflow rules for the current status
+  const { data: workflowRules = [], isLoading: isLoadingRules } = useQuery<TaskStatusWorkflowRule[]>({
+    queryKey: ["/api/v1/setup/task-status-workflow-rules", { fromStatusId: currentStatusId }],
+    enabled: !!currentStatusId,
+  });
   
   // Find current status
   const currentStatus = statuses.find(s => s.id === currentStatusId);
   
-  // Get available next statuses - ones with higher rank than current but not more than one step ahead
-  // Exception: From rank 1 (New) all rank 2.x statuses are available
-  // All statuses are available for super admin
-  const availableNextStatuses = sortedStatuses.filter(status => {
-    // If current rank is 1 (New), show all statuses with rank starting with 2
-    if (currentStatus?.rank === 1) {
-      return Math.floor(status.rank) === 2 || status.rank === 3;
-    }
-    
-    // If current rank starts with 2, only show statuses with next decimal rank or rank 3 (Completed)
-    if (currentStatus && Math.floor(currentStatus.rank) === 2) {
-      const currentDecimal = currentStatus.rank - 2; // Get decimal part (e.g., 2.1 -> 0.1)
-      const nextDecimal = currentDecimal + 0.1; // Next decimal (e.g., 0.1 -> 0.2)
-      const nextRank = 2 + nextDecimal; // Combine to get next rank (e.g., 2 + 0.2 = 2.2)
+  // Get available next statuses based on workflow rules
+  const availableNextStatuses = statuses
+    .filter(status => {
+      // Don't include the current status as an option
+      if (status.id === currentStatusId) return false;
       
-      return status.rank === nextRank || status.rank === 3;
-    }
-    
-    // Don't show any options for completed tasks (rank 3)
-    if (currentStatus?.rank === 3) {
-      return false;
-    }
-    
-    return false;
-  });
+      // Find a workflow rule for this potential transition
+      const rule = workflowRules.find(r => 
+        r.fromStatusId === currentStatusId && 
+        r.toStatusId === status.id
+      );
+      
+      // If rule exists and is allowed, include this status
+      return rule && rule.isAllowed;
+    })
+    .sort((a, b) => a.rank - b.rank);
+  
+  // Get completed status
+  const completedStatus = statuses.find(s => s.rank === 3);
+  
+  // Check if direct complete is allowed 
+  const canDirectComplete = completedStatus && currentStatusId !== completedStatus.id &&
+    (!workflowRules.length || // If no rules defined, allow completion as fallback
+     workflowRules.some(r => 
+      r.fromStatusId === currentStatusId && 
+      r.toStatusId === completedStatus.id && 
+      r.isAllowed
+    ));
   
   // Update task status mutation
   const updateStatusMutation = useMutation({
@@ -117,7 +129,6 @@ export function TaskStatusWorkflow({
   
   // Complete task directly
   const completeTask = () => {
-    const completedStatus = statuses.find(s => s.rank === 3);
     if (completedStatus) {
       updateStatusMutation.mutate(completedStatus.id);
     } else {
@@ -130,7 +141,7 @@ export function TaskStatusWorkflow({
   };
   
   // Handle pending state
-  if (isLoadingStatuses) {
+  if (isLoadingStatuses || isLoadingRules) {
     return (
       <Button disabled size="sm">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -156,7 +167,7 @@ export function TaskStatusWorkflow({
   }
   
   // If current status is 'Completed' or there are no available next statuses
-  if (currentStatus?.rank === 3 || availableNextStatuses.length === 0) {
+  if ((currentStatus?.rank === 3 || availableNextStatuses.length === 0) && !canDirectComplete) {
     // Just show current status as non-interactive
     if (variant === "icon") {
       return (
@@ -180,6 +191,18 @@ export function TaskStatusWorkflow({
           <CheckCircle2 className="mr-1 h-4 w-4" />
         ) : null}
         {currentStatus?.name || "Unknown"}
+        {availableNextStatuses.length === 0 && currentStatus?.rank !== 3 && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="ml-1 h-3 w-3" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">No allowed status transitions defined</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </Button>
     );
   }
@@ -215,7 +238,7 @@ export function TaskStatusWorkflow({
                 {status.name}
               </Button>
             ))}
-            {currentStatus?.rank !== 3 && !availableNextStatuses.find(s => s.rank === 3) && (
+            {canDirectComplete && !availableNextStatuses.find(s => s.rank === 3) && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -267,7 +290,7 @@ export function TaskStatusWorkflow({
               {status.name}
             </Button>
           ))}
-          {currentStatus?.rank !== 3 && !availableNextStatuses.find(s => s.rank === 3) && (
+          {canDirectComplete && !availableNextStatuses.find(s => s.rank === 3) && (
             <Button
               variant="ghost"
               size="sm"
