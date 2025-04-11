@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Task, User, TaskStatus, Client, Entity, TaskCategory } from "@shared/schema";
+import { Task, User, TaskStatus, Client, Entity, TaskCategory, TaskStatusWorkflowRule } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -14,7 +14,8 @@ import {
   Loader2,
   FilterX,
   X,
-  UserCircle
+  UserCircle,
+  ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -489,12 +490,15 @@ interface TaskCardProps {
   dueDate: string;
   status: string;
   statusRank: number;
+  statusId: number;
   assignee: string;
   priority: "low" | "medium" | "high";
   isAdmin: boolean;
   onViewDetails: () => void;
   onComplete: () => void;
   isCompletingTask: boolean;
+  onStatusChange: (statusId: number) => void;
+  availableStatuses: TaskStatus[];
 }
 
 // Import the TaskStatusWorkflow component
@@ -508,12 +512,15 @@ function TaskCard({
   dueDate, 
   status, 
   statusRank,
+  statusId,
   assignee, 
   priority,
   isAdmin,
   onViewDetails,
   onComplete,
-  isCompletingTask
+  isCompletingTask,
+  onStatusChange,
+  availableStatuses
 }: TaskCardProps) {
   const formattedDueDate = new Date(dueDate).toLocaleDateString();
   const isOverdue = new Date(dueDate) < new Date() && statusRank !== 3;
@@ -533,7 +540,6 @@ function TaskCard({
             <div className="flex items-center flex-wrap gap-3 mb-2">
               <h3 className="text-base font-medium text-slate-900 line-clamp-1">{title}</h3>
               
-              {/* Use TaskStatusWorkflow with proper status ID (not rank) */}
               <Badge className={`${
                   statusRank === 1 ? "bg-blue-100 text-blue-700" :
                   Math.floor(statusRank) === 2 ? "bg-yellow-100 text-yellow-700" :
@@ -577,16 +583,27 @@ function TaskCard({
               View Details
             </Button>
             
-            {/* Use Button for status change */}
-            {isPending && (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={onComplete}
-              >
-                Update Status
-              </Button>
-            )}
+            {/* Status change dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="default" size="sm">
+                  Change Status
+                  <ChevronDown className="ml-1 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {availableStatuses.map((statusOption) => (
+                  <DropdownMenuItem 
+                    key={statusOption.id}
+                    onClick={() => onStatusChange(statusOption.id)}
+                    disabled={statusOption.id === statusId}
+                    className={statusOption.id === statusId ? "bg-muted" : ""}
+                  >
+                    {statusOption.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </CardContent>

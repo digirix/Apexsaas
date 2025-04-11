@@ -2280,7 +2280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Skip workflow validation for admin tasks - they can transition freely
-        if (!task.isAdmin) {
+        if (!existingTask.isAdmin) {
           // For revenue tasks, use workflow rules to restrict transitions
           // Find any workflow rule for this transition
           const workflowRule = await storage.getTaskStatusWorkflowRuleByStatuses(
