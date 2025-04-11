@@ -68,8 +68,8 @@ export function TaskStatusWorkflow({
         r.toStatusId === status.id
       );
       
-      // If rule exists and is allowed, include this status
-      return rule && rule.isAllowed;
+      // Allow transition by default, unless there's an explicit rule that forbids it
+      return !rule || rule.isAllowed;
     })
     .sort((a, b) => a.rank - b.rank);
   
@@ -78,11 +78,11 @@ export function TaskStatusWorkflow({
   
   // Check if direct complete is allowed 
   const canDirectComplete = completedStatus && currentStatusId !== completedStatus.id &&
-    (!workflowRules.length || // If no rules defined, allow completion as fallback
-     workflowRules.some(r => 
+    // Find rule for completion, if it exists
+    (!workflowRules.some(r => 
       r.fromStatusId === currentStatusId && 
       r.toStatusId === completedStatus.id && 
-      r.isAllowed
+      !r.isAllowed
     ));
   
   // Update task status mutation

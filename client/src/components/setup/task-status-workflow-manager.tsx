@@ -50,7 +50,7 @@ import {
   X,
   Trash
 } from "lucide-react";
-import { SkeletonTable } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface AddWorkflowRuleFormProps {
   statuses: TaskStatus[];
@@ -271,7 +271,26 @@ export function TaskStatusWorkflowManager() {
   };
   
   if (isLoadingStatuses || isLoadingRules) {
-    return <SkeletonTable columns={4} rows={5} />;
+    return (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-8 w-3/4" />
+          <Skeleton className="h-4 w-1/2 mt-2" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between">
+                <Skeleton className="h-8 w-1/4" />
+                <Skeleton className="h-8 w-1/4" />
+                <Skeleton className="h-8 w-8" />
+                <Skeleton className="h-8 w-8" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
   
   // Sort workflow rules by from status rank then to status rank
@@ -388,9 +407,9 @@ export function TaskStatusWorkflowManager() {
         <div className="mt-6">
           <h4 className="text-sm font-medium mb-2">Workflow Rules Explanation</h4>
           <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
-            <li>Rules define which status transitions are allowed for tasks</li>
-            <li>If no rule exists between two statuses, the transition is not allowed</li>
-            <li>You can create rules that explicitly forbid certain transitions</li>
+            <li>Rules define which status transitions are restricted for tasks</li>
+            <li>By default, all status transitions are allowed</li>
+            <li>Create rules with "Allow" set to OFF to explicitly forbid specific transitions</li>
             <li>The task status workflow applies to all tasks in the system</li>
           </ul>
         </div>

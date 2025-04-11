@@ -6,6 +6,7 @@ import { CurrenciesManager } from "@/components/setup/currencies-manager";
 import { StatesManager } from "@/components/setup/states-manager";
 import { EntityTypesManager } from "@/components/setup/entity-types-manager";
 import { TaskStatusesManager } from "@/components/setup/task-statuses-manager";
+import { TaskStatusWorkflowManager } from "@/components/setup/task-status-workflow-manager";
 import { TaskCategoriesManager } from "@/components/setup/task-categories-manager";
 import { ServiceTypesManager } from "@/components/setup/service-types-manager";
 import { TaxJurisdictionsManager } from "@/components/setup/tax-jurisdictions-manager";
@@ -32,6 +33,7 @@ export default function SetupPage() {
           {activeSection === 'states' && <StatesManager />}
           {activeSection === 'entity-types' && <EntityTypesManager />}
           {activeSection === 'task-statuses' && <TaskStatusesManager />}
+          {activeSection === 'task-status-workflow' && <TaskStatusWorkflowManager />}
           {activeSection === 'task-categories' && <TaskCategoriesManager />}
           {activeSection === 'service-types' && <ServiceTypesManager />}
           {activeSection === 'tax-jurisdictions' && <TaxJurisdictionsManager />}

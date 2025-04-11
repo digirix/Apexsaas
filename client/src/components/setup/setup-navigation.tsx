@@ -69,11 +69,6 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
       icon: <List className="h-5 w-5" />
     },
     {
-      id: 'task-status-workflow',
-      label: 'Status Flow Configuration',
-      icon: <GitBranch className="h-5 w-5" />
-    },
-    {
       id: 'task-categories',
       label: 'Task Categories',
       icon: <FileText className="h-5 w-5" />

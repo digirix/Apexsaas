@@ -11,6 +11,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,8 +52,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, Pencil, Plus, Trash2, ArrowRight } from "lucide-react";
 import { TaskStatus } from "@shared/schema";
+import { TaskStatusWorkflowManager } from "./task-status-workflow-manager";
 
 // Default statuses with fixed ranks
 const DEFAULT_STATUSES = [
@@ -248,109 +251,133 @@ export function TaskStatusesManager() {
     }
   };
   
+  const [activeTab, setActiveTab] = useState<string>("statuses");
+  
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle>Task Statuses</CardTitle>
-          <CardDescription>
-            Configure the statuses that tasks can have in your workflow. The status rank determines the progression of tasks.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              {needsDefaultStatuses && (
-                <Button 
-                  variant="outline" 
-                  onClick={createDefaultStatuses}
-                >
-                  Create Default Statuses
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="statuses">Define Task Statuses</TabsTrigger>
+          <TabsTrigger value="workflow">Configure Status Workflow</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="statuses">
+          <Card>
+            <CardHeader>
+              <CardTitle>Task Statuses</CardTitle>
+              <CardDescription>
+                Configure the statuses that tasks can have in your workflow. The status rank determines the progression of tasks.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  {needsDefaultStatuses && (
+                    <Button 
+                      variant="outline" 
+                      onClick={createDefaultStatuses}
+                    >
+                      Create Default Statuses
+                    </Button>
+                  )}
+                </div>
+                <Button onClick={() => {
+                  form.reset({ name: "", description: "", rank: "2" });
+                  setIsAddDialogOpen(true);
+                }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Task Status
                 </Button>
+              </div>
+              
+              {isLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                </div>
+              ) : taskStatuses.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10">
+                  <p className="text-slate-500 mb-4">No task statuses found</p>
+                  <Button 
+                    onClick={createDefaultStatuses}
+                    className="mb-2"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Default Statuses
+                  </Button>
+                  <Button onClick={() => {
+                    form.reset({ name: "", description: "", rank: "2" });
+                    setIsAddDialogOpen(true);
+                  }}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Custom Status
+                  </Button>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Rank</TableHead>
+                      <TableHead>Status Name</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>System Status</TableHead>
+                      <TableHead className="w-[100px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedStatuses.map((status) => (
+                      <TableRow key={status.id}>
+                        <TableCell>{status.rank}</TableCell>
+                        <TableCell className="font-medium">{status.name}</TableCell>
+                        <TableCell>{status.description || "-"}</TableCell>
+                        <TableCell>
+                          {isDefaultStatus(status) ? (
+                            <Badge variant="secondary">System</Badge>
+                          ) : null}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEdit(status)}
+                              disabled={isDefaultStatus(status)}
+                              title={isDefaultStatus(status) ? "System statuses cannot be edited" : "Edit status"}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(status)}
+                              disabled={isDefaultStatus(status)}
+                              title={isDefaultStatus(status) ? "System statuses cannot be deleted" : "Delete status"}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
-            </div>
-            <Button onClick={() => {
-              form.reset({ name: "", description: "", rank: "2" });
-              setIsAddDialogOpen(true);
-            }}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Task Status
-            </Button>
-          </div>
-          
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-            </div>
-          ) : taskStatuses.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10">
-              <p className="text-slate-500 mb-4">No task statuses found</p>
+            </CardContent>
+            <CardFooter className="flex justify-end">
               <Button 
-                onClick={createDefaultStatuses}
-                className="mb-2"
+                onClick={() => setActiveTab("workflow")}
+                disabled={taskStatuses.length < 2}
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Create Default Statuses
+                Configure Workflow
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
-              <Button onClick={() => {
-                form.reset({ name: "", description: "", rank: "2" });
-                setIsAddDialogOpen(true);
-              }}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Custom Status
-              </Button>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Rank</TableHead>
-                  <TableHead>Status Name</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>System Status</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedStatuses.map((status) => (
-                  <TableRow key={status.id}>
-                    <TableCell>{status.rank}</TableCell>
-                    <TableCell className="font-medium">{status.name}</TableCell>
-                    <TableCell>{status.description || "-"}</TableCell>
-                    <TableCell>
-                      {isDefaultStatus(status) ? (
-                        <Badge variant="secondary">System</Badge>
-                      ) : null}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(status)}
-                          disabled={isDefaultStatus(status)}
-                          title={isDefaultStatus(status) ? "System statuses cannot be edited" : "Edit status"}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(status)}
-                          disabled={isDefaultStatus(status)}
-                          title={isDefaultStatus(status) ? "System statuses cannot be deleted" : "Delete status"}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="workflow">
+          <TaskStatusWorkflowManager />
+        </TabsContent>
+      </Tabs>
 
       {/* Add Task Status Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
