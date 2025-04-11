@@ -1333,6 +1333,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const data = { ...req.body, tenantId };
       
+      // Check for duplicate designation name
+      const existingDesignations = await storage.getDesignations(tenantId);
+      const duplicateName = existingDesignations.find(
+        designation => designation.name.toLowerCase() === data.name.toLowerCase() && 
+        designation.tenantId === tenantId
+      );
+      
+      if (duplicateName) {
+        return res.status(400).json({ message: "A designation with this name already exists" });
+      }
+      
       const validatedData = insertDesignationSchema.parse(data);
       const designation = await storage.createDesignation(validatedData);
       
@@ -1354,6 +1365,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingDesignation = await storage.getDesignation(id, tenantId);
       if (!existingDesignation) {
         return res.status(404).json({ message: "Designation not found" });
+      }
+      
+      // Check for duplicate designation name if name is being changed
+      if (req.body.name && req.body.name !== existingDesignation.name) {
+        const existingDesignations = await storage.getDesignations(tenantId);
+        const duplicateName = existingDesignations.find(
+          designation => designation.name.toLowerCase() === req.body.name.toLowerCase() && 
+          designation.id !== id &&
+          designation.tenantId === tenantId
+        );
+        
+        if (duplicateName) {
+          return res.status(400).json({ message: "A designation with this name already exists" });
+        }
       }
       
       const updatedDesignation = await storage.updateDesignation(id, req.body);
@@ -1398,6 +1423,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const data = { ...req.body, tenantId };
       
+      // Check for duplicate department name
+      const existingDepartments = await storage.getDepartments(tenantId);
+      const duplicateName = existingDepartments.find(
+        department => department.name.toLowerCase() === data.name.toLowerCase() && 
+        department.tenantId === tenantId
+      );
+      
+      if (duplicateName) {
+        return res.status(400).json({ message: "A department with this name already exists" });
+      }
+      
       const validatedData = insertDepartmentSchema.parse(data);
       const department = await storage.createDepartment(validatedData);
       
@@ -1419,6 +1455,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingDepartment = await storage.getDepartment(id, tenantId);
       if (!existingDepartment) {
         return res.status(404).json({ message: "Department not found" });
+      }
+      
+      // Check for duplicate department name if name is being changed
+      if (req.body.name && req.body.name !== existingDepartment.name) {
+        const existingDepartments = await storage.getDepartments(tenantId);
+        const duplicateName = existingDepartments.find(
+          department => department.name.toLowerCase() === req.body.name.toLowerCase() && 
+          department.id !== id &&
+          department.tenantId === tenantId
+        );
+        
+        if (duplicateName) {
+          return res.status(400).json({ message: "A department with this name already exists" });
+        }
       }
       
       const updatedDepartment = await storage.updateDepartment(id, req.body);
