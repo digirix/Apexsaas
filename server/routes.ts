@@ -856,7 +856,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check for duplicate client name
       const existingClients = await storage.getClients(tenantId);
       const duplicateName = existingClients.find(
-        client => client.name.toLowerCase() === data.name.toLowerCase() && 
+        client => client.displayName.toLowerCase() === data.displayName.toLowerCase() && 
         client.tenantId === tenantId
       );
       
@@ -914,9 +914,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingClients = await storage.getClients(tenantId);
       
       // Check for duplicate client name if being changed
-      if (req.body.name && req.body.name !== existingClient.name) {
+      if (req.body.displayName && req.body.displayName !== existingClient.displayName) {
         const duplicateName = existingClients.find(
-          client => client.name.toLowerCase() === req.body.name.toLowerCase() && 
+          client => client.displayName.toLowerCase() === req.body.displayName.toLowerCase() && 
           client.id !== id &&
           client.tenantId === tenantId
         );
@@ -1887,6 +1887,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const data = { ...req.body, tenantId };
       
+      // Check for duplicate task category name for the same type (admin or revenue)
+      const existingCategories = await storage.getTaskCategories(tenantId);
+      const duplicateName = existingCategories.find(
+        category => category.name.toLowerCase() === data.name.toLowerCase() && 
+        category.isAdmin === data.isAdmin && 
+        category.tenantId === tenantId
+      );
+      
+      if (duplicateName) {
+        return res.status(400).json({ 
+          message: `A ${data.isAdmin ? 'administrative' : 'revenue'} task category with this name already exists` 
+        });
+      }
+      
       const validatedData = insertTaskCategorySchema.parse(data);
       const category = await storage.createTaskCategory(validatedData);
       
@@ -1908,6 +1922,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingCategory = await storage.getTaskCategory(id, tenantId);
       if (!existingCategory) {
         return res.status(404).json({ message: "Task category not found" });
+      }
+      
+      // Check for duplicate task category name if name is being changed
+      if (req.body.name && req.body.name !== existingCategory.name) {
+        const isAdmin = req.body.isAdmin !== undefined ? req.body.isAdmin : existingCategory.isAdmin;
+        
+        const existingCategories = await storage.getTaskCategories(tenantId);
+        const duplicateName = existingCategories.find(
+          category => category.name.toLowerCase() === req.body.name.toLowerCase() && 
+          category.isAdmin === isAdmin && 
+          category.id !== id &&
+          category.tenantId === tenantId
+        );
+        
+        if (duplicateName) {
+          return res.status(400).json({ 
+            message: `A ${isAdmin ? 'administrative' : 'revenue'} task category with this name already exists` 
+          });
+        }
       }
       
       const updatedCategory = await storage.updateTaskCategory(id, req.body);
