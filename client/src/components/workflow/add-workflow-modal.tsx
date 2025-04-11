@@ -64,7 +64,7 @@ export function AddWorkflowModal({ isOpen, onClose, onWorkflowCreated }: AddWork
   // Create workflow mutation
   const mutation = useMutation({
     mutationFn: (data: FormData) =>
-      apiRequest('/api/v1/workflows', 'POST', data),
+      apiRequest('POST', '/api/v1/workflows', data),
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/workflows'] });
       toast({
