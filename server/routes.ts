@@ -2279,19 +2279,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Invalid task status" });
         }
         
-        // Use workflow rules for all status transitions
-        // Find any workflow rule for this transition
-        const workflowRule = await storage.getTaskStatusWorkflowRuleByStatuses(
-          tenantId,
-          currentStatus.id,
-          targetStatus.id
-        );
-        
-        // If there's an explicit rule that forbids this transition, block it
-        if (workflowRule && !workflowRule.isAllowed) {
-          return res.status(400).json({ 
-            message: `Status transition from '${currentStatus.name}' to '${targetStatus.name}' is not allowed by workflow rules` 
-          });
+        // Skip workflow validation for admin tasks - they can transition freely
+        if (!task.isAdmin) {
+          // For revenue tasks, use workflow rules to restrict transitions
+          // Find any workflow rule for this transition
+          const workflowRule = await storage.getTaskStatusWorkflowRuleByStatuses(
+            tenantId,
+            currentStatus.id,
+            targetStatus.id
+          );
+          
+          // If there's an explicit rule that forbids this transition, block it
+          if (workflowRule && !workflowRule.isAllowed) {
+            return res.status(400).json({ 
+              message: `Status transition from '${currentStatus.name}' to '${targetStatus.name}' is not allowed by workflow rules` 
+            });
+          }
         }
         // Otherwise allow the transition (default to allowing transitions for all status types)
       }

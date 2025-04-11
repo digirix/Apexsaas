@@ -155,11 +155,11 @@ function AddWorkflowRuleForm({ statuses, onClose }: AddWorkflowRuleFormProps) {
         
         <div className="flex items-center space-x-2">
           <Switch 
-            id="is-allowed" 
-            checked={isAllowed} 
-            onCheckedChange={setIsAllowed} 
+            id="is-restricted" 
+            checked={!isAllowed} 
+            onCheckedChange={(checked) => setIsAllowed(!checked)} 
           />
-          <Label htmlFor="is-allowed">Allow this transition</Label>
+          <Label htmlFor="is-restricted">Restrict this transition</Label>
         </div>
       </div>
       
@@ -356,7 +356,7 @@ export function TaskStatusWorkflowManager() {
               <TableRow>
                 <TableHead>From Status</TableHead>
                 <TableHead>To Status</TableHead>
-                <TableHead className="text-center">Allowed</TableHead>
+                <TableHead className="text-center">Restricted</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -367,7 +367,7 @@ export function TaskStatusWorkflowManager() {
                   <TableCell>{getStatusName(rule.toStatusId)}</TableCell>
                   <TableCell className="text-center">
                     <Switch
-                      checked={rule.isAllowed}
+                      checked={!rule.isAllowed}
                       onCheckedChange={() => handleToggleRule(rule.id, rule.isAllowed)}
                       disabled={toggleRuleMutation.isPending}
                     />
@@ -409,8 +409,8 @@ export function TaskStatusWorkflowManager() {
           <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
             <li>Rules define which status transitions are restricted for tasks</li>
             <li>By default, all status transitions are allowed</li>
-            <li>Create rules with "Allow" set to OFF to explicitly forbid specific transitions</li>
-            <li>The task status workflow applies to all tasks in the system</li>
+            <li>Turn on "Restrict" for transitions you want to forbid</li>
+            <li>These restrictions only apply to Revenue Tasks (not Admin Tasks)</li>
           </ul>
         </div>
       </CardContent>
