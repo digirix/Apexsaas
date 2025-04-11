@@ -168,6 +168,33 @@ export function TaskList() {
     completeTaskMutation.mutate(taskId);
   };
   
+  // Task status change mutation
+  const changeTaskStatusMutation = useMutation({
+    mutationFn: async ({ taskId, statusId }: { taskId: number, statusId: number }) => {
+      const response = await apiRequest("PUT", `/api/v1/tasks/${taskId}`, { statusId });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/tasks"] });
+      toast({
+        title: "Status Updated",
+        description: "The task status has been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update task status. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Handle status change
+  const handleStatusChange = (taskId: number, statusId: number) => {
+    changeTaskStatusMutation.mutate({ taskId, statusId });
+  };
+  
   // Find all task categories
   const allTaskCategories = [...adminTaskCategories, ...revenueTaskCategories];
   
@@ -454,12 +481,15 @@ export function TaskList() {
                   dueDate={task.dueDate.toString()}
                   status={statusName}
                   statusRank={status?.rank || 0}
+                  statusId={task.statusId}
                   assignee={assigneeName}
                   priority={priority}
                   isAdmin={task.isAdmin}
                   onViewDetails={() => handleViewTaskDetails(task.id)}
                   onComplete={() => handleCompleteTask(task.id)}
                   isCompletingTask={completeTaskMutation.isPending}
+                  onStatusChange={(statusId) => handleStatusChange(task.id, statusId)}
+                  availableStatuses={taskStatuses}
                 />
               );
             })}
@@ -592,16 +622,20 @@ function TaskCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                {availableStatuses.map((statusOption) => (
-                  <DropdownMenuItem 
-                    key={statusOption.id}
-                    onClick={() => onStatusChange(statusOption.id)}
-                    disabled={statusOption.id === statusId}
-                    className={statusOption.id === statusId ? "bg-muted" : ""}
-                  >
-                    {statusOption.name}
-                  </DropdownMenuItem>
-                ))}
+                {availableStatuses && availableStatuses.length > 0 ? (
+                  availableStatuses.map((statusOption) => (
+                    <DropdownMenuItem 
+                      key={statusOption.id}
+                      onClick={() => onStatusChange(statusOption.id)}
+                      disabled={statusOption.id === statusId}
+                      className={statusOption.id === statusId ? "bg-muted" : ""}
+                    >
+                      {statusOption.name}
+                    </DropdownMenuItem>
+                  ))
+                ) : (
+                  <DropdownMenuItem disabled>No statuses defined</DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
