@@ -151,6 +151,7 @@ export interface IStorage {
 
 export class MemStorage implements IStorage {
   private tenants: Map<number, Tenant>;
+  private tenantSettings: Map<number, TenantSetting>;
   private users: Map<number, User>;
   private designations: Map<number, Designation>;
   private departments: Map<number, Department>;
@@ -172,6 +173,7 @@ export class MemStorage implements IStorage {
   sessionStore: MemoryStoreType;
   
   private tenantId: number = 1;
+  private tenantSettingId: number = 1;
   private userId: number = 1;
   private designationId: number = 1;
   private departmentId: number = 1;
@@ -192,6 +194,7 @@ export class MemStorage implements IStorage {
 
   constructor() {
     this.tenants = new Map();
+    this.tenantSettings = new Map();
     this.users = new Map();
     this.designations = new Map();
     this.departments = new Map();
@@ -229,6 +232,52 @@ export class MemStorage implements IStorage {
     };
     this.tenants.set(id, newTenant);
     return newTenant;
+  }
+  
+  // Tenant Settings operations
+  async getTenantSettings(tenantId: number): Promise<TenantSetting[]> {
+    return Array.from(this.tenantSettings.values()).filter(setting => setting.tenantId === tenantId);
+  }
+  
+  async getTenantSetting(tenantId: number, key: string): Promise<TenantSetting | undefined> {
+    const settings = Array.from(this.tenantSettings.values());
+    return settings.find(setting => setting.tenantId === tenantId && setting.key === key);
+  }
+  
+  async setTenantSetting(tenantId: number, key: string, value: string): Promise<TenantSetting> {
+    // Check if setting already exists
+    const existingSetting = await this.getTenantSetting(tenantId, key);
+    
+    if (existingSetting) {
+      // Update existing setting
+      const updatedSetting: TenantSetting = {
+        ...existingSetting,
+        value,
+        updatedAt: new Date()
+      };
+      this.tenantSettings.set(existingSetting.id, updatedSetting);
+      return updatedSetting;
+    } else {
+      // Create new setting
+      const id = this.tenantSettingId++;
+      const newSetting: TenantSetting = {
+        id,
+        tenantId,
+        key,
+        value,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      this.tenantSettings.set(id, newSetting);
+      return newSetting;
+    }
+  }
+  
+  async deleteTenantSetting(tenantId: number, key: string): Promise<boolean> {
+    const setting = await this.getTenantSetting(tenantId, key);
+    if (!setting) return false;
+    
+    return this.tenantSettings.delete(setting.id);
   }
 
   // User operations
