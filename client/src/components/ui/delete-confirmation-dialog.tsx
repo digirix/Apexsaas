@@ -1,3 +1,5 @@
+import { AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -8,8 +10,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 
 interface DeleteConfirmationDialogProps {
   isOpen: boolean;
@@ -26,13 +26,16 @@ export function DeleteConfirmationDialog({
   onConfirm,
   title,
   description,
-  isDeleting,
+  isDeleting = false,
 }: DeleteConfirmationDialogProps) {
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <div className="flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-red-500" />
+            <AlertDialogTitle>{title}</AlertDialogTitle>
+          </div>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -42,14 +45,7 @@ export function DeleteConfirmationDialog({
             onClick={onConfirm} 
             disabled={isDeleting}
           >
-            {isDeleting ? (
-              <>
-                <Spinner size="sm" className="mr-2" />
-                Deleting...
-              </>
-            ) : (
-              "Delete"
-            )}
+            {isDeleting ? "Deleting..." : "Delete"}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

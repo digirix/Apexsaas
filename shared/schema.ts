@@ -493,90 +493,6 @@ export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type UserPermission = typeof userPermissions.$inferSelect;
 export type InsertUserPermission = z.infer<typeof insertUserPermissionSchema>;
 
-// Workflow tables
-export const workflowTriggerEnum = pgEnum('workflow_trigger', [
-  'task_created_admin', 
-  'task_created_revenue', 
-  'task_status_changed', 
-  'task_assignee_changed', 
-  'task_due_date_arrives', 
-  'task_due_date_approaching'
-]);
-
-// Workflow action type enum
-export const workflowActionEnum = pgEnum('workflow_action', [
-  'change_task_status', 
-  'change_task_assignee', 
-  'set_task_due_date', 
-  'add_task_comment', 
-  'send_notification', 
-  'create_new_task'
-]);
-
-// Workflows table
-export const workflows = pgTable("workflows", {
-  id: serial("id").primaryKey(),
-  tenantId: integer("tenant_id").notNull(),
-  name: text("name").notNull(),
-  description: text("description"),
-  triggerEvent: workflowTriggerEnum("trigger_event").notNull(),
-  triggerData: text("trigger_data"), // JSON string with additional trigger parameters
-  conditions: text("conditions"), // JSON string with condition rules
-  isEnabled: boolean("is_enabled").default(true).notNull(),
-  createdBy: integer("created_by").notNull(), // User ID
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  lastRunAt: timestamp("last_run_at"),
-}, (table) => {
-  return {
-    tenantWorkflowNameUnique: unique().on(table.tenantId, table.name),
-  };
-});
-
-export const insertWorkflowSchema = createInsertSchema(workflows).pick({
-  tenantId: true,
-  name: true,
-  description: true,
-  triggerEvent: true,
-  triggerData: true,
-  conditions: true,
-  isEnabled: true,
-  createdBy: true,
-});
-
-// Workflow actions table
-export const workflowActions = pgTable("workflow_actions", {
-  id: serial("id").primaryKey(),
-  workflowId: integer("workflow_id").notNull(),
-  actionType: workflowActionEnum("action_type").notNull(),
-  actionData: text("action_data").notNull(), // JSON string with action parameters
-  sortOrder: integer("sort_order").notNull(), // Order of execution
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export const insertWorkflowActionSchema = createInsertSchema(workflowActions).pick({
-  workflowId: true,
-  actionType: true,
-  actionData: true,
-  sortOrder: true,
-});
-
-// Workflow execution logs table
-export const workflowExecutionLogs = pgTable("workflow_execution_logs", {
-  id: serial("id").primaryKey(),
-  workflowId: integer("workflow_id").notNull(),
-  triggeredBy: text("triggered_by").notNull(), // Event description (e.g., "Task #123 status changed")
-  status: text("status").notNull(), // Success or error
-  details: text("details"), // Execution details or error message
-  executedAt: timestamp("executed_at").defaultNow().notNull(),
-});
-
-export const insertWorkflowExecutionLogSchema = createInsertSchema(workflowExecutionLogs).pick({
-  workflowId: true,
-  triggeredBy: true,
-  status: true,
-  details: true,
-});
-
 // Auth schemas
 export const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -592,13 +508,3 @@ export const registerSchema = z.object({
 
 export type LoginData = z.infer<typeof loginSchema>;
 export type RegisterData = z.infer<typeof registerSchema>;
-
-// Export workflow types
-export type Workflow = typeof workflows.$inferSelect;
-export type InsertWorkflow = z.infer<typeof insertWorkflowSchema>;
-
-export type WorkflowAction = typeof workflowActions.$inferSelect;
-export type InsertWorkflowAction = z.infer<typeof insertWorkflowActionSchema>;
-
-export type WorkflowExecutionLog = typeof workflowExecutionLogs.$inferSelect;
-export type InsertWorkflowExecutionLog = z.infer<typeof insertWorkflowExecutionLogSchema>;

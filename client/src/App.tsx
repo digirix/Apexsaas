@@ -12,7 +12,6 @@ import ClientDetailPage from "@/pages/client-detail-page";
 import SetupPage from "@/pages/setup-page";
 import TasksPage from "@/pages/tasks-page";
 import UsersPage from "@/pages/users-page";
-import { WorkflowPage } from "@/pages/workflow-page";
 import { ComplianceCalendarPage } from "@/pages/compliance-calendar-page";
 
 function Router() {
@@ -25,7 +24,6 @@ function Router() {
       <ProtectedRoute path="/tasks" component={TasksPage} />
       <ProtectedRoute path="/compliance-calendar" component={ComplianceCalendarPage} />
       <ProtectedRoute path="/users" component={UsersPage} />
-      <ProtectedRoute path="/workflow" component={WorkflowPage} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>
