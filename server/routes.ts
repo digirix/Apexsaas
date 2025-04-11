@@ -9,7 +9,8 @@ import {
   insertClientSchema, insertEntitySchema, insertTaskSchema,
   insertDesignationSchema, insertDepartmentSchema, insertUserSchema,
   insertTaxJurisdictionSchema, insertEntityTaxJurisdictionSchema,
-  insertEntityServiceSubscriptionSchema, insertUserPermissionSchema
+  insertEntityServiceSubscriptionSchema, insertUserPermissionSchema,
+  insertTaskStatusWorkflowRuleSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -600,6 +601,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete task status" });
+    }
+  });
+
+  // 5.1 Task Status Workflow Rules
+  app.get("/api/v1/setup/task-status-workflow-rules", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const fromStatusId = req.query.fromStatusId ? parseInt(req.query.fromStatusId as string) : undefined;
+      
+      const workflowRules = await storage.getTaskStatusWorkflowRules(tenantId, fromStatusId);
+      res.json(workflowRules);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch task status workflow rules" });
+    }
+  });
+  
+  app.get("/api/v1/setup/task-status-workflow-rules/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const workflowRule = await storage.getTaskStatusWorkflowRule(id, tenantId);
+      if (workflowRule) {
+        res.json(workflowRule);
+      } else {
+        res.status(404).json({ message: "Task status workflow rule not found" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch task status workflow rule" });
+    }
+  });
+  
+  app.post("/api/v1/setup/task-status-workflow-rules", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const data = { ...req.body, tenantId };
+      
+      // Validate that both status IDs exist
+      const fromStatus = await storage.getTaskStatus(data.fromStatusId, tenantId);
+      const toStatus = await storage.getTaskStatus(data.toStatusId, tenantId);
+      
+      if (!fromStatus) {
+        return res.status(400).json({ message: "From status not found" });
+      }
+      
+      if (!toStatus) {
+        return res.status(400).json({ message: "To status not found" });
+      }
+      
+      // Check if this rule already exists
+      const existingRule = await storage.getTaskStatusWorkflowRuleByStatuses(
+        tenantId, 
+        data.fromStatusId, 
+        data.toStatusId
+      );
+      
+      if (existingRule) {
+        return res.status(400).json({ 
+          message: "A workflow rule between these statuses already exists" 
+        });
+      }
+      
+      // Validate data with zod schema
+      const validatedData = insertTaskStatusWorkflowRuleSchema.parse(data);
+      const workflowRule = await storage.createTaskStatusWorkflowRule(validatedData);
+      
+      res.status(201).json(workflowRule);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      console.error("Error creating task status workflow rule:", error);
+      res.status(500).json({ message: "Failed to create task status workflow rule" });
+    }
+  });
+  
+  app.put("/api/v1/setup/task-status-workflow-rules/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if rule exists
+      const existingRule = await storage.getTaskStatusWorkflowRule(id, tenantId);
+      if (!existingRule) {
+        return res.status(404).json({ message: "Task status workflow rule not found" });
+      }
+      
+      // Check if modifying from/to status IDs
+      if (req.body.fromStatusId !== undefined || req.body.toStatusId !== undefined) {
+        const fromStatusId = req.body.fromStatusId || existingRule.fromStatusId;
+        const toStatusId = req.body.toStatusId || existingRule.toStatusId;
+        
+        // Validate that both status IDs exist
+        const fromStatus = await storage.getTaskStatus(fromStatusId, tenantId);
+        const toStatus = await storage.getTaskStatus(toStatusId, tenantId);
+        
+        if (!fromStatus) {
+          return res.status(400).json({ message: "From status not found" });
+        }
+        
+        if (!toStatus) {
+          return res.status(400).json({ message: "To status not found" });
+        }
+        
+        // Check if this creates a duplicate rule
+        if (fromStatusId !== existingRule.fromStatusId || toStatusId !== existingRule.toStatusId) {
+          const duplicateRule = await storage.getTaskStatusWorkflowRuleByStatuses(
+            tenantId, 
+            fromStatusId, 
+            toStatusId
+          );
+          
+          if (duplicateRule && duplicateRule.id !== id) {
+            return res.status(400).json({ 
+              message: "A workflow rule between these statuses already exists" 
+            });
+          }
+        }
+      }
+      
+      const updatedRule = await storage.updateTaskStatusWorkflowRule(id, req.body);
+      res.json(updatedRule);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update task status workflow rule" });
+    }
+  });
+  
+  app.delete("/api/v1/setup/task-status-workflow-rules/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const result = await storage.deleteTaskStatusWorkflowRule(id, tenantId);
+      if (result) {
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ message: "Task status workflow rule not found" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete task status workflow rule" });
     }
   });
 

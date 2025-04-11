@@ -708,8 +708,7 @@ export class MemStorage implements IStorage {
     const newRule: TaskStatusWorkflowRule = { 
       ...rule, 
       id, 
-      createdAt: new Date(),
-      description: rule.description ?? null
+      createdAt: new Date()
     };
     this.taskStatusWorkflowRules.set(id, newRule);
     return newRule;
