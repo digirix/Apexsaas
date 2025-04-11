@@ -2279,39 +2279,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Invalid task status" });
         }
         
-        // Implement status transition rules based on rank
-        // Rule 1: From rank 1 (New), can only move to rank 2.x or directly to 3 (Completed)
-        if (currentStatus.rank === 1) {
-          if (!(Math.floor(targetStatus.rank) === 2 || targetStatus.rank === 3)) {
-            return res.status(400).json({ 
-              message: "Invalid status transition: From 'New' status, task can only move to an intermediate status or directly to 'Completed'" 
-            });
-          }
-        }
+        // Use workflow rules for all status transitions
+        // Find any workflow rule for this transition
+        const workflowRule = await storage.getTaskStatusWorkflowRuleByStatuses(
+          tenantId,
+          currentStatus.id,
+          targetStatus.id
+        );
         
-        // Rule 2: From rank 2.x, can only move to the next decimal rank (e.g., 2.1 -> 2.2) or to rank 3 (Completed)
-        else if (Math.floor(currentStatus.rank) === 2) {
-          const currentDecimal = currentStatus.rank - 2; // Get decimal part (e.g., 2.1 -> 0.1)
-          const nextDecimal = currentDecimal + 0.1; // Next decimal (e.g., 0.1 -> 0.2)
-          const nextRank = 2 + nextDecimal; // Combine to get next rank (e.g., 2 + 0.2 = 2.2)
-          
-          // Can move to next rank or to rank 3 (Completed)
-          const isValidTransition = targetStatus.rank === 3 || 
-                                   (Math.abs(targetStatus.rank - nextRank) < 0.01); // Using small epsilon for float comparison
-          
-          if (!isValidTransition) {
-            return res.status(400).json({ 
-              message: `Invalid status transition: From rank ${currentStatus.rank}, task can only move to rank ${nextRank.toFixed(1)} or to 'Completed'` 
-            });
-          }
-        }
-        
-        // Rule 3: From rank 3 (Completed), can't change status
-        else if (currentStatus.rank === 3) {
+        // If there's an explicit rule that forbids this transition, block it
+        if (workflowRule && !workflowRule.isAllowed) {
           return res.status(400).json({ 
-            message: "Cannot change status once task is marked as 'Completed'" 
+            message: `Status transition from '${currentStatus.name}' to '${targetStatus.name}' is not allowed by workflow rules` 
           });
         }
+        // Otherwise allow the transition (default to allowing transitions for all status types)
       }
       
       const updatedTask = await storage.updateTask(id, req.body);
