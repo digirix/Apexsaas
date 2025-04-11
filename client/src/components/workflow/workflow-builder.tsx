@@ -100,7 +100,7 @@ export function WorkflowBuilder({ workflowId, onBack }: WorkflowBuilderProps) {
   // Update workflow mutation
   const updateWorkflowMutation = useMutation({
     mutationFn: (data: Partial<Workflow>) =>
-      apiRequest(`/api/v1/workflows/${workflowId}`, 'PUT', data),
+      apiRequest('PUT', `/api/v1/workflows/${workflowId}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/workflows', workflowId] });
       toast({
@@ -121,7 +121,7 @@ export function WorkflowBuilder({ workflowId, onBack }: WorkflowBuilderProps) {
   // Create action mutation
   const createActionMutation = useMutation({
     mutationFn: (data: Partial<InsertWorkflowAction>) =>
-      apiRequest(`/api/v1/workflows/${workflowId}/actions`, 'POST', data),
+      apiRequest('POST', `/api/v1/workflows/${workflowId}/actions`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/v1/workflows/${workflowId}/actions`] });
       toast({
@@ -145,7 +145,7 @@ export function WorkflowBuilder({ workflowId, onBack }: WorkflowBuilderProps) {
   // Update action mutation
   const updateActionMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<InsertWorkflowAction> }) =>
-      apiRequest(`/api/v1/workflows/${workflowId}/actions/${id}`, 'PUT', data),
+      apiRequest('PUT', `/api/v1/workflows/${workflowId}/actions/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/v1/workflows/${workflowId}/actions`] });
       toast({
@@ -166,7 +166,7 @@ export function WorkflowBuilder({ workflowId, onBack }: WorkflowBuilderProps) {
   // Delete action mutation
   const deleteActionMutation = useMutation({
     mutationFn: (id: number) =>
-      apiRequest(`/api/v1/workflows/${workflowId}/actions/${id}`, 'DELETE'),
+      apiRequest('DELETE', `/api/v1/workflows/${workflowId}/actions/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/v1/workflows/${workflowId}/actions`] });
       toast({

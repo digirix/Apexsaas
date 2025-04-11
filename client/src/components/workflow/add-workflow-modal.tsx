@@ -65,16 +65,22 @@ export function AddWorkflowModal({ isOpen, onClose, onWorkflowCreated }: AddWork
   const mutation = useMutation({
     mutationFn: (data: FormData) =>
       apiRequest('POST', '/api/v1/workflows', data),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/workflows'] });
       toast({
         title: "Workflow created",
         description: "The workflow has been created successfully.",
       });
       // Close modal and trigger the callback with the new workflow ID
-      if (response && response.id) {
-        onWorkflowCreated(response.id);
-      } else {
+      try {
+        const data = await response.json();
+        if (data && data.id) {
+          onWorkflowCreated(data.id);
+        } else {
+          onClose();
+        }
+      } catch (error) {
+        console.error('Error parsing response:', error);
         onClose();
       }
     },

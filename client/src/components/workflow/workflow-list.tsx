@@ -40,7 +40,7 @@ export function WorkflowList({ onSelectWorkflow, onCreateWorkflow, onViewExecuti
   // Toggle workflow status
   const toggleStatusMutation = useMutation({
     mutationFn: ({ id, isEnabled }: { id: number; isEnabled: boolean }) => 
-      apiRequest(`/api/v1/workflows/${id}/toggle`, 'PATCH', { isEnabled }),
+      apiRequest('PATCH', `/api/v1/workflows/${id}/toggle`, { isEnabled }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/workflows'] });
       toast({
@@ -60,7 +60,7 @@ export function WorkflowList({ onSelectWorkflow, onCreateWorkflow, onViewExecuti
   // Delete workflow
   const deleteWorkflowMutation = useMutation({
     mutationFn: (id: number) => 
-      apiRequest(`/api/v1/workflows/${id}`, 'DELETE'),
+      apiRequest('DELETE', `/api/v1/workflows/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/workflows'] });
       toast({
