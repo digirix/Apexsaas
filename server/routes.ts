@@ -247,6 +247,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const data = { ...req.body, tenantId };
       
+      // Check for duplicate state name for the selected country
+      const existingStates = await storage.getStates(tenantId, data.countryId);
+      const duplicateName = existingStates.find(
+        state => state.name.toLowerCase() === data.name.toLowerCase() && 
+        state.countryId === data.countryId &&
+        state.tenantId === tenantId
+      );
+      
+      if (duplicateName) {
+        return res.status(400).json({ 
+          message: "A state with this name already exists for the selected country" 
+        });
+      }
+      
       const validatedData = insertStateSchema.parse(data);
       const state = await storage.createState(validatedData);
       
@@ -268,6 +282,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingState = await storage.getState(id, tenantId);
       if (!existingState) {
         return res.status(404).json({ message: "State not found" });
+      }
+      
+      // Check for duplicate state name if name or countryId is being changed
+      if ((req.body.name && req.body.name !== existingState.name) || 
+          (req.body.countryId && req.body.countryId !== existingState.countryId)) {
+        
+        const countryId = req.body.countryId || existingState.countryId;
+        const name = req.body.name || existingState.name;
+        
+        const existingStates = await storage.getStates(tenantId, countryId);
+        const duplicateName = existingStates.find(
+          state => state.name.toLowerCase() === name.toLowerCase() && 
+          state.id !== id &&
+          state.countryId === countryId &&
+          state.tenantId === tenantId
+        );
+        
+        if (duplicateName) {
+          return res.status(400).json({ 
+            message: "A state with this name already exists for the selected country" 
+          });
+        }
       }
       
       const updatedState = await storage.updateState(id, req.body);
@@ -314,6 +350,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const data = { ...req.body, tenantId };
       
+      // Check for duplicate entity type name for the selected country
+      const existingEntityTypes = await storage.getEntityTypes(tenantId, data.countryId);
+      const duplicateName = existingEntityTypes.find(
+        entityType => entityType.name.toLowerCase() === data.name.toLowerCase() && 
+        entityType.countryId === data.countryId &&
+        entityType.tenantId === tenantId
+      );
+      
+      if (duplicateName) {
+        return res.status(400).json({ 
+          message: "An entity type with this name already exists for the selected country" 
+        });
+      }
+      
       const validatedData = insertEntityTypeSchema.parse(data);
       const entityType = await storage.createEntityType(validatedData);
       
@@ -335,6 +385,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingEntityType = await storage.getEntityType(id, tenantId);
       if (!existingEntityType) {
         return res.status(404).json({ message: "Entity type not found" });
+      }
+      
+      // Check for duplicate entity type name if name or countryId is being changed
+      if ((req.body.name && req.body.name !== existingEntityType.name) || 
+          (req.body.countryId && req.body.countryId !== existingEntityType.countryId)) {
+        
+        const countryId = req.body.countryId || existingEntityType.countryId;
+        const name = req.body.name || existingEntityType.name;
+        
+        const existingEntityTypes = await storage.getEntityTypes(tenantId, countryId);
+        const duplicateName = existingEntityTypes.find(
+          entityType => entityType.name.toLowerCase() === name.toLowerCase() && 
+          entityType.id !== id &&
+          entityType.countryId === countryId &&
+          entityType.tenantId === tenantId
+        );
+        
+        if (duplicateName) {
+          return res.status(400).json({ 
+            message: "An entity type with this name already exists for the selected country" 
+          });
+        }
       }
       
       const updatedEntityType = await storage.updateEntityType(id, req.body);
@@ -553,6 +625,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Service rate must be greater than 0" });
       }
       
+      // Check for duplicate service type name for the selected country
+      const existingServiceTypes = await storage.getServiceTypes(tenantId, data.countryId);
+      const duplicateName = existingServiceTypes.find(
+        serviceType => serviceType.name.toLowerCase() === data.name.toLowerCase() && 
+        serviceType.countryId === data.countryId &&
+        serviceType.tenantId === tenantId
+      );
+      
+      if (duplicateName) {
+        return res.status(400).json({ 
+          message: "A service type with this name already exists for the selected country" 
+        });
+      }
+      
       const validatedData = insertServiceTypeSchema.parse(data);
       const serviceType = await storage.createServiceType(validatedData);
       
@@ -579,6 +665,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate rate if provided
       if (req.body.rate !== undefined && req.body.rate <= 0) {
         return res.status(400).json({ message: "Service rate must be greater than 0" });
+      }
+      
+      // Check for duplicate service type name if name or countryId is being changed
+      if ((req.body.name && req.body.name !== existingServiceType.name) || 
+          (req.body.countryId && req.body.countryId !== existingServiceType.countryId)) {
+        
+        const countryId = req.body.countryId || existingServiceType.countryId;
+        const name = req.body.name || existingServiceType.name;
+        
+        const existingServiceTypes = await storage.getServiceTypes(tenantId, countryId);
+        const duplicateName = existingServiceTypes.find(
+          serviceType => serviceType.name.toLowerCase() === name.toLowerCase() && 
+          serviceType.id !== id &&
+          serviceType.countryId === countryId &&
+          serviceType.tenantId === tenantId
+        );
+        
+        if (duplicateName) {
+          return res.status(400).json({ 
+            message: "A service type with this name already exists for the selected country" 
+          });
+        }
       }
       
       const updatedServiceType = await storage.updateServiceType(id, req.body);
@@ -625,6 +733,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const data = { ...req.body, tenantId };
       
+      // Check for duplicate tax jurisdiction name for the selected country
+      const existingTaxJurisdictions = await storage.getTaxJurisdictions(tenantId, data.countryId);
+      const duplicateName = existingTaxJurisdictions.find(
+        taxJurisdiction => taxJurisdiction.name.toLowerCase() === data.name.toLowerCase() && 
+        taxJurisdiction.countryId === data.countryId &&
+        taxJurisdiction.tenantId === tenantId
+      );
+      
+      if (duplicateName) {
+        return res.status(400).json({ 
+          message: "A tax jurisdiction with this name already exists for the selected country" 
+        });
+      }
+      
       const validatedData = insertTaxJurisdictionSchema.parse(data);
       const newTaxJurisdiction = await storage.createTaxJurisdiction(validatedData);
       res.status(201).json(newTaxJurisdiction);
@@ -647,6 +769,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingTaxJurisdiction = await storage.getTaxJurisdiction(id, tenantId);
       if (!existingTaxJurisdiction) {
         return res.status(404).json({ message: "Tax jurisdiction not found" });
+      }
+      
+      // Check for duplicate tax jurisdiction name if name or countryId is being changed
+      if ((req.body.name && req.body.name !== existingTaxJurisdiction.name) || 
+          (req.body.countryId && req.body.countryId !== existingTaxJurisdiction.countryId)) {
+        
+        const countryId = req.body.countryId || existingTaxJurisdiction.countryId;
+        const name = req.body.name || existingTaxJurisdiction.name;
+        
+        const existingTaxJurisdictions = await storage.getTaxJurisdictions(tenantId, countryId);
+        const duplicateName = existingTaxJurisdictions.find(
+          taxJurisdiction => taxJurisdiction.name.toLowerCase() === name.toLowerCase() && 
+          taxJurisdiction.id !== id &&
+          taxJurisdiction.countryId === countryId &&
+          taxJurisdiction.tenantId === tenantId
+        );
+        
+        if (duplicateName) {
+          return res.status(400).json({ 
+            message: "A tax jurisdiction with this name already exists for the selected country" 
+          });
+        }
       }
       
       const data = { ...req.body };
@@ -709,6 +853,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const data = { ...req.body, tenantId };
       
+      // Check for duplicate client name
+      const existingClients = await storage.getClients(tenantId);
+      const duplicateName = existingClients.find(
+        client => client.name.toLowerCase() === data.name.toLowerCase() && 
+        client.tenantId === tenantId
+      );
+      
+      if (duplicateName) {
+        return res.status(400).json({ message: "A client with this name already exists" });
+      }
+      
+      // Check for duplicate email if provided
+      if (data.email) {
+        const duplicateEmail = existingClients.find(
+          client => client.email && client.email.toLowerCase() === data.email.toLowerCase() && 
+          client.tenantId === tenantId
+        );
+        
+        if (duplicateEmail) {
+          return res.status(400).json({ message: "A client with this email already exists" });
+        }
+      }
+      
+      // Check for duplicate mobile if provided
+      if (data.mobile) {
+        const duplicateMobile = existingClients.find(
+          client => client.mobile && client.mobile === data.mobile && 
+          client.tenantId === tenantId
+        );
+        
+        if (duplicateMobile) {
+          return res.status(400).json({ message: "A client with this mobile number already exists" });
+        }
+      }
+      
       const validatedData = insertClientSchema.parse(data);
       const client = await storage.createClient(validatedData);
       
@@ -730,6 +909,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingClient = await storage.getClient(id, tenantId);
       if (!existingClient) {
         return res.status(404).json({ message: "Client not found" });
+      }
+      
+      const existingClients = await storage.getClients(tenantId);
+      
+      // Check for duplicate client name if being changed
+      if (req.body.name && req.body.name !== existingClient.name) {
+        const duplicateName = existingClients.find(
+          client => client.name.toLowerCase() === req.body.name.toLowerCase() && 
+          client.id !== id &&
+          client.tenantId === tenantId
+        );
+        
+        if (duplicateName) {
+          return res.status(400).json({ message: "A client with this name already exists" });
+        }
+      }
+      
+      // Check for duplicate email if provided and changed
+      if (req.body.email && req.body.email !== existingClient.email) {
+        const duplicateEmail = existingClients.find(
+          client => client.email && client.email.toLowerCase() === req.body.email.toLowerCase() && 
+          client.id !== id &&
+          client.tenantId === tenantId
+        );
+        
+        if (duplicateEmail) {
+          return res.status(400).json({ message: "A client with this email already exists" });
+        }
+      }
+      
+      // Check for duplicate mobile if provided and changed
+      if (req.body.mobile && req.body.mobile !== existingClient.mobile) {
+        const duplicateMobile = existingClients.find(
+          client => client.mobile && client.mobile === req.body.mobile && 
+          client.id !== id &&
+          client.tenantId === tenantId
+        );
+        
+        if (duplicateMobile) {
+          return res.status(400).json({ message: "A client with this mobile number already exists" });
+        }
       }
       
       const updatedClient = await storage.updateClient(id, req.body);
