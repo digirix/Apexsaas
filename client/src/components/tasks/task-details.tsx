@@ -344,7 +344,7 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
         assigneeId: parseInt(data.assigneeId),
         statusId: parseInt(data.statusId),
         dueDate: data.dueDate.toISOString(),
-        categoryId: parseInt(data.categoryId),
+        taskCategoryId: parseInt(data.categoryId), // Convert categoryId to taskCategoryId for backend
         taskType: data.taskType,
         notes: data.notes || null,
         isAdmin: true,
@@ -381,7 +381,7 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
         assigneeId: parseInt(data.assigneeId),
         statusId: parseInt(data.statusId),
         dueDate: data.dueDate.toISOString(),
-        categoryId: parseInt(data.categoryId),
+        taskCategoryId: parseInt(data.categoryId), // Convert categoryId to taskCategoryId for backend
         taskType: data.taskType,
         notes: data.notes || null,
         isAdmin: false,
