@@ -22,6 +22,15 @@ This document provides a comprehensive overview of the progress made on the Acco
 
 ## Completed Work
 
+### Recent Validation Improvements (April 2025)
+- Implemented comprehensive server-side validation to enforce business rules and prevent duplicates
+- Added validation for task categories to prevent duplicates within administrative and revenue types
+- Fixed client validation to correctly check `displayName` instead of `name` field
+- Implemented validation for designations and departments to prevent duplicate names
+- Enhanced validation for entity tax jurisdictions and service subscriptions
+- Added task status rank validation to ensure proper workflow enforcement
+- Implemented validation to ensure only one currency per country
+
 ### Database Schema and Data Models
 - Comprehensive data schema defined in `shared/schema.ts`
 - Models include:
@@ -296,6 +305,30 @@ The project has made significant progress across multiple modules:
 
 ## Recent Improvements
 
+### Data Validation System
+1. **Setup Module Validation:**
+   - Implemented comprehensive validation to prevent duplicate entries across all setup modules
+   - Added specific validation for task status ranks: enforcing that ranks 1 and 3 are reserved, and user-added ranks must be between 2-3
+   - Added validation to ensure only one currency per country
+   - Implemented country-specific validation for services, entity types, and tax jurisdictions
+   - Added validation to prevent duplicate service types within the same country
+   - Added validation to prevent duplicate tax jurisdictions for the same country+state combination
+   - Implemented robust validation for entity types to ensure uniqueness per country
+
+2. **Client Module Validation:**
+   - Fixed client validation by correcting property name references to use `displayName` instead of `name` 
+   - Added validation to prevent duplicate client names, emails, and mobile numbers
+   - Implemented validation for entities to prevent duplicate names within the same client
+   - Added validation to enforce business tax ID and VAT ID uniqueness within the tenant
+   - Added validation for entity services to enforce that subscribed services must also be marked as required
+
+3. **Task Module Validation:**
+   - Enhanced task category validation to prevent duplicates within the same type (administrative or revenue)
+   - Added validation to ensure administrative tasks cannot have clients or entities associated
+   - Added validation to ensure revenue tasks must be associated with a client or entity
+   - Implemented validation to prevent changing a task's admin/revenue status after creation
+   - Added appropriate error messages for validation failures
+
 ### Tasks Module
 1. **Task Creation Flow Integration:**
    - Successfully integrated the task creation modal with dynamic components for both Administrative and Revenue tasks
@@ -330,8 +363,8 @@ The project has made significant progress across multiple modules:
    - Implemented custom Zod validation schemas that properly handle both date objects and date strings
    - Added proper error handling for API responses with detailed error messages
    - Fixed isAdmin flag handling to properly differentiate between admin and revenue tasks
-   - Implemented conditional form fields based on task type selection submission
-   - Implemented proper date handling for compliance start/end dates
+   - Implemented conditional form fields based on task type selection
+   - Improved date handling for compliance start/end dates
 
 3. **Task Details Component Enhancements:**
    - Developed comprehensive task details view with proper formatting and organization

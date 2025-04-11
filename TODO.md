@@ -1,98 +1,105 @@
-# TODO List - Accounting Firm Management Application
+# Project TODO List
 
-This list outlines the pending tasks for the Accounting Firm Management Application based on our current progress and the full project scope. Tasks are organized by module and priority.
+This document outlines the remaining tasks and future enhancements for the Accounting Firm Management Application.
 
-## Core Functionality
+## Priority 1: Critical System Improvements
 
-### Tasks Module (In Progress - 95% Complete)
+### Data Validation and Type Handling
+- [x] Implement comprehensive validation to prevent duplicate entries across setup modules
+- [x] Add validation for task status ranks (ranks 1 and 3 reserved, user-added ranks must be between 2-3)
+- [x] Implement validation to ensure only one currency per country
+- [x] Fix client validation (proper display name, email, mobile number uniqueness)
+- [x] Enhance task category validation to prevent duplicates within the same type (admin or revenue)
+- [x] Implement validation for designations and departments
+- [x] Add robust validation for entity service subscriptions
+- [ ] Fix type mismatches between frontend forms and backend schema
+- [ ] Improve date handling for all forms, especially compliance start/end dates
+
+### Task Module Enhancements
+- [x] Complete task creation workflow with proper validation
+- [x] Fix task type (admin vs revenue) handling throughout the system
 - [ ] Implement recurring task generation based on compliance frequency
-- [ ] Create "Auto Generated Tasks" approval workflow
-- [ ] Add task assignment notifications
-- [ ] Enhance task filtering capabilities
-- [ ] Fix type mismatches between frontend forms and backend schema:
-  - [ ] Convert string IDs to numbers where needed
-  - [ ] Ensure proper date formatting in submissions
+- [ ] Create the "Auto Generated Tasks" module for approval workflow
+- [ ] Enhance status workflow to enforce proper transitions between states
+- [ ] Implement business rules for task status changes
+- [ ] Add task assignment notifications system
+- [ ] Improve filtering capabilities for the tasks list
 
-### Invoicing and Payments Module
-- [ ] Create database schema for invoices and payments
-- [ ] Implement invoice generation from tasks
-- [ ] Develop invoice listing and detail views
-- [ ] Create payment tracking functionality
-- [ ] Implement invoice status workflow
-- [ ] Add payment receipt generation
+## Priority 2: Feature Completion
 
-### Dashboard & Analytics
-- [ ] Implement dashboard with key metrics
-- [ ] Create task completion charts
-- [ ] Add revenue tracking visualizations
-- [ ] Develop client growth analytics
-- [ ] Add compliance tracking graphs
-- [ ] Implement user productivity metrics
+### Users and Permissions Module
+- [x] Complete user management features (create, read, update, delete)
+- [x] Implement permission-based access control
+- [ ] Add password reset functionality
+- [ ] Implement bulk permission operations for efficient management
+- [ ] Add user activity logging and audit trail
+- [ ] Complete user profile management features
 
-### Compliance Calendar
-- [ ] Enhance compliance calendar view
-- [ ] Add filtering by client, entity, and task type
-- [ ] Implement month/week/day views
-- [ ] Add calendar export functionality
-- [ ] Create compliance alerts and reminders
+### Clients Module Enhancements
+- [x] Implement client and entity management
+- [x] Add service subscription configuration for entities
+- [x] Implement tax jurisdiction assignment for entities
+- [ ] Add client portal access management
+- [ ] Implement document management for client files
+- [ ] Add client activity logging
 
-## Advanced Features
+### Setup Module Finalization
+- [x] Complete all setup managers with CRUD operations
+- [x] Add validation rules for all setup entities
+- [ ] Implement bulk operations for setup configuration
+- [ ] Add import/export functionality for setup data
+
+## Priority 3: Advanced Features
 
 ### AI Integration
-- [ ] Implement service suggestions for entities based on country and type
-- [ ] Add task detail suggestions based on client and service
-- [ ] Create compliance risk identification
-- [ ] Implement workflow optimization suggestions
-- [ ] Add draft communications generation
+- [ ] Implement AI service suggestions based on entity profile
+- [ ] Add AI-assisted task detail generation
+- [ ] Create AI-powered compliance monitoring system
+- [ ] Develop AI-assisted decision support for management
 
-### Client Portal
-- [ ] Create client login system
-- [ ] Implement document sharing functionality
-- [ ] Add client-specific task viewing
-- [ ] Develop invoice payment portal
-- [ ] Create client communication channel
-- [ ] Add document approval workflow
+### Reporting and Analytics
+- [ ] Implement dashboard with key performance indicators
+- [ ] Create task tracking and productivity reports
+- [ ] Add financial performance tracking
+- [ ] Implement compliance status monitoring
 
-### Workflow Automation
-- [ ] Create workflow definition interface
-- [ ] Implement trigger-based actions
-- [ ] Add time-based workflow events
-- [ ] Develop notification system
-- [ ] Create workflow execution logging
+### Financials Module
+- [ ] Develop invoice generation for services rendered
+- [ ] Implement payment tracking system
+- [ ] Add accounts receivable monitoring
+- [ ] Create revenue forecasting tools
 
-## Technical Enhancements
+### Mobile Responsiveness
+- [ ] Ensure all components are mobile-friendly
+- [ ] Optimize layouts for tablet and phone usage
+- [ ] Test and fix responsive behavior issues
 
-### Performance Optimization
+## Priority 4: System Optimization
+
+### Performance Improvements
 - [ ] Implement data caching for frequently accessed information
-- [ ] Optimize database queries for large datasets
-- [ ] Add pagination for large lists
-- [ ] Optimize front-end bundle size
+- [ ] Optimize database queries for faster response times
+- [ ] Add pagination for large data sets
 - [ ] Implement lazy loading for components
 
 ### Security Enhancements
-- [ ] Add two-factor authentication
-- [ ] Implement CSRF protection
-- [ ] Add session timeout functionality
-- [ ] Create audit logging for sensitive operations
-- [ ] Implement encrypted storage for sensitive data
+- [ ] Conduct security audit of authentication system
+- [ ] Implement additional security measures for sensitive data
+- [ ] Add two-factor authentication option
+- [ ] Enhance password policy and enforcement
 
-### UX Improvements
-- [ ] Create comprehensive onboarding guide
-- [ ] Add contextual help throughout the application
-- [ ] Implement customizable themes
-- [ ] Add keyboard shortcuts for common actions
-- [ ] Create responsive designs for mobile use
+### Deployment and DevOps
+- [ ] Set up CI/CD pipeline for automated testing and deployment
+- [ ] Implement proper environment configuration
+- [ ] Create backup and disaster recovery procedures
+- [ ] Develop system monitoring and alerting
 
-## Documentation
-- [ ] Create user manual
-- [ ] Document API endpoints
-- [ ] Add code documentation
-- [ ] Create administrator guide
-- [ ] Document deployment process
+## Backlog: Future Considerations
 
-## Testing
-- [ ] Write unit tests for critical components
-- [ ] Implement integration tests for key workflows
-- [ ] Create end-to-end tests for main user journeys
-- [ ] Test performance under load
-- [ ] Conduct security testing
+- [ ] Multi-language support
+- [ ] Dark mode/theme customization
+- [ ] Email notification templates
+- [ ] Calendar integration
+- [ ] Third-party service integrations (CRM, accounting software, etc.)
+- [ ] Client-facing mobile app
+- [ ] Offline mode for limited functionality without internet
