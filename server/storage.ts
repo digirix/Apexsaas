@@ -85,6 +85,14 @@ export interface IStorage {
   updateTaskStatus(id: number, taskStatus: Partial<InsertTaskStatus>): Promise<TaskStatus | undefined>;
   deleteTaskStatus(id: number, tenantId: number): Promise<boolean>;
   
+  // Task status workflow rule operations
+  getTaskStatusWorkflowRules(tenantId: number, fromStatusId?: number): Promise<TaskStatusWorkflowRule[]>;
+  getTaskStatusWorkflowRule(id: number, tenantId: number): Promise<TaskStatusWorkflowRule | undefined>;
+  getTaskStatusWorkflowRuleByStatuses(tenantId: number, fromStatusId: number, toStatusId: number): Promise<TaskStatusWorkflowRule | undefined>;
+  createTaskStatusWorkflowRule(rule: InsertTaskStatusWorkflowRule): Promise<TaskStatusWorkflowRule>;
+  updateTaskStatusWorkflowRule(id: number, rule: Partial<InsertTaskStatusWorkflowRule>): Promise<TaskStatusWorkflowRule | undefined>;
+  deleteTaskStatusWorkflowRule(id: number, tenantId: number): Promise<boolean>;
+  
   // Task category operations
   getTaskCategories(tenantId: number, isAdmin?: boolean): Promise<TaskCategory[]>;
   getTaskCategory(id: number, tenantId: number): Promise<TaskCategory | undefined>;
@@ -160,6 +168,7 @@ export class MemStorage implements IStorage {
   private states: Map<number, State>;
   private entityTypes: Map<number, EntityType>;
   private taskStatuses: Map<number, TaskStatus>;
+  private taskStatusWorkflowRules: Map<number, TaskStatusWorkflowRule>;
   private taskCategories: Map<number, TaskCategory>;
   private taxJurisdictions: Map<number, TaxJurisdiction>;
   private serviceTypes: Map<number, ServiceType>;
@@ -203,6 +212,7 @@ export class MemStorage implements IStorage {
     this.states = new Map();
     this.entityTypes = new Map();
     this.taskStatuses = new Map();
+    this.taskStatusWorkflowRules = new Map();
     this.taskCategories = new Map();
     this.taxJurisdictions = new Map();
     this.serviceTypes = new Map();

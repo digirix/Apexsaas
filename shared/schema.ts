@@ -228,6 +228,27 @@ export const insertTaskStatusSchema = createInsertSchema(taskStatuses).pick({
   rank: true,
 });
 
+// Task status workflow rules table
+export const taskStatusWorkflowRules = pgTable("task_status_workflow_rules", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  fromStatusId: integer("from_status_id").notNull(),
+  toStatusId: integer("to_status_id").notNull(),
+  isAllowed: boolean("is_allowed").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    workflowRuleUnique: unique().on(table.tenantId, table.fromStatusId, table.toStatusId),
+  };
+});
+
+export const insertTaskStatusWorkflowRuleSchema = createInsertSchema(taskStatusWorkflowRules).pick({
+  tenantId: true,
+  fromStatusId: true,
+  toStatusId: true,
+  isAllowed: true,
+});
+
 // Tax jurisdictions setup table (for VAT/Sales Tax)
 export const taxJurisdictions = pgTable("tax_jurisdictions", {
   id: serial("id").primaryKey(),
@@ -488,6 +509,9 @@ export type InsertEntityType = z.infer<typeof insertEntityTypeSchema>;
 
 export type TaskStatus = typeof taskStatuses.$inferSelect;
 export type InsertTaskStatus = z.infer<typeof insertTaskStatusSchema>;
+
+export type TaskStatusWorkflowRule = typeof taskStatusWorkflowRules.$inferSelect;
+export type InsertTaskStatusWorkflowRule = z.infer<typeof insertTaskStatusWorkflowRuleSchema>;
 
 export type TaskCategory = typeof taskCategories.$inferSelect;
 export type InsertTaskCategory = z.infer<typeof insertTaskCategorySchema>;
