@@ -256,7 +256,7 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
           assigneeId: task.assigneeId?.toString(),
           statusId: task.statusId?.toString(),
           dueDate: new Date(task.dueDate),
-          categoryId: task.taskCategoryId?.toString(), // Use taskCategoryId from API response
+          categoryId: task.categoryId?.toString(),
           taskType: task.taskType,
           notes: task.notes || "",
         });
@@ -266,7 +266,7 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
           assigneeId: task.assigneeId?.toString(),
           statusId: task.statusId?.toString(),
           dueDate: new Date(task.dueDate),
-          categoryId: task.taskCategoryId?.toString(), // Use taskCategoryId from API response
+          categoryId: task.categoryId?.toString(),
           taskType: task.taskType,
           notes: task.notes || "",
           clientId: task.clientId?.toString(),
