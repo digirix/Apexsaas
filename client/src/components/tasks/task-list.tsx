@@ -533,12 +533,15 @@ function TaskCard({
             <div className="flex items-center flex-wrap gap-3 mb-2">
               <h3 className="text-base font-medium text-slate-900 line-clamp-1">{title}</h3>
               
-              {/* Use TaskStatusWorkflow instead of static Badge */}
-              <TaskStatusWorkflow 
-                taskId={taskId} 
-                currentStatusId={parseInt(statusRank.toString())} 
-                variant="icon" 
-              />
+              {/* Use TaskStatusWorkflow with proper status ID (not rank) */}
+              <Badge className={`${
+                  statusRank === 1 ? "bg-blue-100 text-blue-700" :
+                  Math.floor(statusRank) === 2 ? "bg-yellow-100 text-yellow-700" :
+                  statusRank === 3 ? "bg-green-100 text-green-700" :
+                  "bg-slate-100 text-slate-700"
+                }`}>
+                {status}
+              </Badge>
               
               {isAdmin && (
                 <Badge variant="outline" className="bg-slate-100">
@@ -574,14 +577,15 @@ function TaskCard({
               View Details
             </Button>
             
-            {/* Replace the Complete button with TaskStatusWorkflow */}
+            {/* Use Button for status change */}
             {isPending && (
-              <TaskStatusWorkflow 
-                taskId={taskId} 
-                currentStatusId={parseInt(statusRank.toString())} 
-                size="sm" 
-                onStatusChange={onComplete}
-              />
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onComplete}
+              >
+                Update Status
+              </Button>
             )}
           </div>
         </div>

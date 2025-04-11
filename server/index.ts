@@ -1,6 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { storage } from "./storage";
+import { TaskScheduler } from "./task-scheduler";
 
 const app = express();
 app.use(express.json());
@@ -74,6 +76,33 @@ app.use((req, res, next) => {
       reusePort: true,
     }, () => {
       log(`Server started successfully on port ${port}`);
+      
+      // Initialize task scheduler
+      const taskScheduler = new TaskScheduler(storage);
+      
+      // Run task generation immediately on server start
+      taskScheduler.generateUpcomingRecurringTasks()
+        .then(() => {
+          console.log("Initial recurring task generation completed");
+        })
+        .catch(err => {
+          console.error("Error during initial recurring task generation:", err);
+        });
+      
+      // Schedule recurring task generation to run daily at midnight
+      const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+      setInterval(() => {
+        const now = new Date();
+        console.log(`Running scheduled recurring task generation (${now.toISOString()})`);
+        
+        taskScheduler.generateUpcomingRecurringTasks()
+          .then(() => {
+            console.log("Scheduled recurring task generation completed");
+          })
+          .catch(err => {
+            console.error("Error during scheduled recurring task generation:", err);
+          });
+      }, ONE_DAY_MS);
     });
   } catch (error) {
     console.error("Error starting server:", error);

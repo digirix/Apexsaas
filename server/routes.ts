@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
+import { TaskScheduler } from "./task-scheduler";
 import { 
   insertCountrySchema, insertCurrencySchema, insertStateSchema, 
   insertEntityTypeSchema, insertTaskStatusSchema, insertTaskCategorySchema, insertServiceTypeSchema,
@@ -2192,6 +2193,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete task" });
+    }
+  });
+
+  // Task Scheduler route for manually generating tasks
+  app.post("/api/v1/admin/generate-recurring-tasks", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isSuperAdmin) {
+        return res.status(403).json({ message: "Unauthorized: Admin access required" });
+      }
+      
+      const taskScheduler = new TaskScheduler(storage);
+      
+      // If tenant ID is provided, generate for that tenant only
+      if (req.body.tenantId) {
+        const tenantId = parseInt(req.body.tenantId);
+        await taskScheduler.generateRecurringTasksForTenant(tenantId);
+        res.json({ 
+          message: `Recurring tasks generated successfully for tenant ${tenantId}` 
+        });
+      } else {
+        // Otherwise generate for all tenants
+        await taskScheduler.generateUpcomingRecurringTasks();
+        res.json({ 
+          message: "Recurring tasks generated successfully for all tenants" 
+        });
+      }
+    } catch (error) {
+      console.error("Error generating recurring tasks:", error);
+      res.status(500).json({ 
+        message: "Failed to generate recurring tasks",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Tenant Settings routes
+  app.get("/api/v1/tenant/settings", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const settings = await storage.getTenantSettings(tenantId);
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tenant settings" });
+    }
+  });
+  
+  app.get("/api/v1/tenant/settings/:key", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const key = req.params.key;
+      
+      const setting = await storage.getTenantSetting(tenantId, key);
+      if (!setting) {
+        return res.status(404).json({ message: `Setting '${key}' not found` });
+      }
+      
+      res.json(setting);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tenant setting" });
+    }
+  });
+  
+  app.post("/api/v1/tenant/settings", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const { key, value } = req.body;
+      
+      if (!key || !value) {
+        return res.status(400).json({ message: "Key and value are required" });
+      }
+      
+      const setting = await storage.setTenantSetting(tenantId, key, value);
+      res.status(201).json(setting);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create tenant setting" });
+    }
+  });
+  
+  app.delete("/api/v1/tenant/settings/:key", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const key = req.params.key;
+      
+      const success = await storage.deleteTenantSetting(tenantId, key);
+      if (!success) {
+        return res.status(404).json({ message: `Setting '${key}' not found` });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete tenant setting" });
     }
   });
 
