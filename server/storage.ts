@@ -1,8 +1,10 @@
-import { tenants, tenantSettings, users, designations, departments, countries, currencies, states, entityTypes, taskStatuses, taxJurisdictions, serviceTypes, clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions, userPermissions } from "@shared/schema";
+import { tenants, tenantSettings, users, designations, departments, countries, currencies, states, entityTypes, taskStatuses, taskStatusWorkflowRules, taxJurisdictions, serviceTypes, clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions, userPermissions } from "@shared/schema";
 import type { Tenant, User, InsertUser, InsertTenant, 
   Designation, InsertDesignation, Department, InsertDepartment,
   Country, InsertCountry, Currency, InsertCurrency, 
-  State, InsertState, EntityType, InsertEntityType, TaskStatus, InsertTaskStatus, TaxJurisdiction, InsertTaxJurisdiction, ServiceType, 
+  State, InsertState, EntityType, InsertEntityType, TaskStatus, InsertTaskStatus, 
+  TaskStatusWorkflowRule, InsertTaskStatusWorkflowRule,
+  TaxJurisdiction, InsertTaxJurisdiction, ServiceType, 
   InsertServiceType, Client, InsertClient, Entity, InsertEntity, Task, InsertTask, TaskCategory, InsertTaskCategory,
   EntityTaxJurisdiction, InsertEntityTaxJurisdiction, EntityServiceSubscription, InsertEntityServiceSubscription,
   UserPermission, InsertUserPermission, TenantSetting, InsertTenantSetting } from "@shared/schema";
@@ -191,6 +193,7 @@ export class MemStorage implements IStorage {
   private stateId: number = 1;
   private entityTypeId: number = 1;
   private taskStatusId: number = 1;
+  private taskStatusWorkflowRuleId: number = 1;
   private taskCategoryId: number = 1;
   private taxJurisdictionId: number = 1;
   private serviceTypeId: number = 1;
@@ -667,6 +670,64 @@ export class MemStorage implements IStorage {
     const taskStatus = this.taskStatuses.get(id);
     if (taskStatus && taskStatus.tenantId === tenantId) {
       return this.taskStatuses.delete(id);
+    }
+    return false;
+  }
+  
+  // Task status workflow rule operations
+  async getTaskStatusWorkflowRules(tenantId: number, fromStatusId?: number): Promise<TaskStatusWorkflowRule[]> {
+    let rules = Array.from(this.taskStatusWorkflowRules.values())
+      .filter(rule => rule.tenantId === tenantId);
+    
+    if (fromStatusId !== undefined) {
+      rules = rules.filter(rule => rule.fromStatusId === fromStatusId);
+    }
+    
+    return rules;
+  }
+  
+  async getTaskStatusWorkflowRule(id: number, tenantId: number): Promise<TaskStatusWorkflowRule | undefined> {
+    const rule = this.taskStatusWorkflowRules.get(id);
+    if (rule && rule.tenantId === tenantId) {
+      return rule;
+    }
+    return undefined;
+  }
+  
+  async getTaskStatusWorkflowRuleByStatuses(tenantId: number, fromStatusId: number, toStatusId: number): Promise<TaskStatusWorkflowRule | undefined> {
+    return Array.from(this.taskStatusWorkflowRules.values())
+      .find(rule => 
+        rule.tenantId === tenantId && 
+        rule.fromStatusId === fromStatusId && 
+        rule.toStatusId === toStatusId
+      );
+  }
+  
+  async createTaskStatusWorkflowRule(rule: InsertTaskStatusWorkflowRule): Promise<TaskStatusWorkflowRule> {
+    const id = this.taskStatusWorkflowRuleId++;
+    const newRule: TaskStatusWorkflowRule = { 
+      ...rule, 
+      id, 
+      createdAt: new Date(),
+      description: rule.description ?? null
+    };
+    this.taskStatusWorkflowRules.set(id, newRule);
+    return newRule;
+  }
+  
+  async updateTaskStatusWorkflowRule(id: number, rule: Partial<InsertTaskStatusWorkflowRule>): Promise<TaskStatusWorkflowRule | undefined> {
+    const existingRule = this.taskStatusWorkflowRules.get(id);
+    if (!existingRule) return undefined;
+    
+    const updatedRule = { ...existingRule, ...rule };
+    this.taskStatusWorkflowRules.set(id, updatedRule);
+    return updatedRule;
+  }
+  
+  async deleteTaskStatusWorkflowRule(id: number, tenantId: number): Promise<boolean> {
+    const rule = this.taskStatusWorkflowRules.get(id);
+    if (rule && rule.tenantId === tenantId) {
+      return this.taskStatusWorkflowRules.delete(id);
     }
     return false;
   }
