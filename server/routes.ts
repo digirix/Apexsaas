@@ -51,6 +51,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const data = { ...req.body, tenantId };
       
+      // Check for duplicate country name
+      const existingCountries = await storage.getCountries(tenantId);
+      const duplicateName = existingCountries.find(
+        country => country.name.toLowerCase() === data.name.toLowerCase() && 
+        country.tenantId === tenantId
+      );
+      
+      if (duplicateName) {
+        return res.status(400).json({ message: "A country with this name already exists" });
+      }
+      
       const validatedData = insertCountrySchema.parse(data);
       const country = await storage.createCountry(validatedData);
       
@@ -116,6 +127,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const data = { ...req.body, tenantId };
       
+      // Check for duplicate currency code
+      const existingCurrencies = await storage.getCurrencies(tenantId);
+      const duplicateCode = existingCurrencies.find(
+        currency => currency.code.toLowerCase() === data.code.toLowerCase() && 
+        currency.tenantId === tenantId
+      );
+      
+      if (duplicateCode) {
+        return res.status(400).json({ message: "A currency with this code already exists" });
+      }
+      
+      // Check for duplicate currency per country (only one currency allowed per country)
+      const currencyForCountry = existingCurrencies.find(
+        currency => currency.countryId === data.countryId && 
+        currency.tenantId === tenantId
+      );
+      
+      if (currencyForCountry) {
+        return res.status(400).json({ 
+          message: "Only one currency is allowed per country. This country already has a currency assigned." 
+        });
+      }
+      
       const validatedData = insertCurrencySchema.parse(data);
       const currency = await storage.createCurrency(validatedData);
       
@@ -137,6 +171,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingCurrency = await storage.getCurrency(id, tenantId);
       if (!existingCurrency) {
         return res.status(404).json({ message: "Currency not found" });
+      }
+      
+      // Check for duplicate currency code
+      if (req.body.code && req.body.code !== existingCurrency.code) {
+        const existingCurrencies = await storage.getCurrencies(tenantId);
+        const duplicateCode = existingCurrencies.find(
+          currency => currency.code.toLowerCase() === req.body.code.toLowerCase() && 
+          currency.id !== id &&
+          currency.tenantId === tenantId
+        );
+        
+        if (duplicateCode) {
+          return res.status(400).json({ message: "A currency with this code already exists" });
+        }
+      }
+      
+      // Check for duplicate currency per country (only one currency allowed per country)
+      if (req.body.countryId && req.body.countryId !== existingCurrency.countryId) {
+        const existingCurrencies = await storage.getCurrencies(tenantId);
+        const currencyForCountry = existingCurrencies.find(
+          currency => currency.countryId === req.body.countryId && 
+          currency.id !== id &&
+          currency.tenantId === tenantId
+        );
+        
+        if (currencyForCountry) {
+          return res.status(400).json({ 
+            message: "Only one currency is allowed per country. This country already has a currency assigned." 
+          });
+        }
       }
       
       const updatedCurrency = await storage.updateCurrency(id, req.body);
@@ -324,6 +388,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Rank 3 is reserved for the 'Completed' status" });
       }
       
+      // Ensure rank is between 1 and 3 (inclusive)
+      if (data.rank < 1 || data.rank > 3) {
+        return res.status(400).json({ message: "Rank must be between 1 and 3" });
+      }
+      
+      // Check for duplicate status name
+      const existingStatuses = await storage.getTaskStatuses(tenantId);
+      const duplicateName = existingStatuses.find(status => 
+        status.name.toLowerCase() === data.name.toLowerCase() && status.tenantId === tenantId
+      );
+      
+      if (duplicateName) {
+        return res.status(400).json({ message: "A task status with this name already exists" });
+      }
+      
+      // Check for duplicate rank
+      const duplicateRank = existingStatuses.find(status => 
+        status.rank === data.rank && status.tenantId === tenantId
+      );
+      
+      if (duplicateRank) {
+        return res.status(400).json({ message: "A task status with this rank already exists" });
+      }
+      
       const validatedData = insertTaskStatusSchema.parse(data);
       const taskStatus = await storage.createTaskStatus(validatedData);
       
@@ -348,7 +436,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify rank constraints for updates
-      if (req.body.rank) {
+      if (req.body.rank !== undefined) {
+        // Ensure rank is between 1 and 3 (inclusive)
+        if (req.body.rank < 1 || req.body.rank > 3) {
+          return res.status(400).json({ message: "Rank must be between 1 and 3" });
+        }
+        
         // Prevent changing a New or Completed status rank
         if ((existingStatus.name === "New" && req.body.rank !== 1) ||
             (existingStatus.name === "Completed" && req.body.rank !== 3)) {
@@ -364,6 +457,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             message: "Ranks 1 and 3 are reserved for 'New' and 'Completed' statuses respectively" 
           });
         }
+        
+        // Check for duplicate rank
+        const existingStatuses = await storage.getTaskStatuses(tenantId);
+        const duplicateRank = existingStatuses.find(status => 
+          status.rank === req.body.rank && status.id !== id && status.tenantId === tenantId
+        );
+        
+        if (duplicateRank) {
+          return res.status(400).json({ message: "A task status with this rank already exists" });
+        }
       }
       
       // Prevent renaming New or Completed statuses
@@ -373,6 +476,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ 
             message: "Cannot rename 'New' or 'Completed' statuses" 
           });
+        }
+        
+        // Check for duplicate name
+        const existingStatuses = await storage.getTaskStatuses(tenantId);
+        const duplicateName = existingStatuses.find(status => 
+          status.name.toLowerCase() === req.body.name.toLowerCase() && 
+          status.id !== id && 
+          status.tenantId === tenantId
+        );
+        
+        if (duplicateName) {
+          return res.status(400).json({ message: "A task status with this name already exists" });
         }
       }
       
