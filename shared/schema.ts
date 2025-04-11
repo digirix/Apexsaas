@@ -45,6 +45,26 @@ export const insertTenantSchema = createInsertSchema(tenants).pick({
   name: true,
 });
 
+// Tenant Settings table
+export const tenantSettings = pgTable("tenant_settings", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  key: text("key").notNull(),
+  value: text("value").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantSettingKeyUnique: unique().on(table.tenantId, table.key),
+  };
+});
+
+export const insertTenantSettingSchema = createInsertSchema(tenantSettings).pick({
+  tenantId: true,
+  key: true,
+  value: true,
+});
+
 // Designations setup table
 export const designations = pgTable("designations", {
   id: serial("id").primaryKey(),
@@ -441,6 +461,9 @@ export const insertEntityServiceSubscriptionSchema = createInsertSchema(entitySe
 // Export types
 export type Tenant = typeof tenants.$inferSelect;
 export type InsertTenant = z.infer<typeof insertTenantSchema>;
+
+export type TenantSetting = typeof tenantSettings.$inferSelect;
+export type InsertTenantSetting = z.infer<typeof insertTenantSettingSchema>;
 
 export type Designation = typeof designations.$inferSelect;
 export type InsertDesignation = z.infer<typeof insertDesignationSchema>;

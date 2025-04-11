@@ -1,11 +1,11 @@
-import { tenants, users, designations, departments, countries, currencies, states, entityTypes, taskStatuses, taxJurisdictions, serviceTypes, clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions, userPermissions } from "@shared/schema";
+import { tenants, tenantSettings, users, designations, departments, countries, currencies, states, entityTypes, taskStatuses, taxJurisdictions, serviceTypes, clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions, userPermissions } from "@shared/schema";
 import type { Tenant, User, InsertUser, InsertTenant, 
   Designation, InsertDesignation, Department, InsertDepartment,
   Country, InsertCountry, Currency, InsertCurrency, 
   State, InsertState, EntityType, InsertEntityType, TaskStatus, InsertTaskStatus, TaxJurisdiction, InsertTaxJurisdiction, ServiceType, 
   InsertServiceType, Client, InsertClient, Entity, InsertEntity, Task, InsertTask, TaskCategory, InsertTaskCategory,
   EntityTaxJurisdiction, InsertEntityTaxJurisdiction, EntityServiceSubscription, InsertEntityServiceSubscription,
-  UserPermission, InsertUserPermission } from "@shared/schema";
+  UserPermission, InsertUserPermission, TenantSetting, InsertTenantSetting } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 
@@ -21,6 +21,12 @@ export interface IStorage {
   // Tenant operations
   getTenant(id: number): Promise<Tenant | undefined>;
   createTenant(tenant: InsertTenant): Promise<Tenant>;
+  
+  // Tenant Settings operations
+  getTenantSettings(tenantId: number): Promise<TenantSetting[]>;
+  getTenantSetting(tenantId: number, key: string): Promise<TenantSetting | undefined>;
+  setTenantSetting(tenantId: number, key: string, value: string): Promise<TenantSetting>;
+  deleteTenantSetting(tenantId: number, key: string): Promise<boolean>;
   
   // User operations
   getUsers(tenantId: number): Promise<User[]>;
