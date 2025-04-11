@@ -127,6 +127,34 @@ export function TaskList() {
       });
     },
   });
+  
+  // Change task status mutation
+  const changeStatusMutation = useMutation({
+    mutationFn: async ({ taskId, statusId }: { taskId: number, statusId: number }) => {
+      const payload = {
+        statusId: statusId
+      };
+      
+      const response = await apiRequest("PUT", `/api/v1/tasks/${taskId}`, payload);
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/tasks"] });
+      // Find the status name for better messaging
+      const newStatusName = taskStatuses.find(s => s.id === variables.statusId)?.name || "new status";
+      toast({
+        title: "Status Updated",
+        description: `Task has been updated to "${newStatusName}" status.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Status Change Failed",
+        description: error.message || "Failed to update task status. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Filter tasks based on tab selection
   const filteredTasks = tasks.filter(task => {
@@ -166,6 +194,11 @@ export function TaskList() {
   // Handle task completion
   const handleCompleteTask = (taskId: number) => {
     completeTaskMutation.mutate(taskId);
+  };
+  
+  // Handle task status change
+  const handleStatusChange = (taskId: number, statusId: number) => {
+    changeStatusMutation.mutate({ taskId, statusId });
   };
   
   // Find all task categories
@@ -454,12 +487,15 @@ export function TaskList() {
                   dueDate={task.dueDate.toString()}
                   status={statusName}
                   statusRank={status?.rank || 0}
+                  statusId={task.statusId}
                   assignee={assigneeName}
                   priority={priority}
                   isAdmin={task.isAdmin}
                   onViewDetails={() => handleViewTaskDetails(task.id)}
                   onComplete={() => handleCompleteTask(task.id)}
                   isCompletingTask={completeTaskMutation.isPending}
+                  onStatusChange={(statusId) => handleStatusChange(task.id, statusId)}
+                  availableStatuses={taskStatuses}
                 />
               );
             })}
