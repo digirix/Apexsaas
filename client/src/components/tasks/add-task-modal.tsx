@@ -1060,189 +1060,187 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                 
                 {/* Compliance Configuration Tab */}
                 <TabsContent value="compliance" className="space-y-4">
-                  <FormField
-                    control={revenueTaskForm.control}
-                    name="isRecurring"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>
-                            Recurring Task
-                          </FormLabel>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={revenueTaskForm.control}
+                      name="complianceFrequency"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Frequency</FormLabel>
+                          <Select 
+                            onValueChange={field.onChange} 
+                            value={field.value || ""}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select frequency" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Monthly">Monthly</SelectItem>
+                              <SelectItem value="Quarterly">Quarterly</SelectItem>
+                              <SelectItem value="Bi-Annually">Bi-Annually</SelectItem>
+                              <SelectItem value="Annual">Annual</SelectItem>
+                              <SelectItem value="2 Years">2 Years</SelectItem>
+                              <SelectItem value="3 Years">3 Years</SelectItem>
+                              <SelectItem value="4 Years">4 Years</SelectItem>
+                              <SelectItem value="5 Years">5 Years</SelectItem>
+                              <SelectItem value="One Time">One Time</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={revenueTaskForm.control}
+                      name="complianceYear"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Year(s)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="e.g., 2024 or 2024,2025,2026"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
                           <FormDescription>
-                            Enable if this is a recurring compliance task
+                            {revenueTaskForm.watch("complianceFrequency") === "Annual" ? 
+                              "Single year (e.g., 2024)" : 
+                              (revenueTaskForm.watch("complianceFrequency") === "Quarterly" || 
+                               revenueTaskForm.watch("complianceFrequency") === "Monthly" || 
+                               revenueTaskForm.watch("complianceFrequency") === "Bi-Annually") ?
+                                "Comma-separated years (e.g., 2024,2025)" : ""}
                           </FormDescription>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   
-                  {revenueTaskForm.watch("isRecurring") && (
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={revenueTaskForm.control}
-                          name="complianceFrequency"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Frequency</FormLabel>
-                              <Select 
-                                onValueChange={field.onChange} 
-                                value={field.value || ""}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select frequency" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="Monthly">Monthly</SelectItem>
-                                  <SelectItem value="Quarterly">Quarterly</SelectItem>
-                                  <SelectItem value="Bi-Annually">Bi-Annually</SelectItem>
-                                  <SelectItem value="Annual">Annual</SelectItem>
-                                  <SelectItem value="2 Years">2 Years</SelectItem>
-                                  <SelectItem value="3 Years">3 Years</SelectItem>
-                                  <SelectItem value="4 Years">4 Years</SelectItem>
-                                  <SelectItem value="5 Years">5 Years</SelectItem>
-                                  <SelectItem value="One Time">One Time</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={revenueTaskForm.control}
-                          name="complianceYear"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Year(s)</FormLabel>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={revenueTaskForm.control}
+                      name="complianceStartDate"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Start Date</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
                               <FormControl>
-                                <Input 
-                                  placeholder="e.g., 2024 or 2024,2025,2026"
-                                  {...field}
-                                />
+                                <Button
+                                  variant="outline"
+                                  className={`w-full pl-3 text-left font-normal ${!field.value && "text-muted-foreground"}`}
+                                >
+                                  {field.value ? (
+                                    format(field.value, "PPP")
+                                  ) : (
+                                    <span>Pick a date</span>
+                                  )}
+                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
                               </FormControl>
-                              <FormMessage />
-                              <FormDescription>
-                                {revenueTaskForm.watch("complianceFrequency") === "Annual" ? 
-                                  "Single year (e.g., 2024)" : 
-                                  (revenueTaskForm.watch("complianceFrequency") === "Quarterly" || 
-                                   revenueTaskForm.watch("complianceFrequency") === "Monthly" || 
-                                   revenueTaskForm.watch("complianceFrequency") === "Bi-Annually") ?
-                                    "Comma-separated years (e.g., 2024,2025)" : ""}
-                              </FormDescription>
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={revenueTaskForm.control}
-                          name="complianceStartDate"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-col">
-                              <FormLabel>Start Date</FormLabel>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <FormControl>
-                                    <Button
-                                      variant="outline"
-                                      className={`w-full pl-3 text-left font-normal ${!field.value && "text-muted-foreground"}`}
-                                    >
-                                      {field.value ? (
-                                        format(field.value, "PPP")
-                                      ) : (
-                                        <span>Pick a date</span>
-                                      )}
-                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                  </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                    mode="single"
-                                    selected={field.value}
-                                    onSelect={field.onChange}
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={revenueTaskForm.control}
-                          name="complianceEndDate"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-col">
-                              <FormLabel>End Date</FormLabel>
-                              <Popover>
-                                <PopoverTrigger asChild disabled>
-                                  <FormControl>
-                                    <Button
-                                      variant="outline"
-                                      className={`w-full pl-3 text-left font-normal ${!field.value && "text-muted-foreground"}`}
-                                    >
-                                      {field.value ? (
-                                        format(field.value, "PPP")
-                                      ) : (
-                                        <span>Calculated from frequency</span>
-                                      )}
-                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                  </FormControl>
-                                </PopoverTrigger>
-                              </Popover>
-                              <FormDescription>
-                                Auto-calculated based on frequency and start date
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      <FormField
-                        control={revenueTaskForm.control}
-                        name="complianceDuration"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Duration</FormLabel>
-                            <Select 
-                              onValueChange={field.onChange} 
-                              value={field.value || ""}
-                            >
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={field.onChange}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={revenueTaskForm.control}
+                      name="complianceEndDate"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>End Date</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild disabled>
                               <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select duration (optional)" />
-                                </SelectTrigger>
+                                <Button
+                                  variant="outline"
+                                  className={`w-full pl-3 text-left font-normal ${!field.value && "text-muted-foreground"}`}
+                                >
+                                  {field.value ? (
+                                    format(field.value, "PPP")
+                                  ) : (
+                                    <span>Calculated from frequency</span>
+                                  )}
+                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
                               </FormControl>
-                              <SelectContent>
-                                <SelectItem value="Basic">Basic</SelectItem>
-                                <SelectItem value="Standard">Standard</SelectItem>
-                                <SelectItem value="Extended">Extended</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            </PopoverTrigger>
+                          </Popover>
+                          <FormDescription>
+                            Auto-calculated based on frequency and start date
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={revenueTaskForm.control}
+                      name="complianceDuration"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Duration</FormLabel>
+                          <Select 
+                            onValueChange={field.onChange} 
+                            value={field.value || ""}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select duration (optional)" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Basic">Basic</SelectItem>
+                              <SelectItem value="Standard">Standard</SelectItem>
+                              <SelectItem value="Extended">Extended</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Optional: helps with estimating time requirements
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={revenueTaskForm.control}
+                      name="isRecurring"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>
+                              Recurring Task
+                            </FormLabel>
                             <FormDescription>
-                              Optional: helps with estimating time requirements
+                              Enable if this is a recurring compliance task
                             </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </>
-                  )}
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                   
                   <div className="flex justify-between pt-2">
                     <Button 
