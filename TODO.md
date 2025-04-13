@@ -20,9 +20,11 @@ This document outlines the remaining tasks and future enhancements for the Accou
 - [x] Fix task type (admin vs revenue) handling throughout the system
 - [ ] Implement recurring task generation based on compliance frequency
 - [ ] Create the "Auto Generated Tasks" module for approval workflow
-- [ ] Enhance status workflow to enforce proper transitions between states
-- [ ] Implement business rules for task status changes
+- [x] Enhance status workflow to enforce proper transitions between states
+- [x] Implement business rules for task status changes
+- [x] Add status change functionality directly in task list view
 - [ ] Add task assignment notifications system
+- [ ] Implement email notifications for status changes
 - [ ] Improve filtering capabilities for the tasks list
 
 ## Priority 2: Feature Completion
