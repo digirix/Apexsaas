@@ -297,12 +297,18 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
   const createAdminTaskMutation = useMutation({
     mutationFn: async (data: AdminTaskFormValues) => {
       // Start with a cleaned payload that only includes the fields we need
+      // Find the "New" status (rank 1)
+      const newStatus = taskStatuses.find(s => s.rank === 1);
+      if (!newStatus) {
+        throw new Error("No 'New' status found. Please set up task statuses first.");
+      }
+      
       const payload: any = {
         isAdmin: true,
         taskType: data.taskType,
         taskDetails: data.taskDetails,
         nextToDo: data.nextToDo,
-        statusId: 1, // New status
+        statusId: newStatus.id, // Using the correct "New" status ID
       };
       
       // Convert assigneeId to number
@@ -346,6 +352,12 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
     mutationFn: async (data: RevenueTaskFormValues) => {
       // Start with a cleaned payload that only includes the fields we need
       // This prevents any extra fields from being sent to the API
+      // Find the "New" status (rank 1)
+      const newStatus = taskStatuses.find(s => s.rank === 1);
+      if (!newStatus) {
+        throw new Error("No 'New' status found. Please set up task statuses first.");
+      }
+      
       const payload: any = {
         isAdmin: false,
         taskType: data.taskType,
@@ -356,7 +368,7 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
         complianceYear: data.complianceYear,
         complianceDuration: data.complianceDuration,
         currency: data.currency,
-        statusId: 1, // New status
+        statusId: newStatus.id, // Using the correct "New" status ID
       };
 
       // Handle service rate as a number if provided
