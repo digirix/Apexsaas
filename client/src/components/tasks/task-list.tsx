@@ -579,9 +579,13 @@ function TaskCard({
                 {status}
               </Badge>
               
-              {isAdmin && (
+              {isAdmin ? (
                 <Badge variant="outline" className="bg-slate-100">
                   Administrative
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                  Revenue
                 </Badge>
               )}
               {isOverdue && (
