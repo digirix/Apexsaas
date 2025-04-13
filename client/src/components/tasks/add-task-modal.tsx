@@ -743,7 +743,14 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                         <FormItem>
                           <FormLabel>Client</FormLabel>
                           <Select 
-                            onValueChange={field.onChange} 
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              // Clear entity selection when client changes
+                              revenueTaskForm.setValue("entityId", "");
+                              revenueTaskForm.setValue("serviceId", "");
+                              // Invalidate entities query to force a refresh
+                              queryClient.invalidateQueries({ queryKey: ["/api/v1/clients", value, "entities"] });
+                            }} 
                             value={field.value}
                           >
                             <FormControl>
@@ -781,7 +788,15 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                         <FormItem>
                           <FormLabel>Entity</FormLabel>
                           <Select 
-                            onValueChange={field.onChange} 
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              // Clear service selection when entity changes
+                              revenueTaskForm.setValue("serviceId", "");
+                              // Invalidate services query to force a refresh
+                              if (value) {
+                                queryClient.invalidateQueries({ queryKey: ["/api/v1/entities", value, "services"] });
+                              }
+                            }} 
                             value={field.value}
                             disabled={!selectedClientId || isLoadingEntities}
                           >
