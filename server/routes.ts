@@ -2325,6 +2325,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Auto Generated Tasks API
+  
   // Task Scheduler route for manually generating tasks
   app.post("/api/v1/admin/generate-recurring-tasks", isAuthenticated, async (req, res) => {
     try {
@@ -2353,6 +2355,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error generating recurring tasks:", error);
       res.status(500).json({ 
         message: "Failed to generate recurring tasks",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Get tasks that need approval
+  app.get("/api/v1/auto-generated-tasks", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const taskScheduler = new TaskScheduler(storage);
+      
+      const tasks = await taskScheduler.getTasksNeedingApproval(tenantId);
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching auto-generated tasks:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch auto-generated tasks",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Approve a single auto-generated task
+  app.post("/api/v1/auto-generated-tasks/:id/approve", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const taskId = parseInt(req.params.id);
+      
+      const taskScheduler = new TaskScheduler(storage);
+      const success = await taskScheduler.approveTask(taskId, tenantId);
+      
+      if (success) {
+        res.json({ message: "Task approved successfully" });
+      } else {
+        res.status(404).json({ message: "Task not found or not eligible for approval" });
+      }
+    } catch (error) {
+      console.error("Error approving task:", error);
+      res.status(500).json({ 
+        message: "Failed to approve task",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Reject a single auto-generated task
+  app.post("/api/v1/auto-generated-tasks/:id/reject", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const taskId = parseInt(req.params.id);
+      
+      const taskScheduler = new TaskScheduler(storage);
+      const success = await taskScheduler.rejectTask(taskId, tenantId);
+      
+      if (success) {
+        res.json({ message: "Task rejected successfully" });
+      } else {
+        res.status(404).json({ message: "Task not found or not eligible for rejection" });
+      }
+    } catch (error) {
+      console.error("Error rejecting task:", error);
+      res.status(500).json({ 
+        message: "Failed to reject task",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Approve all pending tasks
+  app.post("/api/v1/auto-generated-tasks/approve-all", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      const taskScheduler = new TaskScheduler(storage);
+      const approvedCount = await taskScheduler.approveAllPendingTasks(tenantId);
+      
+      res.json({ 
+        message: `Approved ${approvedCount} pending tasks successfully` 
+      });
+    } catch (error) {
+      console.error("Error approving all tasks:", error);
+      res.status(500).json({ 
+        message: "Failed to approve all tasks",
         error: error instanceof Error ? error.message : String(error)
       });
     }
