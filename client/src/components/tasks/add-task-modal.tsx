@@ -417,33 +417,57 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
     if (frequency && startDate) {
       let endDate;
       
+      // Make a copy of the start date to avoid modifying the original
+      const startDateCopy = new Date(startDate);
+      const year = startDateCopy.getFullYear();
+      const month = startDateCopy.getMonth();
+      const day = startDateCopy.getDate();
+      
       switch(frequency) {
         case "5 Years":
-          endDate = addYears(startDate, 5);
+          // Last day of the 5th year
+          endDate = new Date(year + 5, month, 0);
+          endDate.setHours(23, 59, 59, 999);
           break;
         case "4 Years":
-          endDate = addYears(startDate, 4);
+          // Last day of the 4th year
+          endDate = new Date(year + 4, month, 0);
+          endDate.setHours(23, 59, 59, 999);
           break;
         case "3 Years":
-          endDate = addYears(startDate, 3);
+          // Last day of the 3rd year
+          endDate = new Date(year + 3, month, 0);
+          endDate.setHours(23, 59, 59, 999);
           break;
         case "2 Years":
-          endDate = addYears(startDate, 2);
+          // Last day of the 2nd year
+          endDate = new Date(year + 2, month, 0);
+          endDate.setHours(23, 59, 59, 999);
           break;
         case "Annual":
-          endDate = addYears(startDate, 1);
+          // Last day of the year
+          endDate = new Date(year + 1, month, 0);
+          endDate.setHours(23, 59, 59, 999);
           break;
         case "Bi-Annually":
-          endDate = addMonths(startDate, 6);
+          // Last day of the 6th month
+          endDate = new Date(year, month + 6, 0);
+          endDate.setHours(23, 59, 59, 999);
           break;
         case "Quarterly":
-          endDate = addQuarters(startDate, 1);
+          // Last day of the quarter
+          endDate = new Date(year, month + 3, 0);
+          endDate.setHours(23, 59, 59, 999);
           break;
         case "Monthly":
-          endDate = addMonths(startDate, 1);
+          // Last day of the month
+          endDate = new Date(year, month + 1, 0);
+          endDate.setHours(23, 59, 59, 999);
           break;
         case "One Time":
-          endDate = startDate; // Same as start date for one-time tasks
+          // Same date but with end of day time
+          endDate = new Date(startDateCopy);
+          endDate.setHours(23, 59, 59, 999);
           break;
         default:
           endDate = undefined;
