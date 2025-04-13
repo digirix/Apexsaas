@@ -763,7 +763,7 @@ export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
                               ) : (
                                 clients.map((client) => (
                                   <SelectItem key={client.id} value={client.id.toString()}>
-                                    {client.name}
+                                    {client.displayName}
                                   </SelectItem>
                                 ))
                               )}
