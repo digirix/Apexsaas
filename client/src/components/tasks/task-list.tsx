@@ -69,7 +69,8 @@ export function TaskList() {
       status: statusFilter,
       assignee: assigneeFilter,
       category: categoryFilter,
-      search: searchTerm.length > 2 ? searchTerm : undefined
+      search: searchTerm.length > 2 ? searchTerm : undefined,
+      isAdmin: taskTabFilter === "admin" ? true : taskTabFilter === "revenue" ? false : undefined
     }],
   });
 
@@ -346,11 +347,19 @@ export function TaskList() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
-                  {allTaskCategories.map((category) => (
-                    <SelectItem key={category.id} value={category.id.toString()}>
-                      {category.name} {category.isAdmin ? "(Admin)" : "(Revenue)"}
-                    </SelectItem>
-                  ))}
+                  {allTaskCategories
+                    .filter(category => {
+                      // Filter categories based on the current tab selection
+                      if (taskTabFilter === "admin") return category.isAdmin;
+                      if (taskTabFilter === "revenue") return !category.isAdmin;
+                      return true; // Show all categories for other tabs
+                    })
+                    .map((category) => (
+                      <SelectItem key={category.id} value={category.id.toString()}>
+                        {category.name} {category.isAdmin ? "(Admin)" : "(Revenue)"}
+                      </SelectItem>
+                    ))
+                  }
                 </SelectContent>
               </Select>
             </div>
@@ -371,7 +380,14 @@ export function TaskList() {
       <Tabs 
         defaultValue="all" 
         value={taskTabFilter} 
-        onValueChange={setTaskTabFilter} 
+        onValueChange={(value) => {
+          setTaskTabFilter(value);
+          // Clear category filter when switching between admin/revenue tabs
+          if ((value === "admin" || value === "revenue") && 
+              (taskTabFilter === "all" || taskTabFilter === "admin" || taskTabFilter === "revenue")) {
+            setCategoryFilter(null);
+          }
+        }} 
         className="mb-6"
       >
         <TabsList className="grid grid-cols-3 md:grid-cols-6">
