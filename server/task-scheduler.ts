@@ -169,19 +169,52 @@ export class TaskScheduler {
   ): { startDate: Date; endDate: Date } | null {
     try {
       const currentYear = referenceDate.getFullYear();
+      const currentMonth = referenceDate.getMonth();
       let startDate: Date, endDate: Date;
       
       switch (frequency.toLowerCase()) {
+        case 'daily':
+          // For daily, the next period is tomorrow
+          const nextDay = addDays(referenceDate, 1);
+          startDate = new Date(nextDay.setHours(0, 0, 0, 0));
+          endDate = new Date(nextDay.setHours(23, 59, 59, 999));
+          break;
+          
+        case 'weekly':
+          // For weekly, the next period is the next 7 days
+          const tomorrow = addDays(referenceDate, 1);
+          startDate = new Date(tomorrow.setHours(0, 0, 0, 0));
+          endDate = addDays(startDate, 6);
+          endDate.setHours(23, 59, 59, 999);
+          break;
+          
+        case 'biweekly':
+          // For biweekly, the next period is the next 14 days
+          const dayAfterTomorrow = addDays(referenceDate, 1);
+          startDate = new Date(dayAfterTomorrow.setHours(0, 0, 0, 0));
+          endDate = addDays(startDate, 13);
+          endDate.setHours(23, 59, 59, 999);
+          break;
+          
         case 'monthly':
-          // For monthly, the next period is the next month
-          const nextMonth = addMonths(startOfMonth(referenceDate), 1);
-          startDate = startOfMonth(nextMonth);
-          endDate = endOfMonth(nextMonth);
+          // For monthly, handle special cases based on the duration
+          if (duration.toLowerCase() === 'previous') {
+            // Previous month
+            const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+            const prevMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+            startDate = new Date(prevMonthYear, prevMonth, 1);
+            endDate = new Date(currentYear, currentMonth, 0); // Last day of previous month
+          } else {
+            // Next month (default)
+            const nextMonth = addMonths(startOfMonth(referenceDate), 1);
+            startDate = startOfMonth(nextMonth);
+            endDate = endOfMonth(nextMonth);
+          }
           break;
           
         case 'quarterly':
           // For quarterly, calculate based on quarters (Q1, Q2, Q3, Q4)
-          const currentQuarter = Math.floor(referenceDate.getMonth() / 3);
+          const currentQuarter = Math.floor(currentMonth / 3);
           const nextQuarterStartMonth = (currentQuarter + 1) % 4 * 3;
           
           // If we're already in Q4, move to Q1 of next year
@@ -192,11 +225,33 @@ export class TaskScheduler {
           endDate = endOfQuarter(nextQuarterDate);
           break;
           
+        case 'semi-annual':
+        case 'biannual':
+          // For semi-annual, divide the year into two periods (Jan-Jun, Jul-Dec)
+          const currentHalf = currentMonth < 6 ? 0 : 1;
+          const nextHalfStartMonth = currentHalf === 0 ? 6 : 0;
+          const nextHalfYear = currentHalf === 1 ? currentYear + 1 : currentYear;
+          
+          startDate = new Date(nextHalfYear, nextHalfStartMonth, 1);
+          endDate = new Date(nextHalfYear, nextHalfStartMonth + 5, 31);
+          break;
+          
         case 'yearly':
         case 'annual':
-          // For yearly, use the next calendar year
-          startDate = new Date(currentYear + 1, 0, 1); // Jan 1 of next year
-          endDate = new Date(currentYear + 1, 11, 31); // Dec 31 of next year
+          // For yearly compliance, handle special cases based on the duration
+          if (duration.toLowerCase() === 'fy' || duration.toLowerCase() === 'fiscal year') {
+            // Fiscal year - assuming fiscal year starts in July
+            // This can be customized based on the country or organization's fiscal year
+            const currentFY = currentMonth >= 6 ? currentYear : currentYear - 1;
+            const nextFY = currentFY + 1;
+            
+            startDate = new Date(nextFY, 6, 1); // July 1st of next fiscal year
+            endDate = new Date(nextFY + 1, 5, 30); // June 30th of year after next fiscal year
+          } else {
+            // Calendar year (default)
+            startDate = new Date(currentYear + 1, 0, 1); // Jan 1 of next year
+            endDate = new Date(currentYear + 1, 11, 31); // Dec 31 of next year
+          }
           break;
           
         default:
