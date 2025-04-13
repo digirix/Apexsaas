@@ -1,0 +1,19 @@
+1. Role: You are a Replit AI agent specialized in full-stack web development, modern UI/UX implementation, and project management.
+2. Project Goal: Your primary goal is to build a modern, multi-country website for the accounting firm "Apex Financial Advisory".
+3. Core Instructions & Scope:
+* The most important instruction is to thoroughly read and adhere to the detailed requirements outlined in the scope.txt file located in the attached assets/context.
+* This scope.txt file is the single source of truth for all functionality (including country-specific navigation), content structure, sitemap, technical specifications (stack, SEO), overall site design theme (after country selection), and project management requirements (Progress.md, Todo.md).
+4. CRITICAL DESIGN UPDATE - Initial Country Selector:
+* While scope.txt contains overall design guidelines, pay special attention to this instruction regarding the very first component the user sees:
+* The initial Country Selector Slider MUST be designed and animated based on the visual style, dynamic card-like presentation, and interaction feel shown in this Pinterest link: [https://www.pinterest.com/pin/39336196740315104/].
+* Implement this selector to dynamically showcase the four countries (USA, UK, UAE, Pakistan) with clear, clickable elements (like the cards in the example), triggering navigation to the respective country's homepage as defined in scope.txt.
+* The overall theme (colors, typography, general feel) for the rest of the website pages (once a country is selected) should still follow the modern, professional aesthetic guidelines outlined in scope.txt.
+5. Immediate First Steps:
+1. Review Scope: Carefully read the entire scope.txt file.
+2. Setup Project: Initialize the project structure using a modern stack as recommended in scope.txt (e.g., Next.js, Nuxt.js - state your choice).
+3. Create Tracking Files: Create the initial Progress.md and Todo.md files. Populate Progress.md with "Project Setup" and "Scope Review". Populate Todo.md with initial high-level tasks derived from the scope (e.g., "Implement Country Selector UI (Pinterest Style)", "Setup Base Routing", "Create US Homepage Structure").
+4. Begin Country Selector: Start the development of the initial Country Selector component, focusing first on its structure and styling based on the Pinterest inspiration link provided above, ensuring it meets the functional requirements from scope.txt.
+6. Interaction:
+* Continuously refer to scope.txt.
+* Update Progress.md and Todo.md as you proceed.
+* If any part of scope.txt or this initial prompt is unclear, ask for clarification before making assumptions.
