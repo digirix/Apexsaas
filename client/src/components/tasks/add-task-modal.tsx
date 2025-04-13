@@ -65,12 +65,17 @@ type AdminTaskFormValues = z.infer<typeof adminTaskSchema>;
 // Define the comprehensive revenue task schema with all tabs
 const revenueTaskSchema = z.object({
   // Basic Information Tab
-  clientId: z.string().min(1, "Please select a client"),
-  entityId: z.string().min(1, "Please select an entity"),
-  serviceId: z.string().min(1, "Please select a service"),
-  taskCategoryId: z.string().optional(),
+  clientId: z.string().min(1, "Please select a client")
+    .transform(val => parseInt(val)), // Convert to number for backend
+  entityId: z.string().min(1, "Please select an entity")
+    .transform(val => parseInt(val)), // Convert to number for backend
+  serviceId: z.string().min(1, "Please select a service")
+    .transform(val => parseInt(val)), // Convert to number for backend
+  taskCategoryId: z.string().optional()
+    .transform(val => val ? parseInt(val) : undefined), // Convert to number if present
   taskType: z.enum(["Regular", "Medium", "Urgent"]),
-  assigneeId: z.string().min(1, "Please select an assignee"),
+  assigneeId: z.string().min(1, "Please select an assignee")
+    .transform(val => parseInt(val)), // Convert to number for backend
   dueDate: z.date({
     required_error: "Please select a due date",
   }),
