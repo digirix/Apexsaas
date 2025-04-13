@@ -291,14 +291,18 @@ export class TaskScheduler {
           // For daily, the next period is tomorrow
           const nextDay = addDays(referenceDate, 1);
           startDate = new Date(nextDay.setHours(0, 0, 0, 0));
-          endDate = new Date(nextDay.setHours(23, 59, 59, 999));
+          // End date is the same day at 23:59:59.999
+          endDate = new Date(startDate);
+          endDate.setHours(23, 59, 59, 999);
           break;
           
         case 'weekly':
           // For weekly, the next period is the next 7 days
           const tomorrow = addDays(referenceDate, 1);
           startDate = new Date(tomorrow.setHours(0, 0, 0, 0));
-          endDate = addDays(startDate, 6);
+          // End date is the 6th day after start (7 days total) at 23:59:59.999
+          endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + 6);
           endDate.setHours(23, 59, 59, 999);
           break;
           
@@ -306,7 +310,9 @@ export class TaskScheduler {
           // For biweekly, the next period is the next 14 days
           const dayAfterTomorrow = addDays(referenceDate, 1);
           startDate = new Date(dayAfterTomorrow.setHours(0, 0, 0, 0));
-          endDate = addDays(startDate, 13);
+          // End date is the 13th day after start (14 days total) at 23:59:59.999
+          endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + 13);
           endDate.setHours(23, 59, 59, 999);
           break;
           
@@ -316,13 +322,17 @@ export class TaskScheduler {
             // Previous month
             const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
             const prevMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-            startDate = new Date(prevMonthYear, prevMonth, 1);
-            endDate = new Date(currentYear, currentMonth, 0); // Last day of previous month
+            startDate = new Date(prevMonthYear, prevMonth, 1); // First day of previous month
+            // Last day of previous month at 23:59:59.999
+            endDate = new Date(currentYear, currentMonth, 0);
+            endDate.setHours(23, 59, 59, 999);
           } else {
             // Next month (default)
-            const nextMonth = addMonths(startOfMonth(referenceDate), 1);
-            startDate = startOfMonth(nextMonth);
-            endDate = endOfMonth(nextMonth);
+            // First day of next month
+            startDate = new Date(currentYear, currentMonth + 1, 1);
+            // Last day of next month at 23:59:59.999
+            endDate = new Date(currentYear, currentMonth + 2, 0);
+            endDate.setHours(23, 59, 59, 999);
           }
           break;
           
@@ -333,10 +343,14 @@ export class TaskScheduler {
           
           // If we're already in Q4, move to Q1 of next year
           const nextQuarterYear = currentQuarter === 3 ? currentYear + 1 : currentYear;
-          const nextQuarterDate = new Date(nextQuarterYear, nextQuarterStartMonth, 1);
           
-          startDate = startOfQuarter(nextQuarterDate);
-          endDate = endOfQuarter(nextQuarterDate);
+          // First day of next quarter
+          startDate = new Date(nextQuarterYear, nextQuarterStartMonth, 1);
+          
+          // Last day of next quarter at 23:59:59.999
+          // Add 3 months to the start date, then go back 1 day
+          endDate = new Date(nextQuarterYear, nextQuarterStartMonth + 3, 0);
+          endDate.setHours(23, 59, 59, 999);
           break;
           
         case 'semi-annual':
@@ -346,8 +360,13 @@ export class TaskScheduler {
           const nextHalfStartMonth = currentHalf === 0 ? 6 : 0;
           const nextHalfYear = currentHalf === 1 ? currentYear + 1 : currentYear;
           
+          // First day of next half-year
           startDate = new Date(nextHalfYear, nextHalfStartMonth, 1);
-          endDate = new Date(nextHalfYear, nextHalfStartMonth + 5, 31);
+          
+          // Last day of next half-year at 23:59:59.999
+          // Add 6 months to the start date, then go back 1 day
+          endDate = new Date(nextHalfYear, nextHalfStartMonth + 6, 0);
+          endDate.setHours(23, 59, 59, 999);
           break;
           
         case 'yearly':
@@ -359,12 +378,20 @@ export class TaskScheduler {
             const currentFY = currentMonth >= 6 ? currentYear : currentYear - 1;
             const nextFY = currentFY + 1;
             
-            startDate = new Date(nextFY, 6, 1); // July 1st of next fiscal year
-            endDate = new Date(nextFY + 1, 5, 30); // June 30th of year after next fiscal year
+            // July 1st of next fiscal year
+            startDate = new Date(nextFY, 6, 1);
+            
+            // June 30th of year after next fiscal year at 23:59:59.999
+            endDate = new Date(nextFY + 1, 6, 0);
+            endDate.setHours(23, 59, 59, 999);
           } else {
             // Calendar year (default)
-            startDate = new Date(currentYear + 1, 0, 1); // Jan 1 of next year
-            endDate = new Date(currentYear + 1, 11, 31); // Dec 31 of next year
+            // January 1st of next year
+            startDate = new Date(currentYear + 1, 0, 1);
+            
+            // December 31st of next year at 23:59:59.999
+            endDate = new Date(currentYear + 1, 11, 31);
+            endDate.setHours(23, 59, 59, 999);
           }
           break;
           
