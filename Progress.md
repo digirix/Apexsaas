@@ -393,8 +393,13 @@ The project has made significant progress across multiple modules:
    - Need to create the "Auto Generated Tasks" module for approval workflow
 
 3. **Task Status Transitions:**
-   - Status workflow needs enhancement to enforce proper transitions between states
-   - Need to implement business rules for status changes
+   - ✅ Implemented configurable task status workflow with rules-based transitions
+   - ✅ Added a visual interface for configuring allowed/restricted status transitions
+   - ✅ Created status change dropdown in task list for quick status updates
+   - ✅ Implemented differential treatment of tasks with workflow restrictions applying only to Revenue Tasks (Admin Tasks can transition freely)
+   - ✅ Default behavior set to "Allow all transitions unless explicitly forbidden" for intuitive use
+   - ✅ Integrated workflow configuration UI as a tab within Task Statuses section for seamless setup
+   - ✅ Changed workflow UI to use "Restrict" toggle instead of "Allow" to better reflect its purpose
 
 ## Next Development Steps
 Future development will focus on:
