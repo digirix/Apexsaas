@@ -277,7 +277,7 @@ The project has made significant progress across multiple modules:
 2. **Module Status:**
    - Setup Module: 100% complete with all managers and CRUD operations
    - Clients Module: 100% complete with client management, entity creation, and configuration
-   - Tasks Module: 95% complete with task creation, viewing, filtering, status workflow, and direct status changes
+   - Tasks Module: 90% complete with task creation, viewing, and filtering (task editing in progress)
    - Users Module: 100% complete with comprehensive user management and permissions framework
      - ✅ User listing shows SuperAdmin properly
      - ✅ User permissions API endpoints implemented
@@ -304,23 +304,6 @@ The project has made significant progress across multiple modules:
    - Implementing proper TypeScript typings for all components and API responses
 
 ## Recent Improvements
-
-### Task Management Workflow Enhancements (April 2025)
-1. **Task Status Workflow Improvements:**
-   - Changed workflow UI from "Allow" to "Restrict" toggle to align with the default behavior of allowing all transitions unless explicitly restricted
-   - Modified server-side logic to bypass workflow rules for Admin Tasks, ensuring workflow restrictions only apply to Revenue Tasks
-   - Added ability to change task statuses directly from the list view according to configured workflow rules
-   - Fixed error handling for empty or undefined available statuses in the task list component
-   - Integrated workflow configuration as a tab within Task Statuses section with clear explanation of rule behavior
-   - Added dropdown menu in task list to allow direct status changes
-
-2. **Task UI Enhancements:**
-   - Implemented proper dropdown menu for status changes in the task list view
-   - Enhanced error handling for null or undefined values in task components
-   - Improved user experience by providing clear visual feedback on available status transitions
-   - Added null checks to prevent errors when task statuses haven't been configured yet
-   - Fixed error that occurred when creating a new Revenue Task with the dropdown menu
-   - Implemented proper status change handling directly from the task list view
 
 ### Data Validation System
 1. **Setup Module Validation:**
@@ -409,9 +392,9 @@ The project has made significant progress across multiple modules:
    - The automatic generation of recurring tasks based on compliance frequency is not yet implemented
    - Need to create the "Auto Generated Tasks" module for approval workflow
 
-3. **Task Notifications:**
-   - Need to implement notifications for task assignments and status changes
-   - Consider adding email notifications for critical tasks and deadlines
+3. **Task Status Transitions:**
+   - Status workflow needs enhancement to enforce proper transitions between states
+   - Need to implement business rules for status changes
 
 ## Next Development Steps
 Future development will focus on:
