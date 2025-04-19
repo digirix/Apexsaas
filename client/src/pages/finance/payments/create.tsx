@@ -20,6 +20,7 @@ import { Header } from "@/components/ui/header";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
+import { AppLayout } from "@/components/layout/app-layout";
 
 // Create a custom schema
 const createPaymentSchema = enhancedPaymentSchema.extend({
@@ -92,11 +93,10 @@ export default function CreatePaymentPage() {
         createdBy: user?.id || 1,
       };
       
-      // Create the payment
-      return apiRequest("/api/v1/finance/payments", {
-        method: "POST",
-        body: JSON.stringify(paymentData),
-      });
+      // Create the payment - Make sure to await the Promise and return the parsed data
+      const response = await apiRequest("POST", "/api/v1/finance/payments", paymentData);
+      const responseData = await response.json();
+      return responseData;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/invoices"] });
@@ -123,10 +123,11 @@ export default function CreatePaymentPage() {
   };
   
   return (
-    <div className="container py-6">
-      <Header title="Record Payment" subtitle="Record a payment for an invoice" />
-      
-      <Form {...form}>
+    <AppLayout>
+      <div className="container py-6">
+        <Header title="Record Payment" subtitle="Record a payment for an invoice" />
+        
+        <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-6">
           <Card>
             <CardHeader>
@@ -338,5 +339,6 @@ export default function CreatePaymentPage() {
         </form>
       </Form>
     </div>
+  </AppLayout>
   );
 }

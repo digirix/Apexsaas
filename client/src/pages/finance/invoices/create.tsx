@@ -174,7 +174,8 @@ export default function CreateInvoicePage() {
             lineTotal: (lineTotal - discountAmount + taxAmount).toString(),
           };
           
-          await apiRequest("POST", "/api/v1/finance/invoice-line-items", lineItemData);
+          const lineItemResponse = await apiRequest("POST", "/api/v1/finance/invoice-line-items", lineItemData);
+          await lineItemResponse.json(); // Make sure to consume the promise
         }
         
         return invoice;

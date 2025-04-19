@@ -119,9 +119,9 @@ export default function CreateInvoiceFromTaskPage() {
           createdBy: user?.id || 1,
         };
         
-        // Create the invoice
-        const response = await apiRequest("POST", "/api/v1/finance/invoices", invoiceData);
-        const invoice = await response.json();
+        // Create the invoice - await and parse each response
+        const invoiceResponse = await apiRequest("POST", "/api/v1/finance/invoices", invoiceData);
+        const invoice = await invoiceResponse.json();
         
         // Create invoice line item for the task
         const lineItemData = {
@@ -136,12 +136,14 @@ export default function CreateInvoiceFromTaskPage() {
           lineTotal: selectedTask.serviceRate || "0",
         };
         
-        await apiRequest("POST", "/api/v1/finance/invoice-line-items", lineItemData);
+        const lineItemResponse = await apiRequest("POST", "/api/v1/finance/invoice-line-items", lineItemData);
+        await lineItemResponse.json(); // Consume the promise
         
         // Update the task with invoice ID reference
-        await apiRequest("PATCH", `/api/v1/tasks/${selectedTask.id}`, {
+        const taskUpdateResponse = await apiRequest("PATCH", `/api/v1/tasks/${selectedTask.id}`, {
           invoiceId: invoice.id
         });
+        await taskUpdateResponse.json(); // Consume the promise
         
         return invoice;
       } catch (error) {
