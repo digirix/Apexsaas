@@ -12,14 +12,15 @@ This document outlines the remaining tasks and future enhancements for the Accou
 - [x] Enhance task category validation to prevent duplicates within the same type (admin or revenue)
 - [x] Implement validation for designations and departments
 - [x] Add robust validation for entity service subscriptions
+- [x] Improve date handling for all forms, especially compliance start/end dates
 - [ ] Fix type mismatches between frontend forms and backend schema
-- [ ] Improve date handling for all forms, especially compliance start/end dates
 
 ### Task Module Enhancements
 - [x] Complete task creation workflow with proper validation
 - [x] Fix task type (admin vs revenue) handling throughout the system
-- [ ] Implement recurring task generation based on compliance frequency
-- [ ] Create the "Auto Generated Tasks" module for approval workflow
+- [x] Implement recurring task generation based on compliance frequency
+- [x] Create the "Auto Generated Tasks" module for approval workflow
+- [x] Fix compliance period end date calculation to use last day of period
 - [x] Enhance status workflow to enforce proper transitions between states
 - [x] Implement business rules for task status changes with different rules for Admin vs Revenue tasks
 - [x] Add user interface for configuring task status workflow with restrict/allow toggles
