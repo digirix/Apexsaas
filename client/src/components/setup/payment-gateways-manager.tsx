@@ -1,562 +1,506 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { CreditCard, AlertCircle, Check, Loader2 } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { 
+  CreditCard, 
+  Edit, 
+  Trash, 
+  Plus, 
+  Check, 
+  X,
+  SlidersHorizontal
+} from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 
-// Stripe configuration schema
-const stripeConfigSchema = z.object({
-  public_key: z.string().min(1, "Publishable key is required"),
-  secret_key: z.string().min(1, "Secret key is required"),
-  webhook_secret: z.string().optional(),
-});
+const gatewayTypeOptions = [
+  { value: 'stripe', label: 'Stripe' },
+  { value: 'paypal', label: 'PayPal' },
+  { value: 'other', label: 'Other' }
+];
 
-// PayPal configuration schema
-const paypalConfigSchema = z.object({
-  client_id: z.string().min(1, "Client ID is required"),
-  client_secret: z.string().min(1, "Client secret is required"),
-  environment: z.enum(["sandbox", "production"]).default("sandbox"),
-});
-
-// Payment Gateway settings form schema
-const paymentGatewaySettingsSchema = z.object({
+const paymentGatewaySettingSchema = z.object({
   id: z.number().optional(),
-  tenantId: z.number(),
   gatewayType: z.string(),
   isEnabled: z.boolean().default(false),
-  configData: z.union([
-    stripeConfigSchema,
-    paypalConfigSchema,
-  ]),
+  configData: z.string()
 });
 
-type PaymentGatewaySettings = z.infer<typeof paymentGatewaySettingsSchema>;
+type PaymentGatewaySetting = z.infer<typeof paymentGatewaySettingSchema>;
 
 export default function PaymentGatewaysManager() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<string>("stripe");
-  const [editingGateway, setEditingGateway] = useState<string | null>(null);
-  
-  // Fetch payment gateway settings
+  const queryClient = useQueryClient();
+  const [isOpen, setIsOpen] = useState(false);
+  const [editingSetting, setEditingSetting] = useState<PaymentGatewaySetting | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedGatewayId, setSelectedGatewayId] = useState<number | null>(null);
+
+  // Queries
   const { data: gatewaySettings, isLoading } = useQuery({
     queryKey: ["/api/v1/finance/payment-gateways"],
-  });
-  
-  // Test payment gateway connection mutation
-  const testConnectionMutation = useMutation({
-    mutationFn: async (gateway: string) => {
-      return await apiRequest("POST", `/api/v1/finance/payment-gateways/${gateway}/test`);
-    },
-    onSuccess: () => {
-      toast({
-        title: "Connection successful",
-        description: "Successfully connected to the payment gateway",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Connection failed",
-        description: "Failed to connect to the payment gateway. Please check your credentials.",
-        variant: "destructive",
-      });
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/v1/finance/payment-gateways");
+      if (!response.ok) {
+        throw new Error("Failed to fetch payment gateway settings");
+      }
+      return response.json();
     },
   });
-  
-  // Find the current settings for a gateway type
-  const findGatewaySettings = (type: string) => {
-    if (!gatewaySettings) return null;
-    return gatewaySettings.find((setting: any) => setting.gatewayType === type);
-  };
-  
-  // Get configuration for form
-  const getGatewayConfig = (type: string) => {
-    const setting = findGatewaySettings(type);
-    if (!setting) return null;
-    
-    try {
-      // Parse the JSON config data
-      return typeof setting.configData === 'string' 
-        ? JSON.parse(setting.configData) 
-        : setting.configData;
-    } catch (e) {
-      console.error("Error parsing config data:", e);
-      return {};
-    }
-  };
-  
-  // Is a gateway enabled?
-  const isGatewayEnabled = (type: string) => {
-    const setting = findGatewaySettings(type);
-    return setting ? setting.isEnabled : false;
-  };
-  
-  // Stripe form setup
-  const stripeForm = useForm<any>({
-    resolver: zodResolver(stripeConfigSchema),
+
+  // Form setup
+  const form = useForm<PaymentGatewaySetting>({
+    resolver: zodResolver(paymentGatewaySettingSchema),
     defaultValues: {
-      public_key: "",
-      secret_key: "",
-      webhook_secret: "",
+      gatewayType: 'stripe',
+      isEnabled: false,
+      configData: JSON.stringify({ 
+        secret_key: "", 
+        publishable_key: "", 
+        webhook_secret: "" 
+      }, null, 2)
     },
   });
-  
-  // PayPal form setup
-  const paypalForm = useForm<any>({
-    resolver: zodResolver(paypalConfigSchema),
-    defaultValues: {
-      client_id: "",
-      client_secret: "",
-      environment: "sandbox",
-    },
-  });
-  
-  // Update form values when settings are loaded
+
+  // Reset form when editing setting changes
   useEffect(() => {
-    if (gatewaySettings) {
-      const stripeConfig = getGatewayConfig("stripe");
-      if (stripeConfig) {
-        stripeForm.reset({
-          public_key: stripeConfig.public_key || "",
-          secret_key: stripeConfig.secret_key || "",
-          webhook_secret: stripeConfig.webhook_secret || "",
-        });
+    if (editingSetting) {
+      let configData = editingSetting.configData;
+      
+      // Parse configData if it's a string, stringify it with formatting if it's an object
+      if (typeof configData === 'object') {
+        configData = JSON.stringify(configData, null, 2);
+      } else if (typeof configData === 'string') {
+        try {
+          // Try to parse and reformat for better display
+          const parsed = JSON.parse(configData);
+          configData = JSON.stringify(parsed, null, 2);
+        } catch (e) {
+          // Keep as is if not valid JSON
+        }
       }
       
-      const paypalConfig = getGatewayConfig("paypal");
-      if (paypalConfig) {
-        paypalForm.reset({
-          client_id: paypalConfig.client_id || "",
-          client_secret: paypalConfig.client_secret || "",
-          environment: paypalConfig.environment || "sandbox",
-        });
-      }
-    }
-  }, [gatewaySettings]);
-  
-  // Save payment gateway settings mutation
-  const saveGatewaySettingsMutation = useMutation({
-    mutationFn: async ({ type, config, isEnabled }: { type: string; config: any; isEnabled: boolean }) => {
-      const setting = findGatewaySettings(type);
-      
-      // Prepare the data
-      const data = {
-        gatewayType: type,
-        isEnabled,
-        configData: JSON.stringify(config),
+      form.reset({
+        ...editingSetting,
+        configData
+      });
+    } else {
+      const defaultConfigData = { 
+        secret_key: "", 
+        publishable_key: "", 
+        webhook_secret: "" 
       };
       
-      if (setting) {
-        // Update existing setting
-        return await apiRequest("PUT", `/api/v1/finance/payment-gateways/${setting.id}`, data);
-      } else {
-        // Create new setting
-        return await apiRequest("POST", "/api/v1/finance/payment-gateways", data);
+      form.reset({
+        gatewayType: 'stripe',
+        isEnabled: false,
+        configData: JSON.stringify(defaultConfigData, null, 2)
+      });
+    }
+  }, [editingSetting, form]);
+
+  // Mutations
+  const createGatewayMutation = useMutation({
+    mutationFn: async (data: PaymentGatewaySetting) => {
+      const response = await apiRequest("POST", "/api/v1/finance/payment-gateways", data);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to create payment gateway setting");
       }
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/payment-gateways"] });
-      setEditingGateway(null);
       toast({
-        title: "Settings saved",
-        description: "Payment gateway settings have been updated successfully",
+        title: "Gateway setting created",
+        description: "The payment gateway has been successfully configured.",
       });
+      setIsOpen(false);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
-        title: "Error",
-        description: "Failed to save payment gateway settings",
+        title: "Failed to create gateway setting",
+        description: error.message,
         variant: "destructive",
       });
     },
   });
-  
-  // Toggle payment gateway enabled state
-  const toggleGatewayEnabled = async (type: string, enabled: boolean) => {
-    const setting = findGatewaySettings(type);
-    if (!setting) {
+
+  const updateGatewayMutation = useMutation({
+    mutationFn: async (data: PaymentGatewaySetting) => {
+      const response = await apiRequest("PUT", `/api/v1/finance/payment-gateways/${data.id}`, data);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to update payment gateway setting");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/payment-gateways"] });
       toast({
-        title: "Configuration Required",
-        description: `Please configure your ${type} credentials before enabling the gateway.`,
+        title: "Gateway setting updated",
+        description: "The payment gateway configuration has been updated.",
+      });
+      setIsOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to update gateway setting",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteGatewayMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest("DELETE", `/api/v1/finance/payment-gateways/${id}`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to delete payment gateway setting");
+      }
+      return true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/payment-gateways"] });
+      toast({
+        title: "Gateway setting deleted",
+        description: "The payment gateway configuration has been removed.",
+      });
+      setShowDeleteDialog(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to delete gateway setting",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const testConnectionMutation = useMutation({
+    mutationFn: async ({ type }: { type: string }) => {
+      const response = await apiRequest("POST", `/api/v1/finance/payment-gateways/${type}/test`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || `Failed to test ${type} connection`);
+      }
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      toast({
+        title: "Connection successful",
+        description: `Successfully connected to ${variables.type.charAt(0).toUpperCase() + variables.type.slice(1)}`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Connection failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (values: PaymentGatewaySetting) => {
+    // Try to parse the configData to validate it's proper JSON
+    try {
+      const parsedConfig = JSON.parse(values.configData);
+      values.configData = JSON.stringify(parsedConfig);
+    } catch (e) {
+      toast({
+        title: "Invalid configuration",
+        description: "The configuration data must be valid JSON",
         variant: "destructive",
       });
       return;
     }
-    
-    try {
-      await saveGatewaySettingsMutation.mutateAsync({
-        type,
-        config: getGatewayConfig(type),
-        isEnabled: enabled,
-      });
-    } catch (error) {
-      console.error("Error toggling gateway:", error);
+
+    if (editingSetting?.id) {
+      updateGatewayMutation.mutate({ ...values, id: editingSetting.id });
+    } else {
+      createGatewayMutation.mutate(values);
     }
   };
-  
-  // Handle Stripe form submission
-  const handleStripeSubmit = (data: any) => {
-    saveGatewaySettingsMutation.mutate({
-      type: "stripe",
-      config: data,
-      isEnabled: isGatewayEnabled("stripe"),
-    });
+
+  const handleEdit = (setting: PaymentGatewaySetting) => {
+    setEditingSetting(setting);
+    setIsOpen(true);
   };
-  
-  // Handle PayPal form submission
-  const handlePayPalSubmit = (data: any) => {
-    saveGatewaySettingsMutation.mutate({
-      type: "paypal",
-      config: data,
-      isEnabled: isGatewayEnabled("paypal"),
-    });
+
+  const handleDelete = (id: number) => {
+    setSelectedGatewayId(id);
+    setShowDeleteDialog(true);
   };
-  
-  // Test a payment gateway connection
-  const testGatewayConnection = (type: string) => {
-    testConnectionMutation.mutate(type);
+
+  const handleCancelDelete = () => {
+    setShowDeleteDialog(false);
+    setSelectedGatewayId(null);
   };
-  
+
+  const handleConfirmDelete = () => {
+    if (selectedGatewayId !== null) {
+      deleteGatewayMutation.mutate(selectedGatewayId);
+    }
+  };
+
+  const handleTestConnection = (gatewayType: string) => {
+    testConnectionMutation.mutate({ type: gatewayType });
+  };
+
+  const handleAddNew = () => {
+    setEditingSetting(null);
+    setIsOpen(true);
+  };
+
+  // Handle gateway type change to provide appropriate default config template
+  const handleGatewayTypeChange = (value: string) => {
+    form.setValue("gatewayType", value);
+    
+    let configTemplate = {};
+    
+    switch(value) {
+      case 'stripe':
+        configTemplate = {
+          secret_key: "",
+          publishable_key: "",
+          webhook_secret: ""
+        };
+        break;
+      case 'paypal':
+        configTemplate = {
+          client_id: "",
+          client_secret: "",
+          mode: "sandbox" // or "live"
+        };
+        break;
+      default:
+        configTemplate = {
+          api_key: "",
+          api_secret: "",
+          environment: "test" // or "production"
+        };
+    }
+    
+    form.setValue("configData", JSON.stringify(configTemplate, null, 2));
+  };
+
+  const formatGatewayName = (type: string) => {
+    switch(type) {
+      case 'stripe':
+        return 'Stripe';
+      case 'paypal':
+        return 'PayPal';
+      default:
+        return type.charAt(0).toUpperCase() + type.slice(1);
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
+    <Card className="w-full">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
           <CardTitle>Payment Gateways</CardTitle>
           <CardDescription>
-            Configure payment gateway integrations to process payments from your clients
+            Configure payment gateways for processing payments
           </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-4">
-              <TabsTrigger value="stripe">Stripe</TabsTrigger>
-              <TabsTrigger value="paypal">PayPal</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="stripe">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
+        </div>
+        <Button onClick={handleAddNew} className="ml-auto">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Gateway
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div>
+          </div>
+        ) : gatewaySettings && gatewaySettings.length > 0 ? (
+          <div className="space-y-4">
+            {gatewaySettings.map((setting: PaymentGatewaySetting) => (
+              <div 
+                key={setting.id} 
+                className="flex items-center justify-between p-4 border rounded-md"
+              >
+                <div className="flex items-center space-x-4">
+                  <CreditCard className="h-6 w-6 text-slate-500" />
                   <div>
-                    <h3 className="text-lg font-medium">Stripe</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Accept credit card payments directly through Stripe
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <FormField
-                      control={stripeForm.control}
-                      name="enabled"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center space-x-2">
-                          <FormControl>
-                            <Switch
-                              checked={isGatewayEnabled("stripe")} 
-                              onCheckedChange={(checked) => toggleGatewayEnabled("stripe", checked)}
-                            />
-                          </FormControl>
-                          <div className="space-y-0.5">
-                            <FormLabel>
-                              {isGatewayEnabled("stripe") ? "Enabled" : "Disabled"}
-                            </FormLabel>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
+                    <h3 className="font-medium">{formatGatewayName(setting.gatewayType)}</h3>
+                    <Badge variant={setting.isEnabled ? "success" : "secondary"}>
+                      {setting.isEnabled ? "Enabled" : "Disabled"}
+                    </Badge>
                   </div>
                 </div>
-                
-                {isGatewayEnabled("stripe") && (
-                  <Alert className="bg-green-50 border-green-200">
-                    <Check className="h-4 w-4 text-green-600" />
-                    <AlertTitle>Stripe is enabled</AlertTitle>
-                    <AlertDescription>
-                      You can accept credit card payments through Stripe.
-                    </AlertDescription>
-                  </Alert>
-                )}
-                
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setEditingGateway("stripe")}
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleTestConnection(setting.gatewayType)}
+                    disabled={!setting.isEnabled}
+                    title={setting.isEnabled ? `Test ${formatGatewayName(setting.gatewayType)} Connection` : "Enable gateway to test connection"}
                   >
-                    Configure Stripe
+                    <SlidersHorizontal className="h-4 w-4 mr-1" />
+                    Test
                   </Button>
-                  
-                  {findGatewaySettings("stripe") && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => testGatewayConnection("stripe")}
-                      disabled={testConnectionMutation.isPending}
-                    >
-                      {testConnectionMutation.isPending && testConnectionMutation.variables === "stripe" ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <CreditCard className="mr-2 h-4 w-4" />
-                      )}
-                      Test Connection
-                    </Button>
-                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleEdit(setting)}
+                  >
+                    <Edit className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={() => handleDelete(setting.id as number)}
+                  >
+                    <Trash className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
-            </TabsContent>
-            
-            <TabsContent value="paypal">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-medium">PayPal</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Accept payments through PayPal
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <FormField
-                      control={paypalForm.control}
-                      name="enabled"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center space-x-2">
-                          <FormControl>
-                            <Switch
-                              checked={isGatewayEnabled("paypal")} 
-                              onCheckedChange={(checked) => toggleGatewayEnabled("paypal", checked)}
-                            />
-                          </FormControl>
-                          <div className="space-y-0.5">
-                            <FormLabel>
-                              {isGatewayEnabled("paypal") ? "Enabled" : "Disabled"}
-                            </FormLabel>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-                
-                {isGatewayEnabled("paypal") && (
-                  <Alert className="bg-green-50 border-green-200">
-                    <Check className="h-4 w-4 text-green-600" />
-                    <AlertTitle>PayPal is enabled</AlertTitle>
-                    <AlertDescription>
-                      You can accept payments through PayPal.
-                    </AlertDescription>
-                  </Alert>
-                )}
-                
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setEditingGateway("paypal")}
-                  >
-                    Configure PayPal
-                  </Button>
-                  
-                  {findGatewaySettings("paypal") && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => testGatewayConnection("paypal")}
-                      disabled={testConnectionMutation.isPending}
-                    >
-                      {testConnectionMutation.isPending && testConnectionMutation.variables === "paypal" ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <CreditCard className="mr-2 h-4 w-4" />
-                      )}
-                      Test Connection
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-      
-      {/* Stripe Configuration Dialog */}
-      <Dialog 
-        open={editingGateway === "stripe"} 
-        onOpenChange={(open) => !open && setEditingGateway(null)}
-      >
-        <DialogContent className="sm:max-w-[500px]">
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <CreditCard className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+            <p>No payment gateways configured yet.</p>
+            <p className="text-sm">Click "Add Gateway" to set up a payment processor.</p>
+          </div>
+        )}
+      </CardContent>
+
+      {/* Gateway Edit/Create Dialog */}
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Configure Stripe</DialogTitle>
-            <DialogDescription>
-              Enter your Stripe API keys to connect to your Stripe account. You can find these in your Stripe dashboard.
-            </DialogDescription>
+            <DialogTitle>
+              {editingSetting ? "Edit Payment Gateway" : "Add Payment Gateway"}
+            </DialogTitle>
           </DialogHeader>
-          
-          <Form {...stripeForm}>
-            <form onSubmit={stripeForm.handleSubmit(handleStripeSubmit)} className="space-y-4">
-              <FormField
-                control={stripeForm.control}
-                name="public_key"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Publishable Key</FormLabel>
-                    <FormControl>
-                      <Input placeholder="pk_..." {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Your Stripe Publishable Key (starts with pk_)
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={stripeForm.control}
-                name="secret_key"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Secret Key</FormLabel>
-                    <FormControl>
-                      <Input placeholder="sk_..." type="password" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Your Stripe Secret Key (starts with sk_)
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={stripeForm.control}
-                name="webhook_secret"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Webhook Secret (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="whsec_..." type="password" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Your Stripe Webhook Secret for validating webhook events (starts with whsec_)
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <div className="grid grid-cols-1 gap-6">
+                <FormField
+                  control={form.control}
+                  name="gatewayType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gateway Type</FormLabel>
+                      <div className="space-y-2">
+                        <Tabs
+                          value={field.value}
+                          onValueChange={handleGatewayTypeChange}
+                          className="w-full"
+                          disabled={!!editingSetting}
+                        >
+                          <TabsList className="w-full grid grid-cols-3">
+                            {gatewayTypeOptions.map((option) => (
+                              <TabsTrigger key={option.value} value={option.value}>
+                                {option.label}
+                              </TabsTrigger>
+                            ))}
+                          </TabsList>
+                        </Tabs>
+                      </div>
+                      <FormDescription>
+                        Select the payment gateway provider
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="isEnabled"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">
+                          Enable Gateway
+                        </FormLabel>
+                        <FormDescription>
+                          Activate this payment gateway for processing payments
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="configData"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Configuration</FormLabel>
+                      <FormControl>
+                        <textarea
+                          {...field}
+                          className="w-full h-48 p-2 border rounded font-mono text-sm resize-y"
+                          placeholder="{}"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Enter the gateway configuration as a JSON object
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setEditingGateway(null)}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsOpen(false)}
+                >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={saveGatewaySettingsMutation.isPending}>
-                  {saveGatewaySettingsMutation.isPending ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
-                  ) : (
-                    'Save Configuration'
-                  )}
+                <Button type="submit">
+                  {editingSetting ? "Update" : "Create"}
                 </Button>
               </DialogFooter>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
-      
-      {/* PayPal Configuration Dialog */}
-      <Dialog 
-        open={editingGateway === "paypal"} 
-        onOpenChange={(open) => !open && setEditingGateway(null)}
-      >
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Configure PayPal</DialogTitle>
-            <DialogDescription>
-              Enter your PayPal API credentials to connect to your PayPal account. You can find these in your PayPal Developer Dashboard.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <Form {...paypalForm}>
-            <form onSubmit={paypalForm.handleSubmit(handlePayPalSubmit)} className="space-y-4">
-              <FormField
-                control={paypalForm.control}
-                name="client_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Client ID</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Client ID..." {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Your PayPal Client ID
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={paypalForm.control}
-                name="client_secret"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Client Secret</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Client Secret..." type="password" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Your PayPal Client Secret
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={paypalForm.control}
-                name="environment"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Environment</FormLabel>
-                    <FormControl>
-                      <select
-                        className="w-full p-2 border rounded-md"
-                        {...field}
-                      >
-                        <option value="sandbox">Sandbox (Testing)</option>
-                        <option value="production">Production (Live)</option>
-                      </select>
-                    </FormControl>
-                    <FormDescription>
-                      Select the PayPal environment
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setEditingGateway(null)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={saveGatewaySettingsMutation.isPending}>
-                  {saveGatewaySettingsMutation.isPending ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
-                  ) : (
-                    'Save Configuration'
-                  )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-    </div>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={showDeleteDialog}
+        onClose={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        title="Delete Payment Gateway"
+        description="Are you sure you want to delete this payment gateway configuration? This action cannot be undone."
+        isLoading={deleteGatewayMutation.isPending}
+      />
+    </Card>
   );
 }

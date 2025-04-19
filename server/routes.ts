@@ -2730,13 +2730,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Stripe secret key is missing" });
         }
         
-        const stripe = new Stripe(configData.secret_key, {
+        const stripeClient = new Stripe(configData.secret_key, {
           apiVersion: '2023-10-16'
         });
         
         try {
           // Try to fetch balance to verify the API key works
-          await stripe.balance.retrieve();
+          await stripeClient.balance.retrieve();
           testResult = { success: true };
         } catch (stripeError: any) {
           return res.status(400).json({ 
