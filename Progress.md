@@ -224,8 +224,8 @@ This document provides a comprehensive overview of the progress made on the Acco
 
 ### Finance Module Flow
 1. **Invoice Management:**
-   - Invoices are automatically generated from completed revenue tasks
-   - Invoice creation includes calculation of taxes and discounts
+   - Invoices can be manually created or automatically generated from completed revenue tasks
+   - Invoice creation includes calculation of taxes and discounts with automatic totaling of line items
    - Invoices follow a well-defined status workflow:
      - **Draft**: Initial state when an invoice is created
      - **Sent**: Invoice has been sent to the client
@@ -235,7 +235,8 @@ This document provides a comprehensive overview of the progress made on the Acco
      - **Canceled**: Invoice has been canceled before payment
      - **Void**: Invoice has been voided after being sent
    - Complete tenant isolation is enforced for all invoice operations
-   - Automatic calculations ensure financial accuracy with proper decimal handling
+   - Automatic calculations ensure financial accuracy with proper decimal handling (precision of 10, scale of 2)
+   - UI includes a centralized finance dashboard showing invoices, payments, and chart of accounts in tabs
 
 2. **Invoice Line Items:**
    - Line items are created based on services provided
@@ -365,16 +366,21 @@ The project has made significant progress across multiple modules:
      - ✅ Edit User functionality working properly with tabbed interface
      - ✅ Permission management working with Full/Partial/Restricted access levels
    - Finance Module: 80% complete with invoice generation, payment tracking, and chart of accounts
-     - ✅ Database schema implemented with proper numeric/decimal fields for financial calculations
+     - ✅ Database schema implemented with proper numeric/decimal fields for financial calculations (precision 10, scale 2)
      - ✅ Complete tenant isolation across all financial operations for data security
      - ✅ Invoice generation with automatic tax and discount calculations
-     - ✅ Status workflow automation (draft→sent→partially_paid→paid)
+     - ✅ Status workflow automation (draft→sent→partially_paid→paid→overdue/canceled/void)
      - ✅ Payment processing with support for multiple payment methods
-     - ✅ Integrated invoices with task completion workflow
+     - ✅ Finance Dashboard with tabbed interface for Invoices, Payments, and Chart of Accounts
+     - ✅ Dynamic line item management with calculation of taxes, discounts, and totals
      - ✅ Chart of accounts with standard accounting categories (asset, liability, equity, revenue, expense)
      - ✅ Payment gateway integration framework for Stripe and PayPal
      - ✅ Enhanced validation with proper decimal handling and date formatting
+     - ✅ Consistent UI layout with AppLayout wrapper for sidebar support
+     - ⚠️ Known issue with Promise object rendering in invoice creation (partially fixed)
      - ⚠️ Revenue forecasting tools still in development
+     - ⚠️ Invoice PDF generation and email delivery pending
+     - ⚠️ Payment gateway webhook handlers pending implementation
 
 ## Technical Challenges Addressed
 1. **User Module Specific:**
@@ -394,6 +400,25 @@ The project has made significant progress across multiple modules:
    - Implementing proper TypeScript typings for all components and API responses
 
 ## Recent Improvements
+
+### Finance Module Fixes
+1. **UI Layout Improvements:**
+   - Fixed the sidebar disappearance in Finance Module by correctly implementing the AppLayout wrapper
+   - Standardized the UI pattern across all Finance Pages to ensure consistent navigation
+   - Removed redundant header elements from Finance pages to eliminate duplication of information already available in the top navigation
+   - Made the Finance Dashboard the central hub with tabs for Invoices, Payments, and Chart of Accounts
+
+2. **API Integration Fixes:**
+   - Fixed Promise object rendering error in invoice creation by properly handling asynchronous operations
+   - Updated apiRequest implementation in invoice creation to correctly use the newer function signature
+   - Implemented proper async/await pattern in line item creation to avoid rendering Promise objects
+   - Standardized the API request handling to ensure consistency across all Finance components
+
+3. **Invoice Creation Enhancement:**
+   - Improved form submission handling with better validation
+   - Enhanced line item calculations with proper decimal handling
+   - Added automatic invoice totaling with precise calculations of taxes and discounts
+   - Fixed relationship between client selection and entity filtering
 
 ### Enhanced TaskScheduler and Date Handling
 1. **Improved Compliance Period End Date Calculation:**
@@ -557,6 +582,24 @@ The project has made significant progress across multiple modules:
    - ✅ Implemented responsive design patterns with mobile-first approach
    - ✅ Added appropriate ARIA attributes for better accessibility
    - ✅ Ensured consistent styling patterns across navigation components
+
+## Known Technical Issues
+
+1. **Type Mismatches in Database Storage Interface:**
+   - Several TypeScript errors exist in server/database-storage.ts related to interface mismatch with IStorage
+   - Missing methods in DatabaseStorage: setTenantSetting, getUserPermissions, getUserPermission, getUserPermissionById
+   - Incorrect method signatures in multiple functions, especially for parameter types
+   - Error with `where` function not being recognized on Drizzle query objects
+
+2. **React Promise Object Rendering:**
+   - Persisting issue with "[object Promise]" appearing in React components when handling async operations
+   - Partially fixed in invoice creation but still appears in some cases
+   - Possible solutions include better async/await handling and proper Promise resolution before rendering
+
+3. **Drizzle ORM Integration:**
+   - Several TypeScript errors in database layer related to Drizzle ORM functions
+   - Some type definitions may need updates to match latest Drizzle version
+   - Type "'partial'" is not assignable to type '"draft" | "sent" | "partially_paid" | "paid" | "overdue" | "canceled" | "void"
 
 ## Next Development Steps
 Future development will focus on:
