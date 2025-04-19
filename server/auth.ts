@@ -148,10 +148,8 @@ export function setupAuth(app: Express) {
       });
       console.log("User created:", { id: user.id, email: user.email, username: user.username });
       
-      // Verify the user was stored
-      const allUsers = Array.from((storage as any).users.values()) as SelectUser[];
-      console.log(`Total users after registration: ${allUsers.length}`);
-      console.log("Users:", allUsers.map(u => ({ id: u.id, email: u.email })));
+      // No need to verify the user since the storage returned the created user
+      console.log(`User registration successful for ${user.username}`);
       
       // Auto login after signup
       req.login(user, err => {
@@ -179,12 +177,8 @@ export function setupAuth(app: Express) {
   app.post("/api/v1/auth/login/firm", (req, res, next) => {
     console.log("Login attempt:", req.body);
     
-    // DEBUG: Check user store before login
-    const allUsers = Array.from((storage as any).users.values()) as SelectUser[];
-    console.log(`Total users before login: ${allUsers.length}`);
-    if (allUsers.length > 0) {
-      console.log("Available users:", allUsers.map(u => ({ id: u.id, email: u.email })));
-    }
+    // No need to access in-memory storage directly for debugging
+    console.log("Processing login attempt...");
     
     passport.authenticate('firm-local', (err: any, user: SelectUser | false, info: { message?: string } | undefined) => {
       if (err) {
@@ -233,8 +227,8 @@ export function setupAuth(app: Express) {
   app.get("/api/v1/auth/debug", async (req, res) => {
     try {
       const email = req.query.email as string;
-      const userValues = Array.from((storage as any).users.values());
-      const users = userValues.map((u: any) => ({
+      const users = await storage.getUsers();
+      const userSummary = users.map(u => ({
         id: u.id,
         email: u.email,
         username: u.username
@@ -242,7 +236,7 @@ export function setupAuth(app: Express) {
       
       res.json({
         userCount: users.length,
-        users,
+        users: userSummary,
         searchEmail: email,
         foundUser: email ? Boolean(await storage.getUserByEmail(email)) : null
       });
