@@ -117,6 +117,12 @@ This document provides a comprehensive overview of the progress made on the Acco
 - Task Management endpoints:
   - Tasks CRUD (`/api/v1/tasks`)
   - Task filtering (`/api/v1/tasks?status=&assignee=&category=`)
+- Finance Module endpoints:
+  - Invoices CRUD (`/api/v1/finance/invoices`)
+  - Invoice Line Items (`/api/v1/finance/invoice-line-items`)
+  - Payments CRUD (`/api/v1/finance/payments`)
+  - Chart of Accounts (`/api/v1/finance/chart-of-accounts`)
+  - Payment Gateway Settings (`/api/v1/finance/payment-gateways`)
 
 ### Frontend Components
 - Layout components (Sidebar, AppLayout)
@@ -215,6 +221,38 @@ This document provides a comprehensive overview of the progress made on the Acco
        - Currency auto-populated from entity's country (defaulting to USD in current implementation)
        - Service Rate auto-populated from selected service type
        - Both Currency and Service Rate remain editable for flexibility
+
+### Finance Module Flow
+1. **Invoice Management:**
+   - Invoices are automatically generated from completed revenue tasks
+   - Invoice creation includes calculation of taxes and discounts
+   - Invoices can be in various states: draft, sent, partially_paid, paid, overdue, canceled, void
+   - Invoices maintain proper tenant isolation for security
+
+2. **Invoice Line Items:**
+   - Line items are created based on services provided
+   - Each line item tracks quantity, unit price, taxes, and discounts
+   - Line totals are calculated and aggregated to the parent invoice
+   - Task references are maintained for traceability
+
+3. **Payment Processing:**
+   - Payments can be recorded against invoices
+   - Multiple payment methods supported: credit_card, bank_transfer, direct_debit, cash, check, paypal, stripe, other
+   - Payments update invoice status automatically (draft→partially_paid→paid)
+   - Payment reference numbers and notes are tracked for reconciliation
+
+4. **Chart of Accounts:**
+   - Standard chart of accounts with five types: asset, liability, equity, revenue, expense
+   - Accounts receivable automatically tracks outstanding invoices
+   - Service revenue accounts track income by category
+   - Tax liability accounts track collected taxes to be remitted
+
+5. **Payment Gateway Integration:**
+   - Support for multiple payment gateways (Stripe, PayPal)
+   - Secure storage of gateway configuration
+   - Gateway-specific webhook handling for payment notifications
+   - Per-tenant configuration of payment methods
+
 ### Users Module Flow
 1. **User Management:**
    - Users are displayed in a list view with key information such as name, email, and active status
@@ -285,6 +323,13 @@ The project has made significant progress across multiple modules:
      - ✅ Add User multi-step wizard implemented (Basic Info → Permissions → Credentials)
      - ✅ Edit User functionality working properly with tabbed interface
      - ✅ Permission management working with Full/Partial/Restricted access levels
+   - Finance Module: 80% complete with invoice generation, payment tracking, and chart of accounts
+     - ✅ Database schema implemented with proper numeric data handling
+     - ✅ Invoice generation API routes implemented
+     - ✅ Payment tracking and processing implemented
+     - ✅ Chart of accounts with proper financial categorization
+     - ✅ Payment gateway settings for integration with Stripe and PayPal
+     - ⚠️ Revenue forecasting tools still in development
 
 ## Technical Challenges Addressed
 1. **User Module Specific:**

@@ -73,9 +73,9 @@ This document outlines the remaining tasks and future enhancements for the Accou
 - [ ] Implement compliance status monitoring
 
 ### Financials Module
-- [ ] Develop invoice generation for services rendered
-- [ ] Implement payment tracking system
-- [ ] Add accounts receivable monitoring
+- [x] Develop invoice generation for services rendered
+- [x] Implement payment tracking system
+- [x] Add accounts receivable monitoring through chart of accounts
 - [ ] Create revenue forecasting tools
 
 ### Mobile Responsiveness
