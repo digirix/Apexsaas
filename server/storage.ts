@@ -230,6 +230,12 @@ export class MemStorage implements IStorage {
   private entityTaxJurisdictions: Map<number, EntityTaxJurisdiction>;
   private entityServiceSubscriptions: Map<number, EntityServiceSubscription>;
   private userPermissions: Map<number, UserPermission>;
+  // Finance module storage
+  private invoices: Map<number, Invoice>;
+  private invoiceLineItems: Map<number, InvoiceLineItem>;
+  private payments: Map<number, Payment>;
+  private paymentGatewaySettings: Map<number, PaymentGatewaySetting>;
+  private chartOfAccounts: Map<number, ChartOfAccount>;
   
   sessionStore: MemoryStoreType;
   
@@ -253,6 +259,12 @@ export class MemStorage implements IStorage {
   private entityTaxJurisdictionId: number = 1;
   private entityServiceSubscriptionId: number = 1;
   private userPermissionId: number = 1;
+  // Finance module IDs
+  private invoiceId: number = 1;
+  private invoiceLineItemId: number = 1;
+  private paymentId: number = 1;
+  private paymentGatewaySettingId: number = 1;
+  private chartOfAccountId: number = 1;
 
   constructor() {
     this.tenants = new Map();
@@ -275,6 +287,12 @@ export class MemStorage implements IStorage {
     this.entityTaxJurisdictions = new Map();
     this.entityServiceSubscriptions = new Map();
     this.userPermissions = new Map();
+    // Initialize finance module maps
+    this.invoices = new Map();
+    this.invoiceLineItems = new Map();
+    this.payments = new Map();
+    this.paymentGatewaySettings = new Map();
+    this.chartOfAccounts = new Map();
     
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000, // 24h
@@ -1328,6 +1346,489 @@ export class MemStorage implements IStorage {
       return this.userPermissions.delete(id);
     }
     return false;
+  }
+
+  // Finance Module Operations - Invoice methods
+  
+  async getInvoices(tenantId: number, clientId?: number, entityId?: number, status?: string): Promise<Invoice[]> {
+    let invoices = Array.from(this.invoices.values()).filter(invoice => invoice.tenantId === tenantId && !invoice.isDeleted);
+    
+    if (clientId) {
+      invoices = invoices.filter(invoice => invoice.clientId === clientId);
+    }
+    
+    if (entityId) {
+      invoices = invoices.filter(invoice => invoice.entityId === entityId);
+    }
+    
+    if (status) {
+      invoices = invoices.filter(invoice => invoice.status === status);
+    }
+    
+    return invoices;
+  }
+  
+  async getInvoice(id: number, tenantId: number): Promise<Invoice | undefined> {
+    const invoice = this.invoices.get(id);
+    if (invoice && invoice.tenantId === tenantId && !invoice.isDeleted) {
+      return invoice;
+    }
+    return undefined;
+  }
+  
+  async getInvoiceByNumber(invoiceNumber: string, tenantId: number): Promise<Invoice | undefined> {
+    const invoices = Array.from(this.invoices.values());
+    return invoices.find(
+      invoice => invoice.invoiceNumber === invoiceNumber && 
+      invoice.tenantId === tenantId && 
+      !invoice.isDeleted
+    );
+  }
+  
+  async createInvoice(invoice: InsertInvoice): Promise<Invoice> {
+    const id = this.invoiceId++;
+    const now = new Date();
+    
+    const newInvoice: Invoice = {
+      id,
+      tenantId: invoice.tenantId,
+      invoiceNumber: invoice.invoiceNumber,
+      clientId: invoice.clientId,
+      entityId: invoice.entityId,
+      status: invoice.status || 'draft',
+      issueDate: invoice.issueDate instanceof Date ? invoice.issueDate : new Date(invoice.issueDate),
+      dueDate: invoice.dueDate instanceof Date ? invoice.dueDate : new Date(invoice.dueDate),
+      currencyCode: invoice.currencyCode,
+      subtotal: Number(invoice.subtotal),
+      taxAmount: invoice.taxAmount !== undefined ? Number(invoice.taxAmount) : 0,
+      discountAmount: invoice.discountAmount !== undefined ? Number(invoice.discountAmount) : 0,
+      totalAmount: Number(invoice.totalAmount),
+      amountPaid: invoice.amountPaid !== undefined ? Number(invoice.amountPaid) : 0,
+      amountDue: Number(invoice.amountDue),
+      notes: invoice.notes || null,
+      termsAndConditions: invoice.termsAndConditions || null,
+      isDeleted: invoice.isDeleted !== undefined ? invoice.isDeleted : false,
+      createdBy: invoice.createdBy,
+      updatedBy: invoice.updatedBy || null,
+      createdAt: now,
+      updatedAt: null
+    };
+    
+    this.invoices.set(id, newInvoice);
+    return newInvoice;
+  }
+  
+  async updateInvoice(id: number, invoice: Partial<InsertInvoice>): Promise<Invoice | undefined> {
+    const existingInvoice = this.invoices.get(id);
+    if (!existingInvoice || existingInvoice.isDeleted) {
+      return undefined;
+    }
+    
+    const updatedInvoice: Invoice = {
+      ...existingInvoice,
+      ...invoice,
+      // Handle date fields
+      issueDate: invoice.issueDate ? 
+        (invoice.issueDate instanceof Date ? invoice.issueDate : new Date(invoice.issueDate)) : 
+        existingInvoice.issueDate,
+      dueDate: invoice.dueDate ? 
+        (invoice.dueDate instanceof Date ? invoice.dueDate : new Date(invoice.dueDate)) : 
+        existingInvoice.dueDate,
+      // Handle number fields
+      subtotal: invoice.subtotal !== undefined ? Number(invoice.subtotal) : existingInvoice.subtotal,
+      taxAmount: invoice.taxAmount !== undefined ? Number(invoice.taxAmount) : existingInvoice.taxAmount,
+      discountAmount: invoice.discountAmount !== undefined ? Number(invoice.discountAmount) : existingInvoice.discountAmount,
+      totalAmount: invoice.totalAmount !== undefined ? Number(invoice.totalAmount) : existingInvoice.totalAmount,
+      amountPaid: invoice.amountPaid !== undefined ? Number(invoice.amountPaid) : existingInvoice.amountPaid,
+      amountDue: invoice.amountDue !== undefined ? Number(invoice.amountDue) : existingInvoice.amountDue,
+      // Update timestamp
+      updatedAt: new Date()
+    };
+    
+    this.invoices.set(id, updatedInvoice);
+    return updatedInvoice;
+  }
+  
+  async deleteInvoice(id: number, tenantId: number): Promise<boolean> {
+    const invoice = this.invoices.get(id);
+    if (invoice && invoice.tenantId === tenantId) {
+      // Soft delete
+      const updatedInvoice: Invoice = {
+        ...invoice,
+        isDeleted: true,
+        updatedAt: new Date()
+      };
+      this.invoices.set(id, updatedInvoice);
+      return true;
+    }
+    return false;
+  }
+  
+  // Invoice Line Item methods
+  
+  async getInvoiceLineItems(tenantId: number, invoiceId: number): Promise<InvoiceLineItem[]> {
+    return Array.from(this.invoiceLineItems.values())
+      .filter(item => item.tenantId === tenantId && item.invoiceId === invoiceId);
+  }
+  
+  async getInvoiceLineItem(id: number, tenantId: number): Promise<InvoiceLineItem | undefined> {
+    const lineItem = this.invoiceLineItems.get(id);
+    if (lineItem && lineItem.tenantId === tenantId) {
+      return lineItem;
+    }
+    return undefined;
+  }
+  
+  async createInvoiceLineItem(lineItem: InsertInvoiceLineItem): Promise<InvoiceLineItem> {
+    const id = this.invoiceLineItemId++;
+    
+    const newLineItem: InvoiceLineItem = {
+      id,
+      tenantId: lineItem.tenantId,
+      invoiceId: lineItem.invoiceId,
+      taskId: lineItem.taskId || null,
+      description: lineItem.description,
+      quantity: Number(lineItem.quantity),
+      unitPrice: Number(lineItem.unitPrice),
+      taxRate: lineItem.taxRate !== undefined ? Number(lineItem.taxRate) : 0,
+      taxAmount: lineItem.taxAmount !== undefined ? Number(lineItem.taxAmount) : 0,
+      discountRate: lineItem.discountRate !== undefined ? Number(lineItem.discountRate) : 0,
+      discountAmount: lineItem.discountAmount !== undefined ? Number(lineItem.discountAmount) : 0,
+      lineTotal: Number(lineItem.lineTotal),
+      sortOrder: lineItem.sortOrder !== undefined ? lineItem.sortOrder : 0,
+      createdAt: new Date()
+    };
+    
+    this.invoiceLineItems.set(id, newLineItem);
+    return newLineItem;
+  }
+  
+  async updateInvoiceLineItem(id: number, lineItem: Partial<InsertInvoiceLineItem>): Promise<InvoiceLineItem | undefined> {
+    const existingLineItem = this.invoiceLineItems.get(id);
+    if (!existingLineItem) {
+      return undefined;
+    }
+    
+    const updatedLineItem: InvoiceLineItem = {
+      ...existingLineItem,
+      ...lineItem,
+      // Handle number fields
+      quantity: lineItem.quantity !== undefined ? Number(lineItem.quantity) : existingLineItem.quantity,
+      unitPrice: lineItem.unitPrice !== undefined ? Number(lineItem.unitPrice) : existingLineItem.unitPrice,
+      taxRate: lineItem.taxRate !== undefined ? Number(lineItem.taxRate) : existingLineItem.taxRate,
+      taxAmount: lineItem.taxAmount !== undefined ? Number(lineItem.taxAmount) : existingLineItem.taxAmount,
+      discountRate: lineItem.discountRate !== undefined ? Number(lineItem.discountRate) : existingLineItem.discountRate,
+      discountAmount: lineItem.discountAmount !== undefined ? Number(lineItem.discountAmount) : existingLineItem.discountAmount,
+      lineTotal: lineItem.lineTotal !== undefined ? Number(lineItem.lineTotal) : existingLineItem.lineTotal,
+    };
+    
+    this.invoiceLineItems.set(id, updatedLineItem);
+    return updatedLineItem;
+  }
+  
+  async deleteInvoiceLineItem(id: number, tenantId: number): Promise<boolean> {
+    const lineItem = this.invoiceLineItems.get(id);
+    if (lineItem && lineItem.tenantId === tenantId) {
+      return this.invoiceLineItems.delete(id);
+    }
+    return false;
+  }
+  
+  // Payment methods
+  
+  async getPayments(tenantId: number, invoiceId?: number): Promise<Payment[]> {
+    let payments = Array.from(this.payments.values()).filter(payment => payment.tenantId === tenantId);
+    
+    if (invoiceId) {
+      payments = payments.filter(payment => payment.invoiceId === invoiceId);
+    }
+    
+    return payments;
+  }
+  
+  async getPayment(id: number, tenantId: number): Promise<Payment | undefined> {
+    const payment = this.payments.get(id);
+    if (payment && payment.tenantId === tenantId) {
+      return payment;
+    }
+    return undefined;
+  }
+  
+  async createPayment(payment: InsertPayment): Promise<Payment> {
+    const id = this.paymentId++;
+    
+    const newPayment: Payment = {
+      id,
+      tenantId: payment.tenantId,
+      invoiceId: payment.invoiceId,
+      paymentDate: payment.paymentDate instanceof Date ? payment.paymentDate : new Date(payment.paymentDate),
+      amount: Number(payment.amount),
+      paymentMethod: payment.paymentMethod,
+      referenceNumber: payment.referenceNumber || null,
+      notes: payment.notes || null,
+      createdBy: payment.createdBy,
+      createdAt: new Date()
+    };
+    
+    this.payments.set(id, newPayment);
+    
+    // Update the invoice's amountPaid and amountDue
+    const invoice = this.invoices.get(payment.invoiceId);
+    if (invoice) {
+      const newAmountPaid = invoice.amountPaid + Number(payment.amount);
+      const newAmountDue = invoice.totalAmount - newAmountPaid;
+      let newStatus = invoice.status;
+      
+      // Update status based on payment
+      if (newAmountPaid >= invoice.totalAmount) {
+        newStatus = 'paid';
+      } else if (newAmountPaid > 0) {
+        newStatus = 'partially_paid';
+      }
+      
+      const updatedInvoice: Invoice = {
+        ...invoice,
+        amountPaid: newAmountPaid,
+        amountDue: newAmountDue,
+        status: newStatus,
+        updatedAt: new Date()
+      };
+      
+      this.invoices.set(invoice.id, updatedInvoice);
+    }
+    
+    return newPayment;
+  }
+  
+  async updatePayment(id: number, payment: Partial<InsertPayment>): Promise<Payment | undefined> {
+    const existingPayment = this.payments.get(id);
+    if (!existingPayment) {
+      return undefined;
+    }
+    
+    // If amount is changing, we need to adjust the invoice too
+    let amountDifference = 0;
+    if (payment.amount !== undefined && Number(payment.amount) !== existingPayment.amount) {
+      amountDifference = Number(payment.amount) - existingPayment.amount;
+    }
+    
+    const updatedPayment: Payment = {
+      ...existingPayment,
+      ...payment,
+      // Handle date fields
+      paymentDate: payment.paymentDate ? 
+        (payment.paymentDate instanceof Date ? payment.paymentDate : new Date(payment.paymentDate)) : 
+        existingPayment.paymentDate,
+      // Handle number fields
+      amount: payment.amount !== undefined ? Number(payment.amount) : existingPayment.amount,
+    };
+    
+    this.payments.set(id, updatedPayment);
+    
+    // If amount changed, update the invoice
+    if (amountDifference !== 0) {
+      const invoice = this.invoices.get(existingPayment.invoiceId);
+      if (invoice) {
+        const newAmountPaid = invoice.amountPaid + amountDifference;
+        const newAmountDue = invoice.totalAmount - newAmountPaid;
+        let newStatus = invoice.status;
+        
+        // Update status based on new payment amount
+        if (newAmountPaid >= invoice.totalAmount) {
+          newStatus = 'paid';
+        } else if (newAmountPaid > 0) {
+          newStatus = 'partially_paid';
+        } else {
+          // Check if it should revert to 'sent' from 'partially_paid'
+          if (invoice.status === 'partially_paid' && newAmountPaid <= 0) {
+            newStatus = 'sent';
+          }
+        }
+        
+        const updatedInvoice: Invoice = {
+          ...invoice,
+          amountPaid: newAmountPaid,
+          amountDue: newAmountDue,
+          status: newStatus,
+          updatedAt: new Date()
+        };
+        
+        this.invoices.set(invoice.id, updatedInvoice);
+      }
+    }
+    
+    return updatedPayment;
+  }
+  
+  async deletePayment(id: number, tenantId: number): Promise<boolean> {
+    const payment = this.payments.get(id);
+    if (!payment || payment.tenantId !== tenantId) {
+      return false;
+    }
+    
+    // Need to update the invoice's amountPaid and amountDue
+    const invoice = this.invoices.get(payment.invoiceId);
+    if (invoice) {
+      const newAmountPaid = Math.max(0, invoice.amountPaid - payment.amount);
+      const newAmountDue = invoice.totalAmount - newAmountPaid;
+      let newStatus = invoice.status;
+      
+      // Update status based on remaining payment
+      if (newAmountPaid <= 0) {
+        // If there are no more payments, set status to 'sent' 
+        newStatus = invoice.status === 'paid' || invoice.status === 'partially_paid' ? 'sent' : invoice.status;
+      } else if (newAmountPaid < invoice.totalAmount) {
+        newStatus = 'partially_paid';
+      }
+      
+      const updatedInvoice: Invoice = {
+        ...invoice,
+        amountPaid: newAmountPaid,
+        amountDue: newAmountDue,
+        status: newStatus,
+        updatedAt: new Date()
+      };
+      
+      this.invoices.set(invoice.id, updatedInvoice);
+    }
+    
+    return this.payments.delete(id);
+  }
+  
+  // Payment Gateway Settings methods
+  
+  async getPaymentGatewaySettings(tenantId: number): Promise<PaymentGatewaySetting[]> {
+    return Array.from(this.paymentGatewaySettings.values())
+      .filter(setting => setting.tenantId === tenantId);
+  }
+  
+  async getPaymentGatewaySetting(tenantId: number, gatewayType: string): Promise<PaymentGatewaySetting | undefined> {
+    const settings = Array.from(this.paymentGatewaySettings.values());
+    return settings.find(
+      setting => setting.tenantId === tenantId && setting.gatewayType === gatewayType
+    );
+  }
+  
+  async createPaymentGatewaySetting(setting: InsertPaymentGatewaySetting): Promise<PaymentGatewaySetting> {
+    const id = this.paymentGatewaySettingId++;
+    
+    const newSetting: PaymentGatewaySetting = {
+      id,
+      tenantId: setting.tenantId,
+      gatewayType: setting.gatewayType,
+      isEnabled: setting.isEnabled !== undefined ? setting.isEnabled : false,
+      configData: setting.configData,
+      createdAt: new Date(),
+      updatedAt: null
+    };
+    
+    this.paymentGatewaySettings.set(id, newSetting);
+    return newSetting;
+  }
+  
+  async updatePaymentGatewaySetting(id: number, setting: Partial<InsertPaymentGatewaySetting>): Promise<PaymentGatewaySetting | undefined> {
+    const existingSetting = this.paymentGatewaySettings.get(id);
+    if (!existingSetting) {
+      return undefined;
+    }
+    
+    const updatedSetting: PaymentGatewaySetting = {
+      ...existingSetting,
+      ...setting,
+      updatedAt: new Date()
+    };
+    
+    this.paymentGatewaySettings.set(id, updatedSetting);
+    return updatedSetting;
+  }
+  
+  async deletePaymentGatewaySetting(id: number, tenantId: number): Promise<boolean> {
+    const setting = this.paymentGatewaySettings.get(id);
+    if (setting && setting.tenantId === tenantId) {
+      return this.paymentGatewaySettings.delete(id);
+    }
+    return false;
+  }
+  
+  // Chart of Accounts methods
+  
+  async getChartOfAccounts(tenantId: number, accountType?: string): Promise<ChartOfAccount[]> {
+    let accounts = Array.from(this.chartOfAccounts.values())
+      .filter(account => account.tenantId === tenantId && account.isActive);
+    
+    if (accountType) {
+      accounts = accounts.filter(account => account.accountType === accountType);
+    }
+    
+    // Sort by account code for consistency
+    return accounts.sort((a, b) => a.accountCode.localeCompare(b.accountCode));
+  }
+  
+  async getChartOfAccount(id: number, tenantId: number): Promise<ChartOfAccount | undefined> {
+    const account = this.chartOfAccounts.get(id);
+    if (account && account.tenantId === tenantId) {
+      return account;
+    }
+    return undefined;
+  }
+  
+  async getChartOfAccountByCode(accountCode: string, tenantId: number): Promise<ChartOfAccount | undefined> {
+    const accounts = Array.from(this.chartOfAccounts.values());
+    return accounts.find(
+      account => account.accountCode === accountCode && account.tenantId === tenantId
+    );
+  }
+  
+  async createChartOfAccount(account: InsertChartOfAccount): Promise<ChartOfAccount> {
+    const id = this.chartOfAccountId++;
+    
+    const newAccount: ChartOfAccount = {
+      id,
+      tenantId: account.tenantId,
+      accountCode: account.accountCode,
+      accountName: account.accountName,
+      accountType: account.accountType,
+      description: account.description || null,
+      isActive: account.isActive !== undefined ? account.isActive : true,
+      createdAt: new Date(),
+      updatedAt: null
+    };
+    
+    this.chartOfAccounts.set(id, newAccount);
+    return newAccount;
+  }
+  
+  async updateChartOfAccount(id: number, account: Partial<InsertChartOfAccount>): Promise<ChartOfAccount | undefined> {
+    const existingAccount = this.chartOfAccounts.get(id);
+    if (!existingAccount) {
+      return undefined;
+    }
+    
+    const updatedAccount: ChartOfAccount = {
+      ...existingAccount,
+      ...account,
+      updatedAt: new Date()
+    };
+    
+    this.chartOfAccounts.set(id, updatedAccount);
+    return updatedAccount;
+  }
+  
+  async deleteChartOfAccount(id: number, tenantId: number): Promise<boolean> {
+    const account = this.chartOfAccounts.get(id);
+    if (!account || account.tenantId !== tenantId) {
+      return false;
+    }
+    
+    // Soft delete by setting isActive to false
+    const updatedAccount: ChartOfAccount = {
+      ...account,
+      isActive: false,
+      updatedAt: new Date()
+    };
+    
+    this.chartOfAccounts.set(id, updatedAccount);
+    return true;
   }
 }
 

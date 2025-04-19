@@ -10,7 +10,10 @@ import {
   insertDesignationSchema, insertDepartmentSchema, insertUserSchema,
   insertTaxJurisdictionSchema, insertEntityTaxJurisdictionSchema,
   insertEntityServiceSubscriptionSchema, insertUserPermissionSchema,
-  insertTaskStatusWorkflowRuleSchema
+  insertTaskStatusWorkflowRuleSchema,
+  // Finance module schemas
+  insertInvoiceSchema, insertInvoiceLineItemSchema, insertPaymentSchema, 
+  insertPaymentGatewaySettingSchema, insertChartOfAccountSchema
 } from "@shared/schema";
 import { z } from "zod";
 
