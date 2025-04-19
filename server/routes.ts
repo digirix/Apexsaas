@@ -2377,6 +2377,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Otherwise allow the transition (default to allowing transitions for all status types)
       }
       
+      // If invoiceId is being updated, verify the invoice exists and belongs to the tenant
+      if (req.body.invoiceId !== undefined && req.body.invoiceId !== existingTask.invoiceId) {
+        // Only allow invoiceId to be set on revenue tasks
+        if (existingTask.isAdmin) {
+          return res.status(400).json({ message: "Admin tasks cannot be associated with invoices" });
+        }
+        
+        // If we're setting an invoiceId (not removing it), verify the invoice
+        if (req.body.invoiceId) {
+          const invoice = await storage.getInvoice(req.body.invoiceId, tenantId);
+          if (!invoice) {
+            return res.status(404).json({ message: "Invoice not found" });
+          }
+        }
+      }
+      
       const updatedTask = await storage.updateTask(id, req.body);
       res.json(updatedTask);
     } catch (error) {
