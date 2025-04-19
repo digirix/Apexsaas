@@ -769,6 +769,104 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+  
+  // Entity Service Subscription operations
+  async getEntityServiceSubscriptions(tenantId: number, entityId: number): Promise<EntityServiceSubscription[]> {
+    try {
+      console.log("DB: Fetching service subscriptions for entity:", entityId);
+      const result = await db.select().from(entityServiceSubscriptions)
+        .where(and(
+          eq(entityServiceSubscriptions.tenantId, tenantId),
+          eq(entityServiceSubscriptions.entityId, entityId)
+        ));
+      console.log(`DB: Found ${result.length} service subscriptions for entity ${entityId}`);
+      return result;
+    } catch (error) {
+      console.error("DB Error fetching entity service subscriptions:", error);
+      throw error;
+    }
+  }
+  
+  async getServiceSubscription(id: number, tenantId: number): Promise<EntityServiceSubscription | undefined> {
+    try {
+      const [subscription] = await db.select().from(entityServiceSubscriptions)
+        .where(and(
+          eq(entityServiceSubscriptions.id, id),
+          eq(entityServiceSubscriptions.tenantId, tenantId)
+        ));
+      return subscription;
+    } catch (error) {
+      console.error("DB Error fetching service subscription:", error);
+      throw error;
+    }
+  }
+  
+  async createServiceSubscription(subscription: InsertEntityServiceSubscription): Promise<EntityServiceSubscription> {
+    try {
+      console.log("DB: Creating service subscription with data:", subscription);
+      
+      // Check if subscription already exists
+      const existing = await db.select().from(entityServiceSubscriptions)
+        .where(and(
+          eq(entityServiceSubscriptions.tenantId, subscription.tenantId),
+          eq(entityServiceSubscriptions.entityId, subscription.entityId),
+          eq(entityServiceSubscriptions.serviceTypeId, subscription.serviceTypeId)
+        ));
+      
+      if (existing.length > 0) {
+        // Update existing subscription instead
+        const [updated] = await db.update(entityServiceSubscriptions)
+          .set({
+            isRequired: subscription.isRequired,
+            isSubscribed: subscription.isSubscribed
+          })
+          .where(eq(entityServiceSubscriptions.id, existing[0].id))
+          .returning();
+        console.log("DB: Service subscription updated instead of creating new:", updated);
+        return updated;
+      }
+      
+      // Create new subscription
+      const [newSubscription] = await db.insert(entityServiceSubscriptions)
+        .values(subscription)
+        .returning();
+      console.log("DB: Service subscription created successfully:", newSubscription);
+      return newSubscription;
+    } catch (error) {
+      console.error("DB Error creating service subscription:", error);
+      throw error;
+    }
+  }
+  
+  async updateServiceSubscription(id: number, subscription: Partial<InsertEntityServiceSubscription>): Promise<EntityServiceSubscription | undefined> {
+    try {
+      console.log("DB: Updating service subscription with ID:", id, "with data:", subscription);
+      const [updatedSubscription] = await db.update(entityServiceSubscriptions)
+        .set(subscription)
+        .where(eq(entityServiceSubscriptions.id, id))
+        .returning();
+      console.log("DB: Service subscription updated successfully:", updatedSubscription);
+      return updatedSubscription;
+    } catch (error) {
+      console.error("DB Error updating service subscription:", error);
+      throw error;
+    }
+  }
+  
+  async deleteServiceSubscription(id: number, tenantId: number): Promise<boolean> {
+    try {
+      const [deleted] = await db.delete(entityServiceSubscriptions)
+        .where(and(
+          eq(entityServiceSubscriptions.id, id),
+          eq(entityServiceSubscriptions.tenantId, tenantId)
+        ))
+        .returning({ id: entityServiceSubscriptions.id });
+      return !!deleted;
+    } catch (error) {
+      console.error("DB Error deleting service subscription:", error);
+      throw error;
+    }
+  }
 
   // Client operations
   async getClients(tenantId: number): Promise<Client[]> {
