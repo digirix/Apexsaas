@@ -404,7 +404,7 @@ export function TaxJurisdictionsManager() {
                     <Select 
                       onValueChange={field.onChange} 
                       defaultValue={field.value}
-                      disabled={!watchCountryId || filteredStates.length === 0}
+                      disabled={!watchCountryId}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -539,7 +539,7 @@ export function TaxJurisdictionsManager() {
                     <Select 
                       onValueChange={field.onChange} 
                       defaultValue={field.value}
-                      disabled={!watchCountryId || filteredStates.length === 0}
+                      disabled={!watchCountryId}
                     >
                       <FormControl>
                         <SelectTrigger>

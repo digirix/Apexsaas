@@ -128,7 +128,7 @@ export function TaxJurisdictionsManager() {
         name: data.name,
         description: data.description || null,
         countryId: parseInt(data.countryId),
-        stateId: data.stateId ? parseInt(data.stateId) : null,
+        stateId: data.stateId && data.stateId !== "country_wide" ? parseInt(data.stateId) : null,
       });
       return response.json();
     },
@@ -221,7 +221,7 @@ export function TaxJurisdictionsManager() {
           name: data.name,
           description: data.description || null,
           countryId: parseInt(data.countryId),
-          stateId: data.stateId ? parseInt(data.stateId) : null,
+          stateId: data.stateId && data.stateId !== "country_wide" ? parseInt(data.stateId) : null,
         }
       });
     }
@@ -233,7 +233,7 @@ export function TaxJurisdictionsManager() {
       name: jurisdiction.name,
       description: jurisdiction.description || "",
       countryId: jurisdiction.countryId.toString(),
-      stateId: jurisdiction.stateId ? jurisdiction.stateId.toString() : "",
+      stateId: jurisdiction.stateId ? jurisdiction.stateId.toString() : "country_wide",
     });
     setIsEditDialogOpen(true);
   }
@@ -258,8 +258,8 @@ export function TaxJurisdictionsManager() {
           <CardTitle>VAT/Sales Tax Jurisdictions</CardTitle>
           <div className="flex space-x-2">
             <Select
-              value={filterCountryId || ""}
-              onValueChange={(value) => setFilterCountryId(value || null)}
+              value={filterCountryId || "all"}
+              onValueChange={(value) => setFilterCountryId(value !== "all" ? value : null)}
             >
               <SelectTrigger className="w-[200px]">
                 <div className="flex items-center">
@@ -413,12 +413,12 @@ export function TaxJurisdictionsManager() {
                       </FormControl>
                       <SelectContent>
                         {!watchCountryId ? (
-                          <SelectItem value="">Please select a country first</SelectItem>
+                          <SelectItem value="country_required">Please select a country first</SelectItem>
                         ) : filteredStates.length === 0 ? (
-                          <SelectItem value="">No states available for this country</SelectItem>
+                          <SelectItem value="no_states">No states available for this country</SelectItem>
                         ) : (
                           <>
-                            <SelectItem value="">No specific state (country-wide)</SelectItem>
+                            <SelectItem value="country_wide">No specific state (country-wide)</SelectItem>
                             {filteredStates.map((state) => (
                               <SelectItem key={state.id} value={state.id.toString()}>
                                 {state.name}
@@ -548,12 +548,12 @@ export function TaxJurisdictionsManager() {
                       </FormControl>
                       <SelectContent>
                         {!watchCountryId ? (
-                          <SelectItem value="">Please select a country first</SelectItem>
+                          <SelectItem value="country_required">Please select a country first</SelectItem>
                         ) : filteredStates.length === 0 ? (
-                          <SelectItem value="">No states available for this country</SelectItem>
+                          <SelectItem value="no_states">No states available for this country</SelectItem>
                         ) : (
                           <>
-                            <SelectItem value="">No specific state (country-wide)</SelectItem>
+                            <SelectItem value="country_wide">No specific state (country-wide)</SelectItem>
                             {filteredStates.map((state) => (
                               <SelectItem key={state.id} value={state.id.toString()}>
                                 {state.name}
