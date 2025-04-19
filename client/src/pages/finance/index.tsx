@@ -126,14 +126,24 @@ export default function FinancePage() {
               </TabsList>
               
               {activeTab === "invoices" && (
-                <Button 
-                  variant="default" 
-                  size="sm"
-                  onClick={() => setLocation("/finance/invoices/create")}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Invoice
-                </Button>
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    onClick={() => setLocation("/finance/invoices/create")}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Invoice
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setLocation("/finance/invoices/from-task")}
+                  >
+                    <ListChecks className="h-4 w-4 mr-2" />
+                    Invoice from Task
+                  </Button>
+                </div>
               )}
               
               {activeTab === "payments" && (

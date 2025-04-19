@@ -145,39 +145,43 @@ export default function CreateInvoicePage() {
   // Create invoice mutation
   const createInvoiceMutation = useMutation({
     mutationFn: async (data: InvoiceFormValues) => {
-      // Add tenant ID and created by
-      const invoiceData = {
-        ...data,
-        createdBy: user?.id || 1,
-      };
-      
-      // Create the invoice
-      const response = await apiRequest("POST", "/api/v1/finance/invoices", invoiceData);
-      const invoice = await response.json();
-      
-      // Create line items
-      const lineItemPromises = lineItems.map(async (item) => {
-        const lineTotal = item.quantity * item.unitPrice;
-        const discountAmount = lineTotal * (item.discountRate / 100);
-        const taxAmount = (lineTotal - discountAmount) * (item.taxRate / 100);
-        
-        const lineItemData = {
-          invoiceId: invoice.id,
-          description: item.description,
-          quantity: item.quantity.toString(),
-          unitPrice: item.unitPrice.toString(),
-          taxRate: item.taxRate.toString(),
-          taxAmount: taxAmount.toString(),
-          discountRate: item.discountRate.toString(),
-          discountAmount: discountAmount.toString(),
-          lineTotal: (lineTotal - discountAmount + taxAmount).toString(),
+      try {
+        // Add tenant ID and created by
+        const invoiceData = {
+          ...data,
+          createdBy: user?.id || 1,
         };
         
-        await apiRequest("POST", "/api/v1/finance/invoice-line-items", lineItemData);
-      });
-      
-      await Promise.all(lineItemPromises);
-      return invoice;
+        // Create the invoice
+        const response = await apiRequest("POST", "/api/v1/finance/invoices", invoiceData);
+        const invoice = await response.json();
+        
+        // Create line items one by one to avoid Promise rendering issues
+        for (const item of lineItems) {
+          const lineTotal = item.quantity * item.unitPrice;
+          const discountAmount = lineTotal * (item.discountRate / 100);
+          const taxAmount = (lineTotal - discountAmount) * (item.taxRate / 100);
+          
+          const lineItemData = {
+            invoiceId: invoice.id,
+            description: item.description,
+            quantity: item.quantity.toString(),
+            unitPrice: item.unitPrice.toString(),
+            taxRate: item.taxRate.toString(),
+            taxAmount: taxAmount.toString(),
+            discountRate: item.discountRate.toString(),
+            discountAmount: discountAmount.toString(),
+            lineTotal: (lineTotal - discountAmount + taxAmount).toString(),
+          };
+          
+          await apiRequest("POST", "/api/v1/finance/invoice-line-items", lineItemData);
+        }
+        
+        return invoice;
+      } catch (error) {
+        console.error("Error in invoice creation:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/invoices"] });
