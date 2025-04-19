@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, varchar, unique, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, varchar, unique, pgEnum, decimal } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -490,6 +490,204 @@ export const insertEntityServiceSubscriptionSchema = createInsertSchema(entitySe
   isSubscribed: true,
 });
 
+// Finance Module - Invoices, Payments, and Financial Tracking
+
+// Invoice status enum
+export const invoiceStatusEnum = pgEnum('invoice_status', [
+  'draft', 'sent', 'partially_paid', 'paid', 'overdue', 'canceled', 'void'
+]);
+
+// Payment method enum
+export const paymentMethodEnum = pgEnum('payment_method', [
+  'credit_card', 'bank_transfer', 'direct_debit', 'cash', 'check', 'paypal', 'stripe', 'other'
+]);
+
+// Invoices table
+export const invoices = pgTable("invoices", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  invoiceNumber: text("invoice_number").notNull(),
+  clientId: integer("client_id").notNull(),
+  entityId: integer("entity_id").notNull(),
+  status: invoiceStatusEnum("status").default('draft').notNull(),
+  issueDate: timestamp("issue_date").notNull(),
+  dueDate: timestamp("due_date").notNull(),
+  currencyCode: text("currency_code").notNull(),
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).default('0').notNull(),
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).default('0').notNull(),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  amountPaid: decimal("amount_paid", { precision: 10, scale: 2 }).default('0').notNull(),
+  amountDue: decimal("amount_due", { precision: 10, scale: 2 }).notNull(),
+  notes: text("notes"),
+  termsAndConditions: text("terms_and_conditions"),
+  isDeleted: boolean("is_deleted").default(false).notNull(),
+  createdBy: integer("created_by").notNull(),
+  updatedBy: integer("updated_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+}, (table) => {
+  return {
+    tenantInvoiceNumberUnique: unique().on(table.tenantId, table.invoiceNumber),
+  };
+});
+
+export const insertInvoiceSchema = createInsertSchema(invoices)
+  .pick({
+    tenantId: true,
+    invoiceNumber: true,
+    clientId: true,
+    entityId: true,
+    status: true,
+    issueDate: true,
+    dueDate: true,
+    currencyCode: true,
+    subtotal: true,
+    taxAmount: true,
+    discountAmount: true,
+    totalAmount: true,
+    amountPaid: true,
+    amountDue: true,
+    notes: true,
+    termsAndConditions: true,
+    isDeleted: true,
+    createdBy: true,
+    updatedBy: true,
+  })
+  .extend({
+    // Make these fields accept either a Date object or a date string
+    issueDate: z.union([z.date(), z.string().transform(str => new Date(str))]),
+    dueDate: z.union([z.date(), z.string().transform(str => new Date(str))]),
+    updatedBy: z.number().optional(),
+    updatedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
+  });
+
+// Invoice line items table
+export const invoiceLineItems = pgTable("invoice_line_items", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  invoiceId: integer("invoice_id").notNull(),
+  taskId: integer("task_id"),
+  description: text("description").notNull(),
+  quantity: decimal("quantity", { precision: 10, scale: 2 }).default('1').notNull(),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default('0').notNull(),
+  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).default('0').notNull(),
+  discountRate: decimal("discount_rate", { precision: 5, scale: 2 }).default('0').notNull(),
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).default('0').notNull(),
+  lineTotal: decimal("line_total", { precision: 10, scale: 2 }).notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertInvoiceLineItemSchema = createInsertSchema(invoiceLineItems)
+  .pick({
+    tenantId: true,
+    invoiceId: true,
+    taskId: true,
+    description: true,
+    quantity: true,
+    unitPrice: true,
+    taxRate: true,
+    taxAmount: true,
+    discountRate: true,
+    discountAmount: true,
+    lineTotal: true,
+    sortOrder: true,
+  });
+
+// Payments table
+export const payments = pgTable("payments", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  invoiceId: integer("invoice_id").notNull(),
+  paymentDate: timestamp("payment_date").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  paymentMethod: paymentMethodEnum("payment_method").notNull(),
+  referenceNumber: text("reference_number"),
+  notes: text("notes"),
+  createdBy: integer("created_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertPaymentSchema = createInsertSchema(payments)
+  .pick({
+    tenantId: true,
+    invoiceId: true,
+    paymentDate: true,
+    amount: true,
+    paymentMethod: true,
+    referenceNumber: true,
+    notes: true,
+    createdBy: true,
+  })
+  .extend({
+    // Make date fields accept either a Date object or a date string
+    paymentDate: z.union([z.date(), z.string().transform(str => new Date(str))]),
+  });
+
+// Payment gateway settings table
+export const paymentGatewaySettings = pgTable("payment_gateway_settings", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  gatewayType: text("gateway_type").notNull(), // stripe, paypal, etc.
+  isEnabled: boolean("is_enabled").default(false).notNull(),
+  configData: text("config_data").notNull(), // JSON stringified config data
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+}, (table) => {
+  return {
+    tenantGatewayUnique: unique().on(table.tenantId, table.gatewayType),
+  };
+});
+
+export const insertPaymentGatewaySettingSchema = createInsertSchema(paymentGatewaySettings)
+  .pick({
+    tenantId: true,
+    gatewayType: true,
+    isEnabled: true,
+    configData: true,
+  })
+  .extend({
+    updatedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
+  });
+
+// Financial account types enum
+export const accountTypeEnum = pgEnum('account_type', [
+  'asset', 'liability', 'equity', 'revenue', 'expense'
+]);
+
+// Chart of accounts table
+export const chartOfAccounts = pgTable("chart_of_accounts", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  accountCode: text("account_code").notNull(),
+  accountName: text("account_name").notNull(),
+  accountType: accountTypeEnum("account_type").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+}, (table) => {
+  return {
+    tenantAccountCodeUnique: unique().on(table.tenantId, table.accountCode),
+    tenantAccountNameUnique: unique().on(table.tenantId, table.accountName),
+  };
+});
+
+export const insertChartOfAccountSchema = createInsertSchema(chartOfAccounts)
+  .pick({
+    tenantId: true,
+    accountCode: true,
+    accountName: true,
+    accountType: true,
+    description: true,
+    isActive: true,
+  })
+  .extend({
+    updatedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
+  });
+
 // Export types
 export type Tenant = typeof tenants.$inferSelect;
 export type InsertTenant = z.infer<typeof insertTenantSchema>;
@@ -550,6 +748,22 @@ export type InsertTask = z.infer<typeof insertTaskSchema>;
 
 export type UserPermission = typeof userPermissions.$inferSelect;
 export type InsertUserPermission = z.infer<typeof insertUserPermissionSchema>;
+
+// Finance module types
+export type Invoice = typeof invoices.$inferSelect;
+export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
+
+export type InvoiceLineItem = typeof invoiceLineItems.$inferSelect;
+export type InsertInvoiceLineItem = z.infer<typeof insertInvoiceLineItemSchema>;
+
+export type Payment = typeof payments.$inferSelect;
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+
+export type PaymentGatewaySetting = typeof paymentGatewaySettings.$inferSelect;
+export type InsertPaymentGatewaySetting = z.infer<typeof insertPaymentGatewaySettingSchema>;
+
+export type ChartOfAccount = typeof chartOfAccounts.$inferSelect;
+export type InsertChartOfAccount = z.infer<typeof insertChartOfAccountSchema>;
 
 // Auth schemas
 export const loginSchema = z.object({

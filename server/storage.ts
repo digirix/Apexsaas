@@ -1,5 +1,11 @@
-import { tenants, tenantSettings, users, designations, departments, countries, currencies, states, entityTypes, taskStatuses, taskStatusWorkflowRules, taxJurisdictions, serviceTypes, clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions, userPermissions } from "@shared/schema";
-import type { Tenant, User, InsertUser, InsertTenant, 
+import { 
+  tenants, tenantSettings, users, designations, departments, countries, currencies, states, 
+  entityTypes, taskStatuses, taskStatusWorkflowRules, taxJurisdictions, serviceTypes, 
+  clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions, 
+  userPermissions, invoices, invoiceLineItems, payments, paymentGatewaySettings, chartOfAccounts
+} from "@shared/schema";
+import type { 
+  Tenant, User, InsertUser, InsertTenant, 
   Designation, InsertDesignation, Department, InsertDepartment,
   Country, InsertCountry, Currency, InsertCurrency, 
   State, InsertState, EntityType, InsertEntityType, TaskStatus, InsertTaskStatus, 
@@ -7,7 +13,12 @@ import type { Tenant, User, InsertUser, InsertTenant,
   TaxJurisdiction, InsertTaxJurisdiction, ServiceType, 
   InsertServiceType, Client, InsertClient, Entity, InsertEntity, Task, InsertTask, TaskCategory, InsertTaskCategory,
   EntityTaxJurisdiction, InsertEntityTaxJurisdiction, EntityServiceSubscription, InsertEntityServiceSubscription,
-  UserPermission, InsertUserPermission, TenantSetting, InsertTenantSetting } from "@shared/schema";
+  UserPermission, InsertUserPermission, TenantSetting, InsertTenantSetting,
+  // Finance module types
+  Invoice, InsertInvoice, InvoiceLineItem, InsertInvoiceLineItem, 
+  Payment, InsertPayment, PaymentGatewaySetting, InsertPaymentGatewaySetting,
+  ChartOfAccount, InsertChartOfAccount
+} from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 
@@ -157,6 +168,45 @@ export interface IStorage {
   createUserPermission(permission: InsertUserPermission): Promise<UserPermission>;
   updateUserPermission(id: number, permission: Partial<InsertUserPermission>): Promise<UserPermission | undefined>;
   deleteUserPermission(id: number, tenantId: number): Promise<boolean>;
+  
+  // Finance Module Operations
+  
+  // Invoice operations
+  getInvoices(tenantId: number, clientId?: number, entityId?: number, status?: string): Promise<Invoice[]>;
+  getInvoice(id: number, tenantId: number): Promise<Invoice | undefined>;
+  getInvoiceByNumber(invoiceNumber: string, tenantId: number): Promise<Invoice | undefined>;
+  createInvoice(invoice: InsertInvoice): Promise<Invoice>;
+  updateInvoice(id: number, invoice: Partial<InsertInvoice>): Promise<Invoice | undefined>;
+  deleteInvoice(id: number, tenantId: number): Promise<boolean>;
+  
+  // Invoice Line Item operations
+  getInvoiceLineItems(tenantId: number, invoiceId: number): Promise<InvoiceLineItem[]>;
+  getInvoiceLineItem(id: number, tenantId: number): Promise<InvoiceLineItem | undefined>;
+  createInvoiceLineItem(lineItem: InsertInvoiceLineItem): Promise<InvoiceLineItem>;
+  updateInvoiceLineItem(id: number, lineItem: Partial<InsertInvoiceLineItem>): Promise<InvoiceLineItem | undefined>;
+  deleteInvoiceLineItem(id: number, tenantId: number): Promise<boolean>;
+  
+  // Payment operations
+  getPayments(tenantId: number, invoiceId?: number): Promise<Payment[]>;
+  getPayment(id: number, tenantId: number): Promise<Payment | undefined>;
+  createPayment(payment: InsertPayment): Promise<Payment>;
+  updatePayment(id: number, payment: Partial<InsertPayment>): Promise<Payment | undefined>;
+  deletePayment(id: number, tenantId: number): Promise<boolean>;
+  
+  // Payment Gateway Settings operations
+  getPaymentGatewaySettings(tenantId: number): Promise<PaymentGatewaySetting[]>;
+  getPaymentGatewaySetting(tenantId: number, gatewayType: string): Promise<PaymentGatewaySetting | undefined>;
+  createPaymentGatewaySetting(setting: InsertPaymentGatewaySetting): Promise<PaymentGatewaySetting>;
+  updatePaymentGatewaySetting(id: number, setting: Partial<InsertPaymentGatewaySetting>): Promise<PaymentGatewaySetting | undefined>;
+  deletePaymentGatewaySetting(id: number, tenantId: number): Promise<boolean>;
+  
+  // Chart of Accounts operations
+  getChartOfAccounts(tenantId: number, accountType?: string): Promise<ChartOfAccount[]>;
+  getChartOfAccount(id: number, tenantId: number): Promise<ChartOfAccount | undefined>;
+  getChartOfAccountByCode(accountCode: string, tenantId: number): Promise<ChartOfAccount | undefined>;
+  createChartOfAccount(account: InsertChartOfAccount): Promise<ChartOfAccount>;
+  updateChartOfAccount(id: number, account: Partial<InsertChartOfAccount>): Promise<ChartOfAccount | undefined>;
+  deleteChartOfAccount(id: number, tenantId: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
