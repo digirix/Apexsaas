@@ -405,6 +405,51 @@ export class DatabaseStorage implements IStorage {
     return !!deletedTaskStatus;
   }
 
+  // Task Category operations
+  async getTaskCategories(tenantId: number, isAdmin?: boolean): Promise<TaskCategory[]> {
+    let query = db.select().from(taskCategories)
+      .where(eq(taskCategories.tenantId, tenantId))
+      .orderBy(asc(taskCategories.name));
+    
+    if (isAdmin !== undefined) {
+      query = query.where(eq(taskCategories.isAdmin, isAdmin));
+    }
+    
+    return await query;
+  }
+  
+  async getTaskCategory(id: number, tenantId: number): Promise<TaskCategory | undefined> {
+    const [category] = await db.select().from(taskCategories)
+      .where(and(
+        eq(taskCategories.id, id),
+        eq(taskCategories.tenantId, tenantId)
+      ));
+    return category;
+  }
+  
+  async createTaskCategory(taskCategory: InsertTaskCategory): Promise<TaskCategory> {
+    const [newTaskCategory] = await db.insert(taskCategories).values(taskCategory).returning();
+    return newTaskCategory;
+  }
+  
+  async updateTaskCategory(id: number, taskCategory: Partial<InsertTaskCategory>): Promise<TaskCategory | undefined> {
+    const [updatedTaskCategory] = await db.update(taskCategories)
+      .set(taskCategory)
+      .where(eq(taskCategories.id, id))
+      .returning();
+    return updatedTaskCategory;
+  }
+  
+  async deleteTaskCategory(id: number, tenantId: number): Promise<boolean> {
+    const [deletedTaskCategory] = await db.delete(taskCategories)
+      .where(and(
+        eq(taskCategories.id, id),
+        eq(taskCategories.tenantId, tenantId)
+      ))
+      .returning({ id: taskCategories.id });
+    return !!deletedTaskCategory;
+  }
+
   // Task Status Workflow Rule operations
   async getTaskStatusWorkflowRules(tenantId?: number): Promise<TaskStatusWorkflowRule[]> {
     if (tenantId) {
