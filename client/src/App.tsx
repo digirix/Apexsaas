@@ -28,6 +28,7 @@ function Router() {
       <ProtectedRoute path="/compliance-calendar" component={ComplianceCalendarPage} />
       <ProtectedRoute path="/finance" component={FinancePage} />
       <ProtectedRoute path="/finance/invoices/create" component={() => import("@/pages/finance/invoices/create").then(module => ({ default: module.default }))} />
+      <ProtectedRoute path="/finance/invoices/from-task" component={() => import("@/pages/finance/invoices/from-task").then(module => ({ default: module.default }))} />
       <ProtectedRoute path="/finance/payments/create" component={() => import("@/pages/finance/payments/create").then(module => ({ default: module.default }))} />
       <ProtectedRoute path="/users" component={UsersPage} />
       <Route path="/auth" component={AuthPage} />
