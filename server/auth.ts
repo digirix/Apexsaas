@@ -23,10 +23,25 @@ async function hashPassword(password: string) {
 }
 
 async function comparePasswords(supplied: string, stored: string) {
+  if (!stored || !stored.includes('.')) {
+    console.error('Invalid password format in the database. Expected format: "hash.salt"');
+    return false;
+  }
+  
   const [hashed, salt] = stored.split(".");
-  const hashedBuf = Buffer.from(hashed, "hex");
-  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-  return timingSafeEqual(hashedBuf, suppliedBuf);
+  if (!hashed || !salt) {
+    console.error('Invalid password format. Missing hash or salt component.');
+    return false;
+  }
+  
+  try {
+    const hashedBuf = Buffer.from(hashed, "hex");
+    const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+    return timingSafeEqual(hashedBuf, suppliedBuf);
+  } catch (error) {
+    console.error('Error comparing passwords:', error);
+    return false;
+  }
 }
 
 export function setupAuth(app: Express) {
@@ -65,6 +80,13 @@ export function setupAuth(app: Express) {
         
         if (!user) {
           return done(null, false, { message: 'Invalid email or password' });
+        }
+        
+        console.log('Stored password format:', user.password ? `${user.password.substring(0, 10)}...` : 'Missing');
+        
+        if (!user.password || typeof user.password !== 'string') {
+          console.error('Invalid password format in database:', user.password);
+          return done(null, false, { message: 'Account has invalid password format' });
         }
         
         const passwordMatch = await comparePasswords(password, user.password);

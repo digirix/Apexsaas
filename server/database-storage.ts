@@ -136,11 +136,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    // Hash password if present
+    // Use the same password hash format as in the auth.ts file
     const userData = { ...user };
-    if (userData.password) {
-      const salt = await bcrypt.genSalt(10);
-      userData.password = await bcrypt.hash(userData.password, salt);
+    
+    // Don't double-hash if password is already in our format with salt (hash.salt)
+    if (userData.password && !userData.password.includes('.')) {
+      const salt = randomBytes(16).toString("hex");
+      const buf = (await scryptAsync(userData.password, salt, 64)) as Buffer;
+      userData.password = `${buf.toString("hex")}.${salt}`;
     }
     
     const [newUser] = await db.insert(users).values(userData).returning();
