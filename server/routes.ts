@@ -11,10 +11,19 @@ import {
   insertTaxJurisdictionSchema, insertEntityTaxJurisdictionSchema,
   insertEntityServiceSubscriptionSchema, insertUserPermissionSchema,
   insertTaskStatusWorkflowRuleSchema,
-  // Finance module schemas
+  // Basic finance module schemas from schema.ts
   insertInvoiceSchema, insertInvoiceLineItemSchema, insertPaymentSchema, 
   insertPaymentGatewaySettingSchema, insertChartOfAccountSchema
 } from "@shared/schema";
+
+// Import enhanced schemas for finance module with proper type handling
+import {
+  enhancedInvoiceSchema,
+  enhancedInvoiceLineItemSchema,
+  enhancedPaymentSchema,
+  enhancedPaymentGatewaySettingSchema,
+  enhancedChartOfAccountSchema
+} from "@shared/finance-schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -2566,7 +2575,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Create the invoice
-      const validatedData = insertInvoiceSchema.parse(data);
+      const validatedData = enhancedInvoiceSchema.parse(data);
       const invoice = await storage.createInvoice(validatedData);
       
       // Process line items if included
@@ -2579,7 +2588,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             invoiceId: invoice.id
           };
           
-          const validatedLineItem = insertInvoiceLineItemSchema.parse(lineItemData);
+          const validatedLineItem = enhancedInvoiceLineItemSchema.parse(lineItemData);
           const lineItem = await storage.createInvoiceLineItem(validatedLineItem);
           lineItems.push(lineItem);
         }
@@ -2668,7 +2677,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Invoice not found" });
       }
       
-      const validatedData = insertInvoiceLineItemSchema.parse(data);
+      const validatedData = enhancedInvoiceLineItemSchema.parse(data);
       const lineItem = await storage.createInvoiceLineItem(validatedData);
       
       // Update invoice totals
