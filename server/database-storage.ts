@@ -321,23 +321,45 @@ export class DatabaseStorage implements IStorage {
   }
 
   // State operations
-  async getStates(countryId?: number): Promise<State[]> {
-    if (countryId) {
-      return await db.select().from(states)
-        .where(eq(states.countryId, countryId))
-        .orderBy(asc(states.name));
+  async getStates(tenantId: number, countryId?: number): Promise<State[]> {
+    try {
+      let query = db.select().from(states).where(eq(states.tenantId, tenantId));
+      
+      if (countryId) {
+        query = query.where(eq(states.countryId, countryId));
+      }
+      
+      return await query.orderBy(asc(states.name));
+    } catch (error) {
+      console.error("DB Error fetching states:", error);
+      throw error;
     }
-    return await db.select().from(states).orderBy(asc(states.name));
   }
 
-  async getState(id: number): Promise<State | undefined> {
-    const [state] = await db.select().from(states).where(eq(states.id, id));
-    return state;
+  async getState(id: number, tenantId: number): Promise<State | undefined> {
+    try {
+      const [state] = await db.select().from(states)
+        .where(and(
+          eq(states.id, id),
+          eq(states.tenantId, tenantId)
+        ));
+      return state;
+    } catch (error) {
+      console.error("DB Error fetching state:", error);
+      throw error;
+    }
   }
 
   async createState(state: InsertState): Promise<State> {
-    const [newState] = await db.insert(states).values(state).returning();
-    return newState;
+    try {
+      console.log("DB: Creating state with data:", state);
+      const [newState] = await db.insert(states).values(state).returning();
+      console.log("DB: State created successfully:", newState);
+      return newState;
+    } catch (error) {
+      console.error("DB Error creating state:", error);
+      throw error;
+    }
   }
 
   async updateState(id: number, state: Partial<InsertState>): Promise<State | undefined> {
@@ -348,11 +370,19 @@ export class DatabaseStorage implements IStorage {
     return updatedState;
   }
 
-  async deleteState(id: number): Promise<boolean> {
-    const [deletedState] = await db.delete(states)
-      .where(eq(states.id, id))
-      .returning({ id: states.id });
-    return !!deletedState;
+  async deleteState(id: number, tenantId: number): Promise<boolean> {
+    try {
+      const [deletedState] = await db.delete(states)
+        .where(and(
+          eq(states.id, id),
+          eq(states.tenantId, tenantId)
+        ))
+        .returning({ id: states.id });
+      return !!deletedState;
+    } catch (error) {
+      console.error("DB Error deleting state:", error);
+      throw error;
+    }
   }
 
   // Entity Type operations
@@ -597,6 +627,146 @@ export class DatabaseStorage implements IStorage {
     return !!deletedRule;
   }
 
+  // Client operations
+  async getClients(tenantId: number): Promise<Client[]> {
+    try {
+      console.log("DB: Fetching clients for tenant:", tenantId);
+      const result = await db.select().from(clients)
+        .where(eq(clients.tenantId, tenantId))
+        .orderBy(asc(clients.displayName));
+      console.log(`DB: Found ${result.length} clients`);
+      return result;
+    } catch (error) {
+      console.error("DB Error fetching clients:", error);
+      throw error;
+    }
+  }
+
+  async getClient(id: number, tenantId: number): Promise<Client | undefined> {
+    try {
+      const [client] = await db.select().from(clients)
+        .where(and(
+          eq(clients.id, id),
+          eq(clients.tenantId, tenantId)
+        ));
+      return client;
+    } catch (error) {
+      console.error("DB Error fetching client:", error);
+      throw error;
+    }
+  }
+
+  async createClient(client: InsertClient): Promise<Client> {
+    try {
+      console.log("DB: Creating client with data:", client);
+      const [newClient] = await db.insert(clients).values(client).returning();
+      console.log("DB: Client created successfully:", newClient);
+      return newClient;
+    } catch (error) {
+      console.error("DB Error creating client:", error);
+      throw error;
+    }
+  }
+
+  async updateClient(id: number, client: Partial<InsertClient>): Promise<Client | undefined> {
+    try {
+      const [updatedClient] = await db.update(clients)
+        .set(client)
+        .where(eq(clients.id, id))
+        .returning();
+      return updatedClient;
+    } catch (error) {
+      console.error("DB Error updating client:", error);
+      throw error;
+    }
+  }
+
+  async deleteClient(id: number, tenantId: number): Promise<boolean> {
+    try {
+      const [deletedClient] = await db.delete(clients)
+        .where(and(
+          eq(clients.id, id),
+          eq(clients.tenantId, tenantId)
+        ))
+        .returning({ id: clients.id });
+      return !!deletedClient;
+    } catch (error) {
+      console.error("DB Error deleting client:", error);
+      throw error;
+    }
+  }
+
+  // Entity operations
+  async getEntities(tenantId: number, clientId?: number): Promise<Entity[]> {
+    try {
+      let query = db.select().from(entities)
+        .where(eq(entities.tenantId, tenantId));
+        
+      if (clientId) {
+        query = query.where(eq(entities.clientId, clientId));
+      }
+      
+      return await query.orderBy(asc(entities.name));
+    } catch (error) {
+      console.error("DB Error fetching entities:", error);
+      throw error;
+    }
+  }
+
+  async getEntity(id: number, tenantId: number): Promise<Entity | undefined> {
+    try {
+      const [entity] = await db.select().from(entities)
+        .where(and(
+          eq(entities.id, id),
+          eq(entities.tenantId, tenantId)
+        ));
+      return entity;
+    } catch (error) {
+      console.error("DB Error fetching entity:", error);
+      throw error;
+    }
+  }
+
+  async createEntity(entity: InsertEntity): Promise<Entity> {
+    try {
+      console.log("DB: Creating entity with data:", entity);
+      const [newEntity] = await db.insert(entities).values(entity).returning();
+      console.log("DB: Entity created successfully:", newEntity);
+      return newEntity;
+    } catch (error) {
+      console.error("DB Error creating entity:", error);
+      throw error;
+    }
+  }
+
+  async updateEntity(id: number, entity: Partial<InsertEntity>): Promise<Entity | undefined> {
+    try {
+      const [updatedEntity] = await db.update(entities)
+        .set(entity)
+        .where(eq(entities.id, id))
+        .returning();
+      return updatedEntity;
+    } catch (error) {
+      console.error("DB Error updating entity:", error);
+      throw error;
+    }
+  }
+
+  async deleteEntity(id: number, tenantId: number): Promise<boolean> {
+    try {
+      const [deletedEntity] = await db.delete(entities)
+        .where(and(
+          eq(entities.id, id),
+          eq(entities.tenantId, tenantId)
+        ))
+        .returning({ id: entities.id });
+      return !!deletedEntity;
+    } catch (error) {
+      console.error("DB Error deleting entity:", error);
+      throw error;
+    }
+  }
+  
   // Finance Module Implementation
 
   // Invoice operations
