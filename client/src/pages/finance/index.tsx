@@ -140,7 +140,7 @@ export default function FinancePage() {
                     size="sm"
                     onClick={() => setLocation("/finance/invoices/from-task")}
                   >
-                    <ListChecks className="h-4 w-4 mr-2" />
+                    <Receipt className="h-4 w-4 mr-2" />
                     Invoice from Task
                   </Button>
                 </div>
