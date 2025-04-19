@@ -1,329 +1,364 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Receipt, CreditCard, Wallet, DollarSign, FileText } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Header } from "@/components/ui/header";
-import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
-
-// Define invoice status color mapping
-const statusColors: Record<string, string> = {
-  draft: "bg-gray-200 text-gray-800",
-  sent: "bg-blue-200 text-blue-800",
-  partially_paid: "bg-amber-200 text-amber-800",
-  paid: "bg-green-200 text-green-800",
-  overdue: "bg-red-200 text-red-800",
-  canceled: "bg-purple-200 text-purple-800",
-  void: "bg-slate-200 text-slate-800"
-};
-
-type Invoice = {
-  id: number;
-  invoiceNumber: string;
-  clientId: number;
-  entityId: number;
-  issueDate: string;
-  dueDate: string;
-  status: "draft" | "sent" | "partially_paid" | "paid" | "overdue" | "canceled" | "void";
-  totalAmount: string;
-  amountDue: string;
-  clientName?: string;
-  entityName?: string;
-};
-
-type Payment = {
-  id: number;
-  invoiceId: number;
-  amount: string;
-  paymentDate: string;
-  paymentMethod: string;
-  reference: string;
-  invoiceNumber?: string;
-  clientName?: string;
-};
-
-// Helper component for invoice list item
-const InvoiceItem = ({ invoice }: { invoice: Invoice }) => {
-  return (
-    <div className="flex items-center justify-between border-b py-3 last:border-0">
-      <div>
-        <Link to={`/finance/invoices/${invoice.id}`} className="font-medium hover:underline">
-          {invoice.invoiceNumber}
-        </Link>
-        <div className="text-sm text-gray-500">
-          {invoice.clientName || "Client"} - Due: {new Date(invoice.dueDate).toLocaleDateString()}
-        </div>
-      </div>
-      <div className="flex items-center gap-3">
-        <Badge className={statusColors[invoice.status] || "bg-gray-200"}>
-          {invoice.status.replace("_", " ")}
-        </Badge>
-        <div className="text-right">
-          <div className="font-semibold">{formatCurrency(parseFloat(invoice.totalAmount))}</div>
-          {invoice.status !== "paid" && (
-            <div className="text-sm text-gray-500">Due: {formatCurrency(parseFloat(invoice.amountDue))}</div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Helper component for payment list item
-const PaymentItem = ({ payment }: { payment: Payment }) => {
-  return (
-    <div className="flex items-center justify-between border-b py-3 last:border-0">
-      <div>
-        <div className="font-medium">{payment.reference}</div>
-        <div className="text-sm text-gray-500">
-          {payment.clientName || "Client"} - {payment.invoiceNumber && `Invoice: ${payment.invoiceNumber}`}
-        </div>
-      </div>
-      <div className="flex items-center gap-3">
-        <Badge className="bg-blue-100 text-blue-800">
-          {payment.paymentMethod.replace("_", " ")}
-        </Badge>
-        <div className="text-right">
-          <div className="font-semibold">{formatCurrency(parseFloat(payment.amount))}</div>
-          <div className="text-sm text-gray-500">{new Date(payment.paymentDate).toLocaleDateString()}</div>
-        </div>
-      </div>
-    </div>
-  );
-};
+import { useAuth } from "@/hooks/use-auth";
+import { 
+  DollarSign, 
+  FileText, 
+  CreditCard, 
+  BookOpen, 
+  BarChart4, 
+  Plus, 
+  ReceiptText,
+  ArrowUpDown,
+  Calendar,
+  User,
+  Clock
+} from "lucide-react";
 
 export default function FinancePage() {
+  const [, setLocation] = useLocation();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("invoices");
-
+  
+  // Fetch invoices
   const { data: invoices, isLoading: invoicesLoading } = useQuery({
     queryKey: ["/api/v1/finance/invoices"],
-    enabled: activeTab === "invoices",
   });
-
+  
+  // Fetch payments
   const { data: payments, isLoading: paymentsLoading } = useQuery({
     queryKey: ["/api/v1/finance/payments"],
-    enabled: activeTab === "payments",
   });
-
-  // Calculate totals
-  const invoicesTotal = !invoicesLoading && invoices ? 
-    invoices.reduce((sum: number, invoice: Invoice) => sum + parseFloat(invoice.totalAmount), 0) : 0;
-
-  const paymentsTotal = !paymentsLoading && payments ?
-    payments.reduce((sum: number, payment: Payment) => sum + parseFloat(payment.amount), 0) : 0;
-
-  const dueTotal = !invoicesLoading && invoices ?
-    invoices.reduce((sum: number, invoice: Invoice) => {
-      if (invoice.status !== "paid" && invoice.status !== "canceled" && invoice.status !== "void") {
-        return sum + parseFloat(invoice.amountDue);
-      }
-      return sum;
-    }, 0) : 0;
-
+  
+  // Fetch chart of accounts
+  const { data: accounts, isLoading: accountsLoading } = useQuery({
+    queryKey: ["/api/v1/finance/chart-of-accounts"],
+  });
+  
+  // Calculate financial metrics
+  const financialMetrics = {
+    totalInvoiced: !invoicesLoading && invoices ? invoices.reduce((sum: number, invoice: any) => 
+      sum + parseFloat(invoice.totalAmount || 0), 0) : 0,
+    totalReceived: !paymentsLoading && payments ? payments.reduce((sum: number, payment: any) => 
+      sum + parseFloat(payment.amount || 0), 0) : 0,
+    totalOutstanding: !invoicesLoading && invoices ? invoices.reduce((sum: number, invoice: any) => 
+      sum + parseFloat(invoice.amountDue || 0), 0) : 0,
+  };
+  
   return (
     <div className="container py-6">
-      <Header title="Finance" subtitle="Manage invoices, payments, and financial records" />
-
-      <div className="grid gap-6 lg:grid-cols-3 mt-6">
+      <Header 
+        title="Finance" 
+        subtitle="Manage invoices, payments, and financial records"
+      />
+      
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-3 mt-6">
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Invoiced</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="flex items-center space-x-3">
-              <Receipt className="h-6 w-6 text-gray-400" />
-              <div className="text-2xl font-bold">{formatCurrency(invoicesTotal)}</div>
+            <div className="text-2xl font-bold">
+              {invoicesLoading ? "..." : formatCurrency(financialMetrics.totalInvoiced)}
             </div>
+            <p className="text-xs text-muted-foreground">
+              From all active invoices
+            </p>
           </CardContent>
         </Card>
         
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Total Payments</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Received</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="flex items-center space-x-3">
-              <CreditCard className="h-6 w-6 text-gray-400" />
-              <div className="text-2xl font-bold">{formatCurrency(paymentsTotal)}</div>
+            <div className="text-2xl font-bold">
+              {paymentsLoading ? "..." : formatCurrency(financialMetrics.totalReceived)}
             </div>
+            <p className="text-xs text-muted-foreground">
+              All payments received
+            </p>
           </CardContent>
         </Card>
         
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Outstanding Balance</CardTitle>
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="flex items-center space-x-3">
-              <Wallet className="h-6 w-6 text-gray-400" />
-              <div className="text-2xl font-bold">{formatCurrency(dueTotal)}</div>
+            <div className="text-2xl font-bold">
+              {invoicesLoading ? "..." : formatCurrency(financialMetrics.totalOutstanding)}
             </div>
+            <p className="text-xs text-muted-foreground">
+              Unpaid invoice amounts
+            </p>
           </CardContent>
         </Card>
       </div>
-
-      <Tabs 
-        value={activeTab} 
-        onValueChange={setActiveTab}
-        className="mt-6"
-      >
-        <div className="flex items-center justify-between">
-          <TabsList>
-            <TabsTrigger value="invoices">Invoices</TabsTrigger>
-            <TabsTrigger value="payments">Payments</TabsTrigger>
-            <TabsTrigger value="chart-of-accounts">Chart of Accounts</TabsTrigger>
-          </TabsList>
-          <div className="flex space-x-2">
+      
+      <div className="mt-6">
+        <Tabs 
+          defaultValue="invoices" 
+          onValueChange={setActiveTab}
+          value={activeTab}
+        >
+          <div className="flex justify-between items-center">
+            <TabsList>
+              <TabsTrigger value="invoices" className="flex items-center">
+                <FileText className="h-4 w-4 mr-2" />
+                Invoices
+              </TabsTrigger>
+              <TabsTrigger value="payments" className="flex items-center">
+                <CreditCard className="h-4 w-4 mr-2" />
+                Payments
+              </TabsTrigger>
+              <TabsTrigger value="chart-of-accounts" className="flex items-center">
+                <BookOpen className="h-4 w-4 mr-2" />
+                Chart of Accounts
+              </TabsTrigger>
+            </TabsList>
+            
             {activeTab === "invoices" && (
-              <Button asChild size="sm">
-                <Link to="/finance/invoices/create">
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Invoice
-                </Link>
+              <Button 
+                variant="default" 
+                size="sm"
+                onClick={() => setLocation("/finance/invoices/create")}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Invoice
               </Button>
             )}
+            
             {activeTab === "payments" && (
-              <Button asChild size="sm">
-                <Link to="/finance/payments/create">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Record Payment
-                </Link>
+              <Button 
+                variant="default" 
+                size="sm"
+                onClick={() => setLocation("/finance/payments/create")}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Record Payment
               </Button>
             )}
+            
             {activeTab === "chart-of-accounts" && (
-              <Button asChild size="sm">
-                <Link to="/finance/accounts/create">
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Account
-                </Link>
+              <Button 
+                variant="default" 
+                size="sm"
+                onClick={() => setLocation("/finance/chart-of-accounts/create")}
+                disabled
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Account
               </Button>
             )}
           </div>
-        </div>
-
-        <TabsContent value="invoices" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Invoices</CardTitle>
-              <CardDescription>
-                View and manage all your invoices
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {invoicesLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="flex justify-between items-center">
-                      <div className="space-y-2">
-                        <Skeleton className="h-4 w-[120px]" />
-                        <Skeleton className="h-3 w-[180px]" />
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Skeleton className="h-6 w-[70px] rounded-full" />
-                        <div>
-                          <Skeleton className="h-4 w-[80px]" />
-                          <Skeleton className="h-3 w-[60px] mt-1" />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : invoices && invoices.length > 0 ? (
-                <div className="divide-y">
-                  {invoices.map((invoice: Invoice) => (
-                    <InvoiceItem key={invoice.id} invoice={invoice} />
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <FileText className="h-12 w-12 text-gray-400 mb-3" />
-                  <h3 className="font-medium text-lg">No invoices found</h3>
-                  <p className="text-sm text-gray-500 mt-1">Get started by creating a new invoice</p>
-                  <Button asChild className="mt-4">
-                    <Link to="/finance/invoices/create">
+          
+          <TabsContent value="invoices" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Invoices</CardTitle>
+                <CardDescription>
+                  View and manage client invoices
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {invoicesLoading ? (
+                  <div className="text-center py-4">Loading invoices...</div>
+                ) : invoices && invoices.length > 0 ? (
+                  <div className="rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-slate-50">
+                          <th className="p-2 text-left font-medium">Invoice #</th>
+                          <th className="p-2 text-left font-medium">Client</th>
+                          <th className="p-2 text-left font-medium">Issue Date</th>
+                          <th className="p-2 text-left font-medium">Due Date</th>
+                          <th className="p-2 text-left font-medium">Amount</th>
+                          <th className="p-2 text-left font-medium">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {invoices.map((invoice: any) => (
+                          <tr key={invoice.id} className="border-b hover:bg-slate-50">
+                            <td className="p-2">
+                              <a href="#" className="font-medium hover:underline">
+                                {invoice.invoiceNumber}
+                              </a>
+                            </td>
+                            <td className="p-2">{invoice.clientName || "Client"}</td>
+                            <td className="p-2">{new Date(invoice.issueDate).toLocaleDateString()}</td>
+                            <td className="p-2">{new Date(invoice.dueDate).toLocaleDateString()}</td>
+                            <td className="p-2">{formatCurrency(parseFloat(invoice.totalAmount))}</td>
+                            <td className="p-2">
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
+                                ${invoice.status === 'paid' ? 'bg-green-100 text-green-800' : ''}
+                                ${invoice.status === 'draft' ? 'bg-gray-100 text-gray-800' : ''}
+                                ${invoice.status === 'sent' ? 'bg-blue-100 text-blue-800' : ''}
+                                ${invoice.status === 'overdue' ? 'bg-red-100 text-red-800' : ''}
+                                ${invoice.status === 'partially_paid' ? 'bg-yellow-100 text-yellow-800' : ''}
+                                ${invoice.status === 'canceled' || invoice.status === 'void' ? 'bg-gray-100 text-gray-800' : ''}
+                              `}>
+                                {invoice.status.replace('_', ' ')}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 border rounded-md bg-slate-50">
+                    <ReceiptText className="h-10 w-10 text-slate-400 mx-auto mb-2" />
+                    <h3 className="text-lg font-medium">No Invoices</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      You haven't created any invoices yet.
+                    </p>
+                    <Button
+                      onClick={() => setLocation("/finance/invoices/create")}
+                      variant="outline"
+                      className="mt-4"
+                    >
                       <Plus className="h-4 w-4 mr-2" />
-                      Create Invoice
-                    </Link>
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="payments" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Payments</CardTitle>
-              <CardDescription>
-                View and manage all your payment records
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {paymentsLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="flex justify-between items-center">
-                      <div className="space-y-2">
-                        <Skeleton className="h-4 w-[120px]" />
-                        <Skeleton className="h-3 w-[180px]" />
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Skeleton className="h-6 w-[70px] rounded-full" />
-                        <div>
-                          <Skeleton className="h-4 w-[80px]" />
-                          <Skeleton className="h-3 w-[60px] mt-1" />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : payments && payments.length > 0 ? (
-                <div className="divide-y">
-                  {payments.map((payment: Payment) => (
-                    <PaymentItem key={payment.id} payment={payment} />
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <DollarSign className="h-12 w-12 text-gray-400 mb-3" />
-                  <h3 className="font-medium text-lg">No payments found</h3>
-                  <p className="text-sm text-gray-500 mt-1">Record a payment to get started</p>
-                  <Button asChild className="mt-4">
-                    <Link to="/finance/payments/create">
+                      Create an Invoice
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="payments" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Payments</CardTitle>
+                <CardDescription>
+                  View and manage payment records
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {paymentsLoading ? (
+                  <div className="text-center py-4">Loading payments...</div>
+                ) : payments && payments.length > 0 ? (
+                  <div className="rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-slate-50">
+                          <th className="p-2 text-left font-medium">Date</th>
+                          <th className="p-2 text-left font-medium">Invoice #</th>
+                          <th className="p-2 text-left font-medium">Client</th>
+                          <th className="p-2 text-left font-medium">Amount</th>
+                          <th className="p-2 text-left font-medium">Method</th>
+                          <th className="p-2 text-left font-medium">Reference</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {payments.map((payment: any) => (
+                          <tr key={payment.id} className="border-b hover:bg-slate-50">
+                            <td className="p-2">{new Date(payment.paymentDate).toLocaleDateString()}</td>
+                            <td className="p-2">{payment.invoiceNumber || "-"}</td>
+                            <td className="p-2">{payment.clientName || "Client"}</td>
+                            <td className="p-2 font-medium">{formatCurrency(parseFloat(payment.amount))}</td>
+                            <td className="p-2">{payment.paymentMethod.replace('_', ' ')}</td>
+                            <td className="p-2">{payment.referenceNumber || "-"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 border rounded-md bg-slate-50">
+                    <CreditCard className="h-10 w-10 text-slate-400 mx-auto mb-2" />
+                    <h3 className="text-lg font-medium">No Payments</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      You haven't recorded any payments yet.
+                    </p>
+                    <Button
+                      onClick={() => setLocation("/finance/payments/create")}
+                      variant="outline"
+                      className="mt-4"
+                    >
                       <Plus className="h-4 w-4 mr-2" />
-                      Record Payment
-                    </Link>
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="chart-of-accounts" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Chart of Accounts</CardTitle>
-              <CardDescription>
-                Manage your financial accounts
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {/* Placeholder for chart of accounts table */}
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <FileText className="h-12 w-12 text-gray-400 mb-3" />
-                <h3 className="font-medium text-lg">Coming Soon</h3>
-                <p className="text-sm text-gray-500 mt-1">Chart of Accounts functionality will be implemented in the next phase</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                      Record a Payment
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="chart-of-accounts" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Chart of Accounts</CardTitle>
+                <CardDescription>
+                  View and manage your financial account structure
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {accountsLoading ? (
+                  <div className="text-center py-4">Loading accounts...</div>
+                ) : accounts && accounts.length > 0 ? (
+                  <div className="rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-slate-50">
+                          <th className="p-2 text-left font-medium">Account Code</th>
+                          <th className="p-2 text-left font-medium">Account Name</th>
+                          <th className="p-2 text-left font-medium">Type</th>
+                          <th className="p-2 text-left font-medium">Description</th>
+                          <th className="p-2 text-left font-medium">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {accounts.map((account: any) => (
+                          <tr key={account.id} className="border-b hover:bg-slate-50">
+                            <td className="p-2 font-medium">{account.accountCode}</td>
+                            <td className="p-2">{account.accountName}</td>
+                            <td className="p-2">{account.accountType}</td>
+                            <td className="p-2">{account.description || "-"}</td>
+                            <td className="p-2">
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
+                                ${account.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}
+                              `}>
+                                {account.isActive ? "Active" : "Inactive"}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 border rounded-md bg-slate-50">
+                    <BookOpen className="h-10 w-10 text-slate-400 mx-auto mb-2" />
+                    <h3 className="text-lg font-medium">No Chart of Accounts</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      You haven't set up your chart of accounts yet.
+                    </p>
+                    <Button
+                      variant="outline"
+                      className="mt-4"
+                      disabled
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Set Up Chart of Accounts
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }
