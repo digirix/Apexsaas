@@ -19,7 +19,8 @@ import {
   ArrowUpDown,
   Calendar,
   User,
-  Clock
+  Clock,
+  Receipt
 } from "lucide-react";
 
 export default function FinancePage() {
