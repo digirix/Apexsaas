@@ -1458,19 +1458,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isRequired = req.body.isRequired || false;
       const isSubscribed = req.body.isSubscribed || false;
       
-      const subscription = await storage.updateServiceSubscription(
-        tenantId, 
-        entityId, 
-        serviceTypeId, 
-        isRequired, 
-        isSubscribed
-      );
-      
-      if (!subscription) {
-        return res.status(404).json({ message: "Service subscription not found" });
+      try {
+        // First, find existing subscriptions for this entity and service type
+        const existingSubscriptions = await storage.getEntityServiceSubscriptions(tenantId, entityId);
+        const existingSub = existingSubscriptions.find(sub => sub.serviceTypeId === serviceTypeId);
+        
+        let subscription;
+        
+        if (existingSub) {
+          // Update existing subscription
+          subscription = await storage.updateServiceSubscription(existingSub.id, {
+            isRequired,
+            isSubscribed
+          });
+        } else {
+          // Create new subscription
+          subscription = await storage.createServiceSubscription({
+            tenantId,
+            entityId,
+            serviceTypeId,
+            isRequired,
+            isSubscribed
+          });
+        }
+        
+        if (!subscription) {
+          return res.status(500).json({ message: "Failed to update service subscription" });
+        }
+        
+        // Return the updated subscription
+        res.json(subscription);
+        return;
+      } catch (error) {
+        console.error("Error updating service subscription:", error);
+        return res.status(500).json({ message: "Failed to update service subscription" });
       }
-      
-      res.json(subscription);
     } catch (error) {
       console.error("Error updating service subscription:", error);
       res.status(500).json({ message: "Failed to update service subscription" });
@@ -1489,9 +1511,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Entity not found" });
       }
       
-      const success = await storage.deleteServiceSubscription(tenantId, entityId, serviceTypeId);
-      if (!success) {
-        return res.status(404).json({ message: "Service subscription not found" });
+      try {
+        // First, find existing subscriptions for this entity and service type
+        const existingSubscriptions = await storage.getEntityServiceSubscriptions(tenantId, entityId);
+        const existingSub = existingSubscriptions.find(sub => sub.serviceTypeId === serviceTypeId);
+        
+        if (!existingSub) {
+          return res.status(404).json({ message: "Service subscription not found" });
+        }
+        
+        const success = await storage.deleteServiceSubscription(existingSub.id, tenantId);
+        if (!success) {
+          return res.status(404).json({ message: "Failed to delete service subscription" });
+        }
+      } catch (error) {
+        console.error("Error deleting service subscription:", error);
+        return res.status(500).json({ message: "Failed to delete service subscription" });
       }
       
       res.status(204).send();
