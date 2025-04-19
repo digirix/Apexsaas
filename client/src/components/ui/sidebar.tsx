@@ -13,8 +13,13 @@ import {
   UsersRound,
   Calendar,
   RefreshCw,
+  Menu,
+  X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
 
 type NavItem = {
   title: string;
@@ -81,92 +86,175 @@ const adminModules: NavItem[] = [
 export function Sidebar() {
   const [location] = useLocation();
   const { logoutMutation } = useAuth();
+  const [collapsed, setCollapsed] = React.useState(false);
+  const [mobileOpen, setMobileOpen] = React.useState(false);
 
   const handleLogout = () => {
     logoutMutation.mutate();
   };
 
+  // Toggle desktop sidebar collapse state
+  const toggleCollapse = () => {
+    setCollapsed(!collapsed);
+  };
+
+  // Toggle mobile sidebar open state
+  const toggleMobile = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
   return (
-    <aside className="w-64 bg-white shadow-sm border-r border-slate-200 flex-shrink-0 flex flex-col">
-      <div className="p-4 border-b border-slate-200">
-        <h1 className="text-xl font-bold text-slate-800">AccFirm</h1>
-        <p className="text-xs text-slate-500">Accounting Firm Management</p>
-      </div>
+    <>
+      {/* Mobile Overlay - shown when sidebar is open on mobile */}
+      {mobileOpen && (
+        <div 
+          className="fixed inset-0 bg-black/40 z-40 md:hidden" 
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
 
-      <nav className="flex-1 overflow-y-auto py-4">
-        <div className="px-3 mb-3">
-          <p className="text-xs font-medium text-slate-400 uppercase tracking-wider px-3">
-            Core Modules
-          </p>
+      {/* Mobile Toggle Button */}
+      <Button
+        variant="outline"
+        size="icon"
+        className="fixed left-4 top-4 z-50 md:hidden"
+        onClick={toggleMobile}
+      >
+        {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+      </Button>
+
+      {/* Sidebar */}
+      <aside 
+        className={cn(
+          "bg-white shadow-md border-r border-slate-200 flex-shrink-0 flex flex-col z-50 transition-all duration-300 ease-in-out",
+          // Mobile styles
+          "fixed inset-y-0 left-0 transform md:translate-x-0",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+          // Desktop styles
+          "md:relative md:z-0",
+          collapsed ? "md:w-20" : "md:w-64"
+        )}
+      >
+        {/* Header with title */}
+        <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+          <div className={cn("overflow-hidden", collapsed && "md:hidden")}>
+            <h1 className="text-xl font-bold text-slate-800">AccFirm</h1>
+            <p className="text-xs text-slate-500">Accounting Firm Management</p>
+          </div>
+          {collapsed && (
+            <div className="hidden md:flex justify-center w-full">
+              <h1 className="text-xl font-bold text-slate-800">AF</h1>
+            </div>
+          )}
+          {/* Desktop collapse toggle button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden md:flex"
+            onClick={toggleCollapse}
+          >
+            {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+          </Button>
         </div>
 
-        {coreModules.map((item) => (
-          <Link 
-            key={item.href} 
-            href={item.href}
+        <nav className="flex-1 overflow-y-auto py-4">
+          <div className={cn("px-3 mb-3", collapsed && "md:hidden")}>
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider px-3">
+              Core Modules
+            </p>
+          </div>
+
+          {coreModules.map((item) => (
+            <Link 
+              key={item.href} 
+              href={item.href}
+              className={cn(
+                "flex items-center px-3 py-2 mx-2 text-sm font-medium rounded-md",
+                collapsed && "md:justify-center md:px-2 md:mx-1",
+                location === item.href
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-slate-600 hover:bg-slate-100"
+              )}
+              onClick={() => setMobileOpen(false)}
+            >
+              {React.cloneElement(item.icon as React.ReactElement, {
+                className: cn(
+                  "h-5 w-5",
+                  collapsed ? "mr-0" : "mr-3", 
+                  "text-slate-500",
+                  location === item.href ? "text-blue-500" : ""
+                ),
+              })}
+              {(!collapsed || !window.matchMedia('(min-width: 768px)').matches) && (
+                <span>{item.title}</span>
+              )}
+            </Link>
+          ))}
+
+          <div className={cn("px-3 mt-6 mb-3", collapsed && "md:hidden")}>
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider px-3">
+              Administration
+            </p>
+          </div>
+
+          {adminModules.map((item) => (
+            <Link 
+              key={item.href} 
+              href={item.href}
+              className={cn(
+                "flex items-center px-3 py-2 mx-2 text-sm font-medium rounded-md",
+                collapsed && "md:justify-center md:px-2 md:mx-1",
+                location === item.href
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-slate-600 hover:bg-slate-100"
+              )}
+              onClick={() => setMobileOpen(false)}
+            >
+              {React.cloneElement(item.icon as React.ReactElement, {
+                className: cn(
+                  "h-5 w-5",
+                  collapsed ? "mr-0" : "mr-3", 
+                  "text-slate-500",
+                  location === item.href ? "text-blue-500" : ""
+                ),
+              })}
+              {(!collapsed || !window.matchMedia('(min-width: 768px)').matches) && (
+                <span>{item.title}</span>
+              )}
+            </Link>
+          ))}
+        </nav>
+
+        <div className={cn("p-4 border-t border-slate-200", collapsed && "md:p-2")}>
+          <div className={cn("flex items-center", collapsed && "md:justify-center")}>
+            <button
+              onClick={handleLogout}
+              className={cn(
+                "flex items-center text-sm font-medium text-slate-600 hover:text-slate-900",
+                collapsed && "md:justify-center md:w-full"
+              )}
+            >
+              <LogOut className={cn("h-5 w-5", collapsed ? "mr-0" : "mr-3", "text-slate-500")} />
+              {(!collapsed || !window.matchMedia('(min-width: 768px)').matches) && (
+                <span>Logout</span>
+              )}
+            </button>
+          </div>
+          <a
+            href="#help"
             className={cn(
-              "flex items-center px-3 py-2 mx-2 text-sm font-medium rounded-md",
-              location === item.href
-                ? "bg-blue-50 text-blue-700"
-                : "text-slate-600 hover:bg-slate-100"
+              "flex items-center mt-3 text-sm font-medium text-slate-600 hover:text-slate-900",
+              collapsed && "md:justify-center"
             )}
+            onClick={() => setMobileOpen(false)}
           >
-            {React.cloneElement(item.icon as React.ReactElement, {
-              className: cn(
-                (item.icon as React.ReactElement).props.className,
-                location === item.href ? "text-blue-500" : ""
-              ),
-            })}
-            {item.title}
-          </Link>
-        ))}
-
-        <div className="px-3 mt-6 mb-3">
-          <p className="text-xs font-medium text-slate-400 uppercase tracking-wider px-3">
-            Administration
-          </p>
-        </div>
-
-        {adminModules.map((item) => (
-          <Link 
-            key={item.href} 
-            href={item.href}
-            className={cn(
-              "flex items-center px-3 py-2 mx-2 text-sm font-medium rounded-md",
-              location === item.href
-                ? "bg-blue-50 text-blue-700"
-                : "text-slate-600 hover:bg-slate-100"
+            <HelpCircle className={cn("h-5 w-5", collapsed ? "mr-0" : "mr-3", "text-slate-500")} />
+            {(!collapsed || !window.matchMedia('(min-width: 768px)').matches) && (
+              <span>Help</span>
             )}
-          >
-            {React.cloneElement(item.icon as React.ReactElement, {
-              className: cn(
-                (item.icon as React.ReactElement).props.className,
-                location === item.href ? "text-blue-500" : ""
-              ),
-            })}
-            {item.title}
-          </Link>
-        ))}
-      </nav>
-
-      <div className="p-4 border-t border-slate-200">
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={handleLogout}
-            className="flex items-center text-sm font-medium text-slate-600 hover:text-slate-900"
-          >
-            <LogOut className="h-5 w-5 mr-3 text-slate-500" />
-            Logout
-          </button>
+          </a>
         </div>
-        <a
-          href="#help"
-          className="flex items-center mt-3 text-sm font-medium text-slate-600 hover:text-slate-900"
-        >
-          <HelpCircle className="h-5 w-5 mr-3 text-slate-500" />
-          Help & Support
-        </a>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }
