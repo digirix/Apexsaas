@@ -152,31 +152,28 @@ export default function CreateInvoicePage() {
       };
       
       // Create the invoice
-      const invoice = await apiRequest<any>("/api/v1/finance/invoices", {
-        method: "POST",
-        body: JSON.stringify(invoiceData),
-      });
+      const response = await apiRequest("POST", "/api/v1/finance/invoices", invoiceData);
+      const invoice = await response.json();
       
       // Create line items
-      const lineItemPromises = lineItems.map(item => {
+      const lineItemPromises = lineItems.map(async (item) => {
         const lineTotal = item.quantity * item.unitPrice;
         const discountAmount = lineTotal * (item.discountRate / 100);
         const taxAmount = (lineTotal - discountAmount) * (item.taxRate / 100);
         
-        return apiRequest("/api/v1/finance/invoice-line-items", {
-          method: "POST",
-          body: JSON.stringify({
-            invoiceId: invoice.id,
-            description: item.description,
-            quantity: item.quantity.toString(),
-            unitPrice: item.unitPrice.toString(),
-            taxRate: item.taxRate.toString(),
-            taxAmount: taxAmount.toString(),
-            discountRate: item.discountRate.toString(),
-            discountAmount: discountAmount.toString(),
-            lineTotal: (lineTotal - discountAmount + taxAmount).toString(),
-          }),
-        });
+        const lineItemData = {
+          invoiceId: invoice.id,
+          description: item.description,
+          quantity: item.quantity.toString(),
+          unitPrice: item.unitPrice.toString(),
+          taxRate: item.taxRate.toString(),
+          taxAmount: taxAmount.toString(),
+          discountRate: item.discountRate.toString(),
+          discountAmount: discountAmount.toString(),
+          lineTotal: (lineTotal - discountAmount + taxAmount).toString(),
+        };
+        
+        await apiRequest("POST", "/api/v1/finance/invoice-line-items", lineItemData);
       });
       
       await Promise.all(lineItemPromises);
