@@ -15,9 +15,10 @@ import { Button } from "@/components/ui/button";
 
 interface HeaderProps {
   title: string;
+  subtitle?: string;
 }
 
-export function Header({ title }: HeaderProps) {
+export function Header({ title, subtitle }: HeaderProps) {
   const { user, logoutMutation } = useAuth();
 
   const handleLogout = () => {
@@ -41,8 +42,11 @@ export function Header({ title }: HeaderProps) {
       <div className="px-4 sm:px-6 lg:px-8 mx-auto">
         <div className="flex justify-between h-16">
           {/* Left side - Title (hidden on mobile) */}
-          <div className="hidden md:flex items-center">
+          <div className="hidden md:flex flex-col justify-center">
             <h1 className="text-xl font-semibold text-slate-800">{title}</h1>
+            {subtitle && (
+              <p className="text-sm text-slate-500 mt-0.5">{subtitle}</p>
+            )}
           </div>
 
           {/* Center - Search */}
