@@ -226,32 +226,73 @@ This document provides a comprehensive overview of the progress made on the Acco
 1. **Invoice Management:**
    - Invoices are automatically generated from completed revenue tasks
    - Invoice creation includes calculation of taxes and discounts
-   - Invoices can be in various states: draft, sent, partially_paid, paid, overdue, canceled, void
-   - Invoices maintain proper tenant isolation for security
+   - Invoices follow a well-defined status workflow:
+     - **Draft**: Initial state when an invoice is created
+     - **Sent**: Invoice has been sent to the client
+     - **Partially_paid**: Client has made a partial payment
+     - **Paid**: Invoice has been fully paid
+     - **Overdue**: Due date has passed without full payment
+     - **Canceled**: Invoice has been canceled before payment
+     - **Void**: Invoice has been voided after being sent
+   - Complete tenant isolation is enforced for all invoice operations
+   - Automatic calculations ensure financial accuracy with proper decimal handling
 
 2. **Invoice Line Items:**
    - Line items are created based on services provided
-   - Each line item tracks quantity, unit price, taxes, and discounts
-   - Line totals are calculated and aggregated to the parent invoice
-   - Task references are maintained for traceability
+   - Each line item tracks:
+     - Quantity (decimal with precision of 10, scale of 2)
+     - Unit price (decimal with precision of 10, scale of 2)
+     - Tax rate and tax amount
+     - Discount rate and discount amount
+     - Line total (calculated as quantity * unit price - discounts + taxes)
+   - Optional task reference for each line item enables traceability
+   - Sorted presentation maintains consistent display order
 
 3. **Payment Processing:**
-   - Payments can be recorded against invoices
-   - Multiple payment methods supported: credit_card, bank_transfer, direct_debit, cash, check, paypal, stripe, other
-   - Payments update invoice status automatically (draft→partially_paid→paid)
-   - Payment reference numbers and notes are tracked for reconciliation
+   - Payments are recorded against invoices with proper tenant isolation
+   - Multiple payment methods supported:
+     - credit_card: For card-based payments
+     - bank_transfer: For wire transfers and ACH
+     - direct_debit: For automated withdrawals
+     - cash: For in-person payments
+     - check: For traditional check payments
+     - paypal: For PayPal gateway payments
+     - stripe: For Stripe gateway payments
+     - other: For custom payment methods
+   - Payments automatically update invoice status:
+     - When partial payment is made: status → partially_paid
+     - When full payment is completed: status → paid
+   - Payment tracking includes:
+     - Payment date and amount
+     - Reference numbers for reconciliation
+     - Notes for additional context
+     - Creation tracking for audit purposes
 
 4. **Chart of Accounts:**
-   - Standard chart of accounts with five types: asset, liability, equity, revenue, expense
-   - Accounts receivable automatically tracks outstanding invoices
-   - Service revenue accounts track income by category
-   - Tax liability accounts track collected taxes to be remitted
+   - Comprehensive chart of accounts with five standard types:
+     - **Asset**: Resources owned by the business (e.g., accounts receivable)
+     - **Liability**: Obligations owed by the business (e.g., tax payable)
+     - **Equity**: Ownership accounts (e.g., retained earnings)
+     - **Revenue**: Income accounts (e.g., service revenue)
+     - **Expense**: Cost accounts (e.g., operating expenses)
+   - Each account has:
+     - Unique account code within the tenant
+     - Descriptive account name
+     - Activity status flag for temporary deactivation
+   - Built-in constraints prevent duplicate account codes/names
 
 5. **Payment Gateway Integration:**
-   - Support for multiple payment gateways (Stripe, PayPal)
-   - Secure storage of gateway configuration
-   - Gateway-specific webhook handling for payment notifications
-   - Per-tenant configuration of payment methods
+   - Support for multiple payment gateways:
+     - **Stripe**: Full integration with API keys and webhook configuration
+     - **PayPal**: Complete integration with API credentials and IPN handling
+   - Secure configuration storage:
+     - Gateway credentials stored as encrypted JSON
+     - Per-tenant activation controls
+     - Flexible configuration format for additional gateways
+   - Multiple gateway support:
+     - Tenants can configure multiple gateways simultaneously
+     - Each gateway can be enabled/disabled independently
+     - Gateway selection available at payment time
 
 ### Users Module Flow
 1. **User Management:**
@@ -324,11 +365,15 @@ The project has made significant progress across multiple modules:
      - ✅ Edit User functionality working properly with tabbed interface
      - ✅ Permission management working with Full/Partial/Restricted access levels
    - Finance Module: 80% complete with invoice generation, payment tracking, and chart of accounts
-     - ✅ Database schema implemented with proper numeric data handling
-     - ✅ Invoice generation API routes implemented
-     - ✅ Payment tracking and processing implemented
-     - ✅ Chart of accounts with proper financial categorization
-     - ✅ Payment gateway settings for integration with Stripe and PayPal
+     - ✅ Database schema implemented with proper numeric/decimal fields for financial calculations
+     - ✅ Complete tenant isolation across all financial operations for data security
+     - ✅ Invoice generation with automatic tax and discount calculations
+     - ✅ Status workflow automation (draft→sent→partially_paid→paid)
+     - ✅ Payment processing with support for multiple payment methods
+     - ✅ Integrated invoices with task completion workflow
+     - ✅ Chart of accounts with standard accounting categories (asset, liability, equity, revenue, expense)
+     - ✅ Payment gateway integration framework for Stripe and PayPal
+     - ✅ Enhanced validation with proper decimal handling and date formatting
      - ⚠️ Revenue forecasting tools still in development
 
 ## Technical Challenges Addressed

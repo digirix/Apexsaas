@@ -76,7 +76,12 @@ This document outlines the remaining tasks and future enhancements for the Accou
 - [x] Develop invoice generation for services rendered
 - [x] Implement payment tracking system
 - [x] Add accounts receivable monitoring through chart of accounts
+- [x] Set up payment gateway integration framework for Stripe and PayPal
 - [ ] Create revenue forecasting tools
+- [ ] Implement webhook handlers for payment gateway notifications
+- [ ] Add financial reporting dashboard with accounts receivable aging
+- [ ] Implement invoice PDF generation and email delivery
+- [ ] Create automated payment reminders for overdue invoices
 
 ### Mobile Responsiveness
 - [x] Implement collapsible sidebar drawer for mobile devices
