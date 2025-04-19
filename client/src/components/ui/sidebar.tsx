@@ -101,23 +101,23 @@ export function Sidebar() {
         </div>
 
         {coreModules.map((item) => (
-          <Link key={item.href} href={item.href}>
-            <a
-              className={cn(
-                "flex items-center px-3 py-2 mx-2 text-sm font-medium rounded-md",
-                location === item.href
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-slate-600 hover:bg-slate-100"
-              )}
-            >
-              {React.cloneElement(item.icon as React.ReactElement, {
-                className: cn(
-                  (item.icon as React.ReactElement).props.className,
-                  location === item.href ? "text-blue-500" : ""
-                ),
-              })}
-              {item.title}
-            </a>
+          <Link 
+            key={item.href} 
+            href={item.href}
+            className={cn(
+              "flex items-center px-3 py-2 mx-2 text-sm font-medium rounded-md",
+              location === item.href
+                ? "bg-blue-50 text-blue-700"
+                : "text-slate-600 hover:bg-slate-100"
+            )}
+          >
+            {React.cloneElement(item.icon as React.ReactElement, {
+              className: cn(
+                (item.icon as React.ReactElement).props.className,
+                location === item.href ? "text-blue-500" : ""
+              ),
+            })}
+            {item.title}
           </Link>
         ))}
 
@@ -128,23 +128,23 @@ export function Sidebar() {
         </div>
 
         {adminModules.map((item) => (
-          <Link key={item.href} href={item.href}>
-            <a
-              className={cn(
-                "flex items-center px-3 py-2 mx-2 text-sm font-medium rounded-md",
-                location === item.href
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-slate-600 hover:bg-slate-100"
-              )}
-            >
-              {React.cloneElement(item.icon as React.ReactElement, {
-                className: cn(
-                  (item.icon as React.ReactElement).props.className,
-                  location === item.href ? "text-blue-500" : ""
-                ),
-              })}
-              {item.title}
-            </a>
+          <Link 
+            key={item.href} 
+            href={item.href}
+            className={cn(
+              "flex items-center px-3 py-2 mx-2 text-sm font-medium rounded-md",
+              location === item.href
+                ? "bg-blue-50 text-blue-700"
+                : "text-slate-600 hover:bg-slate-100"
+            )}
+          >
+            {React.cloneElement(item.icon as React.ReactElement, {
+              className: cn(
+                (item.icon as React.ReactElement).props.className,
+                location === item.href ? "text-blue-500" : ""
+              ),
+            })}
+            {item.title}
           </Link>
         ))}
       </nav>
