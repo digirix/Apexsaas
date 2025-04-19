@@ -230,8 +230,6 @@ export default function CreateInvoicePage() {
   return (
     <AppLayout>
       <div className="container py-6">
-        <Header title="Create Invoice" subtitle="Create a new invoice for a client" />
-        
         <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-6">
           <Card>
