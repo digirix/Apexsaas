@@ -78,16 +78,8 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(tenantSettings).where(eq(tenantSettings.tenantId, tenantId));
   }
 
-  async getTenantSetting(id: number, tenantId: number): Promise<TenantSetting | undefined> {
-    const [setting] = await db.select().from(tenantSettings)
-      .where(and(
-        eq(tenantSettings.id, id),
-        eq(tenantSettings.tenantId, tenantId)
-      ));
-    return setting;
-  }
-
-  async getTenantSettingByKey(key: string, tenantId: number): Promise<TenantSetting | undefined> {
+  // Modified to match IStorage interface
+  async getTenantSetting(tenantId: number, key: string): Promise<TenantSetting | undefined> {
     const [setting] = await db.select().from(tenantSettings)
       .where(and(
         eq(tenantSettings.key, key),
@@ -109,10 +101,11 @@ export class DatabaseStorage implements IStorage {
     return updatedSetting;
   }
 
-  async deleteTenantSetting(id: number, tenantId: number): Promise<boolean> {
+  // Modified to match IStorage interface
+  async deleteTenantSetting(tenantId: number, key: string): Promise<boolean> {
     const [deletedSetting] = await db.delete(tenantSettings)
       .where(and(
-        eq(tenantSettings.id, id),
+        eq(tenantSettings.key, key),
         eq(tenantSettings.tenantId, tenantId)
       ))
       .returning({ id: tenantSettings.id });
@@ -178,6 +171,253 @@ export class DatabaseStorage implements IStorage {
     
     const [deletedUser] = await query.returning({ id: users.id });
     return !!deletedUser;
+  }
+
+  // Country operations
+  async getCountries(): Promise<Country[]> {
+    return await db.select().from(countries).orderBy(asc(countries.name));
+  }
+
+  async getCountry(id: number): Promise<Country | undefined> {
+    const [country] = await db.select().from(countries).where(eq(countries.id, id));
+    return country;
+  }
+
+  async createCountry(country: InsertCountry): Promise<Country> {
+    const [newCountry] = await db.insert(countries).values(country).returning();
+    return newCountry;
+  }
+
+  async updateCountry(id: number, country: Partial<InsertCountry>): Promise<Country | undefined> {
+    const [updatedCountry] = await db.update(countries)
+      .set(country)
+      .where(eq(countries.id, id))
+      .returning();
+    return updatedCountry;
+  }
+
+  async deleteCountry(id: number): Promise<boolean> {
+    const [deletedCountry] = await db.delete(countries)
+      .where(eq(countries.id, id))
+      .returning({ id: countries.id });
+    return !!deletedCountry;
+  }
+
+  // Currency operations
+  async getCurrencies(): Promise<Currency[]> {
+    return await db.select().from(currencies).orderBy(asc(currencies.code));
+  }
+
+  async getCurrency(id: number): Promise<Currency | undefined> {
+    const [currency] = await db.select().from(currencies).where(eq(currencies.id, id));
+    return currency;
+  }
+
+  async createCurrency(currency: InsertCurrency): Promise<Currency> {
+    const [newCurrency] = await db.insert(currencies).values(currency).returning();
+    return newCurrency;
+  }
+
+  async updateCurrency(id: number, currency: Partial<InsertCurrency>): Promise<Currency | undefined> {
+    const [updatedCurrency] = await db.update(currencies)
+      .set(currency)
+      .where(eq(currencies.id, id))
+      .returning();
+    return updatedCurrency;
+  }
+
+  async deleteCurrency(id: number): Promise<boolean> {
+    const [deletedCurrency] = await db.delete(currencies)
+      .where(eq(currencies.id, id))
+      .returning({ id: currencies.id });
+    return !!deletedCurrency;
+  }
+
+  // State operations
+  async getStates(countryId?: number): Promise<State[]> {
+    if (countryId) {
+      return await db.select().from(states)
+        .where(eq(states.countryId, countryId))
+        .orderBy(asc(states.name));
+    }
+    return await db.select().from(states).orderBy(asc(states.name));
+  }
+
+  async getState(id: number): Promise<State | undefined> {
+    const [state] = await db.select().from(states).where(eq(states.id, id));
+    return state;
+  }
+
+  async createState(state: InsertState): Promise<State> {
+    const [newState] = await db.insert(states).values(state).returning();
+    return newState;
+  }
+
+  async updateState(id: number, state: Partial<InsertState>): Promise<State | undefined> {
+    const [updatedState] = await db.update(states)
+      .set(state)
+      .where(eq(states.id, id))
+      .returning();
+    return updatedState;
+  }
+
+  async deleteState(id: number): Promise<boolean> {
+    const [deletedState] = await db.delete(states)
+      .where(eq(states.id, id))
+      .returning({ id: states.id });
+    return !!deletedState;
+  }
+
+  // Entity Type operations
+  async getEntityTypes(): Promise<EntityType[]> {
+    return await db.select().from(entityTypes).orderBy(asc(entityTypes.name));
+  }
+
+  async getEntityType(id: number): Promise<EntityType | undefined> {
+    const [entityType] = await db.select().from(entityTypes).where(eq(entityTypes.id, id));
+    return entityType;
+  }
+
+  async createEntityType(entityType: InsertEntityType): Promise<EntityType> {
+    const [newEntityType] = await db.insert(entityTypes).values(entityType).returning();
+    return newEntityType;
+  }
+
+  async updateEntityType(id: number, entityType: Partial<InsertEntityType>): Promise<EntityType | undefined> {
+    const [updatedEntityType] = await db.update(entityTypes)
+      .set(entityType)
+      .where(eq(entityTypes.id, id))
+      .returning();
+    return updatedEntityType;
+  }
+
+  async deleteEntityType(id: number): Promise<boolean> {
+    const [deletedEntityType] = await db.delete(entityTypes)
+      .where(eq(entityTypes.id, id))
+      .returning({ id: entityTypes.id });
+    return !!deletedEntityType;
+  }
+
+  // Task Status operations
+  async getTaskStatuses(tenantId?: number): Promise<TaskStatus[]> {
+    if (tenantId) {
+      return await db.select().from(taskStatuses)
+        .where(eq(taskStatuses.tenantId, tenantId))
+        .orderBy(asc(taskStatuses.name));
+    }
+    return await db.select().from(taskStatuses).orderBy(asc(taskStatuses.name));
+  }
+
+  async getTaskStatus(id: number, tenantId?: number): Promise<TaskStatus | undefined> {
+    if (tenantId) {
+      const [taskStatus] = await db.select().from(taskStatuses)
+        .where(and(
+          eq(taskStatuses.id, id),
+          eq(taskStatuses.tenantId, tenantId)
+        ));
+      return taskStatus;
+    }
+    const [taskStatus] = await db.select().from(taskStatuses)
+      .where(eq(taskStatuses.id, id));
+    return taskStatus;
+  }
+
+  async createTaskStatus(taskStatus: InsertTaskStatus): Promise<TaskStatus> {
+    const [newTaskStatus] = await db.insert(taskStatuses).values(taskStatus).returning();
+    return newTaskStatus;
+  }
+
+  async updateTaskStatus(id: number, taskStatus: Partial<InsertTaskStatus>): Promise<TaskStatus | undefined> {
+    const [updatedTaskStatus] = await db.update(taskStatuses)
+      .set(taskStatus)
+      .where(eq(taskStatuses.id, id))
+      .returning();
+    return updatedTaskStatus;
+  }
+
+  async deleteTaskStatus(id: number, tenantId?: number): Promise<boolean> {
+    if (tenantId) {
+      const [deletedTaskStatus] = await db.delete(taskStatuses)
+        .where(and(
+          eq(taskStatuses.id, id),
+          eq(taskStatuses.tenantId, tenantId)
+        ))
+        .returning({ id: taskStatuses.id });
+      return !!deletedTaskStatus;
+    }
+    const [deletedTaskStatus] = await db.delete(taskStatuses)
+      .where(eq(taskStatuses.id, id))
+      .returning({ id: taskStatuses.id });
+    return !!deletedTaskStatus;
+  }
+
+  // Task Status Workflow Rule operations
+  async getTaskStatusWorkflowRules(tenantId?: number): Promise<TaskStatusWorkflowRule[]> {
+    if (tenantId) {
+      return await db.select().from(taskStatusWorkflowRules)
+        .where(eq(taskStatusWorkflowRules.tenantId, tenantId));
+    }
+    return await db.select().from(taskStatusWorkflowRules);
+  }
+
+  async getTaskStatusWorkflowRule(id: number, tenantId?: number): Promise<TaskStatusWorkflowRule | undefined> {
+    if (tenantId) {
+      const [rule] = await db.select().from(taskStatusWorkflowRules)
+        .where(and(
+          eq(taskStatusWorkflowRules.id, id),
+          eq(taskStatusWorkflowRules.tenantId, tenantId)
+        ));
+      return rule;
+    }
+    const [rule] = await db.select().from(taskStatusWorkflowRules)
+      .where(eq(taskStatusWorkflowRules.id, id));
+    return rule;
+  }
+
+  async getTaskStatusWorkflowRuleByStatuses(
+    fromStatusId: number,
+    toStatusId: number,
+    tenantId: number
+  ): Promise<TaskStatusWorkflowRule | undefined> {
+    const [rule] = await db.select().from(taskStatusWorkflowRules)
+      .where(and(
+        eq(taskStatusWorkflowRules.fromStatusId, fromStatusId),
+        eq(taskStatusWorkflowRules.toStatusId, toStatusId),
+        eq(taskStatusWorkflowRules.tenantId, tenantId)
+      ));
+    return rule;
+  }
+
+  async createTaskStatusWorkflowRule(rule: InsertTaskStatusWorkflowRule): Promise<TaskStatusWorkflowRule> {
+    const [newRule] = await db.insert(taskStatusWorkflowRules).values(rule).returning();
+    return newRule;
+  }
+
+  async updateTaskStatusWorkflowRule(
+    id: number,
+    rule: Partial<InsertTaskStatusWorkflowRule>
+  ): Promise<TaskStatusWorkflowRule | undefined> {
+    const [updatedRule] = await db.update(taskStatusWorkflowRules)
+      .set(rule)
+      .where(eq(taskStatusWorkflowRules.id, id))
+      .returning();
+    return updatedRule;
+  }
+
+  async deleteTaskStatusWorkflowRule(id: number, tenantId?: number): Promise<boolean> {
+    if (tenantId) {
+      const [deletedRule] = await db.delete(taskStatusWorkflowRules)
+        .where(and(
+          eq(taskStatusWorkflowRules.id, id),
+          eq(taskStatusWorkflowRules.tenantId, tenantId)
+        ))
+        .returning({ id: taskStatusWorkflowRules.id });
+      return !!deletedRule;
+    }
+    const [deletedRule] = await db.delete(taskStatusWorkflowRules)
+      .where(eq(taskStatusWorkflowRules.id, id))
+      .returning({ id: taskStatusWorkflowRules.id });
+    return !!deletedRule;
   }
 
   // Finance Module Implementation
