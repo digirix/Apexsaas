@@ -54,8 +54,7 @@ const lineItemSchema = z.object({
 type LineItem = z.infer<typeof lineItemSchema>;
 
 export default function CreateInvoicePage() {
-  const [, setLocation] = useLocation();
-  const navigate = (path: string) => setLocation(path);
+  const [, navigate] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
   const [lineItems, setLineItems] = useState<LineItem[]>([
