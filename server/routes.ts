@@ -801,10 +801,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(201).json(serviceType);
     } catch (error) {
+      console.error("Error creating service type:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
-      res.status(500).json({ message: "Failed to create service type" });
+      res.status(500).json({ message: "Failed to create service type", details: error instanceof Error ? error.message : String(error) });
     }
   });
 
@@ -849,10 +850,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedServiceType = await storage.updateServiceType(id, req.body);
       res.json(updatedServiceType);
     } catch (error) {
+      console.error("Error updating service type:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
-      res.status(500).json({ message: "Failed to update service type" });
+      res.status(500).json({ message: "Failed to update service type", details: error instanceof Error ? error.message : String(error) });
     }
   });
 

@@ -307,6 +307,51 @@ export class DatabaseStorage implements IStorage {
     return !!deletedEntityType;
   }
 
+  // Service Type operations
+  async getServiceTypes(tenantId: number, countryId?: number): Promise<ServiceType[]> {
+    let query = db.select().from(serviceTypes)
+      .where(eq(serviceTypes.tenantId, tenantId))
+      .orderBy(asc(serviceTypes.name));
+      
+    if (countryId) {
+      query = query.where(eq(serviceTypes.countryId, countryId));
+    }
+    
+    return await query;
+  }
+
+  async getServiceType(id: number, tenantId: number): Promise<ServiceType | undefined> {
+    const [serviceType] = await db.select().from(serviceTypes)
+      .where(and(
+        eq(serviceTypes.id, id),
+        eq(serviceTypes.tenantId, tenantId)
+      ));
+    return serviceType;
+  }
+
+  async createServiceType(serviceType: InsertServiceType): Promise<ServiceType> {
+    const [newServiceType] = await db.insert(serviceTypes).values(serviceType).returning();
+    return newServiceType;
+  }
+
+  async updateServiceType(id: number, serviceType: Partial<InsertServiceType>): Promise<ServiceType | undefined> {
+    const [updatedServiceType] = await db.update(serviceTypes)
+      .set(serviceType)
+      .where(eq(serviceTypes.id, id))
+      .returning();
+    return updatedServiceType;
+  }
+
+  async deleteServiceType(id: number, tenantId: number): Promise<boolean> {
+    const [deletedServiceType] = await db.delete(serviceTypes)
+      .where(and(
+        eq(serviceTypes.id, id),
+        eq(serviceTypes.tenantId, tenantId)
+      ))
+      .returning({ id: serviceTypes.id });
+    return !!deletedServiceType;
+  }
+
   // Task Status operations
   async getTaskStatuses(tenantId?: number): Promise<TaskStatus[]> {
     if (tenantId) {
