@@ -261,6 +261,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const data = { ...req.body, tenantId };
       
+      console.log("Creating state with data:", data);
+      
       // Check for duplicate state name for the selected country
       const existingStates = await storage.getStates(tenantId, data.countryId);
       const duplicateName = existingStates.find(
@@ -275,14 +277,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const validatedData = insertStateSchema.parse(data);
-      const state = await storage.createState(validatedData);
-      
-      res.status(201).json(state);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      try {
+        const validatedData = insertStateSchema.parse(data);
+        console.log("Validated state data:", validatedData);
+        
+        const state = await storage.createState(validatedData);
+        console.log("State created successfully:", state);
+        
+        res.status(201).json(state);
+      } catch (validationError) {
+        console.error("Validation error:", validationError);
+        if (validationError instanceof z.ZodError) {
+          return res.status(400).json({ message: "Validation error", errors: validationError.errors });
+        }
+        throw validationError;
       }
+    } catch (error) {
+      console.error("Error creating state:", error);
       res.status(500).json({ message: "Failed to create state" });
     }
   });
@@ -984,9 +995,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/v1/clients", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
+      console.log("Fetching clients for tenant:", tenantId);
+      
       const clients = await storage.getClients(tenantId);
+      console.log(`Found ${clients.length} clients`);
+      
       res.json(clients);
     } catch (error) {
+      console.error("Error fetching clients:", error);
       res.status(500).json({ message: "Failed to fetch clients" });
     }
   });
@@ -1011,6 +1027,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const tenantId = (req.user as any).tenantId;
       const data = { ...req.body, tenantId };
+      
+      console.log("Creating client with data:", data);
       
       // Check for duplicate client name
       const existingClients = await storage.getClients(tenantId);
@@ -1047,14 +1065,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      const validatedData = insertClientSchema.parse(data);
-      const client = await storage.createClient(validatedData);
-      
-      res.status(201).json(client);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      try {
+        const validatedData = insertClientSchema.parse(data);
+        console.log("Validated client data:", validatedData);
+        
+        const client = await storage.createClient(validatedData);
+        console.log("Client created successfully:", client);
+        
+        res.status(201).json(client);
+      } catch (validationError) {
+        console.error("Validation error:", validationError);
+        if (validationError instanceof z.ZodError) {
+          return res.status(400).json({ message: "Validation error", errors: validationError.errors });
+        }
+        throw validationError;
       }
+    } catch (error) {
+      console.error("Error creating client:", error);
       res.status(500).json({ message: "Failed to create client" });
     }
   });
