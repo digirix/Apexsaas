@@ -24,7 +24,8 @@ import { db } from "./db";
 import { eq, and, isNull, asc, desc, inArray } from "drizzle-orm";
 import session from "express-session";
 import createMemoryStore from "memorystore";
-import bcrypt from "bcrypt";
+import { scrypt, randomBytes } from "crypto";
+import { promisify } from "util";
 
 const MemoryStore = createMemoryStore(session);
 type MemoryStoreType = session.Store;
@@ -141,6 +142,7 @@ export class DatabaseStorage implements IStorage {
     
     // Don't double-hash if password is already in our format with salt (hash.salt)
     if (userData.password && !userData.password.includes('.')) {
+      const scryptAsync = promisify(scrypt);
       const salt = randomBytes(16).toString("hex");
       const buf = (await scryptAsync(userData.password, salt, 64)) as Buffer;
       userData.password = `${buf.toString("hex")}.${salt}`;
@@ -151,11 +153,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined> {
-    // Hash password if present
+    // Use the same password hash format as in auth.ts
     const userData = { ...user };
-    if (userData.password) {
-      const salt = await bcrypt.genSalt(10);
-      userData.password = await bcrypt.hash(userData.password, salt);
+    
+    // Don't double-hash if password is already in our format with salt (hash.salt)
+    if (userData.password && !userData.password.includes('.')) {
+      const scryptAsync = promisify(scrypt);
+      const salt = randomBytes(16).toString("hex");
+      const buf = (await scryptAsync(userData.password, salt, 64)) as Buffer;
+      userData.password = `${buf.toString("hex")}.${salt}`;
     }
     
     const [updatedUser] = await db.update(users)
