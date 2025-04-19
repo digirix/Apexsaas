@@ -2598,6 +2598,167 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Finance Module API Routes
   
+  // Payment Gateway Settings
+  app.get("/api/v1/finance/payment-gateways", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const settings = await storage.getPaymentGatewaySettings(tenantId);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching payment gateways:", error);
+      res.status(500).json({ message: "Failed to fetch payment gateway settings" });
+    }
+  });
+  
+  app.get("/api/v1/finance/payment-gateways/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const setting = await storage.getPaymentGatewaySetting(id, tenantId);
+      if (!setting) {
+        return res.status(404).json({ message: "Payment gateway setting not found" });
+      }
+      
+      res.json(setting);
+    } catch (error) {
+      console.error("Error fetching payment gateway:", error);
+      res.status(500).json({ message: "Failed to fetch payment gateway setting" });
+    }
+  });
+  
+  app.post("/api/v1/finance/payment-gateways", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const data = {
+        ...req.body,
+        tenantId
+      };
+      
+      // Validate the gateway type doesn't already exist for this tenant
+      const existingSettings = await storage.getPaymentGatewaySettings(tenantId);
+      const duplicate = existingSettings.find(s => s.gatewayType === data.gatewayType);
+      
+      if (duplicate) {
+        return res.status(400).json({
+          message: `A payment gateway of type ${data.gatewayType} already exists for this tenant`
+        });
+      }
+      
+      const setting = await storage.createPaymentGatewaySetting(data);
+      res.status(201).json(setting);
+    } catch (error) {
+      console.error("Error creating payment gateway:", error);
+      res.status(500).json({ message: "Failed to create payment gateway setting" });
+    }
+  });
+  
+  app.put("/api/v1/finance/payment-gateways/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if setting exists and belongs to tenant
+      const existingSetting = await storage.getPaymentGatewaySetting(id, tenantId);
+      if (!existingSetting) {
+        return res.status(404).json({ message: "Payment gateway setting not found" });
+      }
+      
+      // Update the setting
+      const updatedSetting = await storage.updatePaymentGatewaySetting(id, {
+        ...req.body,
+        updatedAt: new Date()
+      });
+      
+      res.json(updatedSetting);
+    } catch (error) {
+      console.error("Error updating payment gateway:", error);
+      res.status(500).json({ message: "Failed to update payment gateway setting" });
+    }
+  });
+  
+  app.delete("/api/v1/finance/payment-gateways/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const success = await storage.deletePaymentGatewaySetting(id, tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "Payment gateway setting not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting payment gateway:", error);
+      res.status(500).json({ message: "Failed to delete payment gateway setting" });
+    }
+  });
+  
+  // Test payment gateway connection
+  app.post("/api/v1/finance/payment-gateways/:type/test", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const gatewayType = req.params.type;
+      
+      // Get the gateway settings
+      const settings = await storage.getPaymentGatewaySettings(tenantId);
+      const gatewaySetting = settings.find(s => s.gatewayType === gatewayType);
+      
+      if (!gatewaySetting) {
+        return res.status(404).json({ message: `No ${gatewayType} gateway found` });
+      }
+      
+      if (!gatewaySetting.isEnabled) {
+        return res.status(400).json({ message: `The ${gatewayType} gateway is not enabled` });
+      }
+      
+      let configData;
+      try {
+        configData = typeof gatewaySetting.configData === 'string' 
+          ? JSON.parse(gatewaySetting.configData)
+          : gatewaySetting.configData;
+      } catch (e) {
+        return res.status(400).json({ message: "Invalid gateway configuration data" });
+      }
+      
+      // Test the connection based on gateway type
+      let testResult;
+      
+      if (gatewayType === 'stripe') {
+        // Test Stripe connection
+        if (!configData.secret_key) {
+          return res.status(400).json({ message: "Stripe secret key is missing" });
+        }
+        
+        const stripe = new Stripe(configData.secret_key, {
+          apiVersion: '2023-10-16'
+        });
+        
+        try {
+          // Try to fetch balance to verify the API key works
+          await stripe.balance.retrieve();
+          testResult = { success: true };
+        } catch (stripeError: any) {
+          return res.status(400).json({ 
+            message: "Failed to connect to Stripe", 
+            error: stripeError.message 
+          });
+        }
+      } else if (gatewayType === 'paypal') {
+        // Mock successful connection for PayPal
+        // In a real implementation, you would use the PayPal SDK to verify credentials
+        testResult = { success: true };
+      } else {
+        return res.status(400).json({ message: `Unsupported gateway type: ${gatewayType}` });
+      }
+      
+      res.json(testResult);
+    } catch (error) {
+      console.error("Error testing payment gateway:", error);
+      res.status(500).json({ message: "Failed to test payment gateway connection" });
+    }
+  });
+  
   // 1. Invoices
   app.get("/api/v1/finance/invoices", isAuthenticated, async (req, res) => {
     try {

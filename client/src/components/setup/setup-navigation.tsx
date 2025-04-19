@@ -12,7 +12,8 @@ import {
   Building,
   Receipt,
   FileText,
-  GitBranch
+  GitBranch,
+  CreditCard
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SetupSection } from "@/types/setup";
@@ -62,6 +63,11 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
       id: 'tax-jurisdictions',
       label: 'VAT/Sales Tax Jurisdictions',
       icon: <Receipt className="h-5 w-5" />
+    },
+    {
+      id: 'payment-gateways',
+      label: 'Payment Gateways',
+      icon: <CreditCard className="h-5 w-5" />
     },
     {
       id: 'task-statuses',
