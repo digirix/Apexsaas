@@ -627,6 +627,149 @@ export class DatabaseStorage implements IStorage {
     return !!deletedRule;
   }
 
+  // Tax Jurisdiction operations
+  async getTaxJurisdictions(tenantId: number, countryId?: number): Promise<TaxJurisdiction[]> {
+    try {
+      let query = db.select().from(taxJurisdictions)
+        .where(eq(taxJurisdictions.tenantId, tenantId));
+        
+      if (countryId) {
+        query = query.where(eq(taxJurisdictions.countryId, countryId));
+      }
+      
+      return await query.orderBy(asc(taxJurisdictions.name));
+    } catch (error) {
+      console.error("DB Error fetching tax jurisdictions:", error);
+      throw error;
+    }
+  }
+
+  async getTaxJurisdiction(id: number, tenantId: number): Promise<TaxJurisdiction | undefined> {
+    try {
+      const [taxJurisdiction] = await db.select().from(taxJurisdictions)
+        .where(and(
+          eq(taxJurisdictions.id, id),
+          eq(taxJurisdictions.tenantId, tenantId)
+        ));
+      return taxJurisdiction;
+    } catch (error) {
+      console.error("DB Error fetching tax jurisdiction:", error);
+      throw error;
+    }
+  }
+
+  async createTaxJurisdiction(taxJurisdiction: InsertTaxJurisdiction): Promise<TaxJurisdiction> {
+    try {
+      console.log("DB: Creating tax jurisdiction with data:", taxJurisdiction);
+      const [newTaxJurisdiction] = await db.insert(taxJurisdictions).values(taxJurisdiction).returning();
+      console.log("DB: Tax jurisdiction created successfully:", newTaxJurisdiction);
+      return newTaxJurisdiction;
+    } catch (error) {
+      console.error("DB Error creating tax jurisdiction:", error);
+      throw error;
+    }
+  }
+
+  async updateTaxJurisdiction(id: number, taxJurisdiction: Partial<InsertTaxJurisdiction>): Promise<TaxJurisdiction | undefined> {
+    try {
+      const [updatedTaxJurisdiction] = await db.update(taxJurisdictions)
+        .set(taxJurisdiction)
+        .where(eq(taxJurisdictions.id, id))
+        .returning();
+      return updatedTaxJurisdiction;
+    } catch (error) {
+      console.error("DB Error updating tax jurisdiction:", error);
+      throw error;
+    }
+  }
+
+  async deleteTaxJurisdiction(id: number, tenantId: number): Promise<boolean> {
+    try {
+      const [deletedTaxJurisdiction] = await db.delete(taxJurisdictions)
+        .where(and(
+          eq(taxJurisdictions.id, id),
+          eq(taxJurisdictions.tenantId, tenantId)
+        ))
+        .returning({ id: taxJurisdictions.id });
+      return !!deletedTaxJurisdiction;
+    } catch (error) {
+      console.error("DB Error deleting tax jurisdiction:", error);
+      throw error;
+    }
+  }
+
+  // Entity Tax Jurisdiction operations
+  async getEntityTaxJurisdictions(tenantId: number, entityId: number): Promise<EntityTaxJurisdiction[]> {
+    try {
+      return await db.select().from(entityTaxJurisdictions)
+        .where(and(
+          eq(entityTaxJurisdictions.tenantId, tenantId),
+          eq(entityTaxJurisdictions.entityId, entityId)
+        ));
+    } catch (error) {
+      console.error("DB Error fetching entity tax jurisdictions:", error);
+      throw error;
+    }
+  }
+
+  async getTaxJurisdictionsForEntity(tenantId: number, entityId: number): Promise<TaxJurisdiction[]> {
+    try {
+      const entityTaxJurisdictionItems = await this.getEntityTaxJurisdictions(tenantId, entityId);
+      if (entityTaxJurisdictionItems.length === 0) return [];
+      
+      const taxJurisdictionIds = entityTaxJurisdictionItems.map(item => item.taxJurisdictionId);
+      
+      return await db.select().from(taxJurisdictions)
+        .where(and(
+          eq(taxJurisdictions.tenantId, tenantId),
+          inArray(taxJurisdictions.id, taxJurisdictionIds)
+        ))
+        .orderBy(asc(taxJurisdictions.name));
+    } catch (error) {
+      console.error("DB Error fetching tax jurisdictions for entity:", error);
+      throw error;
+    }
+  }
+
+  async addTaxJurisdictionToEntity(entityTaxJurisdiction: InsertEntityTaxJurisdiction): Promise<EntityTaxJurisdiction> {
+    try {
+      // Check if already associated
+      const existing = await db.select().from(entityTaxJurisdictions)
+        .where(and(
+          eq(entityTaxJurisdictions.entityId, entityTaxJurisdiction.entityId),
+          eq(entityTaxJurisdictions.taxJurisdictionId, entityTaxJurisdiction.taxJurisdictionId)
+        ));
+      
+      if (existing.length > 0) {
+        throw new Error("Tax jurisdiction is already associated with this entity");
+      }
+      
+      const [newEntityTaxJurisdiction] = await db.insert(entityTaxJurisdictions)
+        .values(entityTaxJurisdiction)
+        .returning();
+      return newEntityTaxJurisdiction;
+    } catch (error) {
+      console.error("DB Error adding tax jurisdiction to entity:", error);
+      throw error;
+    }
+  }
+
+  async removeTaxJurisdictionFromEntity(tenantId: number, entityId: number, taxJurisdictionId: number): Promise<boolean> {
+    try {
+      const [deleted] = await db.delete(entityTaxJurisdictions)
+        .where(and(
+          eq(entityTaxJurisdictions.tenantId, tenantId),
+          eq(entityTaxJurisdictions.entityId, entityId),
+          eq(entityTaxJurisdictions.taxJurisdictionId, taxJurisdictionId)
+        ))
+        .returning({ id: entityTaxJurisdictions.id });
+      return !!deleted;
+    } catch (error) {
+      console.error("DB Error removing tax jurisdiction from entity:", error);
+      throw error;
+    }
+  }
+
   // Client operations
   async getClients(tenantId: number): Promise<Client[]> {
     try {
