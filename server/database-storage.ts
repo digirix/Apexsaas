@@ -135,6 +135,84 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db.select().from(users).where(eq(users.email, email));
     return user;
   }
+  
+  // Designation operations
+  async getDesignations(tenantId: number): Promise<Designation[]> {
+    return await db.select().from(designations)
+      .where(eq(designations.tenantId, tenantId))
+      .orderBy(asc(designations.name));
+  }
+  
+  async getDesignation(id: number, tenantId: number): Promise<Designation | undefined> {
+    const [designation] = await db.select().from(designations)
+      .where(and(
+        eq(designations.id, id),
+        eq(designations.tenantId, tenantId)
+      ));
+    return designation;
+  }
+  
+  async createDesignation(designation: InsertDesignation): Promise<Designation> {
+    const [newDesignation] = await db.insert(designations).values(designation).returning();
+    return newDesignation;
+  }
+  
+  async updateDesignation(id: number, designation: Partial<InsertDesignation>): Promise<Designation | undefined> {
+    const [updatedDesignation] = await db.update(designations)
+      .set(designation)
+      .where(eq(designations.id, id))
+      .returning();
+    return updatedDesignation;
+  }
+  
+  async deleteDesignation(id: number, tenantId: number): Promise<boolean> {
+    const [deletedDesignation] = await db.delete(designations)
+      .where(and(
+        eq(designations.id, id),
+        eq(designations.tenantId, tenantId)
+      ))
+      .returning({ id: designations.id });
+    return !!deletedDesignation;
+  }
+  
+  // Department operations
+  async getDepartments(tenantId: number): Promise<Department[]> {
+    return await db.select().from(departments)
+      .where(eq(departments.tenantId, tenantId))
+      .orderBy(asc(departments.name));
+  }
+  
+  async getDepartment(id: number, tenantId: number): Promise<Department | undefined> {
+    const [department] = await db.select().from(departments)
+      .where(and(
+        eq(departments.id, id),
+        eq(departments.tenantId, tenantId)
+      ));
+    return department;
+  }
+  
+  async createDepartment(department: InsertDepartment): Promise<Department> {
+    const [newDepartment] = await db.insert(departments).values(department).returning();
+    return newDepartment;
+  }
+  
+  async updateDepartment(id: number, department: Partial<InsertDepartment>): Promise<Department | undefined> {
+    const [updatedDepartment] = await db.update(departments)
+      .set(department)
+      .where(eq(departments.id, id))
+      .returning();
+    return updatedDepartment;
+  }
+  
+  async deleteDepartment(id: number, tenantId: number): Promise<boolean> {
+    const [deletedDepartment] = await db.delete(departments)
+      .where(and(
+        eq(departments.id, id),
+        eq(departments.tenantId, tenantId)
+      ))
+      .returning({ id: departments.id });
+    return !!deletedDepartment;
+  }
 
   async createUser(user: InsertUser): Promise<User> {
     // Use the same password hash format as in the auth.ts file

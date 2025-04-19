@@ -1483,6 +1483,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const designations = await storage.getDesignations(tenantId);
       res.json(designations);
     } catch (error) {
+      console.error("Error fetching designations:", error);
       res.status(500).json({ message: "Failed to fetch designations" });
     }
   });
@@ -1573,6 +1574,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const departments = await storage.getDepartments(tenantId);
       res.json(departments);
     } catch (error) {
+      console.error("Error fetching departments:", error);
       res.status(500).json({ message: "Failed to fetch departments" });
     }
   });
