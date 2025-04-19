@@ -2683,9 +2683,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update invoice totals
       const lineTotal = Number(lineItem.lineTotal);
       await storage.updateInvoice(invoice.id, {
-        subtotal: Number(invoice.subtotal) + lineTotal,
-        totalAmount: Number(invoice.totalAmount) + lineTotal,
-        amountDue: Number(invoice.amountDue) + lineTotal
+        subtotal: (Number(invoice.subtotal) + lineTotal).toString(),
+        totalAmount: (Number(invoice.totalAmount) + lineTotal).toString(),
+        amountDue: (Number(invoice.amountDue) + lineTotal).toString()
       });
       
       res.status(201).json(lineItem);
@@ -2728,7 +2728,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Invoice not found" });
       }
       
-      const validatedData = insertPaymentSchema.parse(data);
+      const validatedData = enhancedPaymentSchema.parse(data);
       const payment = await storage.createPayment(validatedData);
       
       // Fetch updated invoice after payment has been recorded
@@ -2772,7 +2772,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "An account with this code already exists" });
       }
       
-      const validatedData = insertChartOfAccountSchema.parse(data);
+      const validatedData = enhancedChartOfAccountSchema.parse(data);
       const account = await storage.createChartOfAccount(validatedData);
       
       res.status(201).json(account);
@@ -2809,7 +2809,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "A setting for this payment gateway already exists" });
       }
       
-      const validatedData = insertPaymentGatewaySettingSchema.parse(data);
+      const validatedData = enhancedPaymentGatewaySettingSchema.parse(data);
       const setting = await storage.createPaymentGatewaySetting(validatedData);
       
       res.status(201).json(setting);
