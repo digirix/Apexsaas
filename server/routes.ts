@@ -2505,6 +2505,313 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Finance Module API Routes
+  
+  // 1. Invoices
+  app.get("/api/v1/finance/invoices", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const clientId = req.query.clientId ? parseInt(req.query.clientId as string) : undefined;
+      const entityId = req.query.entityId ? parseInt(req.query.entityId as string) : undefined;
+      const status = req.query.status as string | undefined;
+      
+      const invoices = await storage.getInvoices(tenantId, clientId, entityId, status);
+      res.json(invoices);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch invoices" });
+    }
+  });
+  
+  app.get("/api/v1/finance/invoices/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const invoice = await storage.getInvoice(id, tenantId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      // Get line items for this invoice
+      const lineItems = await storage.getInvoiceLineItems(tenantId, id);
+      
+      // Return combined response
+      res.json({
+        ...invoice,
+        lineItems
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch invoice details" });
+    }
+  });
+  
+  app.post("/api/v1/finance/invoices", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = (req.user as any).id;
+      
+      // Add tenant and creator info
+      const data = { 
+        ...req.body, 
+        tenantId,
+        createdBy: userId
+      };
+      
+      // Validate invoice number uniqueness
+      if (data.invoiceNumber) {
+        const existingInvoice = await storage.getInvoiceByNumber(data.invoiceNumber, tenantId);
+        if (existingInvoice) {
+          return res.status(400).json({ message: "An invoice with this invoice number already exists" });
+        }
+      }
+      
+      // Create the invoice
+      const validatedData = insertInvoiceSchema.parse(data);
+      const invoice = await storage.createInvoice(validatedData);
+      
+      // Process line items if included
+      const lineItems = [];
+      if (req.body.lineItems && Array.isArray(req.body.lineItems)) {
+        for (const item of req.body.lineItems) {
+          const lineItemData = {
+            ...item,
+            tenantId,
+            invoiceId: invoice.id
+          };
+          
+          const validatedLineItem = insertInvoiceLineItemSchema.parse(lineItemData);
+          const lineItem = await storage.createInvoiceLineItem(validatedLineItem);
+          lineItems.push(lineItem);
+        }
+      }
+      
+      res.status(201).json({
+        ...invoice,
+        lineItems
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create invoice" });
+    }
+  });
+  
+  app.put("/api/v1/finance/invoices/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = (req.user as any).id;
+      const id = parseInt(req.params.id);
+      
+      // Check if invoice belongs to tenant
+      const existingInvoice = await storage.getInvoice(id, tenantId);
+      if (!existingInvoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      // Check invoice number uniqueness if changed
+      if (req.body.invoiceNumber && req.body.invoiceNumber !== existingInvoice.invoiceNumber) {
+        const duplicateInvoice = await storage.getInvoiceByNumber(req.body.invoiceNumber, tenantId);
+        if (duplicateInvoice && duplicateInvoice.id !== id) {
+          return res.status(400).json({ message: "An invoice with this invoice number already exists" });
+        }
+      }
+      
+      // Add updater info
+      const data = { 
+        ...req.body, 
+        updatedBy: userId
+      };
+      
+      const updatedInvoice = await storage.updateInvoice(id, data);
+      
+      // Get updated line items
+      const lineItems = await storage.getInvoiceLineItems(tenantId, id);
+      
+      res.json({
+        ...updatedInvoice,
+        lineItems
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update invoice" });
+    }
+  });
+  
+  app.delete("/api/v1/finance/invoices/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const success = await storage.deleteInvoice(id, tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete invoice" });
+    }
+  });
+  
+  // 2. Invoice Line Items
+  app.post("/api/v1/finance/invoice-line-items", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const data = { ...req.body, tenantId };
+      
+      // Check if invoice exists
+      const invoice = await storage.getInvoice(data.invoiceId, tenantId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      const validatedData = insertInvoiceLineItemSchema.parse(data);
+      const lineItem = await storage.createInvoiceLineItem(validatedData);
+      
+      // Update invoice totals
+      const lineTotal = Number(lineItem.lineTotal);
+      await storage.updateInvoice(invoice.id, {
+        subtotal: Number(invoice.subtotal) + lineTotal,
+        totalAmount: Number(invoice.totalAmount) + lineTotal,
+        amountDue: Number(invoice.amountDue) + lineTotal
+      });
+      
+      res.status(201).json(lineItem);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create invoice line item" });
+    }
+  });
+  
+  // 3. Payments
+  app.get("/api/v1/finance/payments", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const invoiceId = req.query.invoiceId ? parseInt(req.query.invoiceId as string) : undefined;
+      
+      const payments = await storage.getPayments(tenantId, invoiceId);
+      res.json(payments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch payments" });
+    }
+  });
+  
+  app.post("/api/v1/finance/payments", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = (req.user as any).id;
+      
+      // Add tenant and creator info
+      const data = { 
+        ...req.body, 
+        tenantId,
+        createdBy: userId
+      };
+      
+      // Check if invoice exists
+      const invoice = await storage.getInvoice(data.invoiceId, tenantId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      const validatedData = insertPaymentSchema.parse(data);
+      const payment = await storage.createPayment(validatedData);
+      
+      // Fetch updated invoice after payment has been recorded
+      const updatedInvoice = await storage.getInvoice(data.invoiceId, tenantId);
+      
+      res.status(201).json({
+        payment,
+        invoice: updatedInvoice
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create payment" });
+    }
+  });
+  
+  // 4. Chart of Accounts
+  app.get("/api/v1/finance/chart-of-accounts", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const accountType = req.query.accountType as string | undefined;
+      
+      const accounts = await storage.getChartOfAccounts(tenantId, accountType);
+      res.json(accounts);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch chart of accounts" });
+    }
+  });
+  
+  app.post("/api/v1/finance/chart-of-accounts", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      // Add tenant info
+      const data = { ...req.body, tenantId };
+      
+      // Check for duplicate account code
+      const existingAccountByCode = await storage.getChartOfAccountByCode(data.accountCode, tenantId);
+      if (existingAccountByCode) {
+        return res.status(400).json({ message: "An account with this code already exists" });
+      }
+      
+      const validatedData = insertChartOfAccountSchema.parse(data);
+      const account = await storage.createChartOfAccount(validatedData);
+      
+      res.status(201).json(account);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create account" });
+    }
+  });
+
+  // 5. Payment Gateway Settings
+  app.get("/api/v1/finance/payment-gateways", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      const settings = await storage.getPaymentGatewaySettings(tenantId);
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch payment gateway settings" });
+    }
+  });
+  
+  app.post("/api/v1/finance/payment-gateways", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      // Add tenant info
+      const data = { ...req.body, tenantId };
+      
+      // Check for duplicate gateway
+      const existingGateway = await storage.getPaymentGatewaySetting(tenantId, data.gatewayType);
+      if (existingGateway) {
+        return res.status(400).json({ message: "A setting for this payment gateway already exists" });
+      }
+      
+      const validatedData = insertPaymentGatewaySettingSchema.parse(data);
+      const setting = await storage.createPaymentGatewaySetting(validatedData);
+      
+      res.status(201).json(setting);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create payment gateway setting" });
+    }
+  });
+
   // Create an HTTP server
   const httpServer = createServer(app);
 
