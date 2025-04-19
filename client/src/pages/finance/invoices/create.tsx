@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { AppLayout } from "@/components/layout/app-layout";
 import { enhancedInvoiceSchema } from "@shared/finance-schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -228,10 +229,11 @@ export default function CreateInvoicePage() {
   };
   
   return (
-    <div className="container py-6">
-      <Header title="Create Invoice" subtitle="Create a new invoice for a client" />
-      
-      <Form {...form}>
+    <AppLayout>
+      <div className="container py-6">
+        <Header title="Create Invoice" subtitle="Create a new invoice for a client" />
+        
+        <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-6">
           <Card>
             <CardHeader>
@@ -627,5 +629,6 @@ export default function CreateInvoicePage() {
         </form>
       </Form>
     </div>
+    </AppLayout>
   );
 }
