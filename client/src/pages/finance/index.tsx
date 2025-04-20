@@ -118,10 +118,6 @@ export default function FinancePage() {
                   <FileText className="h-4 w-4 mr-2" />
                   Invoices
                 </TabsTrigger>
-                <TabsTrigger value="payments" className="flex items-center">
-                  <CreditCard className="h-4 w-4 mr-2" />
-                  Payments
-                </TabsTrigger>
                 <TabsTrigger value="chart-of-accounts" className="flex items-center">
                   <BookOpen className="h-4 w-4 mr-2" />
                   Chart of Accounts
@@ -142,27 +138,10 @@ export default function FinancePage() {
                     <Plus className="h-4 w-4 mr-2" />
                     New Invoice
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setLocation("/finance/invoices/from-task")}
-                  >
-                    <Receipt className="h-4 w-4 mr-2" />
-                    Invoice from Task
-                  </Button>
                 </div>
               )}
               
-              {activeTab === "payments" && (
-                <Button 
-                  variant="default" 
-                  size="sm"
-                  onClick={() => setLocation("/finance/payments/create")}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Record Payment
-                </Button>
-              )}
+
               
               {activeTab === "chart-of-accounts" && (
                 <Button 
@@ -251,64 +230,7 @@ export default function FinancePage() {
               </Card>
             </TabsContent>
             
-            <TabsContent value="payments" className="mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Payments</CardTitle>
-                  <CardDescription>
-                    View and manage payment records
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {paymentsLoading ? (
-                    <div className="text-center py-4">Loading payments...</div>
-                  ) : payments && payments.length > 0 ? (
-                    <div className="rounded-md border">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b bg-slate-50">
-                            <th className="p-2 text-left font-medium">Date</th>
-                            <th className="p-2 text-left font-medium">Invoice #</th>
-                            <th className="p-2 text-left font-medium">Client</th>
-                            <th className="p-2 text-left font-medium">Amount</th>
-                            <th className="p-2 text-left font-medium">Method</th>
-                            <th className="p-2 text-left font-medium">Reference</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {payments.map((payment: any) => (
-                            <tr key={payment.id} className="border-b hover:bg-slate-50">
-                              <td className="p-2">{new Date(payment.paymentDate).toLocaleDateString()}</td>
-                              <td className="p-2">{payment.invoiceNumber || "-"}</td>
-                              <td className="p-2">{payment.clientName || "Client"}</td>
-                              <td className="p-2 font-medium">{formatCurrency(parseFloat(payment.amount))}</td>
-                              <td className="p-2">{payment.paymentMethod.replace('_', ' ')}</td>
-                              <td className="p-2">{payment.referenceNumber || "-"}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 border rounded-md bg-slate-50">
-                      <CreditCard className="h-10 w-10 text-slate-400 mx-auto mb-2" />
-                      <h3 className="text-lg font-medium">No Payments</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        You haven't recorded any payments yet.
-                      </p>
-                      <Button
-                        onClick={() => setLocation("/finance/payments/create")}
-                        variant="outline"
-                        className="mt-4"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Record a Payment
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+
             
             <TabsContent value="chart-of-accounts" className="mt-6">
               <Card>
