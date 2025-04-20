@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AddTaskModal } from "./add-task-modal";
 import { TaskDetails } from "./task-details";
+import { InvoiceFromTaskModal } from "../finance/invoice-from-task-modal";
 
 export function TaskList() {
   const { toast } = useToast();
@@ -527,6 +528,12 @@ export function TaskList() {
         isOpen={isTaskDetailsOpen}
         onClose={() => setIsTaskDetailsOpen(false)}
         taskId={selectedTaskId}
+      />
+      
+      <InvoiceFromTaskModal
+        isOpen={isCreateInvoiceModalOpen}
+        onClose={() => setIsCreateInvoiceModalOpen(false)}
+        task={selectedTaskForInvoice}
       />
     </>
   );

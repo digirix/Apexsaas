@@ -54,8 +54,8 @@ const invoiceFormSchema = z.object({
   discountAmount: z.string(),
   totalAmount: z.string(),
   amountDue: z.string(),
-  notes: z.string().optional().nullable(),
-  termsAndConditions: z.string().optional().nullable(),
+  notes: z.string().optional(),
+  termsAndConditions: z.string().optional(),
   serviceDescription: z.string().min(3, "Service description is required")
 });
 
