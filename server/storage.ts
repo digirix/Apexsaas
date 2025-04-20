@@ -237,6 +237,13 @@ export interface IStorage {
   updateChartOfAccount(id: number, account: Partial<InsertChartOfAccount>): Promise<ChartOfAccount | undefined>;
   deleteChartOfAccount(id: number, tenantId: number): Promise<boolean>;
   
+  // Journal Entry Type operations
+  getJournalEntryTypes(tenantId: number): Promise<JournalEntryType[]>;
+  getJournalEntryType(id: number, tenantId: number): Promise<JournalEntryType | undefined>;
+  createJournalEntryType(type: InsertJournalEntryType): Promise<JournalEntryType>;
+  updateJournalEntryType(id: number, type: Partial<InsertJournalEntryType>): Promise<JournalEntryType | undefined>;
+  deleteJournalEntryType(id: number, tenantId: number): Promise<boolean>;
+  
   // Journal Entry operations for accounting
   getJournalEntries(tenantId: number, sourceDocument?: string, sourceDocumentId?: number): Promise<JournalEntry[]>;
   getJournalEntry(id: number, tenantId: number): Promise<JournalEntry | undefined>;
@@ -279,6 +286,7 @@ export class MemStorage implements IStorage {
   private payments: Map<number, Payment>;
   private paymentGatewaySettings: Map<number, PaymentGatewaySetting>;
   private chartOfAccounts: Map<number, ChartOfAccount>;
+  private journalEntryTypes: Map<number, JournalEntryType>;
   
   sessionStore: MemoryStoreType;
   
@@ -308,6 +316,7 @@ export class MemStorage implements IStorage {
   private paymentId: number = 1;
   private paymentGatewaySettingId: number = 1;
   private chartOfAccountId: number = 1;
+  private journalEntryTypeId: number = 1;
 
   constructor() {
     this.tenants = new Map();
@@ -336,6 +345,7 @@ export class MemStorage implements IStorage {
     this.payments = new Map();
     this.paymentGatewaySettings = new Map();
     this.chartOfAccounts = new Map();
+    this.journalEntryTypes = new Map();
     
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000, // 24h
@@ -1872,6 +1882,48 @@ export class MemStorage implements IStorage {
     
     this.chartOfAccounts.set(id, updatedAccount);
     return true;
+  }
+  
+  // Journal Entry Type operations
+  async getJournalEntryTypes(tenantId: number): Promise<JournalEntryType[]> {
+    return Array.from(this.journalEntryTypes.values())
+      .filter(type => type.tenantId === tenantId);
+  }
+  
+  async getJournalEntryType(id: number, tenantId: number): Promise<JournalEntryType | undefined> {
+    const type = this.journalEntryTypes.get(id);
+    if (type && type.tenantId === tenantId) {
+      return type;
+    }
+    return undefined;
+  }
+  
+  async createJournalEntryType(type: InsertJournalEntryType): Promise<JournalEntryType> {
+    const id = this.journalEntryTypeId++;
+    const newType: JournalEntryType = {
+      ...type,
+      id,
+      createdAt: new Date()
+    };
+    this.journalEntryTypes.set(id, newType);
+    return newType;
+  }
+  
+  async updateJournalEntryType(id: number, type: Partial<InsertJournalEntryType>): Promise<JournalEntryType | undefined> {
+    const existingType = this.journalEntryTypes.get(id);
+    if (!existingType) return undefined;
+    
+    const updatedType = { ...existingType, ...type };
+    this.journalEntryTypes.set(id, updatedType);
+    return updatedType;
+  }
+  
+  async deleteJournalEntryType(id: number, tenantId: number): Promise<boolean> {
+    const type = this.journalEntryTypes.get(id);
+    if (type && type.tenantId === tenantId) {
+      return this.journalEntryTypes.delete(id);
+    }
+    return false;
   }
 }
 
