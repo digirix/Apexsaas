@@ -2922,88 +2922,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Handle special status transitions with accounting effects
       const previousStatus = invoice.status;
       
-      // When invoice is being approved - create accounting entries for double-entry bookkeeping
+      // When invoice is being approved - validate accounts and create accounting entries for double-entry bookkeeping
       if (previousStatus === 'draft' && status === 'approved') {
         try {
-          // 1. Find accounts needed for bookkeeping
+          // 1. Validate required chart of accounts before creating journal entries
+          const missingAccounts = [];
+          
           // Accounts receivable (Asset) - Trade Debtors
           const accountsReceivable = await storage.getChartOfAccountByCode("1200", tenantId);
+          if (!accountsReceivable) {
+            missingAccounts.push("Trade Debtors (1200)");
+          }
           
           // Revenue account (lookup based on client entity or use default)
           let revenueAccount;
           if (invoice.entityId) {
             const entity = await storage.getEntity(invoice.entityId, tenantId);
-            if (entity && entity.revenueAccountId) {
+            
+            // Check if entity has a revenue account set
+            const entityHasRevenueAccount = entity && entity.revenueAccountId;
+            if (entityHasRevenueAccount) {
               revenueAccount = await storage.getChartOfAccount(entity.revenueAccountId, tenantId);
+              if (!revenueAccount) {
+                missingAccounts.push(`Entity Revenue Account (${entity.revenueAccountId})`);
+              }
             }
           }
           
-          // Use default revenue account if not found
+          // Check default revenue account if not found on entity
           if (!revenueAccount) {
             revenueAccount = await storage.getChartOfAccountByCode("4000", tenantId);
+            if (!revenueAccount) {
+              missingAccounts.push("Default Revenue Account (4000)");
+            }
+          }
+          
+          // Check tax liability account if invoice has tax
+          const taxAmount = parseFloat(invoice.taxAmount || "0");
+          if (taxAmount > 0) {
+            const taxLiabilityAccount = await storage.getChartOfAccountByCode("2200", tenantId);
+            if (!taxLiabilityAccount) {
+              missingAccounts.push("Tax Liability Account (2200)");
+            }
+          }
+          
+          // If any required accounts are missing, return error with guidance
+          if (missingAccounts.length > 0) {
+            return res.status(400).json({
+              message: "Cannot approve invoice: Missing required accounts in Chart of Accounts",
+              details: {
+                missingAccounts,
+                guidance: "Please set up the required accounts in your Chart of Accounts before approving this invoice. Navigate to Finance > Chart of Accounts to add these accounts."
+              }
+            });
           }
           
           // Tax liability account (if tax is present)
           const taxLiabilityAccount = await storage.getChartOfAccountByCode("2200", tenantId);
           
-          if (accountsReceivable && revenueAccount) {
-            // 2. Create journal entries
-            const totalAmount = parseFloat(invoice.totalAmount);
-            const taxAmount = parseFloat(invoice.taxAmount || "0");
-            const revenueAmount = totalAmount - taxAmount;
-            
-            // Create journal entry header
-            const journalEntry = await storage.createJournalEntry({
-              tenantId: tenantId,
-              entryDate: new Date(),
-              reference: `INV-${invoice.invoiceNumber}`,
-              entryType: "INVAP", // Invoice approval entry type
-              description: `Invoice ${invoice.invoiceNumber} approved`,
-              isPosted: true,
-              createdBy: userId,
-              sourceDocument: "invoice",
-              sourceDocumentId: invoice.id
-            });
-            
-            // Debit Accounts Receivable (Asset increase)
+          // 2. Create journal entries (all accounts have been validated at this point)
+          const totalAmount = parseFloat(invoice.totalAmount);
+          const revenueAmount = totalAmount - taxAmount;
+          
+          // Create journal entry header
+          const journalEntry = await storage.createJournalEntry({
+            tenantId: tenantId,
+            entryDate: new Date(),
+            reference: `INV-${invoice.invoiceNumber}`,
+            entryType: "INVAP", // Invoice approval entry type
+            description: `Invoice ${invoice.invoiceNumber} approved`,
+            isPosted: true,
+            createdBy: userId,
+            sourceDocument: "invoice",
+            sourceDocumentId: invoice.id
+          });
+          
+          // Debit Accounts Receivable (Asset increase)
+          await storage.createJournalEntryLine({
+            tenantId: tenantId,
+            journalEntryId: journalEntry.id,
+            accountId: accountsReceivable.id,
+            description: `Accounts Receivable - Invoice ${invoice.invoiceNumber}`,
+            debitAmount: totalAmount.toString(),
+            creditAmount: "0",
+            lineOrder: 1
+          });
+          
+          // Credit Revenue (Revenue increase)
+          await storage.createJournalEntryLine({
+            tenantId: tenantId,
+            journalEntryId: journalEntry.id,
+            accountId: revenueAccount.id,
+            description: `Revenue - Invoice ${invoice.invoiceNumber}`,
+            debitAmount: "0",
+            creditAmount: revenueAmount.toString(),
+            lineOrder: 2
+          });
+          
+          // If tax exists, credit Tax Liability
+          if (taxAmount > 0 && taxLiabilityAccount) {
             await storage.createJournalEntryLine({
               tenantId: tenantId,
               journalEntryId: journalEntry.id,
-              accountId: accountsReceivable.id,
-              description: `Accounts Receivable - Invoice ${invoice.invoiceNumber}`,
-              debitAmount: totalAmount.toString(),
-              creditAmount: "0",
-              lineOrder: 1
-            });
-            
-            // Credit Revenue (Revenue increase)
-            await storage.createJournalEntryLine({
-              tenantId: tenantId,
-              journalEntryId: journalEntry.id,
-              accountId: revenueAccount.id,
-              description: `Revenue - Invoice ${invoice.invoiceNumber}`,
+              accountId: taxLiabilityAccount.id,
+              description: `Tax Liability - Invoice ${invoice.invoiceNumber}`,
               debitAmount: "0",
-              creditAmount: revenueAmount.toString(),
-              lineOrder: 2
+              creditAmount: taxAmount.toString(),
+              lineOrder: 3
             });
-            
-            // If tax exists, credit Tax Liability
-            if (taxAmount > 0 && taxLiabilityAccount) {
-              await storage.createJournalEntryLine({
-                tenantId: tenantId,
-                journalEntryId: journalEntry.id,
-                accountId: taxLiabilityAccount.id,
-                description: `Tax Liability - Invoice ${invoice.invoiceNumber}`,
-                debitAmount: "0",
-                creditAmount: taxAmount.toString(),
-                lineOrder: 3
-              });
-            }
-            
-            console.log(`Created journal entry (ID: ${journalEntry.id}) for approved invoice ${invoice.invoiceNumber}`);
-          } else {
-            console.error("Required accounts not found for accounting entries");
           }
+            
+          console.log(`Created journal entry (ID: ${journalEntry.id}) for approved invoice ${invoice.invoiceNumber}`);
         } catch (error) {
           console.error("Error creating accounting entries for approved invoice:", error);
           // We don't fail the operation if accounting entries fail, but we log the error

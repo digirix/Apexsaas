@@ -2,7 +2,7 @@ import PDFDocument from 'pdfkit';
 import { Invoice, InvoiceLineItem, Client, Entity, Tenant } from '@shared/schema';
 
 /**
- * Generates a professionally designed PDF invoice
+ * Generates a more compact and efficient PDF invoice that fits on a single page
  * @param invoice The invoice data
  * @param lineItems Line items for the invoice
  * @param client The client data
@@ -18,13 +18,14 @@ export async function generateInvoicePdf(
   tenant: Tenant
 ): Promise<Buffer> {
   return new Promise((resolve) => {
-    // Create a document with simplified info object to avoid undefined values
+    // Create a document with compression enabled for smaller file size
     const doc = new PDFDocument({ 
       size: 'A4',
-      margin: 50,
+      margin: 40,
+      compress: true, // Enable compression for smaller file size
       info: {
         Title: `Invoice ${invoice.invoiceNumber || ''}`,
-        Author: tenant?.displayName || 'Accounting Platform',
+        Author: tenant?.name || 'Accounting Platform',
         Subject: 'Invoice',
         Creator: 'Accounting Management Platform'
       }
@@ -40,55 +41,52 @@ export async function generateInvoicePdf(
     const textColor = '#334155';    // Slate-700 for main text
     const mutedColor = '#94a3b8';   // Slate-400 for secondary text
 
-    // Helper function for formatted currency
+    // Helper function for formatted currency (shorter format)
     const formatCurrency = (amount: string) => {
-      return `${invoice.currencyCode} ${parseFloat(amount).toLocaleString('en-US', { 
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      })}`;
+      return `${invoice.currencyCode}${parseFloat(amount).toFixed(2)}`;
     };
 
-    // Add company logo and header
-    doc
-      .fillColor(primaryColor)
-      .fontSize(24)
-      .font('Helvetica-Bold')
-      .text(tenant.displayName, 50, 50)
-      .fontSize(10)
-      .fillColor(mutedColor)
-      .font('Helvetica')
-      .text('Accounting Management Platform', 50, 80);
-
-    // Add line
-    doc.moveTo(50, 100).lineTo(550, 100).strokeColor(primaryColor).lineWidth(1).stroke();
-
-    // Invoice details section
+    // Add company logo and header (more compact)
     doc
       .fillColor(primaryColor)
       .fontSize(18)
       .font('Helvetica-Bold')
-      .text('INVOICE', 400, 120)
-      .fontSize(12)
-      .text(invoice.invoiceNumber, 400, 145);
+      .text(tenant.name, 40, 40)
+      .fontSize(8)
+      .fillColor(mutedColor)
+      .font('Helvetica')
+      .text('Accounting Management Platform', 40, 60);
 
-    // Date section
+    // Invoice details section (right aligned for better space usage)
+    doc
+      .fillColor(primaryColor)
+      .fontSize(16)
+      .font('Helvetica-Bold')
+      .text('INVOICE', 400, 40)
+      .fontSize(10)
+      .text(`#${invoice.invoiceNumber}`, 400, 60);
+
+    // Horizontal rule
+    doc.moveTo(40, 75).lineTo(555, 75).strokeColor(primaryColor).lineWidth(0.5).stroke();
+
+    // More compact date section
     doc
       .fillColor(textColor)
-      .fontSize(10)
+      .fontSize(8)
       .font('Helvetica-Bold')
-      .text('ISSUE DATE:', 400, 175)
+      .text('ISSUE DATE:', 400, 85)
       .font('Helvetica')
-      .text(new Date(invoice.issueDate).toLocaleDateString(), 480, 175)
+      .text(new Date(invoice.issueDate).toLocaleDateString(), 460, 85)
       .font('Helvetica-Bold')
-      .text('DUE DATE:', 400, 190)
+      .text('DUE DATE:', 400, 95)
       .font('Helvetica')
-      .text(new Date(invoice.dueDate).toLocaleDateString(), 480, 190);
+      .text(new Date(invoice.dueDate).toLocaleDateString(), 460, 95);
 
     // Status section
     doc
       .font('Helvetica-Bold')
       .fillColor(primaryColor)
-      .text('STATUS:', 400, 210)
+      .text('STATUS:', 400, 105)
       .font('Helvetica');
     
     // Color code the status
@@ -103,214 +101,235 @@ export async function generateInvoicePdf(
       case 'sent':
         statusColor = '#f97316'; // Orange
         break;
+      case 'approved':
+        statusColor = '#0ea5e9'; // Blue
+        break;
       case 'passed':
         statusColor = '#0ea5e9'; // Blue
         break;
     }
     
     doc.fillColor(statusColor)
-      .text(invoice.status.toUpperCase(), 480, 210);
+      .text(invoice.status.toUpperCase(), 460, 105);
 
     // Bill to section
     doc
       .fillColor(primaryColor)
-      .fontSize(12)
-      .font('Helvetica-Bold')
-      .text('BILL TO:', 50, 120)
-      .fillColor(textColor)
       .fontSize(10)
       .font('Helvetica-Bold')
-      .text(client.displayName, 50, 140)
+      .text('BILL TO:', 40, 85)
+      .fillColor(textColor)
+      .fontSize(9)
+      .font('Helvetica-Bold')
+      .text(client.name, 40, 100)
       .font('Helvetica')
-      .text(`Entity: ${entity.name}`, 50, 155);
+      .fontSize(8)
+      .text(`Entity: ${entity.name}`, 40, 110);
 
-    // Add address if available
+    // Add address if available (truncated with ellipsis if too long)
     if (entity.address) {
-      doc.text(entity.address, 50, 170);
+      const addressText = entity.address.length > 50 ? 
+        entity.address.substring(0, 50) + '...' : 
+        entity.address;
+      doc.text(addressText, 40, 120, { width: 200 });
     }
 
-    // Add line items table
+    // Add line items table (start higher on page for more space)
+    const tableStartY = 140;
     doc
-      .moveTo(50, 250)
-      .lineTo(550, 250)
+      .moveTo(40, tableStartY)
+      .lineTo(555, tableStartY)
+      .strokeColor(mutedColor)
+      .lineWidth(0.5)
       .stroke();
 
-    // Table headers
+    // Table headers (smaller font size)
     doc
       .fillColor(primaryColor)
+      .fontSize(8)
       .font('Helvetica-Bold')
-      .text('Description', 50, 260)
-      .text('Quantity', 300, 260)
-      .text('Unit Price', 370, 260)
-      .text('Amount', 480, 260);
+      .text('Description', 40, tableStartY + 5)
+      .text('Quantity', 300, tableStartY + 5)
+      .text('Unit Price', 370, tableStartY + 5)
+      .text('Amount', 480, tableStartY + 5);
 
     // Add horizontal rule
     doc
-      .moveTo(50, 275)
-      .lineTo(550, 275)
+      .moveTo(40, tableStartY + 15)
+      .lineTo(555, tableStartY + 15)
       .stroke();
 
     // Table data rows
-    let y = 285;
+    let y = tableStartY + 20;
     
     // If no line items, add service description as a single line item
     if (!lineItems || lineItems.length === 0) {
       doc
         .fillColor(textColor)
         .font('Helvetica')
-        .text(invoice.serviceDescription || 'Professional Services', 50, y, { width: 240 });
+        .fontSize(8)
+        .text(invoice.notes || 'Professional Services', 40, y, { width: 250 });
       
       // Fill to the end of the line
-      const textHeight = doc.heightOfString(invoice.serviceDescription || 'Professional Services', { width: 240 });
-      const finalY = y + Math.max(textHeight, 20);
+      const textHeight = doc.heightOfString(invoice.notes || 'Professional Services', { width: 250 });
+      const finalY = y + Math.max(textHeight, 12);
       
       doc
         .text('1', 300, y)
         .text(formatCurrency(invoice.subtotal), 370, y)
         .text(formatCurrency(invoice.subtotal), 480, y);
       
-      y = finalY + 10;
+      y = finalY + 5;
     } else {
-      // Add each line item
-      lineItems.forEach(item => {
-        // Check if we need a new page
-        if (y > 700) {
-          doc.addPage();
-          y = 50;
-          
-          // Add header for continuation
-          doc
-            .fillColor(primaryColor)
-            .font('Helvetica-Bold')
-            .text('Description', 50, y)
-            .text('Quantity', 300, y)
-            .text('Unit Price', 370, y)
-            .text('Amount', 480, y);
-          
-          // Add horizontal rule
-          doc
-            .moveTo(50, y + 15)
-            .lineTo(550, y + 15)
-            .stroke();
-          
-          y += 25;
-        }
+      // Add each line item (with limits to prevent overflow)
+      const maxItemsToShow = 10; // Limit items to ensure everything fits on one page
+      const itemsToRender = lineItems.slice(0, maxItemsToShow);
+      
+      itemsToRender.forEach((item, index) => {
+        // Truncate description if too long
+        const description = item.description.length > 50 ? 
+          item.description.substring(0, 50) + '...' : 
+          item.description;
         
         doc
           .fillColor(textColor)
           .font('Helvetica')
-          .text(item.description, 50, y, { width: 240 });
+          .fontSize(8)
+          .text(description, 40, y, { width: 250 });
         
-        // Measure the height of multi-line description to align the row
-        const textHeight = doc.heightOfString(item.description, { width: 240 });
-        const finalY = y + Math.max(textHeight, 20);
-        
+        // Use fixed height rows to conserve space
         doc
           .text(item.quantity.toString(), 300, y)
           .text(formatCurrency(item.unitPrice), 370, y)
           .text(formatCurrency(item.lineTotal), 480, y);
         
-        y = finalY + 10;
+        y += 15; // Fixed height per row
       });
+      
+      // If we truncated items, add a note
+      if (lineItems.length > maxItemsToShow) {
+        doc
+          .fillColor(mutedColor)
+          .fontSize(7)
+          .font('Helvetica-Oblique')
+          .text(`... and ${lineItems.length - maxItemsToShow} more items not shown`, 40, y);
+        y += 15;
+      }
     }
 
     // Add a divider
     doc
-      .moveTo(50, y)
-      .lineTo(550, y)
+      .moveTo(40, y)
+      .lineTo(555, y)
       .stroke();
     
-    y += 20;
+    y += 10;
 
-    // Summary section
+    // Summary section (more compact)
+    const summaryColX = 420;
     doc
+      .fontSize(8)
       .font('Helvetica-Bold')
-      .text('Subtotal:', 400, y)
+      .text('Subtotal:', summaryColX, y)
       .font('Helvetica')
-      .text(formatCurrency(invoice.subtotal), 480, y);
+      .text(formatCurrency(invoice.subtotal), 490, y);
     
-    y += 20;
+    y += 12;
     
     // Add tax if present
     if (parseFloat(invoice.taxAmount) > 0) {
       doc
         .font('Helvetica-Bold')
-        .text('Tax:', 400, y)
+        .text('Tax:', summaryColX, y)
         .font('Helvetica')
-        .text(formatCurrency(invoice.taxAmount), 480, y);
+        .text(formatCurrency(invoice.taxAmount), 490, y);
       
-      y += 20;
+      y += 12;
     }
     
     // Add discount if present
     if (parseFloat(invoice.discountAmount) > 0) {
       doc
         .font('Helvetica-Bold')
-        .text('Discount:', 400, y)
+        .text('Discount:', summaryColX, y)
         .font('Helvetica')
-        .text(`-${formatCurrency(invoice.discountAmount)}`, 480, y);
+        .text(`-${formatCurrency(invoice.discountAmount)}`, 490, y);
       
-      y += 20;
+      y += 12;
     }
     
-    // Add total
+    // Add total (smaller but still prominent)
     doc
       .font('Helvetica-Bold')
       .fillColor(primaryColor)
-      .fontSize(12)
-      .text('TOTAL:', 400, y)
-      .text(formatCurrency(invoice.totalAmount), 480, y);
+      .fontSize(10)
+      .text('TOTAL:', summaryColX, y)
+      .text(formatCurrency(invoice.totalAmount), 490, y);
     
-    y += 25;
+    y += 15;
     
-    // Add amount due
+    // Add amount due if different from total
     if (parseFloat(invoice.amountDue) > 0 && invoice.amountDue !== invoice.totalAmount) {
       doc
-        .text('AMOUNT DUE:', 400, y)
-        .text(formatCurrency(invoice.amountDue), 480, y);
+        .text('AMOUNT DUE:', summaryColX, y)
+        .text(formatCurrency(invoice.amountDue), 490, y);
       
-      y += 30;
+      y += 15;
     }
     
-    // Add notes if provided
+    // Add notes if provided (limited height)
     if (invoice.notes) {
-      y += 20;
+      y += 10;
       doc
         .fillColor(textColor)
-        .fontSize(11)
+        .fontSize(8)
         .font('Helvetica-Bold')
-        .text('Notes:', 50, y)
+        .text('Notes:', 40, y)
         .font('Helvetica')
-        .fontSize(10)
-        .text(invoice.notes, 50, y + 15, { width: 500 });
+        .fontSize(7);
+      
+      // Limit notes to prevent overflow
+      const truncatedNotes = invoice.notes.length > 150 ? 
+        invoice.notes.substring(0, 150) + '...' : 
+        invoice.notes;
+      
+      doc.text(truncatedNotes, 40, y + 10, { width: 515 });
     }
     
-    // Add terms and conditions if provided
+    // Add terms and conditions if provided (limited height)
     if (invoice.termsAndConditions) {
-      y += 60;
+      y += 35;
       doc
         .fillColor(textColor)
-        .fontSize(11)
+        .fontSize(8)
         .font('Helvetica-Bold')
-        .text('Terms and Conditions:', 50, y)
+        .text('Terms and Conditions:', 40, y)
         .font('Helvetica')
-        .fontSize(10)
-        .text(invoice.termsAndConditions, 50, y + 15, { width: 500 });
+        .fontSize(7);
+      
+      // Limit T&C to prevent overflow
+      const truncatedTerms = invoice.termsAndConditions.length > 200 ? 
+        invoice.termsAndConditions.substring(0, 200) + '...' : 
+        invoice.termsAndConditions;
+      
+      doc.text(truncatedTerms, 40, y + 10, { width: 515 });
     }
 
     // Add footer
-    const footerY = doc.page.height - 50;
+    const footerY = doc.page.height - 30;
     doc
-      .moveTo(50, footerY - 10)
-      .lineTo(550, footerY - 10)
+      .moveTo(40, footerY - 10)
+      .lineTo(555, footerY - 10)
+      .strokeColor(mutedColor)
+      .lineWidth(0.5)
       .stroke();
     
     doc
       .fillColor(mutedColor)
-      .fontSize(9)
+      .fontSize(7)
       .text(
-        `Invoice #${invoice.invoiceNumber} | Created with Accounting Management Platform | Generated on ${new Date().toLocaleDateString()}`,
-        50, footerY, { align: 'center', width: 500 }
+        `Invoice #${invoice.invoiceNumber} | ${tenant.name} | Generated on ${new Date().toLocaleDateString()}`,
+        40, footerY, { align: 'center', width: 515 }
       );
 
     // Finalize the PDF
