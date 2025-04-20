@@ -3851,6 +3851,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to create account", error: error.toString() });
     }
   });
+  
+  // Add a DELETE endpoint for chart of accounts
+  app.delete("/api/v1/finance/chart-of-accounts/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if the account exists
+      const account = await storage.getChartOfAccount(id, tenantId);
+      if (!account) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // Check if this is a system account
+      if (account.isSystemAccount) {
+        return res.status(403).json({ message: "System accounts cannot be deleted" });
+      }
+      
+      // Check if the account has any journal entries
+      const journalEntries = await storage.getJournalEntryLines(tenantId, undefined, id);
+      if (journalEntries.length > 0) {
+        return res.status(400).json({ 
+          message: "Cannot delete account that has journal entries. Consider deactivating it instead." 
+        });
+      }
+      
+      // Delete the account
+      const result = await storage.deleteChartOfAccount(id, tenantId);
+      
+      if (result) {
+        res.status(204).end();
+      } else {
+        res.status(500).json({ message: "Failed to delete account" });
+      }
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      res.status(500).json({ message: "Failed to delete account", error: error.toString() });
+    }
+  });
 
   // 5. Journal Entries
   app.get("/api/v1/finance/journal-entries", isAuthenticated, async (req, res) => {

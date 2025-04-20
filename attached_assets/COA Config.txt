@@ -31,6 +31,3 @@ If the Sub Element Group is “Non Current Assets” it will have one of these, 
 
 If the Sub Element Group is “Current Assets” it will have one of these, Stock in trade, Trade Debtors, Advances and prepayments, Other Receivables, Cash and Bank Balances, "Add New". (and when added new, user or system can add its own)
 
-
-With this kind of mapping of the chart of accounts, i want you to know that we will have Cost Centers as “AC Head” now, we should be able to map values from different modules of the system to this field for integration with accounting module. For example, When we have created a new Client in the Client Module, each client should be a AC head for accounting purpose as each client is a Cost Center. Similarly when we created a new team member in the users module, that user should be the an AC head for accounting Purposes as each User is also a Cost Center.
-Therefore, you will make a robust mechanism to integrate the Cost Centers of Modules with the AC heads in the Chart of Accounts, so that it becomes easier for you to bring the bookkeeping effects to the finance module from different Modules of the system.
