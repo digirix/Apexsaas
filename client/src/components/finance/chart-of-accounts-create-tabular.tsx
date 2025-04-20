@@ -389,14 +389,22 @@ export default function ChartOfAccountsCreateTabular() {
     mutationFn: async (values: z.infer<typeof newSubElementGroupSchema>) => {
       return apiRequest('POST', '/api/v1/finance/chart-of-accounts/sub-element-groups', values);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Sub Element Group Added",
         description: "The sub element group has been added successfully.",
       });
       setShowNewSubElementGroupDialog(false);
       newSubElementGroupForm.reset();
-      refetchSubElementGroups();
+      
+      // Update the dropdown list
+      refetchSubElementGroups().then(() => {
+        // Set the newly created item as selected after data is refreshed
+        if (data && data.id) {
+          setSelectedSubElementGroup(data.id.toString());
+          setSelectedDetailedGroup(null); // Reset the detailed group selection
+        }
+      });
     },
     onError: (error: any) => {
       toast({
@@ -411,7 +419,7 @@ export default function ChartOfAccountsCreateTabular() {
     mutationFn: async (values: z.infer<typeof newDetailedGroupSchema>) => {
       return apiRequest('POST', '/api/v1/finance/chart-of-accounts/detailed-groups', values);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Detailed Group Added",
         description: "The detailed group has been added successfully.",
@@ -419,8 +427,14 @@ export default function ChartOfAccountsCreateTabular() {
       setShowNewDetailedGroupDialog(false);
       newDetailedGroupForm.reset();
       
-      // Refresh all the relevant data
-      refetchDetailedGroups();
+      // Refresh all the relevant data and select the newly created item
+      refetchDetailedGroups().then(() => {
+        // Set the newly created item as selected after data is refreshed
+        if (data && data.id) {
+          setSelectedDetailedGroup(data.id.toString());
+        }
+      });
+      
       queryClient.invalidateQueries({ 
         queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups'] 
       });
@@ -700,15 +714,7 @@ export default function ChartOfAccountsCreateTabular() {
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <Label>Main Group</Label>
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-6 w-6"
-                    onClick={() => setShowNewMainGroupDialog(true)}
-                  >
-                    <PlusCircle className="h-3.5 w-3.5" />
-                  </Button>
+                  {/* Main Group adding disabled as per requirements */}
                 </div>
                 <Select 
                   value={selectedMainGroup || ""} 
@@ -745,16 +751,7 @@ export default function ChartOfAccountsCreateTabular() {
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <Label>Element Group</Label>
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-6 w-6"
-                    onClick={() => setShowNewElementGroupDialog(true)}
-                    disabled={!selectedMainGroup}
-                  >
-                    <PlusCircle className="h-3.5 w-3.5" />
-                  </Button>
+                  {/* Element Group adding disabled as per requirements */}
                 </div>
                 <Select 
                   value={selectedElementGroup || ""} 
