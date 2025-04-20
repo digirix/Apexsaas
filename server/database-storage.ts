@@ -1767,12 +1767,28 @@ export class DatabaseStorage implements IStorage {
 
   // Journal Entry Line operations
   async getJournalEntryLines(tenantId: number, journalEntryId: number): Promise<JournalEntryLine[]> {
-    return await db.select().from(journalEntryLines)
-      .where(and(
-        eq(journalEntryLines.tenantId, tenantId),
-        eq(journalEntryLines.journalEntryId, journalEntryId)
-      ))
-      .orderBy(asc(journalEntryLines.lineOrder));
+    // Join with chart of accounts to get the account name
+    const lines = await db.select({
+      id: journalEntryLines.id,
+      tenantId: journalEntryLines.tenantId,
+      journalEntryId: journalEntryLines.journalEntryId,
+      accountId: journalEntryLines.accountId,
+      accountName: chartOfAccounts.accountName,
+      description: journalEntryLines.description,
+      debitAmount: journalEntryLines.debitAmount,
+      creditAmount: journalEntryLines.creditAmount,
+      lineOrder: journalEntryLines.lineOrder,
+      createdAt: journalEntryLines.createdAt,
+    })
+    .from(journalEntryLines)
+    .leftJoin(chartOfAccounts, eq(journalEntryLines.accountId, chartOfAccounts.id))
+    .where(and(
+      eq(journalEntryLines.tenantId, tenantId),
+      eq(journalEntryLines.journalEntryId, journalEntryId)
+    ))
+    .orderBy(asc(journalEntryLines.lineOrder));
+    
+    return lines;
   }
 
   async getJournalEntryLine(id: number, tenantId: number): Promise<JournalEntryLine | undefined> {

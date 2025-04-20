@@ -372,6 +372,10 @@ export default function FinancePage() {
                 </CardContent>
               </Card>
             </TabsContent>
+            
+            <TabsContent value="journal-entries" className="mt-6">
+              <JournalEntriesList />
+            </TabsContent>
           </Tabs>
         </div>
       </div>
