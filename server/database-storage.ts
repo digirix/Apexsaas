@@ -3,7 +3,7 @@ import {
   entityTypes, taskStatuses, taskStatusWorkflowRules, taxJurisdictions, serviceTypes, 
   clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions, 
   userPermissions, invoices, invoiceLineItems, payments, paymentGatewaySettings, chartOfAccounts,
-  journalEntries, journalEntryLines,
+  journalEntries, journalEntryLines, journalEntryTypes,
   // Chart of Accounts hierarchical structure
   chartOfAccountsMainGroups, chartOfAccountsElementGroups, chartOfAccountsSubElementGroups, chartOfAccountsDetailedGroups
 } from "@shared/schema";
@@ -27,7 +27,8 @@ import type {
   ChartOfAccountsSubElementGroup, InsertChartOfAccountsSubElementGroup,
   ChartOfAccountsDetailedGroup, InsertChartOfAccountsDetailedGroup, 
   // Journal entry types
-  JournalEntry, InsertJournalEntry, JournalEntryLine, InsertJournalEntryLine
+  JournalEntry, InsertJournalEntry, JournalEntryLine, InsertJournalEntryLine,
+  JournalEntryType, InsertJournalEntryType
 } from "@shared/schema";
 import { IStorage } from "./storage";
 import { db } from "./db";
@@ -1828,5 +1829,44 @@ export class DatabaseStorage implements IStorage {
       ))
       .returning({ id: journalEntryLines.id });
     return !!deletedLine;
+  }
+  
+  // Journal Entry Type operations
+  async getJournalEntryTypes(tenantId: number): Promise<JournalEntryType[]> {
+    return await db.select().from(journalEntryTypes)
+      .where(eq(journalEntryTypes.tenantId, tenantId))
+      .orderBy(asc(journalEntryTypes.name));
+  }
+  
+  async getJournalEntryType(id: number, tenantId: number): Promise<JournalEntryType | undefined> {
+    const [type] = await db.select().from(journalEntryTypes)
+      .where(and(
+        eq(journalEntryTypes.id, id),
+        eq(journalEntryTypes.tenantId, tenantId)
+      ));
+    return type;
+  }
+  
+  async createJournalEntryType(type: InsertJournalEntryType): Promise<JournalEntryType> {
+    const [newType] = await db.insert(journalEntryTypes).values(type).returning();
+    return newType;
+  }
+  
+  async updateJournalEntryType(id: number, type: Partial<InsertJournalEntryType>): Promise<JournalEntryType | undefined> {
+    const [updatedType] = await db.update(journalEntryTypes)
+      .set(type)
+      .where(eq(journalEntryTypes.id, id))
+      .returning();
+    return updatedType;
+  }
+  
+  async deleteJournalEntryType(id: number, tenantId: number): Promise<boolean> {
+    const [deletedType] = await db.delete(journalEntryTypes)
+      .where(and(
+        eq(journalEntryTypes.id, id),
+        eq(journalEntryTypes.tenantId, tenantId)
+      ))
+      .returning({ id: journalEntryTypes.id });
+    return !!deletedType;
   }
 }

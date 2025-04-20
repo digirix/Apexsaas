@@ -2,7 +2,8 @@ import {
   tenants, tenantSettings, users, designations, departments, countries, currencies, states, 
   entityTypes, taskStatuses, taskStatusWorkflowRules, taxJurisdictions, serviceTypes, 
   clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions, 
-  userPermissions, invoices, invoiceLineItems, payments, paymentGatewaySettings, chartOfAccounts
+  userPermissions, invoices, invoiceLineItems, payments, paymentGatewaySettings, chartOfAccounts,
+  journalEntries, journalEntryLines, journalEntryTypes
 } from "@shared/schema";
 import type { 
   Tenant, User, InsertUser, InsertTenant, 
@@ -17,7 +18,10 @@ import type {
   // Finance module types
   Invoice, InsertInvoice, InvoiceLineItem, InsertInvoiceLineItem, 
   Payment, InsertPayment, PaymentGatewaySetting, InsertPaymentGatewaySetting,
-  ChartOfAccount, InsertChartOfAccount
+  ChartOfAccount, InsertChartOfAccount,
+  // Journal entry types
+  JournalEntry, InsertJournalEntry, JournalEntryLine, InsertJournalEntryLine,
+  JournalEntryType, InsertJournalEntryType
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
