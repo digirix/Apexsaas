@@ -86,7 +86,7 @@ async function seedBasicAccounts(tenantId: number) {
       tenantId,
       elementGroupId: assetElementGroup.id,
       name: 'current_assets',
-      displayName: 'Current Assets',
+      code: 'CA',
       description: 'Assets expected to be converted to cash within one year',
       isActive: true,
     }).returning().then(rows => rows[0]);
@@ -95,7 +95,7 @@ async function seedBasicAccounts(tenantId: number) {
       tenantId,
       elementGroupId: liabilityElementGroup.id,
       name: 'current_liabilities',
-      displayName: 'Current Liabilities',
+      code: 'CL',
       description: 'Obligations due within one year',
       isActive: true,
     }).returning().then(rows => rows[0]);
@@ -104,7 +104,7 @@ async function seedBasicAccounts(tenantId: number) {
       tenantId,
       elementGroupId: revenueElementGroup.id,
       name: 'operating_revenue',
-      displayName: 'Operating Revenue',
+      code: 'OR',
       description: 'Income from primary business activities',
       isActive: true,
     }).returning().then(rows => rows[0]);
@@ -116,7 +116,7 @@ async function seedBasicAccounts(tenantId: number) {
       tenantId,
       subElementGroupId: currentAssetsSubGroup.id,
       name: 'trade_debtors',
-      displayName: 'Trade Debtors',
+      code: 'TD',
       description: 'Amounts owed by customers for goods or services',
       isActive: true,
     }).returning().then(rows => rows[0]);
@@ -125,7 +125,7 @@ async function seedBasicAccounts(tenantId: number) {
       tenantId,
       subElementGroupId: currentLiabilitiesSubGroup.id,
       name: 'tax_liabilities',
-      displayName: 'Tax Liabilities',
+      code: 'TL',
       description: 'Taxes owed by the business',
       isActive: true,
     }).returning().then(rows => rows[0]);
@@ -134,7 +134,7 @@ async function seedBasicAccounts(tenantId: number) {
       tenantId,
       subElementGroupId: revenueSubGroup.id,
       name: 'service_revenue',
-      displayName: 'Service Revenue',
+      code: 'SR',
       description: 'Income from services provided',
       isActive: true,
     }).returning().then(rows => rows[0]);
