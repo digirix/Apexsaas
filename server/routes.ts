@@ -3611,8 +3611,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         entryDate: parsedEntryDate,
         tenantId, 
         createdBy: userId,
-        // Ensure these can be null without causing SQL errors
-        sourceDocument: sourceDocument || null,
+        // Provide default value for sourceDocument to meet not-null constraint
+        sourceDocument: sourceDocument || "manual",
         sourceDocumentId: sourceDocumentId ? Number(sourceDocumentId) : null,
         totalAmount: totalDebit.toString() // Both debit and credit totals should be equal
       };

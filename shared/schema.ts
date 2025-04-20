@@ -696,7 +696,7 @@ export const journalEntries = pgTable("journal_entries", {
   postedAt: timestamp("posted_at"),
   createdBy: integer("created_by").notNull(),
   updatedBy: integer("updated_by"),
-  sourceDocument: text("source_document"), // invoice, payment, manual (now optional)
+  sourceDocument: text("source_document").default("manual").notNull(), // invoice, payment, manual (with default)
   sourceDocumentId: integer("source_document_id"), // ID of the related document
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at"),
