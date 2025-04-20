@@ -20,6 +20,7 @@ import CreateInvoiceFromTaskPage from "@/pages/finance/invoices/from-task";
 import CreatePaymentPage from "@/pages/finance/payments/create";
 import CreateChartOfAccountPage from "@/pages/finance/chart-of-accounts/create";
 import CreateJournalEntryPage from "@/pages/finance/journal-entries/create";
+import AccountHeadsManagementPage from "@/pages/finance/account-heads";
 import COAConfigurationPage from "@/pages/setup/coa-configuration";
 
 function Router() {
@@ -37,6 +38,7 @@ function Router() {
       <ProtectedRoute path="/finance/invoices/create" component={CreateInvoicePage} />
       <ProtectedRoute path="/finance/invoices/from-task" component={CreateInvoiceFromTaskPage} />
       <ProtectedRoute path="/finance/payments/create" component={CreatePaymentPage} />
+      <ProtectedRoute path="/finance/account-heads" component={AccountHeadsManagementPage} />
       <ProtectedRoute path="/finance/chart-of-accounts/create" component={CreateChartOfAccountPage} />
       <ProtectedRoute path="/finance/journal-entries/create" component={CreateJournalEntryPage} />
       <ProtectedRoute path="/users" component={UsersPage} />

@@ -202,7 +202,7 @@ export default function FinancePage() {
                 </TabsTrigger>
                 <TabsTrigger value="chart-of-accounts" className="flex items-center">
                   <BookOpen className="h-4 w-4 mr-2" />
-                  Chart of Accounts
+                  Account Heads
                 </TabsTrigger>
                 <TabsTrigger value="journal-entries" className="flex items-center">
                   <BookText className="h-4 w-4 mr-2" />
