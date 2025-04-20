@@ -2800,6 +2800,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // GET invoice PDF by ID
+  app.get("/api/v1/finance/invoices/:id/pdf", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const invoice = await storage.getInvoice(id, tenantId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      // Get line items for this invoice
+      const lineItems = await storage.getInvoiceLineItems(tenantId, id);
+      
+      // For demo purposes, we're just sending a basic PDF blob
+      // In a real application, this would generate a formatted PDF using a library
+      const pdfContent = Buffer.from(`
+        Invoice #${invoice.invoiceNumber}
+        Date: ${new Date(invoice.issueDate).toLocaleDateString()}
+        Due Date: ${new Date(invoice.dueDate).toLocaleDateString()}
+        Amount: ${invoice.currencyCode} ${invoice.totalAmount}
+        
+        Client: ${invoice.clientId}
+        Entity: ${invoice.entityId}
+        
+        Line Items:
+        ${lineItems.map(item => `- ${item.description}: ${invoice.currencyCode} ${item.lineTotal}`).join('\n')}
+      `);
+      
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=Invoice_${invoice.invoiceNumber}.pdf`);
+      res.send(pdfContent);
+    } catch (error) {
+      console.error("Error generating invoice PDF:", error);
+      res.status(500).json({ message: "Error generating invoice PDF" });
+    }
+  });
+  
+  // GET invoice share link by ID
+  app.get("/api/v1/finance/invoices/:id/share-link", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const invoice = await storage.getInvoice(id, tenantId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      // For demo purposes, we're just generating a fake URL
+      // In a real application, this might generate a unique token and persist it
+      const shareLink = `https://demo-accounting-app.com/invoices/share/${invoice.id}/${Date.now()}`;
+      
+      res.json({
+        shareLink
+      });
+    } catch (error) {
+      console.error("Error generating share link:", error);
+      res.status(500).json({ message: "Error generating share link" });
+    }
+  });
+  
   app.post("/api/v1/finance/invoices", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;

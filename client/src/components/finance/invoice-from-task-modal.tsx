@@ -54,8 +54,8 @@ const invoiceFormSchema = z.object({
   discountAmount: z.string(),
   totalAmount: z.string(),
   amountDue: z.string(),
-  notes: z.string().optional(),
-  termsAndConditions: z.string().optional(),
+  notes: z.string().optional().default(""),
+  termsAndConditions: z.string().optional().default(""),
   serviceDescription: z.string().min(3, "Service description is required")
 });
 
@@ -247,9 +247,17 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
     setIsGeneratingPdf(true);
     
     try {
-      const response = await apiRequest("GET", `/api/v1/finance/invoices/${invoice.id}/pdf`, null, {
-        responseType: 'blob'
+      // Direct fetch for blob response
+      const response = await fetch(`/api/v1/finance/invoices/${invoice.id}/pdf`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/pdf'
+        }
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
       
       // Create a download link
       const blob = await response.blob();
@@ -282,10 +290,21 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
     setIsGeneratingShareLink(true);
     
     try {
-      const response = await apiRequest("GET", `/api/v1/finance/invoices/${invoice.id}/share-link`);
+      // Direct fetch for share link
+      const response = await fetch(`/api/v1/finance/invoices/${invoice.id}/share-link`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate share link');
+      }
+      
       const result = await response.json();
       
-      if (response.ok && result.shareLink) {
+      if (result.shareLink) {
         // Copy to clipboard
         navigator.clipboard.writeText(result.shareLink);
         
@@ -296,7 +315,7 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
       } else {
         toast({
           title: "Error",
-          description: result.message || "Failed to generate share link. Please try again.",
+          description: "Failed to generate share link. Please try again.",
           variant: "destructive",
         });
       }
