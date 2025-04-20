@@ -75,14 +75,12 @@ type ChartOfAccountsDetailedGroup = {
 // Schema for sub-element group editing
 const subElementGroupSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  code: z.string().min(1, "Code is required"),
   description: z.string().nullable().optional(),
 });
 
 // Schema for detailed group editing
 const detailedGroupSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  code: z.string().min(1, "Code is required"),
   description: z.string().nullable().optional(),
 });
 
@@ -118,7 +116,6 @@ export default function COAConfigurationPage() {
     resolver: zodResolver(subElementGroupSchema),
     defaultValues: {
       name: "",
-      code: "",
       description: "",
     }
   });
@@ -128,7 +125,6 @@ export default function COAConfigurationPage() {
     resolver: zodResolver(detailedGroupSchema),
     defaultValues: {
       name: "",
-      code: "",
       description: "",
     }
   });
@@ -251,14 +247,12 @@ export default function COAConfigurationPage() {
     
     if (activeTab === "sub-element-groups") {
       subElementGroupForm.reset({
-        name: item.name,
-        code: item.code,
+        name: item.customName || item.name,
         description: item.description || ""
       });
     } else if (activeTab === "detailed-groups") {
       detailedGroupForm.reset({
-        name: item.name,
-        code: item.code,
+        name: item.customName || item.name,
         description: item.description || ""
       });
     }
@@ -460,19 +454,7 @@ export default function COAConfigurationPage() {
                   )}
                 />
                 
-                <FormField
-                  control={subElementGroupForm.control}
-                  name="code"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Code</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Group code" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+
                 
                 <FormField
                   control={subElementGroupForm.control}
@@ -522,19 +504,7 @@ export default function COAConfigurationPage() {
                   )}
                 />
                 
-                <FormField
-                  control={detailedGroupForm.control}
-                  name="code"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Code</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Group code" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+
                 
                 <FormField
                   control={detailedGroupForm.control}

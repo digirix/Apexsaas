@@ -3740,14 +3740,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const tenantId = (req.user as any).tenantId;
       
-      // Add tenant info to the data
-      const data = { ...req.body, tenantId };
+      // Get the name provided by the user and element group
+      const { name, elementGroupId } = req.body;
       
       // Validate element group exists
-      const elementGroup = await storage.getChartOfAccountsElementGroup(data.elementGroupId, tenantId);
+      const elementGroup = await storage.getChartOfAccountsElementGroup(elementGroupId, tenantId);
       if (!elementGroup) {
         return res.status(400).json({ message: "Invalid element group ID" });
       }
+      
+      // Generate a code using the first letters of element group and name
+      const prefix = elementGroup.code || "SEG";
+      const timestamp = Date.now().toString().slice(-4);
+      const generatedCode = `${prefix}-${timestamp}`;
+      
+      // Create data with name as 'custom' enum value, but store user's name in customName
+      const data = {
+        tenantId,
+        elementGroupId,
+        name: 'custom', // This must be one of the enum values
+        customName: name,
+        code: generatedCode,
+        description: req.body.description || null
+      };
       
       const subElementGroup = await storage.createChartOfAccountsSubElementGroup(data);
       res.status(201).json(subElementGroup);
@@ -3843,14 +3858,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const tenantId = (req.user as any).tenantId;
       
-      // Add tenant info to the data
-      const data = { ...req.body, tenantId };
+      // Get the name provided by the user and sub-element group
+      const { name, subElementGroupId } = req.body;
       
       // Validate sub-element group exists
-      const subElementGroup = await storage.getChartOfAccountsSubElementGroup(data.subElementGroupId, tenantId);
+      const subElementGroup = await storage.getChartOfAccountsSubElementGroup(subElementGroupId, tenantId);
       if (!subElementGroup) {
         return res.status(400).json({ message: "Invalid sub-element group ID" });
       }
+      
+      // Generate a code using the sub-element group code and timestamp
+      const prefix = subElementGroup.code || "DG";
+      const timestamp = Date.now().toString().slice(-4);
+      const generatedCode = `${prefix}-${timestamp}`;
+      
+      // Create data with name as 'custom' enum value, but store user's name in customName
+      const data = {
+        tenantId,
+        subElementGroupId,
+        name: 'custom', // This must be one of the enum values
+        customName: name,
+        code: generatedCode,
+        description: req.body.description || null
+      };
       
       const detailedGroup = await storage.createChartOfAccountsDetailedGroup(data);
       res.status(201).json(detailedGroup);
