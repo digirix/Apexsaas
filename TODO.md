@@ -7,10 +7,13 @@ This document outlines the remaining tasks and future enhancements for the Accou
 - Clients Module: 100% complete
 - Tasks Module: 90% complete (task editing in progress)
 - Users Module: 100% complete  
-- Finance Module: 80% complete (invoice PDF, revenue forecasting, and payment gateway webhooks pending)
+- Finance Module: 85% complete (chart of accounts and journal entries added, reporting features pending)
 
 ## Current Priority
-Fix remaining technical issues in the Finance Module and complete the integration between Tasks and Invoices.
+1. Fix the Journal Entry source document bug (currently causing 500 error)
+2. Implement financial reporting features (general ledger, trial balance, profit & loss)
+3. Complete the integration between Tasks and Invoices
+4. Fix remaining technical issues in the Finance Module
 
 ## Priority 1: Critical System Improvements
 
@@ -95,6 +98,12 @@ Fix remaining technical issues in the Finance Module and complete the integratio
 - [x] Add line item management with automatic calculations for taxes and discounts
 - [x] Implement proper decimal handling for financial calculations (precision 10, scale 2)
 - [x] Create complete invoice status workflow (draft → sent → partially_paid → paid → overdue/canceled/void)
+- [x] Create basic Journal Entry system with proper debit/credit handling
+- [x] Implement Journal Entry Types management for transaction classification
+- [x] Add Chart of Accounts management with hierarchical structure
+- [x] Simplify Chart of Accounts form by removing unnecessary fields
+- [x] Fix date format handling in Journal Entry creation to prevent 500 errors
+- [ ] Fix source document handling in Journal Entries (currently causing 500 error)
 - [ ] Fix remaining Promise object rendering issues in invoice creation
 - [ ] Create revenue forecasting tools
 - [ ] Implement webhook handlers for payment gateway notifications
@@ -103,6 +112,8 @@ Fix remaining technical issues in the Finance Module and complete the integratio
 - [ ] Create automated payment reminders for overdue invoices
 - [ ] Add link between completed tasks and invoice generation
 - [ ] Implement automatic invoice status updates based on due dates (for overdue detection)
+- [ ] Add General Ledger and Trial Balance reports
+- [ ] Create Profit & Loss statement generation
 
 ### Mobile Responsiveness
 - [x] Implement collapsible sidebar drawer for mobile devices

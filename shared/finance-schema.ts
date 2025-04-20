@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createInsertSchema } from "drizzle-zod";
-import { invoices, invoiceLineItems, payments, paymentGatewaySettings, chartOfAccounts } from "./schema";
+import { invoices, invoiceLineItems, payments, paymentGatewaySettings, chartOfAccounts, journalEntries, journalEntryLines } from "./schema";
 
 // Enhanced invoice schema with proper type handling
 export const enhancedInvoiceSchema = createInsertSchema(invoices)
@@ -121,9 +121,47 @@ export const enhancedChartOfAccountSchema = createInsertSchema(chartOfAccounts)
     currentBalance: z.union([z.string(), z.number().transform(n => n.toString())]).default("0").optional(),
   });
 
+// Enhanced journal entry schema
+export const enhancedJournalEntrySchema = createInsertSchema(journalEntries)
+  .pick({
+    tenantId: true,
+    entryDate: true,
+    reference: true,
+    entryType: true,
+    description: true,
+    isPosted: true,
+    createdBy: true,
+  })
+  .extend({
+    entryDate: z.union([z.date(), z.string().transform(str => new Date(str))]),
+    sourceDocument: z.string().optional().nullable(),
+    sourceDocumentId: z.number().optional().nullable(),
+    updatedBy: z.number().optional(),
+    postedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
+    isPosted: z.boolean().default(false).optional(),
+  });
+
+// Enhanced journal entry line schema
+export const enhancedJournalEntryLineSchema = createInsertSchema(journalEntryLines)
+  .pick({
+    tenantId: true,
+    journalEntryId: true,
+    accountId: true,
+    description: true,
+    debitAmount: true,
+    creditAmount: true,
+    lineOrder: true,
+  })
+  .extend({
+    debitAmount: z.union([z.string(), z.number().transform(n => n.toString())]).default("0"),
+    creditAmount: z.union([z.string(), z.number().transform(n => n.toString())]).default("0"),
+  });
+
 // Export enhanced types
 export type EnhancedInvoice = z.infer<typeof enhancedInvoiceSchema>;
 export type EnhancedInvoiceLineItem = z.infer<typeof enhancedInvoiceLineItemSchema>;
 export type EnhancedPayment = z.infer<typeof enhancedPaymentSchema>;
 export type EnhancedPaymentGatewaySetting = z.infer<typeof enhancedPaymentGatewaySettingSchema>;
 export type EnhancedChartOfAccount = z.infer<typeof enhancedChartOfAccountSchema>;
+export type EnhancedJournalEntry = z.infer<typeof enhancedJournalEntrySchema>;
+export type EnhancedJournalEntryLine = z.infer<typeof enhancedJournalEntryLineSchema>;

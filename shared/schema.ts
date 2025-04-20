@@ -714,8 +714,8 @@ export const insertJournalEntrySchema = createInsertSchema(journalEntries)
   })
   .extend({
     entryDate: z.union([z.date(), z.string().transform(str => new Date(str))]),
-    sourceDocument: z.string().optional(),
-    sourceDocumentId: z.number().optional(),
+    sourceDocument: z.string().optional().nullable(),
+    sourceDocumentId: z.number().optional().nullable(),
     updatedBy: z.number().optional(),
     postedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
   });
