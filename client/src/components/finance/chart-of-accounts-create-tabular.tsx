@@ -397,14 +397,14 @@ export default function ChartOfAccountsCreateTabular() {
       setShowNewSubElementGroupDialog(false);
       newSubElementGroupForm.reset();
       
-      // First, directly update the state with the new sub-element group's ID
-      if (data && data.id) {
-        setSelectedSubElementGroup(data.id.toString());
-        setSelectedDetailedGroup(null); // Reset the detailed group selection
-      }
-      
-      // Then refresh the data
-      refetchSubElementGroups();
+      // Update the dropdown list
+      refetchSubElementGroups().then(() => {
+        // Set the newly created item as selected after data is refreshed
+        if (data && data.id) {
+          setSelectedSubElementGroup(data.id.toString());
+          setSelectedDetailedGroup(null); // Reset the detailed group selection
+        }
+      });
     },
     onError: (error: any) => {
       toast({
@@ -427,15 +427,14 @@ export default function ChartOfAccountsCreateTabular() {
       setShowNewDetailedGroupDialog(false);
       newDetailedGroupForm.reset();
       
-      // First immediately update the selected value
-      if (data && data.id) {
-        setSelectedDetailedGroup(data.id.toString());
-      }
+      // Refresh all the relevant data and select the newly created item
+      refetchDetailedGroups().then(() => {
+        // Set the newly created item as selected after data is refreshed
+        if (data && data.id) {
+          setSelectedDetailedGroup(data.id.toString());
+        }
+      });
       
-      // Then refresh the data
-      refetchDetailedGroups();
-      
-      // Make sure the cache is invalidated
       queryClient.invalidateQueries({ 
         queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups'] 
       });
