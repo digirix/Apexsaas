@@ -34,11 +34,45 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { PlusCircle, Pencil, Trash2 } from "lucide-react";
 
 // Account hierarchy type
 type AccountHierarchyType = 'main_group' | 'element_group' | 'sub_element_group' | 'detailed_group' | 'account';
+
+// Define the DeleteConfirmationDialog component
+interface DeleteConfirmationDialogProps {
+  title: string;
+  description: string;
+  onConfirm: () => void;
+  children: React.ReactNode;
+}
+
+const DeleteConfirmationDialog = ({
+  title,
+  description,
+  onConfirm,
+  children,
+}: DeleteConfirmationDialogProps) => {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="mt-4">
+          <DialogClose asChild>
+            <Button variant="outline">Cancel</Button>
+          </DialogClose>
+          <Button variant="destructive" onClick={onConfirm}>
+            Delete
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 export default function ChartOfAccountsManager() {
   const { toast } = useToast();
@@ -53,25 +87,53 @@ export default function ChartOfAccountsManager() {
     isActive: true
   });
 
-  // Fetch Chart of Accounts data
+  // Create dummy data for now since the API endpoints are not implemented yet
+  const dummyMainGroups = [
+    {
+      id: 1,
+      name: 'balance_sheet',
+      code: 'BS',
+      description: 'Balance Sheet accounts',
+      isActive: true
+    },
+    {
+      id: 2,
+      name: 'profit_and_loss',
+      code: 'PL',
+      description: 'Profit and Loss accounts',
+      isActive: true
+    }
+  ];
+
+  // Fetch Chart of Accounts data - using dummy data for now
   const { data: mainGroups, isLoading: mainGroupsLoading } = useQuery({
     queryKey: ["/api/v1/finance/chart-of-accounts/main-groups"],
+    enabled: false, // Disable the actual query for now
+    initialData: dummyMainGroups
   });
 
   const { data: elementGroups, isLoading: elementGroupsLoading } = useQuery({
     queryKey: ["/api/v1/finance/chart-of-accounts/element-groups"],
+    enabled: false, // Disable the actual query for now
+    initialData: [] // Empty array for now
   });
 
   const { data: subElementGroups, isLoading: subElementGroupsLoading } = useQuery({
     queryKey: ["/api/v1/finance/chart-of-accounts/sub-element-groups"],
+    enabled: false, // Disable the actual query for now
+    initialData: [] // Empty array for now
   });
 
   const { data: detailedGroups, isLoading: detailedGroupsLoading } = useQuery({
     queryKey: ["/api/v1/finance/chart-of-accounts/detailed-groups"],
+    enabled: false, // Disable the actual query for now
+    initialData: [] // Empty array for now
   });
 
   const { data: accounts, isLoading: accountsLoading } = useQuery({
     queryKey: ["/api/v1/finance/chart-of-accounts"],
+    enabled: false, // Disable the actual query for now
+    initialData: [] // Empty array for now
   });
 
   // Add mutations
@@ -245,12 +307,11 @@ export default function ChartOfAccountsManager() {
                           title="Delete Main Group"
                           description="Are you sure you want to delete this main group? This action cannot be undone."
                           onConfirm={() => handleDelete(group.id)}
-                          trigger={
-                            <Button variant="outline" size="icon">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          }
-                        />
+                        >
+                          <Button variant="outline" size="icon">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </DeleteConfirmationDialog>
                       </div>
                     </TableCell>
                   </TableRow>

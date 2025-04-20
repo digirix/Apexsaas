@@ -13,7 +13,8 @@ import {
   Receipt,
   FileText,
   GitBranch,
-  CreditCard
+  CreditCard,
+  BookOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SetupSection } from "@/types/setup";
@@ -70,6 +71,11 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
       icon: <CreditCard className="h-5 w-5" />
     },
     {
+      id: 'chart-of-accounts',
+      label: 'Chart of Accounts',
+      icon: <BookOpen className="h-5 w-5" />
+    },
+    {
       id: 'task-statuses',
       label: 'Task Statuses',
       icon: <List className="h-5 w-5" />
@@ -95,8 +101,8 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
 
   // Group items by category
   const locationItems = setupItems.slice(0, 3);
-  const businessItems = setupItems.slice(3, 9);
-  const hrItems = setupItems.slice(9, 11);
+  const businessItems = setupItems.slice(3, 10);
+  const hrItems = setupItems.slice(10, 12);
 
   return (
     <Card className="p-4">
