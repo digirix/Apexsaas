@@ -130,7 +130,6 @@ export default function JournalEntryCreateUpdated() {
       description: '',
       lines: [
         { accountId: 0, description: '', debitAmount: "0", creditAmount: "0" },
-        { accountId: 0, description: '', debitAmount: "0", creditAmount: "0" },
       ],
     },
   });
@@ -180,9 +179,12 @@ export default function JournalEntryCreateUpdated() {
   
   const createJournalEntryMutation = useMutation({
     mutationFn: async (values: z.infer<typeof journalEntrySchema>) => {
-      // Convert string amounts to numbers
+      // Convert string date to actual Date and string amounts to numbers
+      const entryDate = new Date(values.entryDate);
+      
       const formattedValues = {
         ...values,
+        entryDate,
         lines: values.lines.map(line => ({
           ...line,
           debitAmount: parseFloat(line.debitAmount || "0"),
@@ -206,6 +208,7 @@ export default function JournalEntryCreateUpdated() {
         description: error.message || "Failed to create journal entry",
         variant: "destructive",
       });
+      console.error("Journal entry error details:", error);
     },
   });
   

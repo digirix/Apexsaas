@@ -29,20 +29,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import { 
   ArrowLeft, 
   Save, 
@@ -57,11 +53,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 const accountSchema = z.object({
   detailedGroupId: z.number(),
   accountName: z.string().min(1, "Account name is required"),
-  description: z.string().optional(),
-  isActive: z.boolean().default(true),
-  isSystemAccount: z.boolean().default(false),
   openingBalance: z.string().default("0"),
-  currentBalance: z.string().default("0"),
 });
 
 // New schemas for adding hierarchy groups
@@ -232,11 +224,7 @@ export default function ChartOfAccountsCreateTabular() {
     resolver: zodResolver(accountSchema),
     defaultValues: {
       accountName: '',
-      description: '',
-      isActive: true,
-      isSystemAccount: false,
       openingBalance: '0',
-      currentBalance: '0',
     },
   });
   
@@ -344,6 +332,8 @@ export default function ChartOfAccountsCreateTabular() {
         elementGroup: selectedElementGroup,
         subElementGroup: selectedSubElementGroup,
         detailedGroup: selectedDetailedGroup,
+        isActive: true,
+        isSystemAccount: false,
       };
       
       return apiRequest('POST', '/api/v1/finance/chart-of-accounts', payload);
@@ -410,11 +400,7 @@ export default function ChartOfAccountsCreateTabular() {
     setSelectedDetailedGroup(entry.detailedGroup);
     
     form.setValue('accountName', entry.accountName);
-    form.setValue('description', entry.description || '');
-    form.setValue('isActive', entry.isActive);
-    form.setValue('isSystemAccount', entry.isSystemAccount);
     form.setValue('openingBalance', entry.openingBalance);
-    form.setValue('currentBalance', entry.currentBalance);
     
     setCurrentEntry(entry);
     setIsEditing(true);
@@ -506,10 +492,10 @@ export default function ChartOfAccountsCreateTabular() {
                               ))}
                             </SelectContent>
                           </Select>
-                          <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="icon" 
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => setShowNewMainGroupDialog(true)}
                           >
                             <PlusCircle className="h-4 w-4" />
@@ -538,10 +524,10 @@ export default function ChartOfAccountsCreateTabular() {
                               ))}
                             </SelectContent>
                           </Select>
-                          <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="icon" 
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => setShowNewElementGroupDialog(true)}
                             disabled={!selectedMainGroup}
                           >
@@ -570,10 +556,10 @@ export default function ChartOfAccountsCreateTabular() {
                               ))}
                             </SelectContent>
                           </Select>
-                          <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="icon" 
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => setShowNewSubElementGroupDialog(true)}
                             disabled={!selectedElementGroup}
                           >
@@ -587,6 +573,15 @@ export default function ChartOfAccountsCreateTabular() {
                             value={selectedDetailedGroup || ""} 
                             onValueChange={(value) => {
                               setSelectedDetailedGroup(value);
+                              if (value) {
+                                // Find the detailed group to get its ID
+                                const detailedGroup = getDetailedGroups().find(g => g.value === value);
+                                if (detailedGroup) {
+                                  // Set the detailedGroupId in the form
+                                  // This is where the magic happens to link the dropdown selection to the form field
+                                  form.setValue('detailedGroupId', detailedGroup.id);
+                                }
+                              }
                             }}
                             disabled={!selectedSubElementGroup}
                           >
@@ -601,10 +596,10 @@ export default function ChartOfAccountsCreateTabular() {
                               ))}
                             </SelectContent>
                           </Select>
-                          <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="icon" 
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => setShowNewDetailedGroupDialog(true)}
                             disabled={!selectedSubElementGroup}
                           >
@@ -693,101 +688,6 @@ export default function ChartOfAccountsCreateTabular() {
                   </tbody>
                 </table>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="currentBalance"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Current Balance</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Enter account description" 
-                          {...field} 
-                          value={field.value || ''}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="isActive"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md p-4">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>Is Active</FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="isSystemAccount"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md p-4">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>Is System Account</FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-            
-            <div className="flex justify-between">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setLocation('/finance')}
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Finance
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => form.reset()}
-              >
-                Clear Form
-              </Button>
             </div>
           </form>
         </Form>
@@ -811,12 +711,13 @@ export default function ChartOfAccountsCreateTabular() {
                   <FormItem>
                     <FormLabel>Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. Balance Sheet" {...field} />
+                      <Input placeholder="E.g., Balance Sheet" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              
               <FormField
                 control={newMainGroupForm.control}
                 name="code"
@@ -824,36 +725,30 @@ export default function ChartOfAccountsCreateTabular() {
                   <FormItem>
                     <FormLabel>Code</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. BS" {...field} />
+                      <Input placeholder="E.g., BS" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              
               <DialogFooter>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setShowNewMainGroupDialog(false)}
-                >
-                  Cancel
-                </Button>
                 <Button type="submit" disabled={createMainGroupMutation.isPending}>
-                  {createMainGroupMutation.isPending ? "Adding..." : "Add Main Group"}
+                  {createMainGroupMutation.isPending ? 'Adding...' : 'Add Main Group'}
                 </Button>
               </DialogFooter>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
-
+      
       {/* Dialog for adding new Element Group */}
       <Dialog open={showNewElementGroupDialog} onOpenChange={setShowNewElementGroupDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add New Element Group</DialogTitle>
             <DialogDescription>
-              Add a new element group to the selected main group.
+              Add a new element group to the chart of accounts.
             </DialogDescription>
           </DialogHeader>
           <Form {...newElementGroupForm}>
@@ -865,12 +760,13 @@ export default function ChartOfAccountsCreateTabular() {
                   <FormItem>
                     <FormLabel>Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. Assets" {...field} />
+                      <Input placeholder="E.g., Assets" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              
               <FormField
                 control={newElementGroupForm.control}
                 name="code"
@@ -878,36 +774,58 @@ export default function ChartOfAccountsCreateTabular() {
                   <FormItem>
                     <FormLabel>Code</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. A" {...field} />
+                      <Input placeholder="E.g., A" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              
+              <FormField
+                control={newElementGroupForm.control}
+                name="mainGroupId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Main Group</FormLabel>
+                    <Select
+                      value={field.value.toString()}
+                      onValueChange={(value) => field.onChange(parseInt(value))}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select main group" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {MAIN_GROUPS.map((group) => (
+                          <SelectItem key={group.value} value={group.id.toString()}>
+                            {group.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
               <DialogFooter>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setShowNewElementGroupDialog(false)}
-                >
-                  Cancel
-                </Button>
                 <Button type="submit" disabled={createElementGroupMutation.isPending}>
-                  {createElementGroupMutation.isPending ? "Adding..." : "Add Element Group"}
+                  {createElementGroupMutation.isPending ? 'Adding...' : 'Add Element Group'}
                 </Button>
               </DialogFooter>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
-
-      {/* Dialog for adding new Sub Element Group */}
+      
+      {/* Dialog for adding new Sub-Element Group */}
       <Dialog open={showNewSubElementGroupDialog} onOpenChange={setShowNewSubElementGroupDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add New Sub Element Group</DialogTitle>
+            <DialogTitle>Add New Sub-Element Group</DialogTitle>
             <DialogDescription>
-              Add a new sub element group to the selected element group.
+              Add a new sub-element group to the chart of accounts.
             </DialogDescription>
           </DialogHeader>
           <Form {...newSubElementGroupForm}>
@@ -919,12 +837,13 @@ export default function ChartOfAccountsCreateTabular() {
                   <FormItem>
                     <FormLabel>Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. Current Assets" {...field} />
+                      <Input placeholder="E.g., Current Assets" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              
               <FormField
                 control={newSubElementGroupForm.control}
                 name="code"
@@ -932,36 +851,58 @@ export default function ChartOfAccountsCreateTabular() {
                   <FormItem>
                     <FormLabel>Code</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. CA" {...field} />
+                      <Input placeholder="E.g., CA" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              
+              <FormField
+                control={newSubElementGroupForm.control}
+                name="elementGroupId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Element Group</FormLabel>
+                    <Select
+                      value={field.value.toString()}
+                      onValueChange={(value) => field.onChange(parseInt(value))}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select element group" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {getElementGroups().map((group) => (
+                          <SelectItem key={group.value} value={group.id.toString()}>
+                            {group.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
               <DialogFooter>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setShowNewSubElementGroupDialog(false)}
-                >
-                  Cancel
-                </Button>
                 <Button type="submit" disabled={createSubElementGroupMutation.isPending}>
-                  {createSubElementGroupMutation.isPending ? "Adding..." : "Add Sub Element Group"}
+                  {createSubElementGroupMutation.isPending ? 'Adding...' : 'Add Sub-Element Group'}
                 </Button>
               </DialogFooter>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
-
+      
       {/* Dialog for adding new Detailed Group */}
       <Dialog open={showNewDetailedGroupDialog} onOpenChange={setShowNewDetailedGroupDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add New Detailed Group</DialogTitle>
             <DialogDescription>
-              Add a new detailed group to the selected sub element group.
+              Add a new detailed group to the chart of accounts.
             </DialogDescription>
           </DialogHeader>
           <Form {...newDetailedGroupForm}>
@@ -973,12 +914,13 @@ export default function ChartOfAccountsCreateTabular() {
                   <FormItem>
                     <FormLabel>Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. Cash and Bank Balances" {...field} />
+                      <Input placeholder="E.g., Bank Accounts" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              
               <FormField
                 control={newDetailedGroupForm.control}
                 name="code"
@@ -986,22 +928,44 @@ export default function ChartOfAccountsCreateTabular() {
                   <FormItem>
                     <FormLabel>Code</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. CBB" {...field} />
+                      <Input placeholder="E.g., BA" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              
+              <FormField
+                control={newDetailedGroupForm.control}
+                name="subElementGroupId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sub-Element Group</FormLabel>
+                    <Select
+                      value={field.value.toString()}
+                      onValueChange={(value) => field.onChange(parseInt(value))}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select sub-element group" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {getSubElementGroups().map((group) => (
+                          <SelectItem key={group.value} value={group.id.toString()}>
+                            {group.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
               <DialogFooter>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setShowNewDetailedGroupDialog(false)}
-                >
-                  Cancel
-                </Button>
                 <Button type="submit" disabled={createDetailedGroupMutation.isPending}>
-                  {createDetailedGroupMutation.isPending ? "Adding..." : "Add Detailed Group"}
+                  {createDetailedGroupMutation.isPending ? 'Adding...' : 'Add Detailed Group'}
                 </Button>
               </DialogFooter>
             </form>
