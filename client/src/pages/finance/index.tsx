@@ -8,6 +8,7 @@ import { Header } from "@/components/ui/header";
 import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { AppLayout } from "@/components/layout/app-layout";
+import { JournalEntriesList } from "@/components/finance/journal-entries-list";
 import { 
   DollarSign, 
   FileText, 
@@ -20,7 +21,8 @@ import {
   Calendar,
   User,
   Clock,
-  Receipt
+  Receipt,
+  BookText
 } from "lucide-react";
 
 export default function FinancePage() {
@@ -123,6 +125,10 @@ export default function FinancePage() {
                 <TabsTrigger value="chart-of-accounts" className="flex items-center">
                   <BookOpen className="h-4 w-4 mr-2" />
                   Chart of Accounts
+                </TabsTrigger>
+                <TabsTrigger value="journal-entries" className="flex items-center">
+                  <BookText className="h-4 w-4 mr-2" />
+                  Journal Entries
                 </TabsTrigger>
               </TabsList>
               
