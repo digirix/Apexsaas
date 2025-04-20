@@ -32,6 +32,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -698,7 +699,7 @@ export default function ChartOfAccountsCreateTabular() {
               {/* Main Group Selection */}
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <FormLabel>Main Group</FormLabel>
+                  <Label>Main Group</Label>
                   <Button 
                     type="button" 
                     variant="ghost" 
@@ -743,7 +744,7 @@ export default function ChartOfAccountsCreateTabular() {
               {/* Element Group Selection */}
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <FormLabel>Element Group</FormLabel>
+                  <Label>Element Group</Label>
                   <Button 
                     type="button" 
                     variant="ghost" 
@@ -780,7 +781,7 @@ export default function ChartOfAccountsCreateTabular() {
               {/* Sub-Element Group Selection */}
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <FormLabel>Sub-Element Group</FormLabel>
+                  <Label>Sub-Element Group</Label>
                   <Button 
                     type="button" 
                     variant="ghost" 
@@ -816,7 +817,7 @@ export default function ChartOfAccountsCreateTabular() {
               {/* Detailed Group Selection */}
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <FormLabel>Detailed Group</FormLabel>
+                  <Label>Detailed Group</Label>
                   <Button 
                     type="button" 
                     variant="ghost" 
