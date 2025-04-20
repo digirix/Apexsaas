@@ -226,14 +226,24 @@ export default function FinancePage() {
 
               
               {activeTab === "chart-of-accounts" && (
-                <Button 
-                  variant="default" 
-                  size="sm"
-                  onClick={() => setLocation("/finance/chart-of-accounts/create")}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Account
-                </Button>
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    onClick={() => setLocation("/finance/account-heads")}
+                  >
+                    <BookOpen className="h-4 w-4 mr-2" />
+                    Manage Account Heads
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setLocation("/finance/chart-of-accounts/create")}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Account
+                  </Button>
+                </div>
               )}
               
               {activeTab === "journal-entries" && (
@@ -290,9 +300,9 @@ export default function FinancePage() {
             <TabsContent value="chart-of-accounts" className="mt-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Chart of Accounts</CardTitle>
+                  <CardTitle>Account Heads</CardTitle>
                   <CardDescription>
-                    View and manage your financial account structure
+                    Manage your account heads used for financial transactions
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -332,17 +342,17 @@ export default function FinancePage() {
                   ) : (
                     <div className="text-center py-8 border rounded-md bg-slate-50">
                       <BookOpen className="h-10 w-10 text-slate-400 mx-auto mb-2" />
-                      <h3 className="text-lg font-medium">No Chart of Accounts</h3>
+                      <h3 className="text-lg font-medium">No Account Heads</h3>
                       <p className="text-sm text-muted-foreground mt-1">
-                        You haven't set up your chart of accounts yet.
+                        You haven't created any account heads yet.
                       </p>
                       <Button
                         variant="outline"
                         className="mt-4"
-                        disabled
+                        onClick={() => setLocation("/finance/chart-of-accounts/create")}
                       >
                         <Plus className="h-4 w-4 mr-2" />
-                        Set Up Chart of Accounts
+                        Create Account Head
                       </Button>
                     </div>
                   )}
