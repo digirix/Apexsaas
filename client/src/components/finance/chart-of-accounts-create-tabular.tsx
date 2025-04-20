@@ -221,6 +221,22 @@ export default function ChartOfAccountsCreateTabular() {
     },
   });
   
+  // When the detailed group dialog is shown, update the form with the current selected sub-element group ID
+  useEffect(() => {
+    if (showNewDetailedGroupDialog && selectedSubElementGroup) {
+      // Find the selected sub-element group
+      const subElementGroup = getSubElementGroups().find(
+        group => group.value === selectedSubElementGroup || group.id?.toString() === selectedSubElementGroup
+      );
+      
+      if (subElementGroup) {
+        const subElementGroupId = subElementGroup.id || parseInt(subElementGroup.value);
+        console.log("Setting subElementGroupId in form:", subElementGroupId);
+        newDetailedGroupForm.setValue("subElementGroupId", subElementGroupId);
+      }
+    }
+  }, [showNewDetailedGroupDialog, selectedSubElementGroup]);
+  
   const form = useForm<z.infer<typeof accountSchema>>({
     resolver: zodResolver(accountSchema),
     defaultValues: {
@@ -981,8 +997,11 @@ export default function ChartOfAccountsCreateTabular() {
                   <FormItem>
                     <FormLabel>Sub-Element Group</FormLabel>
                     <Select
-                      value={field.value.toString()}
-                      onValueChange={(value) => field.onChange(parseInt(value))}
+                      value={field.value ? field.value.toString() : ""}
+                      onValueChange={(value) => {
+                        console.log("Selected sub-element group value:", value);
+                        field.onChange(parseInt(value));
+                      }}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -990,11 +1009,16 @@ export default function ChartOfAccountsCreateTabular() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {getSubElementGroups().map((group) => (
-                          <SelectItem key={group.value || group.id} value={(group.id || group.value).toString()}>
-                            {group.name}
-                          </SelectItem>
-                        ))}
+                        {getSubElementGroups().map((group) => {
+                          const id = group.id || parseInt(group.value);
+                          const valueStr = id.toString();
+                          console.log("SubElement option:", { id, value: valueStr, name: group.name });
+                          return (
+                            <SelectItem key={valueStr} value={valueStr}>
+                              {group.name}
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                     <FormMessage />
