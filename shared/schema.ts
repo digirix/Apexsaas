@@ -656,18 +656,139 @@ export const insertPaymentGatewaySettingSchema = createInsertSchema(paymentGatew
   });
 
 // Financial account types enum
+// Chart of Accounts enums - following accounting structure
+export const mainGroupEnum = pgEnum('main_group', [
+  'balance_sheet', 'profit_and_loss'
+]);
+
+export const elementGroupEnum = pgEnum('element_group', [
+  'equity', 'liabilities', 'assets', 'incomes', 'expenses'
+]);
+
+export const subElementGroupEnum = pgEnum('sub_element_group', [
+  // Equity
+  'capital', 'share_capital', 'reserves', 
+  // Liabilities
+  'non_current_liabilities', 'current_liabilities',
+  // Assets
+  'non_current_assets', 'current_assets',
+  // Incomes
+  'sales', 'service_revenue',
+  // Expenses
+  'cost_of_sales', 'cost_of_service_revenue', 'purchase_returns',
+  // For custom additions
+  'custom'
+]);
+
+export const detailedGroupEnum = pgEnum('detailed_group', [
+  // Capital
+  'owners_capital',
+  // Non Current Liabilities
+  'long_term_loans',
+  // Current Liabilities
+  'short_term_loans', 'trade_creditors', 'accrued_charges', 'other_payables',
+  // Non Current Assets
+  'property_plant_equipment', 'intangible_assets',
+  // Current Assets
+  'stock_in_trade', 'trade_debtors', 'advances_prepayments', 'other_receivables', 'cash_bank_balances',
+  // For custom additions
+  'custom'
+]);
+
+// Account type enum (for backward compatibility)
 export const accountTypeEnum = pgEnum('account_type', [
   'asset', 'liability', 'equity', 'revenue', 'expense'
 ]);
 
-// Chart of accounts table
+// Chart of Accounts Main Groups
+export const chartOfAccountsMainGroups = pgTable("chart_of_accounts_main_groups", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  name: mainGroupEnum("name").notNull(),
+  code: text("code").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+}, (table) => {
+  return {
+    tenantMainGroupUnique: unique().on(table.tenantId, table.name),
+    tenantCodeUnique: unique().on(table.tenantId, table.code),
+  };
+});
+
+// Chart of Accounts Element Groups
+export const chartOfAccountsElementGroups = pgTable("chart_of_accounts_element_groups", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  mainGroupId: integer("main_group_id").notNull().references(() => chartOfAccountsMainGroups.id, { onDelete: 'cascade' }),
+  name: elementGroupEnum("name").notNull(),
+  code: text("code").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+}, (table) => {
+  return {
+    tenantElementGroupUnique: unique().on(table.tenantId, table.mainGroupId, table.name),
+    tenantCodeUnique: unique().on(table.tenantId, table.code),
+  };
+});
+
+// Chart of Accounts Sub Element Groups
+export const chartOfAccountsSubElementGroups = pgTable("chart_of_accounts_sub_element_groups", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  elementGroupId: integer("element_group_id").notNull().references(() => chartOfAccountsElementGroups.id, { onDelete: 'cascade' }),
+  name: subElementGroupEnum("name").notNull(),
+  customName: text("custom_name"), // For custom sub element groups
+  code: text("code").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+}, (table) => {
+  return {
+    tenantCodeUnique: unique().on(table.tenantId, table.code),
+  };
+});
+
+// Chart of Accounts Detailed Groups
+export const chartOfAccountsDetailedGroups = pgTable("chart_of_accounts_detailed_groups", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  subElementGroupId: integer("sub_element_group_id").notNull().references(() => chartOfAccountsSubElementGroups.id, { onDelete: 'cascade' }),
+  name: detailedGroupEnum("name").notNull(),
+  customName: text("custom_name"), // For custom detailed groups
+  code: text("code").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+}, (table) => {
+  return {
+    tenantCodeUnique: unique().on(table.tenantId, table.code),
+  };
+});
+
+// Chart of accounts table (AC Heads / Cost Centers)
 export const chartOfAccounts = pgTable("chart_of_accounts", {
   id: serial("id").primaryKey(),
-  tenantId: integer("tenant_id").notNull(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  detailedGroupId: integer("detailed_group_id").notNull().references(() => chartOfAccountsDetailedGroups.id, { onDelete: 'cascade' }),
   accountCode: text("account_code").notNull(),
   accountName: text("account_name").notNull(),
+  // Keep old accountType for backward compatibility
   accountType: accountTypeEnum("account_type").notNull(),
   description: text("description"),
+  // References to other modules (for cost centers)
+  clientId: integer("client_id").references(() => clients.id),
+  entityId: integer("entity_id").references(() => entities.id),
+  userId: integer("user_id").references(() => users.id),
+  // Account settings
+  isSystemAccount: boolean("is_system_account").default(false).notNull(),
+  openingBalance: decimal("opening_balance", { precision: 10, scale: 2 }).default("0.00").notNull(),
+  currentBalance: decimal("current_balance", { precision: 10, scale: 2 }).default("0.00").notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at"),
@@ -678,16 +799,86 @@ export const chartOfAccounts = pgTable("chart_of_accounts", {
   };
 });
 
-export const insertChartOfAccountSchema = createInsertSchema(chartOfAccounts)
+// Insert schemas for Chart of Accounts hierarchy
+export const insertChartOfAccountsMainGroupSchema = createInsertSchema(chartOfAccountsMainGroups)
   .pick({
     tenantId: true,
-    accountCode: true,
-    accountName: true,
-    accountType: true,
+    name: true,
+    code: true,
     description: true,
     isActive: true,
   })
   .extend({
+    updatedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
+  });
+
+export const insertChartOfAccountsElementGroupSchema = createInsertSchema(chartOfAccountsElementGroups)
+  .pick({
+    tenantId: true,
+    mainGroupId: true,
+    name: true,
+    code: true,
+    description: true,
+    isActive: true,
+  })
+  .extend({
+    updatedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
+  });
+
+export const insertChartOfAccountsSubElementGroupSchema = createInsertSchema(chartOfAccountsSubElementGroups)
+  .pick({
+    tenantId: true,
+    elementGroupId: true,
+    name: true,
+    customName: true,
+    code: true,
+    description: true,
+    isActive: true,
+  })
+  .extend({
+    customName: z.string().optional().nullable(),
+    updatedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
+  });
+
+export const insertChartOfAccountsDetailedGroupSchema = createInsertSchema(chartOfAccountsDetailedGroups)
+  .pick({
+    tenantId: true,
+    subElementGroupId: true,
+    name: true,
+    customName: true,
+    code: true,
+    description: true,
+    isActive: true,
+  })
+  .extend({
+    customName: z.string().optional().nullable(),
+    updatedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
+  });
+
+export const insertChartOfAccountSchema = createInsertSchema(chartOfAccounts)
+  .pick({
+    tenantId: true,
+    detailedGroupId: true,
+    accountCode: true,
+    accountName: true,
+    accountType: true,
+    description: true,
+    clientId: true,
+    entityId: true,
+    userId: true,
+    isSystemAccount: true,
+    openingBalance: true,
+    currentBalance: true,
+    isActive: true,
+  })
+  .extend({
+    description: z.string().optional().nullable(),
+    clientId: z.number().optional().nullable(),
+    entityId: z.number().optional().nullable(),
+    userId: z.number().optional().nullable(),
+    isSystemAccount: z.boolean().default(false),
+    openingBalance: z.union([z.string(), z.number().transform(n => n.toString())]).default("0.00"),
+    currentBalance: z.union([z.string(), z.number().transform(n => n.toString())]).default("0.00"),
     updatedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
   });
 
@@ -765,6 +956,20 @@ export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type PaymentGatewaySetting = typeof paymentGatewaySettings.$inferSelect;
 export type InsertPaymentGatewaySetting = z.infer<typeof insertPaymentGatewaySettingSchema>;
 
+// Chart of Accounts hierarchy types
+export type ChartOfAccountsMainGroup = typeof chartOfAccountsMainGroups.$inferSelect;
+export type InsertChartOfAccountsMainGroup = z.infer<typeof insertChartOfAccountsMainGroupSchema>;
+
+export type ChartOfAccountsElementGroup = typeof chartOfAccountsElementGroups.$inferSelect;
+export type InsertChartOfAccountsElementGroup = z.infer<typeof insertChartOfAccountsElementGroupSchema>;
+
+export type ChartOfAccountsSubElementGroup = typeof chartOfAccountsSubElementGroups.$inferSelect;
+export type InsertChartOfAccountsSubElementGroup = z.infer<typeof insertChartOfAccountsSubElementGroupSchema>;
+
+export type ChartOfAccountsDetailedGroup = typeof chartOfAccountsDetailedGroups.$inferSelect;
+export type InsertChartOfAccountsDetailedGroup = z.infer<typeof insertChartOfAccountsDetailedGroupSchema>;
+
+// AC Head / Cost Center
 export type ChartOfAccount = typeof chartOfAccounts.$inferSelect;
 export type InsertChartOfAccount = z.infer<typeof insertChartOfAccountSchema>;
 
