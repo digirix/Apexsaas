@@ -3551,6 +3551,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 7. Journal Entry Types
+  app.get("/api/v1/finance/journal-entry-types", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      // Get all journal entry types for tenant
+      const entryTypes = await storage.getJournalEntryTypes(tenantId);
+      res.json(entryTypes);
+    } catch (error) {
+      console.error("Error fetching journal entry types:", error);
+      res.status(500).json({ message: "Failed to fetch journal entry types" });
+    }
+  });
+  
+  app.post("/api/v1/finance/journal-entry-types", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      // Add tenant info
+      const data = { ...req.body, tenantId };
+      
+      // Check for duplicate code
+      const existingTypes = await storage.getJournalEntryTypes(tenantId);
+      const duplicateCode = existingTypes.find(type => type.code === data.code);
+      
+      if (duplicateCode) {
+        return res.status(400).json({ message: "A journal entry type with this code already exists" });
+      }
+      
+      // Validate and create
+      const validatedData = insertJournalEntryTypeSchema.parse(data);
+      const entryType = await storage.createJournalEntryType(validatedData);
+      
+      res.status(201).json(entryType);
+    } catch (error) {
+      console.error("Error creating journal entry type:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create journal entry type" });
+    }
+  });
+
   // Create an HTTP server
   const httpServer = createServer(app);
 

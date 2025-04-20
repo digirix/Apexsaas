@@ -1087,9 +1087,4 @@ export const registerSchema = z.object({
 export type LoginData = z.infer<typeof loginSchema>;
 export type RegisterData = z.infer<typeof registerSchema>;
 
-// Journal entry types for accounting
-export type JournalEntry = typeof journalEntries.$inferSelect;
-export type InsertJournalEntry = z.infer<typeof insertJournalEntrySchema>;
-
-export type JournalEntryLine = typeof journalEntryLines.$inferSelect;
-export type InsertJournalEntryLine = z.infer<typeof insertJournalEntryLineSchema>;
+// These types are already defined above
