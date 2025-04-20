@@ -15,7 +15,8 @@ import {
   FilterX,
   X,
   UserCircle,
-  ChevronDown
+  ChevronDown,
+  FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +57,8 @@ export function TaskList() {
   const [isTaskDetailsOpen, setIsTaskDetailsOpen] = useState(false);
   const [taskType, setTaskType] = useState<"admin" | "revenue">("admin");
   const [showFilters, setShowFilters] = useState(false);
+  const [isCreateInvoiceModalOpen, setIsCreateInvoiceModalOpen] = useState(false);
+  const [selectedTaskForInvoice, setSelectedTaskForInvoice] = useState<Task | null>(null);
   
   // Get current user for "My Tasks" tab
   const { data: currentUser } = useQuery<{ id: number }>({
@@ -193,6 +196,22 @@ export function TaskList() {
   // Handle status change
   const handleStatusChange = (taskId: number, statusId: number) => {
     changeTaskStatusMutation.mutate({ taskId, statusId });
+  };
+  
+  // Handle create invoice from task
+  const handleCreateInvoice = (taskId: number) => {
+    // Find the task by ID
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      setSelectedTaskForInvoice(task);
+      setIsCreateInvoiceModalOpen(true);
+    } else {
+      toast({
+        title: "Error",
+        description: "Task not found. Please refresh the page and try again.",
+        variant: "destructive",
+      });
+    }
   };
   
   // Find all task categories
@@ -489,6 +508,7 @@ export function TaskList() {
                   onComplete={() => handleCompleteTask(task.id)}
                   isCompletingTask={completeTaskMutation.isPending}
                   onStatusChange={(statusId) => handleStatusChange(task.id, statusId)}
+                  onCreateInvoice={() => handleCreateInvoice(task.id)}
                   availableStatuses={taskStatuses}
                 />
               );
@@ -528,6 +548,7 @@ interface TaskCardProps {
   onComplete: () => void;
   isCompletingTask: boolean;
   onStatusChange: (statusId: number) => void;
+  onCreateInvoice: () => void;
   availableStatuses: TaskStatus[];
 }
 
@@ -550,6 +571,7 @@ function TaskCard({
   onComplete,
   isCompletingTask,
   onStatusChange,
+  onCreateInvoice,
   availableStatuses
 }: TaskCardProps) {
   const formattedDueDate = new Date(dueDate).toLocaleDateString();
@@ -612,6 +634,19 @@ function TaskCard({
             <Button variant="outline" size="sm" onClick={onViewDetails}>
               View Details
             </Button>
+
+            {/* Create Invoice Button - Only show for non-admin tasks */}
+            {!isAdmin && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
+                onClick={onCreateInvoice}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Create Invoice
+              </Button>
+            )}
             
             {/* Status change dropdown */}
             <DropdownMenu>
