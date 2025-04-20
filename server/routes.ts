@@ -2806,6 +2806,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
       
+      // Get invoice data
       const invoice = await storage.getInvoice(id, tenantId);
       if (!invoice) {
         return res.status(404).json({ message: "Invoice not found" });
@@ -2814,21 +2815,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get line items for this invoice
       const lineItems = await storage.getInvoiceLineItems(tenantId, id);
       
-      // For demo purposes, we're just sending a basic PDF blob
-      // In a real application, this would generate a formatted PDF using a library
-      const pdfContent = Buffer.from(`
-        Invoice #${invoice.invoiceNumber}
-        Date: ${new Date(invoice.issueDate).toLocaleDateString()}
-        Due Date: ${new Date(invoice.dueDate).toLocaleDateString()}
-        Amount: ${invoice.currencyCode} ${invoice.totalAmount}
-        
-        Client: ${invoice.clientId}
-        Entity: ${invoice.entityId}
-        
-        Line Items:
-        ${lineItems.map(item => `- ${item.description}: ${invoice.currencyCode} ${item.lineTotal}`).join('\n')}
-      `);
+      // Get client data
+      const client = await storage.getClient(invoice.clientId, tenantId);
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
       
+      // Get entity data
+      const entity = await storage.getEntity(invoice.entityId, tenantId);
+      if (!entity) {
+        return res.status(404).json({ message: "Entity not found" });
+      }
+      
+      // Get tenant data
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+      
+      // Import PDF generator
+      const { generateInvoicePdf } = await import('./utils/pdf-generator');
+      
+      // Generate beautifully formatted PDF
+      const pdfContent = await generateInvoicePdf(invoice, lineItems, client, entity, tenant);
+      
+      // Send the PDF to client
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename=Invoice_${invoice.invoiceNumber}.pdf`);
       res.send(pdfContent);
