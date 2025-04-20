@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -23,6 +23,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
   Card,
   CardContent,
   CardDescription,
@@ -40,7 +49,9 @@ import {
   Plus,
   MinusCircle,
   PlusCircle,
+  Edit,
 } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const accountSchema = z.object({
   detailedGroupId: z.number(),
@@ -52,10 +63,45 @@ const accountSchema = z.object({
   currentBalance: z.string().default("0"),
 });
 
+// New schemas for adding hierarchy groups
+const newMainGroupSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  code: z.string().min(1, "Code is required"),
+});
+
+const newElementGroupSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  code: z.string().min(1, "Code is required"),
+  mainGroupId: z.number(),
+});
+
+const newSubElementGroupSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  code: z.string().min(1, "Code is required"),
+  elementGroupId: z.number(),
+});
+
+const newDetailedGroupSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  code: z.string().min(1, "Code is required"),
+  subElementGroupId: z.number(),
+});
+
 export default function ChartOfAccountsCreate() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // For table entries
+  const [entries, setEntries] = useState<any[]>([]);
+  const [currentEntry, setCurrentEntry] = useState<any>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  
+  // Dialog states
+  const [showNewMainGroupDialog, setShowNewMainGroupDialog] = useState(false);
+  const [showNewElementGroupDialog, setShowNewElementGroupDialog] = useState(false);
+  const [showNewSubElementGroupDialog, setShowNewSubElementGroupDialog] = useState(false);
+  const [showNewDetailedGroupDialog, setShowNewDetailedGroupDialog] = useState(false);
   
   // Fetch main groups, element groups, sub-element groups, and detailed groups
   const { data: mainGroups, isLoading: mainGroupsLoading } = useQuery({
@@ -85,6 +131,55 @@ export default function ChartOfAccountsCreate() {
     refetchOnWindowFocus: false,
   });
   
+  // Forms for hierarchical groups
+  const newMainGroupForm = useForm<z.infer<typeof newMainGroupSchema>>({
+    resolver: zodResolver(newMainGroupSchema),
+    defaultValues: {
+      name: '',
+      code: '',
+    },
+  });
+  
+  const newElementGroupForm = useForm<z.infer<typeof newElementGroupSchema>>({
+    resolver: zodResolver(newElementGroupSchema),
+    defaultValues: {
+      name: '',
+      code: '',
+      mainGroupId: 0,
+    },
+  });
+  
+  const newSubElementGroupForm = useForm<z.infer<typeof newSubElementGroupSchema>>({
+    resolver: zodResolver(newSubElementGroupSchema),
+    defaultValues: {
+      name: '',
+      code: '',
+      elementGroupId: 0,
+    },
+  });
+  
+  const newDetailedGroupForm = useForm<z.infer<typeof newDetailedGroupSchema>>({
+    resolver: zodResolver(newDetailedGroupSchema),
+    defaultValues: {
+      name: '',
+      code: '',
+      subElementGroupId: 0,
+    },
+  });
+  
+  // Set appropriate IDs when dialogs open
+  useEffect(() => {
+    if (showNewElementGroupDialog && selectedMainGroup) {
+      newElementGroupForm.setValue('mainGroupId', selectedMainGroup);
+    }
+    if (showNewSubElementGroupDialog && selectedElementGroup) {
+      newSubElementGroupForm.setValue('elementGroupId', selectedElementGroup);
+    }
+    if (showNewDetailedGroupDialog && selectedSubElementGroup) {
+      newDetailedGroupForm.setValue('subElementGroupId', selectedSubElementGroup);
+    }
+  }, [showNewElementGroupDialog, showNewSubElementGroupDialog, showNewDetailedGroupDialog]);
+  
   const form = useForm<z.infer<typeof accountSchema>>({
     resolver: zodResolver(accountSchema),
     defaultValues: {
@@ -94,6 +189,101 @@ export default function ChartOfAccountsCreate() {
       isSystemAccount: false,
       openingBalance: '0',
       currentBalance: '0',
+    },
+  });
+  
+  // Mutations for creating new hierarchical groups
+  const createMainGroupMutation = useMutation({
+    mutationFn: async (values: z.infer<typeof newMainGroupSchema>) => {
+      return apiRequest('POST', '/api/v1/finance/chart-of-accounts/main-groups', values);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Main Group Added",
+        description: "The main group has been added successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/main-groups'] });
+      setShowNewMainGroupDialog(false);
+      newMainGroupForm.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error adding main group",
+        description: error.message || "Failed to add main group",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const createElementGroupMutation = useMutation({
+    mutationFn: async (values: z.infer<typeof newElementGroupSchema>) => {
+      return apiRequest('POST', '/api/v1/finance/chart-of-accounts/element-groups', values);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Element Group Added",
+        description: "The element group has been added successfully.",
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/v1/finance/chart-of-accounts/element-groups', selectedMainGroup] 
+      });
+      setShowNewElementGroupDialog(false);
+      newElementGroupForm.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error adding element group",
+        description: error.message || "Failed to add element group",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const createSubElementGroupMutation = useMutation({
+    mutationFn: async (values: z.infer<typeof newSubElementGroupSchema>) => {
+      return apiRequest('POST', '/api/v1/finance/chart-of-accounts/sub-element-groups', values);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Sub Element Group Added",
+        description: "The sub element group has been added successfully.",
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/v1/finance/chart-of-accounts/sub-element-groups', selectedElementGroup] 
+      });
+      setShowNewSubElementGroupDialog(false);
+      newSubElementGroupForm.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error adding sub element group",
+        description: error.message || "Failed to add sub element group",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const createDetailedGroupMutation = useMutation({
+    mutationFn: async (values: z.infer<typeof newDetailedGroupSchema>) => {
+      return apiRequest('POST', '/api/v1/finance/chart-of-accounts/detailed-groups', values);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Detailed Group Added",
+        description: "The detailed group has been added successfully.",
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups', selectedSubElementGroup] 
+      });
+      setShowNewDetailedGroupDialog(false);
+      newDetailedGroupForm.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error adding detailed group",
+        description: error.message || "Failed to add detailed group",
+        variant: "destructive",
+      });
     },
   });
   
@@ -107,7 +297,25 @@ export default function ChartOfAccountsCreate() {
         description: "The account has been created successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });
-      setLocation('/finance');
+      form.reset();
+      
+      // Add the entry to the table
+      if (currentEntry) {
+        if (isEditing) {
+          // Replace the edited entry
+          setEntries(entries.map(entry => 
+            entry.id === currentEntry.id ? currentEntry : entry
+          ));
+        } else {
+          // Add new entry
+          setEntries([...entries, {
+            ...currentEntry,
+            id: Date.now(), // Temporary ID for table
+          }]);
+        }
+        setCurrentEntry(null);
+        setIsEditing(false);
+      }
     },
     onError: (error: any) => {
       toast({
@@ -117,6 +325,27 @@ export default function ChartOfAccountsCreate() {
       });
     },
   });
+  
+  // For getting display names
+  const getMainGroupName = (id: number) => {
+    const group = mainGroups?.find((g: any) => g.id === id);
+    return group ? group.name : 'Unknown';
+  };
+  
+  const getElementGroupName = (id: number) => {
+    const group = elementGroups?.find((g: any) => g.id === id);
+    return group ? group.name : 'Unknown';
+  };
+  
+  const getSubElementGroupName = (id: number) => {
+    const group = subElementGroups?.find((g: any) => g.id === id);
+    return group ? group.name : 'Unknown';
+  };
+  
+  const getDetailedGroupName = (id: number) => {
+    const group = detailedGroups?.find((g: any) => g.id === id);
+    return group ? group.name : 'Unknown';
+  };
   
   // Handle form submission
   const onSubmit = (values: z.infer<typeof accountSchema>) => {
@@ -129,7 +358,68 @@ export default function ChartOfAccountsCreate() {
       return;
     }
     
+    // Save the current entry for table display
+    setCurrentEntry({
+      ...values,
+      mainGroupId: selectedMainGroup,
+      mainGroupName: getMainGroupName(selectedMainGroup || 0),
+      elementGroupId: selectedElementGroup,
+      elementGroupName: getElementGroupName(selectedElementGroup || 0),
+      subElementGroupId: selectedSubElementGroup,
+      subElementGroupName: getSubElementGroupName(selectedSubElementGroup || 0),
+      detailedGroupName: getDetailedGroupName(values.detailedGroupId),
+    });
+    
     createAccountMutation.mutate(values);
+  };
+  
+  // Handle adding new hierarchical items
+  const onAddMainGroup = (values: z.infer<typeof newMainGroupSchema>) => {
+    createMainGroupMutation.mutate(values);
+  };
+  
+  const onAddElementGroup = (values: z.infer<typeof newElementGroupSchema>) => {
+    createElementGroupMutation.mutate(values);
+  };
+  
+  const onAddSubElementGroup = (values: z.infer<typeof newSubElementGroupSchema>) => {
+    createSubElementGroupMutation.mutate(values);
+  };
+  
+  const onAddDetailedGroup = (values: z.infer<typeof newDetailedGroupSchema>) => {
+    createDetailedGroupMutation.mutate(values);
+  };
+  
+  // Function to edit an entry
+  const editEntry = (entry: any) => {
+    setSelectedMainGroup(entry.mainGroupId);
+    
+    // We need to set these in sequence with timeouts to allow the queries to complete
+    setTimeout(() => {
+      setSelectedElementGroup(entry.elementGroupId);
+      
+      setTimeout(() => {
+        setSelectedSubElementGroup(entry.subElementGroupId);
+        
+        setTimeout(() => {
+          form.setValue('detailedGroupId', entry.detailedGroupId);
+          form.setValue('accountName', entry.accountName);
+          form.setValue('description', entry.description || '');
+          form.setValue('isActive', entry.isActive);
+          form.setValue('isSystemAccount', entry.isSystemAccount);
+          form.setValue('openingBalance', entry.openingBalance);
+          form.setValue('currentBalance', entry.currentBalance);
+          
+          setCurrentEntry(entry);
+          setIsEditing(true);
+        }, 300);
+      }, 300);
+    }, 300);
+  };
+  
+  // Function to delete an entry from the table
+  const deleteEntry = (id: number) => {
+    setEntries(entries.filter(entry => entry.id !== id));
   };
   
   return (
