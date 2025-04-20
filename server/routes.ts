@@ -2997,7 +2997,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const lineItems = await storage.getInvoiceLineItems(tenantId, id);
       
       // Handle accounting entries when invoice status changes to "passed"
-      if (req.body.status === "passed" && existingInvoice.status !== "passed") {
+      if (req.body.status === "passed" && existingInvoice.status !== "passed" as any && updatedInvoice) {
         try {
           console.log(`Creating accounting entries for invoice ${updatedInvoice.invoiceNumber} as status changed to "passed"`);
           

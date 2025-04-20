@@ -497,7 +497,7 @@ export const insertEntityServiceSubscriptionSchema = createInsertSchema(entitySe
 
 // Invoice status enum
 export const invoiceStatusEnum = pgEnum('invoice_status', [
-  'draft', 'sent', 'partially_paid', 'paid', 'overdue', 'canceled', 'void'
+  'draft', 'sent', 'passed', 'partially_paid', 'paid', 'overdue', 'canceled', 'void'
 ]);
 
 // Payment method enum
