@@ -1725,13 +1725,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteChartOfAccount(id: number, tenantId: number): Promise<boolean> {
-    const [deletedAccount] = await db.delete(chartOfAccounts)
+    // Soft delete by setting isActive to false instead of hard delete
+    const [updatedAccount] = await db.update(chartOfAccounts)
+      .set({ 
+        isActive: false,
+        updatedAt: new Date()
+      })
       .where(and(
         eq(chartOfAccounts.id, id),
         eq(chartOfAccounts.tenantId, tenantId)
       ))
       .returning({ id: chartOfAccounts.id });
-    return !!deletedAccount;
+    return !!updatedAccount;
   }
 
   // Journal Entry operations for accounting
