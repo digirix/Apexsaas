@@ -1667,7 +1667,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // 5. Accounts (AC Heads)
-  async getChartOfAccounts(tenantId: number, accountType?: string, detailedGroupId?: number): Promise<ChartOfAccount[]> {
+  async getChartOfAccounts(tenantId: number, accountType?: string, detailedGroupId?: number, includeSystemAccounts: boolean = false): Promise<ChartOfAccount[]> {
     let query = db.select().from(chartOfAccounts)
       .where(eq(chartOfAccounts.tenantId, tenantId));
     
@@ -1677,6 +1677,11 @@ export class DatabaseStorage implements IStorage {
     
     if (detailedGroupId) {
       query = query.where(eq(chartOfAccounts.detailedGroupId, detailedGroupId));
+    }
+    
+    // Only include user-created accounts by default (not system defaults)
+    if (!includeSystemAccounts) {
+      query = query.where(eq(chartOfAccounts.isSystemAccount, false));
     }
     
     return await query.orderBy(asc(chartOfAccounts.accountCode));

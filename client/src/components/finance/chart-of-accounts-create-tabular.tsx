@@ -185,6 +185,12 @@ export default function ChartOfAccountsCreateTabular() {
     refetchOnWindowFocus: false,
   });
   
+  // Fetch detailed groups for dropdown
+  const { data: detailedGroupsData, refetch: refetchDetailedGroups } = useQuery({
+    queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups'],
+    refetchOnWindowFocus: false,
+  });
+  
   // Forms for hierarchical groups
   const newMainGroupForm = useForm<z.infer<typeof newMainGroupSchema>>({
     resolver: zodResolver(newMainGroupSchema),
@@ -344,6 +350,15 @@ export default function ChartOfAccountsCreateTabular() {
         title: "Detailed Group Added",
         description: "The detailed group has been added successfully.",
       });
+      
+      // Refetch detailed groups to update the dropdown
+      refetchDetailedGroups();
+      
+      // Invalidate all related queries
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups'] 
+      });
+      
       setShowNewDetailedGroupDialog(false);
       newDetailedGroupForm.reset();
     },
@@ -482,6 +497,24 @@ export default function ChartOfAccountsCreateTabular() {
   // Get available detailed groups based on selected sub-element group
   const getDetailedGroups = () => {
     if (!selectedSubElementGroup) return [];
+    
+    // If we have data from API, use it filtered by the selected sub-element group
+    if (detailedGroupsData && Array.isArray(detailedGroupsData)) {
+      return detailedGroupsData
+        .filter((group: any) => {
+          // Match by ID or string representation for flexibility
+          return group.subElementGroupId?.toString() === selectedSubElementGroup?.toString();
+        })
+        .map((group: any) => ({
+          id: group.id,
+          value: group.id.toString(),
+          name: group.customName || group.name.split('_').map((word: string) => 
+            word.charAt(0).toUpperCase() + word.slice(1)
+          ).join(' ')
+        }));
+    }
+    
+    // Fallback to static data if API data is not available
     return DETAILED_GROUPS[selectedSubElementGroup as keyof typeof DETAILED_GROUPS] || [];
   };
   
