@@ -2837,6 +2837,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Update task with invoiceId if taskId was provided
+      if (req.body.taskId) {
+        try {
+          const taskId = parseInt(req.body.taskId);
+          const task = await storage.getTask(taskId, tenantId);
+          if (task) {
+            await storage.updateTask(taskId, { 
+              invoiceId: invoice.id,
+              invoiceCreatedAt: new Date()
+            });
+          }
+        } catch (error) {
+          console.error("Failed to update task with invoice ID:", error);
+        }
+      }
+      
+      // Create accounting entries for the invoice (double-entry bookkeeping)
+      try {
+        // 1. Find accounts needed for bookkeeping
+        // Accounts receivable (Asset)
+        const accountsReceivable = await storage.getChartOfAccountByCode("1200", tenantId);
+        
+        // Revenue account (lookup based on client entity or use default)
+        let revenueAccount;
+        if (invoice.entityId) {
+          const entity = await storage.getEntity(invoice.entityId, tenantId);
+          if (entity && entity.revenueAccountId) {
+            revenueAccount = await storage.getChartOfAccount(entity.revenueAccountId, tenantId);
+          }
+        }
+        
+        // Use default revenue account if not found
+        if (!revenueAccount) {
+          revenueAccount = await storage.getChartOfAccountByCode("4000", tenantId);
+        }
+        
+        // Tax liability account (if tax is present)
+        const taxLiabilityAccount = await storage.getChartOfAccountByCode("2200", tenantId);
+        
+        if (accountsReceivable && revenueAccount) {
+          // 2. Create journal entries
+          const totalAmount = parseFloat(invoice.totalAmount);
+          const taxAmount = parseFloat(invoice.taxAmount || "0");
+          const revenueAmount = totalAmount - taxAmount;
+          
+          // Create journal entry header
+          const journalEntry = await storage.createJournalEntry({
+            tenantId: tenantId,
+            entryDate: invoice.issueDate,
+            reference: `INV-${invoice.invoiceNumber}`,
+            description: `Invoice ${invoice.invoiceNumber} created`,
+            isPosted: true,
+            createdBy: userId,
+            sourceDocument: "invoice",
+            sourceDocumentId: invoice.id
+          });
+          
+          // Debit Accounts Receivable (Asset increase)
+          await storage.createJournalEntryLine({
+            tenantId: tenantId,
+            journalEntryId: journalEntry.id,
+            accountId: accountsReceivable.id,
+            description: `Accounts Receivable - Invoice ${invoice.invoiceNumber}`,
+            debitAmount: totalAmount.toString(),
+            creditAmount: "0",
+            lineOrder: 1
+          });
+          
+          // Credit Revenue (Revenue increase)
+          await storage.createJournalEntryLine({
+            tenantId: tenantId,
+            journalEntryId: journalEntry.id,
+            accountId: revenueAccount.id,
+            description: `Revenue - Invoice ${invoice.invoiceNumber}`,
+            debitAmount: "0",
+            creditAmount: revenueAmount.toString(),
+            lineOrder: 2
+          });
+          
+          // If tax exists, credit Tax Liability
+          if (taxAmount > 0 && taxLiabilityAccount) {
+            await storage.createJournalEntryLine({
+              tenantId: tenantId,
+              journalEntryId: journalEntry.id,
+              accountId: taxLiabilityAccount.id,
+              description: `Sales Tax - Invoice ${invoice.invoiceNumber}`,
+              debitAmount: "0",
+              creditAmount: taxAmount.toString(),
+              lineOrder: 3
+            });
+          }
+          
+          // 3. Update account balances
+          await storage.updateChartOfAccount(accountsReceivable.id, {
+            currentBalance: (parseFloat(accountsReceivable.currentBalance || "0") + totalAmount).toString()
+          });
+          
+          await storage.updateChartOfAccount(revenueAccount.id, {
+            currentBalance: (parseFloat(revenueAccount.currentBalance || "0") + revenueAmount).toString()
+          });
+          
+          if (taxAmount > 0 && taxLiabilityAccount) {
+            await storage.updateChartOfAccount(taxLiabilityAccount.id, {
+              currentBalance: (parseFloat(taxLiabilityAccount.currentBalance || "0") + taxAmount).toString()
+            });
+          }
+        }
+      } catch (error) {
+        // Log the error but don't fail the invoice creation
+        console.error("Failed to create accounting entries:", error);
+      }
+      
       res.status(201).json({
         ...invoice,
         lineItems
