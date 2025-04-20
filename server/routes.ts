@@ -3839,6 +3839,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  app.post("/api/v1/finance/chart-of-accounts/detailed-groups", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      // Add tenant info to the data
+      const data = { ...req.body, tenantId };
+      
+      // Validate sub-element group exists
+      const subElementGroup = await storage.getChartOfAccountsSubElementGroup(data.subElementGroupId, tenantId);
+      if (!subElementGroup) {
+        return res.status(400).json({ message: "Invalid sub-element group ID" });
+      }
+      
+      const detailedGroup = await storage.createChartOfAccountsDetailedGroup(data);
+      res.status(201).json(detailedGroup);
+    } catch (error) {
+      console.error("Error creating detailed group:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create chart of accounts detailed group" });
+    }
+  });
+  
+  app.patch("/api/v1/finance/chart-of-accounts/detailed-groups/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if detailed group exists and belongs to tenant
+      const existingGroup = await storage.getChartOfAccountsDetailedGroup(id, tenantId);
+      if (!existingGroup) {
+        return res.status(404).json({ message: "Detailed group not found" });
+      }
+      
+      // If changing sub-element group, validate it exists
+      if (req.body.subElementGroupId) {
+        const subElementGroup = await storage.getChartOfAccountsSubElementGroup(req.body.subElementGroupId, tenantId);
+        if (!subElementGroup) {
+          return res.status(400).json({ message: "Invalid sub-element group ID" });
+        }
+      }
+      
+      const updatedGroup = await storage.updateChartOfAccountsDetailedGroup(id, tenantId, req.body);
+      if (!updatedGroup) {
+        return res.status(500).json({ message: "Failed to update detailed group" });
+      }
+      
+      res.json(updatedGroup);
+    } catch (error) {
+      console.error("Error updating detailed group:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update chart of accounts detailed group" });
+    }
+  });
+  
+  app.delete("/api/v1/finance/chart-of-accounts/detailed-groups/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if detailed group exists
+      const existingGroup = await storage.getChartOfAccountsDetailedGroup(id, tenantId);
+      if (!existingGroup) {
+        return res.status(404).json({ message: "Detailed group not found" });
+      }
+      
+      // Check if any accounts are using this detailed group
+      const accounts = await storage.getChartOfAccounts(tenantId, undefined, id);
+      if (accounts.length > 0) {
+        return res.status(400).json({ 
+          message: "Cannot delete detailed group that is being used by accounts" 
+        });
+      }
+      
+      const result = await storage.deleteChartOfAccountsDetailedGroup(id, tenantId);
+      if (result) {
+        res.status(204).end();
+      } else {
+        res.status(500).json({ message: "Failed to delete detailed group" });
+      }
+    } catch (error) {
+      console.error("Error deleting detailed group:", error);
+      res.status(500).json({ message: "Failed to delete chart of accounts detailed group" });
+    }
+  });
+  
   // 4.5 Accounts (AC Heads)
   app.get("/api/v1/finance/chart-of-accounts", isAuthenticated, async (req, res) => {
     try {
@@ -3941,7 +4030,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Add a DELETE endpoint for chart of accounts
+  // Update an account
+  app.patch("/api/v1/finance/chart-of-accounts/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if the account exists
+      const account = await storage.getChartOfAccount(id, tenantId);
+      if (!account) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // Check if this is a system account
+      if (account.isSystemAccount && (req.body.accountName || req.body.accountCode || req.body.detailedGroupId)) {
+        return res.status(403).json({ 
+          message: "System accounts cannot have their name, code, or detailed group changed" 
+        });
+      }
+      
+      // If changing detailed group, validate it exists
+      if (req.body.detailedGroupId) {
+        const detailedGroup = await storage.getChartOfAccountsDetailedGroup(req.body.detailedGroupId, tenantId);
+        if (!detailedGroup) {
+          return res.status(400).json({ message: "Invalid detailed group ID" });
+        }
+      }
+      
+      // Update the account
+      const updatedAccount = await storage.updateChartOfAccount(id, {
+        ...req.body,
+        // Special handling for opening balance
+        ...(req.body.openingBalance !== undefined ? { 
+          currentBalance: req.body.openingBalance.toString(),
+          openingBalance: req.body.openingBalance.toString() 
+        } : {})
+      });
+      
+      if (!updatedAccount) {
+        return res.status(500).json({ message: "Failed to update account" });
+      }
+      
+      res.json(updatedAccount);
+    } catch (error) {
+      console.error("Error updating account:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update account", error: error.toString() });
+    }
+  });
+  
+  // Delete an account
   app.delete("/api/v1/finance/chart-of-accounts/:id", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;

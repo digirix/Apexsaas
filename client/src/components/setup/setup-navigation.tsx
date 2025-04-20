@@ -14,10 +14,12 @@ import {
   FileText,
   GitBranch,
   CreditCard,
-  BookOpen
+  BookOpen,
+  BarChart2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SetupSection } from "@/types/setup";
+import { Link } from "wouter";
 
 interface SetupNavigationProps {
   activeSection: SetupSection;
@@ -154,6 +156,22 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
                 {item.label}
               </Button>
             ))}
+          </div>
+        </div>
+        
+        {/* Finance Configuration */}
+        <div>
+          <h3 className="text-sm font-medium text-slate-500 mb-2 px-2">Finance Configuration</h3>
+          <div className="space-y-1">
+            <Link href="/setup/coa-configuration">
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-slate-600"
+              >
+                <BarChart2 className="h-5 w-5 mr-2 text-slate-500" />
+                Chart of Accounts
+              </Button>
+            </Link>
           </div>
         </div>
         
