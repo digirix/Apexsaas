@@ -30,12 +30,10 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { 
-  Button,
-  Input, 
-  Textarea, 
-  Checkbox,
-} from '@/components/ui';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   ArrowLeft, 
   Save, 

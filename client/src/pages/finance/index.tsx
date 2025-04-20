@@ -8,7 +8,7 @@ import { Header } from "@/components/ui/header";
 import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { AppLayout } from "@/components/layout/app-layout";
-import { JournalEntriesList } from "@/components/finance/journal-entries-list";
+import JournalEntriesList from "@/components/finance/journal-entries-list";
 import { 
   DollarSign, 
   FileText, 
@@ -56,7 +56,7 @@ export default function FinancePage() {
   };
   
   return (
-    <AppLayout>
+    <AppLayout title="Finance">
       <div className="container py-6">
         
         <div className="grid gap-4 grid-cols-1 md:grid-cols-3 mt-6">
@@ -148,10 +148,20 @@ export default function FinancePage() {
                   variant="default" 
                   size="sm"
                   onClick={() => setLocation("/finance/chart-of-accounts/create")}
-                  disabled
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   New Account
+                </Button>
+              )}
+              
+              {activeTab === "journal-entries" && (
+                <Button 
+                  variant="default" 
+                  size="sm"
+                  onClick={() => setLocation("/finance/journal-entries/create")}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Journal Entry
                 </Button>
               )}
             </div>

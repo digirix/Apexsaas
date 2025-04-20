@@ -1,287 +1,210 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogHeader, 
-  DialogTitle 
-} from "@/components/ui/dialog";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { format } from "date-fns";
-import { Loader2, FileText, DollarSign } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
+import { format } from 'date-fns';
 
-interface JournalEntryLine {
-  id: number;
-  tenantId: number;
-  journalEntryId: number;
-  accountId: number;
-  accountName?: string;
-  description: string;
-  debitAmount: string;
-  creditAmount: string;
-  lineOrder: number;
-  createdAt: Date;
-}
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import {
+  BookText,
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  Calendar,
+  FileText,
+  DollarSign,
+  AlertCircle,
+  CheckCircle2
+} from 'lucide-react';
 
-interface JournalEntry {
-  id: number;
-  tenantId: number;
-  entryDate: Date;
-  reference: string;
-  description: string;
-  isPosted: boolean;
-  postedAt?: Date;
-  createdBy: number;
-  updatedBy?: number;
-  sourceDocument: string;
-  sourceDocumentId?: number;
-  createdAt: Date;
-  updatedAt?: Date;
-  lines?: JournalEntryLine[];
-}
-
-export function JournalEntriesList() {
-  const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
+export default function JournalEntriesList() {
+  const [, setLocation] = useLocation();
   
-  const { data: journalEntries, isLoading } = useQuery<JournalEntry[]>({
+  // Fetch journal entries
+  const { data: journalEntries, isLoading: journalEntriesLoading } = useQuery({
     queryKey: ['/api/v1/finance/journal-entries'],
+    refetchOnWindowFocus: false,
   });
   
-  const { data: selectedEntryDetails, isLoading: isLoadingDetails } = useQuery<JournalEntry>({
-    queryKey: ['/api/v1/finance/journal-entries', selectedEntry?.id],
-    enabled: !!selectedEntry?.id,
-  });
-  
-  function handleViewEntry(entry: JournalEntry) {
-    setSelectedEntry(entry);
-  }
-  
-  const getSourceIcon = (sourceDocument: string) => {
-    switch(sourceDocument) {
-      case 'invoice':
-        return <FileText className="h-4 w-4 mr-1" />;
-      case 'payment':
-        return <DollarSign className="h-4 w-4 mr-1" />;
-      default:
-        return null;
-    }
+  // Format currency values
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
   };
   
   return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Journal Entries</h2>
-      <Card>
-        <CardHeader>
-          <CardTitle>Journal Entry Ledger</CardTitle>
-          <CardDescription>
-            All accounting transactions recorded in the general ledger
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {journalEntries && journalEntries.length > 0 ? (
-                  journalEntries.map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell>
-                        {format(new Date(entry.entryDate), "MMM d, yyyy")}
-                      </TableCell>
-                      <TableCell>{entry.reference}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          {getSourceIcon(entry.sourceDocument)}
-                          <span className="capitalize">{entry.sourceDocument}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{entry.description}</TableCell>
-                      <TableCell>
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Journal Entries</CardTitle>
+            <CardDescription>
+              View and manage accounting transactions
+            </CardDescription>
+          </div>
+          <Button 
+            variant="default" 
+            size="sm" 
+            onClick={() => setLocation('/finance/journal-entries/create')}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            New Journal Entry
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {journalEntriesLoading ? (
+          <div className="text-center py-4">Loading journal entries...</div>
+        ) : journalEntries && journalEntries.length > 0 ? (
+          <Accordion type="multiple" className="space-y-4">
+            {journalEntries.map((entry: any) => (
+              <AccordionItem 
+                key={entry.id} 
+                value={entry.id.toString()}
+                className="border rounded-md overflow-hidden"
+              >
+                <AccordionTrigger className="px-4 py-2 hover:bg-slate-50">
+                  <div className="flex flex-1 items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="p-2 bg-primary/10 rounded-md">
+                        <BookText className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{entry.reference}</p>
+                        <p className="text-sm text-muted-foreground">{entry.description}</p>
+                      </div>
+                    </div>
+                    <div className="hidden md:flex items-center space-x-6">
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <span className="text-sm">
+                          {format(new Date(entry.entryDate), 'MMM d, yyyy')}
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <FileText className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <span className="text-sm">
+                          {entry.sourceDocument.toUpperCase()} 
+                          {entry.sourceDocumentId ? ` #${entry.sourceDocumentId}` : ''}
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <DollarSign className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <span className="text-sm font-medium">
+                          {formatCurrency(entry.totalAmount || 0)}
+                        </span>
+                      </div>
+                      <div className="flex items-center">
                         {entry.isPosted ? (
-                          <Badge variant="success">Posted</Badge>
+                          <CheckCircle2 className="h-4 w-4 mr-2 text-green-500" />
                         ) : (
-                          <Badge variant="outline">Draft</Badge>
+                          <AlertCircle className="h-4 w-4 mr-2 text-amber-500" />
                         )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewEntry(entry)}
-                        >
-                          View Details
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
-                      No journal entries found
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-      
-      {/* Details Dialog */}
-      <Dialog 
-        open={!!selectedEntry} 
-        onOpenChange={(open) => !open && setSelectedEntry(null)}
-      >
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Journal Entry Details</DialogTitle>
-            <DialogDescription>
-              View the details of this accounting transaction
-            </DialogDescription>
-          </DialogHeader>
-          
-          {isLoadingDetails ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : selectedEntryDetails ? (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h4 className="text-sm font-medium text-muted-foreground">Reference</h4>
-                  <p className="text-lg font-medium">{selectedEntryDetails.reference}</p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-muted-foreground">Date</h4>
-                  <p className="text-lg font-medium">
-                    {format(new Date(selectedEntryDetails.entryDate), "MMMM d, yyyy")}
-                  </p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-muted-foreground">Source</h4>
-                  <p className="text-lg font-medium capitalize">
-                    {selectedEntryDetails.sourceDocument} 
-                    {selectedEntryDetails.sourceDocumentId ? ` #${selectedEntryDetails.sourceDocumentId}` : ""}
-                  </p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium text-muted-foreground">Status</h4>
-                  <p className="text-lg font-medium">
-                    {selectedEntryDetails.isPosted ? (
-                      <Badge variant="success">Posted</Badge>
-                    ) : (
-                      <Badge variant="outline">Draft</Badge>
-                    )}
-                  </p>
-                </div>
-              </div>
-              
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-2">Description</h4>
-                <p>{selectedEntryDetails.description}</p>
-              </div>
-              
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-2">Journal Entry Lines</h4>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Account</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead className="text-right">Debit</TableHead>
-                      <TableHead className="text-right">Credit</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedEntryDetails.lines && selectedEntryDetails.lines.length > 0 ? (
-                      selectedEntryDetails.lines.map((line) => (
-                        <TableRow key={line.id}>
-                          <TableCell>{line.accountName || `Account #${line.accountId}`}</TableCell>
-                          <TableCell>{line.description}</TableCell>
-                          <TableCell className="text-right">
-                            {parseFloat(line.debitAmount) > 0 
-                              ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(parseFloat(line.debitAmount)) 
-                              : "-"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {parseFloat(line.creditAmount) > 0
-                              ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(parseFloat(line.creditAmount))
-                              : "-"}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-4">
-                          No journal entry lines found
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    
-                    {/* Totals row */}
-                    {selectedEntryDetails.lines && selectedEntryDetails.lines.length > 0 && (
-                      <TableRow className="font-bold">
-                        <TableCell colSpan={2} className="text-right">Total</TableCell>
-                        <TableCell className="text-right">
-                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(
-                            selectedEntryDetails.lines.reduce((sum, line) => sum + parseFloat(line.debitAmount), 0)
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(
-                            selectedEntryDetails.lines.reduce((sum, line) => sum + parseFloat(line.creditAmount), 0)
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              
-              <div className="flex justify-end space-x-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setSelectedEntry(null)}
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="py-8 text-center">Failed to load journal entry details</div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+                        <span className="text-sm">
+                          {entry.isPosted ? 'Posted' : 'Draft'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="border-t">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-slate-50 border-b">
+                          <th className="p-2 text-left font-medium">Account</th>
+                          <th className="p-2 text-left font-medium">Description</th>
+                          <th className="p-2 text-right font-medium">Debit</th>
+                          <th className="p-2 text-right font-medium">Credit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {entry.lines?.map((line: any) => (
+                          <tr key={line.id} className="border-b">
+                            <td className="p-2">
+                              <div>
+                                <p className="font-medium">{line.accountName}</p>
+                                <p className="text-xs text-muted-foreground">{line.accountCode}</p>
+                              </div>
+                            </td>
+                            <td className="p-2">{line.description}</td>
+                            <td className="p-2 text-right">
+                              {parseFloat(line.debitAmount) > 0 ? 
+                                formatCurrency(parseFloat(line.debitAmount)) : '-'}
+                            </td>
+                            <td className="p-2 text-right">
+                              {parseFloat(line.creditAmount) > 0 ? 
+                                formatCurrency(parseFloat(line.creditAmount)) : '-'}
+                            </td>
+                          </tr>
+                        ))}
+                        <tr className="bg-slate-50 font-medium">
+                          <td colSpan={2} className="p-2 text-right">Totals:</td>
+                          <td className="p-2 text-right">
+                            {formatCurrency(
+                              entry.lines?.reduce((acc: number, line: any) => 
+                                acc + parseFloat(line.debitAmount || 0), 0) || 0
+                            )}
+                          </td>
+                          <td className="p-2 text-right">
+                            {formatCurrency(
+                              entry.lines?.reduce((acc: number, line: any) => 
+                                acc + parseFloat(line.creditAmount || 0), 0) || 0
+                            )}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <div className="p-3 bg-slate-50 flex flex-col sm:flex-row sm:justify-between text-sm">
+                      <div className="mb-2 sm:mb-0">
+                        <span className="font-medium">Created by:</span> {entry.createdByName || 'System'}
+                      </div>
+                      <div className="mb-2 sm:mb-0">
+                        <span className="font-medium">Created on:</span> {format(new Date(entry.createdAt), 'MMM d, yyyy HH:mm')}
+                      </div>
+                      {entry.isPosted && entry.postedAt && (
+                        <div>
+                          <span className="font-medium">Posted on:</span> {format(new Date(entry.postedAt), 'MMM d, yyyy HH:mm')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        ) : (
+          <div className="text-center py-8 border rounded-md bg-slate-50">
+            <BookText className="h-10 w-10 text-slate-400 mx-auto mb-2" />
+            <h3 className="text-lg font-medium">No Journal Entries</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              You haven't created any journal entries yet.
+            </p>
+            <Button
+              onClick={() => setLocation('/finance/journal-entries/create')}
+              variant="outline"
+              className="mt-4"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create Journal Entry
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
