@@ -417,6 +417,10 @@ The project has made significant progress across multiple modules:
    - Fixed Journal Entry creation to properly handle date formats and prevent 500 errors
    - Implemented Journal Entry Types management for different accounting transaction classifications
    - Created Journal Entry form with support for multiple debit/credit line items
+   - Enhanced schema validation for Journal Entries with proper nullable field handling
+   - Fixed sourceDocument and sourceDocumentId fields in journalEntries schema
+   - Added enhanced schema validation in the API endpoint for both Journal Entries and Journal Entry Lines
+   - Improved error handling with detailed error messages and logging
    - Ensured double-entry accounting principles with automatic balance checking
    - Fixed source document handling to properly support manual journal entries
    - Removed redundant header elements from Finance pages to eliminate duplication of information already available in the top navigation
