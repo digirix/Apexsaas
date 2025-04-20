@@ -396,6 +396,21 @@ export default function ChartOfAccountsCreateTabular() {
   };
   
   const onAddDetailedGroup = (values: z.infer<typeof newDetailedGroupSchema>) => {
+    // Auto-generate code if not provided
+    if (!values.code || values.code.trim() === '') {
+      // Generate a code based on the name (first letter of each word) or use DG prefix
+      const prefix = values.name 
+        ? values.name.split(' ').map(word => word[0]?.toUpperCase() || '').join('')
+        : 'DG';
+      
+      // Get current timestamp to ensure uniqueness
+      const timestamp = new Date().getTime().toString().slice(-4);
+      values.code = `${prefix}${timestamp}`;
+    }
+    
+    // Debug to make sure we have the right values
+    console.log('Adding detailed group with values:', values);
+    
     createDetailedGroupMutation.mutate(values);
   };
 
