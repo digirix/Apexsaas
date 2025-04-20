@@ -2989,15 +2989,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // 4. Chart of Accounts
+  // 4. Chart of Accounts Hierarchy
+  
+  // 4.1 Main Groups
+  app.get("/api/v1/finance/chart-of-accounts/main-groups", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const mainGroups = await storage.getChartOfAccountsMainGroups(tenantId);
+      res.json(mainGroups);
+    } catch (error) {
+      console.error("Error fetching main groups:", error);
+      res.status(500).json({ message: "Failed to fetch chart of accounts main groups" });
+    }
+  });
+  
+  app.post("/api/v1/finance/chart-of-accounts/main-groups", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      // Add tenant info
+      const data = { ...req.body, tenantId };
+      
+      const mainGroup = await storage.createChartOfAccountsMainGroup(data);
+      res.status(201).json(mainGroup);
+    } catch (error) {
+      console.error("Error creating main group:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create chart of accounts main group" });
+    }
+  });
+  
+  app.patch("/api/v1/finance/chart-of-accounts/main-groups/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Add tenant info
+      const data = { ...req.body };
+      
+      const mainGroup = await storage.updateChartOfAccountsMainGroup(id, tenantId, data);
+      if (!mainGroup) {
+        return res.status(404).json({ message: "Main group not found" });
+      }
+      
+      res.json(mainGroup);
+    } catch (error) {
+      console.error("Error updating main group:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update chart of accounts main group" });
+    }
+  });
+  
+  app.delete("/api/v1/finance/chart-of-accounts/main-groups/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if there are element groups using this main group
+      const elementGroups = await storage.getChartOfAccountsElementGroups(tenantId, id);
+      if (elementGroups.length > 0) {
+        return res.status(400).json({ 
+          message: "Cannot delete main group with associated element groups. Remove all element groups first." 
+        });
+      }
+      
+      const result = await storage.deleteChartOfAccountsMainGroup(id, tenantId);
+      if (!result) {
+        return res.status(404).json({ message: "Main group not found" });
+      }
+      
+      res.status(204).end();
+    } catch (error) {
+      console.error("Error deleting main group:", error);
+      res.status(500).json({ message: "Failed to delete chart of accounts main group" });
+    }
+  });
+  
+  // 4.2 Element Groups
+  app.get("/api/v1/finance/chart-of-accounts/element-groups", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const mainGroupId = req.query.mainGroupId ? parseInt(req.query.mainGroupId as string) : undefined;
+      
+      const elementGroups = await storage.getChartOfAccountsElementGroups(tenantId, mainGroupId);
+      res.json(elementGroups);
+    } catch (error) {
+      console.error("Error fetching element groups:", error);
+      res.status(500).json({ message: "Failed to fetch chart of accounts element groups" });
+    }
+  });
+  
+  app.post("/api/v1/finance/chart-of-accounts/element-groups", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      // Add tenant info
+      const data = { ...req.body, tenantId };
+      
+      // Check if main group exists
+      const mainGroup = await storage.getChartOfAccountsMainGroup(data.mainGroupId, tenantId);
+      if (!mainGroup) {
+        return res.status(400).json({ message: "Invalid main group ID" });
+      }
+      
+      const elementGroup = await storage.createChartOfAccountsElementGroup(data);
+      res.status(201).json(elementGroup);
+    } catch (error) {
+      console.error("Error creating element group:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create chart of accounts element group" });
+    }
+  });
+  
+  // 4.3 Sub-Element Groups
+  app.get("/api/v1/finance/chart-of-accounts/sub-element-groups", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const elementGroupId = req.query.elementGroupId ? parseInt(req.query.elementGroupId as string) : undefined;
+      
+      const subElementGroups = await storage.getChartOfAccountsSubElementGroups(tenantId, elementGroupId);
+      res.json(subElementGroups);
+    } catch (error) {
+      console.error("Error fetching sub-element groups:", error);
+      res.status(500).json({ message: "Failed to fetch chart of accounts sub-element groups" });
+    }
+  });
+  
+  // 4.4 Detailed Groups
+  app.get("/api/v1/finance/chart-of-accounts/detailed-groups", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const subElementGroupId = req.query.subElementGroupId ? parseInt(req.query.subElementGroupId as string) : undefined;
+      
+      const detailedGroups = await storage.getChartOfAccountsDetailedGroups(tenantId, subElementGroupId);
+      res.json(detailedGroups);
+    } catch (error) {
+      console.error("Error fetching detailed groups:", error);
+      res.status(500).json({ message: "Failed to fetch chart of accounts detailed groups" });
+    }
+  });
+  
+  // 4.5 Accounts (AC Heads)
   app.get("/api/v1/finance/chart-of-accounts", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const accountType = req.query.accountType as string | undefined;
+      const detailedGroupId = req.query.detailedGroupId ? parseInt(req.query.detailedGroupId as string) : undefined;
       
-      const accounts = await storage.getChartOfAccounts(tenantId, accountType);
+      const accounts = await storage.getChartOfAccounts(tenantId, accountType, detailedGroupId);
       res.json(accounts);
     } catch (error) {
+      console.error("Error fetching accounts:", error);
       res.status(500).json({ message: "Failed to fetch chart of accounts" });
     }
   });
@@ -3020,6 +3168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(201).json(account);
     } catch (error) {
+      console.error("Error creating account:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }

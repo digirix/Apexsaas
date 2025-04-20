@@ -200,8 +200,37 @@ export interface IStorage {
   updatePaymentGatewaySetting(id: number, setting: Partial<InsertPaymentGatewaySetting>): Promise<PaymentGatewaySetting | undefined>;
   deletePaymentGatewaySetting(id: number, tenantId: number): Promise<boolean>;
   
-  // Chart of Accounts operations
-  getChartOfAccounts(tenantId: number, accountType?: string): Promise<ChartOfAccount[]>;
+  // Chart of Accounts hierarchy operations
+  // Main Groups
+  getChartOfAccountsMainGroups(tenantId: number): Promise<any[]>;
+  getChartOfAccountsMainGroup(id: number, tenantId: number): Promise<any | undefined>;
+  createChartOfAccountsMainGroup(mainGroup: any): Promise<any>;
+  updateChartOfAccountsMainGroup(id: number, tenantId: number, mainGroup: any): Promise<any | undefined>;
+  deleteChartOfAccountsMainGroup(id: number, tenantId: number): Promise<boolean>;
+  
+  // Element Groups
+  getChartOfAccountsElementGroups(tenantId: number, mainGroupId?: number): Promise<any[]>;
+  getChartOfAccountsElementGroup(id: number, tenantId: number): Promise<any | undefined>;
+  createChartOfAccountsElementGroup(elementGroup: any): Promise<any>;
+  updateChartOfAccountsElementGroup(id: number, tenantId: number, elementGroup: any): Promise<any | undefined>;
+  deleteChartOfAccountsElementGroup(id: number, tenantId: number): Promise<boolean>;
+  
+  // Sub-Element Groups
+  getChartOfAccountsSubElementGroups(tenantId: number, elementGroupId?: number): Promise<any[]>;
+  getChartOfAccountsSubElementGroup(id: number, tenantId: number): Promise<any | undefined>;
+  createChartOfAccountsSubElementGroup(subElementGroup: any): Promise<any>;
+  updateChartOfAccountsSubElementGroup(id: number, tenantId: number, subElementGroup: any): Promise<any | undefined>;
+  deleteChartOfAccountsSubElementGroup(id: number, tenantId: number): Promise<boolean>;
+  
+  // Detailed Groups
+  getChartOfAccountsDetailedGroups(tenantId: number, subElementGroupId?: number): Promise<any[]>;
+  getChartOfAccountsDetailedGroup(id: number, tenantId: number): Promise<any | undefined>;
+  createChartOfAccountsDetailedGroup(detailedGroup: any): Promise<any>;
+  updateChartOfAccountsDetailedGroup(id: number, tenantId: number, detailedGroup: any): Promise<any | undefined>;
+  deleteChartOfAccountsDetailedGroup(id: number, tenantId: number): Promise<boolean>;
+  
+  // Chart of Accounts (AC Heads) operations
+  getChartOfAccounts(tenantId: number, accountType?: string, detailedGroupId?: number): Promise<ChartOfAccount[]>;
   getChartOfAccount(id: number, tenantId: number): Promise<ChartOfAccount | undefined>;
   getChartOfAccountByCode(accountCode: string, tenantId: number): Promise<ChartOfAccount | undefined>;
   createChartOfAccount(account: InsertChartOfAccount): Promise<ChartOfAccount>;
