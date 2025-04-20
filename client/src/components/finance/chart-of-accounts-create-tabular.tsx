@@ -165,6 +165,7 @@ export default function ChartOfAccountsCreateTabular() {
   const [entries, setEntries] = useState<any[]>([]);
   const [currentEntry, setCurrentEntry] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [clearForm, setClearForm] = useState(false);
   
   // Dialog states
   const [showNewMainGroupDialog, setShowNewMainGroupDialog] = useState(false);
@@ -325,20 +326,25 @@ export default function ChartOfAccountsCreateTabular() {
   
   const createAccountMutation = useMutation({
     mutationFn: async (values: z.infer<typeof accountSchema>) => {
-      // Add hierarchy info
+      // Create simplified payload with just what's needed
       const payload = {
         ...values,
         mainGroup: selectedMainGroup,
         elementGroup: selectedElementGroup,
         subElementGroup: selectedSubElementGroup,
         detailedGroup: selectedDetailedGroup,
-        isActive: true,
-        isSystemAccount: false,
       };
       
+      // No need to explicitly set these as backend now handles defaults
+      // isActive: true,
+      // isSystemAccount: false,
+      // currentBalance: values.openingBalance,
+      
+      console.log("Sending account data:", payload);
       return apiRequest('POST', '/api/v1/finance/chart-of-accounts', payload);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Account created successfully:", data);
       toast({
         title: "Account created",
         description: "The account has been created successfully.",
@@ -353,6 +359,7 @@ export default function ChartOfAccountsCreateTabular() {
       setSelectedDetailedGroup(null);
     },
     onError: (error: any) => {
+      console.error("Error creating account:", error);
       toast({
         title: "Error creating account",
         description: error.message || "Failed to create account",
@@ -636,23 +643,40 @@ export default function ChartOfAccountsCreateTabular() {
                         />
                       </td>
                       <td className="p-2">
-                        <Button 
-                          type="submit" 
-                          disabled={createAccountMutation.isPending}
-                          size="sm"
-                        >
-                          {createAccountMutation.isPending ? (
-                            <>
-                              <span className="animate-spin mr-1">⣾</span>
-                              Saving
-                            </>
-                          ) : (
-                            <>
-                              <Save className="mr-1 h-4 w-4" />
-                              Save
-                            </>
-                          )}
-                        </Button>
+                        <div className="flex space-x-2">
+                          <Button 
+                            type="submit" 
+                            disabled={createAccountMutation.isPending}
+                            size="sm"
+                          >
+                            {createAccountMutation.isPending ? (
+                              <>
+                                <span className="animate-spin mr-1">⣾</span>
+                                Saving
+                              </>
+                            ) : (
+                              <>
+                                <Save className="mr-1 h-4 w-4" />
+                                Save
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              form.reset();
+                              setSelectedMainGroup(null);
+                              setSelectedElementGroup(null);
+                              setSelectedSubElementGroup(null);
+                              setSelectedDetailedGroup(null);
+                              setClearForm(true);
+                            }}
+                          >
+                            Clear
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                     {entries.map((entry) => (
