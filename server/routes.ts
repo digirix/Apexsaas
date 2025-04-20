@@ -3089,6 +3089,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Fetch updated invoice after payment has been recorded
       const updatedInvoice = await storage.getInvoice(data.invoiceId, tenantId);
       
+      // Create accounting entries for the payment (double-entry bookkeeping)
+      try {
+        // 1. Find accounts needed for bookkeeping
+        // Cash/Bank Account (Asset) based on payment method
+        let cashAccount;
+        switch(payment.paymentMethod) {
+          case 'credit_card':
+          case 'bank_transfer':
+          case 'direct_debit':
+            cashAccount = await storage.getChartOfAccountByCode("1100", tenantId); // Bank
+            break;
+          case 'cash':
+            cashAccount = await storage.getChartOfAccountByCode("1110", tenantId); // Cash
+            break;
+          default:
+            cashAccount = await storage.getChartOfAccountByCode("1100", tenantId); // Default to Bank
+        }
+        
+        // Accounts Receivable (Asset)
+        const accountsReceivable = await storage.getChartOfAccountByCode("1200", tenantId);
+        
+        if (cashAccount && accountsReceivable) {
+          // Parse payment amount
+          const paymentAmount = parseFloat(payment.amount);
+          
+          // Create journal entry header
+          const journalEntry = await storage.createJournalEntry({
+            tenantId: tenantId,
+            entryDate: payment.paymentDate,
+            reference: `PMT-${payment.id}`,
+            description: `Payment received for Invoice ${invoice.invoiceNumber}`,
+            isPosted: true,
+            createdBy: userId,
+            sourceDocument: "payment",
+            sourceDocumentId: payment.id
+          });
+          
+          // Debit Cash/Bank (Asset increase)
+          await storage.createJournalEntryLine({
+            tenantId: tenantId,
+            journalEntryId: journalEntry.id,
+            accountId: cashAccount.id,
+            description: `Cash/Bank - Payment for Invoice ${invoice.invoiceNumber}`,
+            debitAmount: paymentAmount.toString(),
+            creditAmount: "0",
+            lineOrder: 1
+          });
+          
+          // Credit Accounts Receivable (Asset decrease)
+          await storage.createJournalEntryLine({
+            tenantId: tenantId,
+            journalEntryId: journalEntry.id,
+            accountId: accountsReceivable.id,
+            description: `Accounts Receivable - Payment for Invoice ${invoice.invoiceNumber}`,
+            debitAmount: "0",
+            creditAmount: paymentAmount.toString(),
+            lineOrder: 2
+          });
+          
+          // Update account balances
+          await storage.updateChartOfAccount(cashAccount.id, {
+            currentBalance: (parseFloat(cashAccount.currentBalance || "0") + paymentAmount).toString()
+          });
+          
+          await storage.updateChartOfAccount(accountsReceivable.id, {
+            currentBalance: (parseFloat(accountsReceivable.currentBalance || "0") - paymentAmount).toString()
+          });
+        }
+      } catch (error) {
+        // Log the error but don't fail the payment creation
+        console.error("Failed to create accounting entries for payment:", error);
+      }
+      
       res.status(201).json({
         payment,
         invoice: updatedInvoice
@@ -3288,7 +3361,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // 5. Payment Gateway Settings
+  // 5. Journal Entries
+  app.get("/api/v1/finance/journal-entries", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const sourceDocument = req.query.sourceDocument as string | undefined;
+      const sourceDocumentId = req.query.sourceDocumentId ? parseInt(req.query.sourceDocumentId as string) : undefined;
+      
+      const entries = await storage.getJournalEntries(tenantId, sourceDocument, sourceDocumentId);
+      res.json(entries);
+    } catch (error) {
+      console.error("Error fetching journal entries:", error);
+      res.status(500).json({ message: "Failed to fetch journal entries" });
+    }
+  });
+  
+  app.get("/api/v1/finance/journal-entries/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const entry = await storage.getJournalEntry(id, tenantId);
+      if (!entry) {
+        return res.status(404).json({ message: "Journal entry not found" });
+      }
+      
+      // Fetch associated journal entry lines
+      const lines = await storage.getJournalEntryLines(tenantId, id);
+      
+      res.json({
+        ...entry,
+        lines
+      });
+    } catch (error) {
+      console.error("Error fetching journal entry:", error);
+      res.status(500).json({ message: "Failed to fetch journal entry" });
+    }
+  });
+  
+  // 6. Payment Gateway Settings
   app.get("/api/v1/finance/payment-gateways", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
