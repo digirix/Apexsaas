@@ -3342,13 +3342,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add tenant info
       const data = { ...req.body, tenantId };
       
-      // Check for duplicate account code
-      const existingAccountByCode = await storage.getChartOfAccountByCode(data.accountCode, tenantId);
-      if (existingAccountByCode) {
-        return res.status(400).json({ message: "An account with this code already exists" });
+      // Validate detailed group exists
+      if (!data.detailedGroupId) {
+        return res.status(400).json({ message: "Detailed group is required" });
       }
       
-      const validatedData = enhancedChartOfAccountSchema.parse(data);
+      // Get account type from the hierarchy
+      const detailedGroup = await storage.getChartOfAccountsDetailedGroup(data.detailedGroupId, tenantId);
+      if (!detailedGroup) {
+        return res.status(400).json({ message: "Invalid detailed group" });
+      }
+      
+      const subElementGroup = await storage.getChartOfAccountsSubElementGroup(detailedGroup.subElementGroupId, tenantId);
+      if (!subElementGroup) {
+        return res.status(400).json({ message: "Invalid sub-element group" });
+      }
+      
+      const elementGroup = await storage.getChartOfAccountsElementGroup(subElementGroup.elementGroupId, tenantId);
+      if (!elementGroup) {
+        return res.status(400).json({ message: "Invalid element group" });
+      }
+      
+      // Determine account type from element group
+      let accountType = "asset"; // default
+      switch(elementGroup.name) {
+        case "assets":
+          accountType = "asset";
+          break;
+        case "liabilities":
+          accountType = "liability";
+          break;
+        case "equity":
+          accountType = "equity";
+          break;
+        case "incomes":
+          accountType = "revenue";
+          break;
+        case "expenses":
+          accountType = "expense";
+          break;
+      }
+      
+      // Generate account code
+      const existingAccounts = await storage.getChartOfAccounts(tenantId, accountType, data.detailedGroupId);
+      const baseCode = `${elementGroup.code}.${subElementGroup.code}.${detailedGroup.code}`;
+      const nextNumber = (existingAccounts.length + 1).toString().padStart(3, '0');
+      const accountCode = `${baseCode}.${nextNumber}`;
+      
+      // Prepare complete data
+      const completeData = {
+        ...data,
+        accountType,
+        accountCode
+      };
+      
+      // Validate and create
+      const validatedData = enhancedChartOfAccountSchema.parse(completeData);
       const account = await storage.createChartOfAccount(validatedData);
       
       res.status(201).json(account);

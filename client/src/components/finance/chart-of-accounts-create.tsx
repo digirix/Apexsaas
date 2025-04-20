@@ -251,27 +251,13 @@ export default function ChartOfAccountsCreate() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="accountCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Account Code</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter account code" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
+              <div className="grid grid-cols-1 gap-6">
                 <FormField
                   control={form.control}
                   name="accountName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Account Name</FormLabel>
+                      <FormLabel>Account Name (AC Head)</FormLabel>
                       <FormControl>
                         <Input placeholder="Enter account name" {...field} />
                       </FormControl>
@@ -281,35 +267,7 @@ export default function ChartOfAccountsCreate() {
                 />
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <FormField
-                  control={form.control}
-                  name="accountType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Account Type</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select account type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="asset">Asset</SelectItem>
-                          <SelectItem value="liability">Liability</SelectItem>
-                          <SelectItem value="equity">Equity</SelectItem>
-                          <SelectItem value="revenue">Revenue</SelectItem>
-                          <SelectItem value="expense">Expense</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
                   name="openingBalance"

@@ -103,15 +103,22 @@ export const enhancedPaymentGatewaySettingSchema = createInsertSchema(paymentGat
 export const enhancedChartOfAccountSchema = createInsertSchema(chartOfAccounts)
   .pick({
     tenantId: true,
+    detailedGroupId: true,
     accountCode: true,
     accountName: true,
     accountType: true,
     description: true,
     isActive: true,
+    isSystemAccount: true,
+    openingBalance: true,
+    currentBalance: true
   })
   .extend({
     description: z.string().optional().nullable(),
     isActive: z.boolean().default(true).optional(),
+    isSystemAccount: z.boolean().default(false).optional(),
+    openingBalance: z.union([z.string(), z.number().transform(n => n.toString())]).default("0").optional(),
+    currentBalance: z.union([z.string(), z.number().transform(n => n.toString())]).default("0").optional(),
   });
 
 // Export enhanced types
