@@ -76,7 +76,7 @@ const newSubElementGroupSchema = z.object({
 
 const newDetailedGroupSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  code: z.string().min(1, "Code is required"),
+  code: z.string().optional(),
   subElementGroupId: z.number(),
 });
 
@@ -216,7 +216,6 @@ export default function ChartOfAccountsCreateTabular() {
     resolver: zodResolver(newDetailedGroupSchema),
     defaultValues: {
       name: '',
-      code: '',
       subElementGroupId: 0,
     },
   });
@@ -224,16 +223,33 @@ export default function ChartOfAccountsCreateTabular() {
   // When the detailed group dialog is shown, update the form with the current selected sub-element group ID
   useEffect(() => {
     if (showNewDetailedGroupDialog && selectedSubElementGroup) {
-      // Find the selected sub-element group
-      const subElementGroup = getSubElementGroups().find(
-        group => group.value === selectedSubElementGroup || group.id?.toString() === selectedSubElementGroup
-      );
+      // Use the raw value or convert from string as needed
+      let subElementGroupIdNumber: number;
       
-      if (subElementGroup) {
-        const subElementGroupId = subElementGroup.id || parseInt(subElementGroup.value);
-        console.log("Setting subElementGroupId in form:", subElementGroupId);
-        newDetailedGroupForm.setValue("subElementGroupId", subElementGroupId);
+      // Handle cases where selectedSubElementGroup might be a string ID or a value key
+      if (selectedSubElementGroup && typeof selectedSubElementGroup === 'string') {
+        if (selectedSubElementGroup.startsWith('se_')) {
+          // If it's a special format like "se_123", extract the number
+          subElementGroupIdNumber = parseInt(selectedSubElementGroup.replace('se_', ''));
+        } else if (!isNaN(parseInt(selectedSubElementGroup))) {
+          // If it's a numeric string, convert to number
+          subElementGroupIdNumber = parseInt(selectedSubElementGroup);
+        } else {
+          // If it's a string key like "current_assets", get the ID from the mapping
+          // Find from the SUB_ELEMENT_GROUPS object based on the key
+          // This is a fallback and might need adjustment based on your data structure
+          subElementGroupIdNumber = 1; // Default fallback
+        }
+      } else if (typeof selectedSubElementGroup === 'number') {
+        // If it's already a number, use it directly
+        subElementGroupIdNumber = selectedSubElementGroup;
+      } else {
+        // Fallback
+        subElementGroupIdNumber = 1;
       }
+      
+      console.log("Setting subElementGroupId in form:", subElementGroupIdNumber);
+      newDetailedGroupForm.setValue("subElementGroupId", subElementGroupIdNumber);
     }
   }, [showNewDetailedGroupDialog, selectedSubElementGroup]);
   
@@ -976,55 +992,21 @@ export default function ChartOfAccountsCreateTabular() {
                 )}
               />
               
-              <FormField
-                control={newDetailedGroupForm.control}
-                name="code"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Code</FormLabel>
-                    <FormControl>
-                      <Input placeholder="E.g., BA" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+              {/* Hidden field for subElementGroupId - will be auto-populated */}
+              <input 
+                type="hidden" 
+                name="subElementGroupId" 
+                {...newDetailedGroupForm.register("subElementGroupId")}
               />
               
-              <FormField
-                control={newDetailedGroupForm.control}
-                name="subElementGroupId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Sub-Element Group</FormLabel>
-                    <Select
-                      value={field.value ? field.value.toString() : ""}
-                      onValueChange={(value) => {
-                        console.log("Selected sub-element group value:", value);
-                        field.onChange(parseInt(value));
-                      }}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select sub-element group" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {getSubElementGroups().map((group) => {
-                          const id = group.id || parseInt(group.value);
-                          const valueStr = id.toString();
-                          console.log("SubElement option:", { id, value: valueStr, name: group.name });
-                          return (
-                            <SelectItem key={valueStr} value={valueStr}>
-                              {group.name}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="mb-4">
+                <p className="text-sm text-gray-500">
+                  This detailed group will be created in the "{getSubElementGroups().find(
+                    g => selectedSubElementGroup && 
+                    (g.value === selectedSubElementGroup || g.id?.toString() === selectedSubElementGroup)
+                  )?.name || 'selected'}" sub-element group.
+                </p>
+              </div>
               
               <DialogFooter>
                 <Button type="submit" disabled={createDetailedGroupMutation.isPending}>
