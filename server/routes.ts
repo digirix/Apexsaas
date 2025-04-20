@@ -3756,8 +3756,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const accountType = req.query.accountType as string | undefined;
       const detailedGroupId = req.query.detailedGroupId ? parseInt(req.query.detailedGroupId as string) : undefined;
+      // Add parameter to control whether system accounts are included (default to false)
+      const includeSystemAccounts = req.query.includeSystemAccounts === 'true';
       
-      const accounts = await storage.getChartOfAccounts(tenantId, accountType, detailedGroupId);
+      const accounts = await storage.getChartOfAccounts(tenantId, accountType, detailedGroupId, includeSystemAccounts);
       res.json(accounts);
     } catch (error) {
       console.error("Error fetching accounts:", error);
