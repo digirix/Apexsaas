@@ -18,6 +18,8 @@ import FinancePage from "@/pages/finance";
 import CreateInvoicePage from "@/pages/finance/invoices/create";
 import CreateInvoiceFromTaskPage from "@/pages/finance/invoices/from-task";
 import CreatePaymentPage from "@/pages/finance/payments/create";
+import CreateChartOfAccountPage from "@/pages/finance/chart-of-accounts/create";
+import CreateJournalEntryPage from "@/pages/finance/journal-entries/create";
 
 function Router() {
   return (
@@ -33,6 +35,8 @@ function Router() {
       <ProtectedRoute path="/finance/invoices/create" component={CreateInvoicePage} />
       <ProtectedRoute path="/finance/invoices/from-task" component={CreateInvoiceFromTaskPage} />
       <ProtectedRoute path="/finance/payments/create" component={CreatePaymentPage} />
+      <ProtectedRoute path="/finance/chart-of-accounts/create" component={CreateChartOfAccountPage} />
+      <ProtectedRoute path="/finance/journal-entries/create" component={CreateJournalEntryPage} />
       <ProtectedRoute path="/users" component={UsersPage} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />

@@ -3398,6 +3398,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch journal entry" });
     }
   });
+
+  app.post("/api/v1/finance/journal-entries", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = (req.user as any).id;
+      
+      // Add tenant info
+      const data = { ...req.body, tenantId, createdBy: userId };
+      
+      // Wrap in transaction
+      let journalEntry;
+      let journalEntryLines = [];
+      
+      // Get lines from request
+      const { lines, ...entryData } = data;
+      
+      if (!lines || !Array.isArray(lines) || lines.length === 0) {
+        return res.status(400).json({ message: "Journal entry must have at least one line" });
+      }
+      
+      // Calculate totals
+      const totalDebit = lines.reduce((sum, line) => sum + parseFloat(line.debitAmount || 0), 0);
+      const totalCredit = lines.reduce((sum, line) => sum + parseFloat(line.creditAmount || 0), 0);
+      
+      // Validate double-entry principle
+      if (Math.abs(totalDebit - totalCredit) > 0.0001) {
+        return res.status(400).json({ 
+          message: "Journal entry must balance (total debits must equal total credits)",
+          totalDebit,
+          totalCredit
+        });
+      }
+      
+      // Create journal entry
+      const validatedEntryData = {
+        ...entryData,
+        totalAmount: totalDebit.toString(), // Both debit and credit totals should be equal
+      };
+      
+      journalEntry = await storage.createJournalEntry(validatedEntryData);
+      
+      // Create journal entry lines
+      for (const line of lines) {
+        const lineData = {
+          ...line,
+          tenantId,
+          journalEntryId: journalEntry.id,
+          createdBy: userId
+        };
+        
+        const journalEntryLine = await storage.createJournalEntryLine(lineData);
+        journalEntryLines.push(journalEntryLine);
+      }
+      
+      res.status(201).json({
+        ...journalEntry,
+        lines: journalEntryLines
+      });
+    } catch (error) {
+      console.error("Error creating journal entry:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create journal entry" });
+    }
+  });
   
   // 6. Payment Gateway Settings
   app.get("/api/v1/finance/payment-gateways", isAuthenticated, async (req, res) => {
