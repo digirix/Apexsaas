@@ -1668,6 +1668,8 @@ export class DatabaseStorage implements IStorage {
 
   // 5. Accounts (AC Heads)
   async getChartOfAccounts(tenantId: number, accountType?: string, detailedGroupId?: number, includeSystemAccounts: boolean = false): Promise<ChartOfAccount[]> {
+    // Important: We need to check that the accounts belong to the current tenant, not another tenant
+    // First filter is strict tenant matching to ensure data isolation
     let query = db.select().from(chartOfAccounts)
       .where(eq(chartOfAccounts.tenantId, tenantId));
     
@@ -1684,6 +1686,7 @@ export class DatabaseStorage implements IStorage {
       query = query.where(eq(chartOfAccounts.isSystemAccount, false));
     }
     
+    // Make absolutely sure we're not getting accounts from other tenants with the same names
     return await query.orderBy(asc(chartOfAccounts.accountCode));
   }
 

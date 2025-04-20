@@ -1,12 +1,12 @@
 import React from 'react';
-import ChartOfAccountsCreateTabular from '@/components/finance/chart-of-accounts-create-tabular';
+import ChartOfAccountsNew from '@/components/finance/chart-of-accounts-new';
 import { AppLayout } from '@/components/layout/app-layout';
 
 export default function CreateChartOfAccountPage() {
   return (
-    <AppLayout title="Create Chart of Account">
+    <AppLayout title="Chart of Accounts Management">
       <div className="container py-6">
-        <ChartOfAccountsCreateTabular />
+        <ChartOfAccountsNew />
       </div>
     </AppLayout>
   );
