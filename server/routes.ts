@@ -3736,6 +3736,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  app.post("/api/v1/finance/chart-of-accounts/sub-element-groups", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      // Add tenant info to the data
+      const data = { ...req.body, tenantId };
+      
+      // Validate element group exists
+      const elementGroup = await storage.getChartOfAccountsElementGroup(data.elementGroupId, tenantId);
+      if (!elementGroup) {
+        return res.status(400).json({ message: "Invalid element group ID" });
+      }
+      
+      const subElementGroup = await storage.createChartOfAccountsSubElementGroup(data);
+      res.status(201).json(subElementGroup);
+    } catch (error) {
+      console.error("Error creating sub-element group:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create chart of accounts sub-element group" });
+    }
+  });
+  
+  app.patch("/api/v1/finance/chart-of-accounts/sub-element-groups/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if sub-element group exists and belongs to tenant
+      const existingGroup = await storage.getChartOfAccountsSubElementGroup(id, tenantId);
+      if (!existingGroup) {
+        return res.status(404).json({ message: "Sub-element group not found" });
+      }
+      
+      // If changing element group, validate it exists
+      if (req.body.elementGroupId) {
+        const elementGroup = await storage.getChartOfAccountsElementGroup(req.body.elementGroupId, tenantId);
+        if (!elementGroup) {
+          return res.status(400).json({ message: "Invalid element group ID" });
+        }
+      }
+      
+      const updatedGroup = await storage.updateChartOfAccountsSubElementGroup(id, tenantId, req.body);
+      if (!updatedGroup) {
+        return res.status(500).json({ message: "Failed to update sub-element group" });
+      }
+      
+      res.json(updatedGroup);
+    } catch (error) {
+      console.error("Error updating sub-element group:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update chart of accounts sub-element group" });
+    }
+  });
+  
+  app.delete("/api/v1/finance/chart-of-accounts/sub-element-groups/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if sub-element group exists
+      const existingGroup = await storage.getChartOfAccountsSubElementGroup(id, tenantId);
+      if (!existingGroup) {
+        return res.status(404).json({ message: "Sub-element group not found" });
+      }
+      
+      // Check if any detailed groups are using this sub-element group
+      const detailedGroups = await storage.getChartOfAccountsDetailedGroups(tenantId, id);
+      if (detailedGroups.length > 0) {
+        return res.status(400).json({ 
+          message: "Cannot delete sub-element group that is being used by detailed groups" 
+        });
+      }
+      
+      const result = await storage.deleteChartOfAccountsSubElementGroup(id, tenantId);
+      if (result) {
+        res.status(204).end();
+      } else {
+        res.status(500).json({ message: "Failed to delete sub-element group" });
+      }
+    } catch (error) {
+      console.error("Error deleting sub-element group:", error);
+      res.status(500).json({ message: "Failed to delete chart of accounts sub-element group" });
+    }
+  });
+  
   // 4.4 Detailed Groups
   app.get("/api/v1/finance/chart-of-accounts/detailed-groups", isAuthenticated, async (req, res) => {
     try {

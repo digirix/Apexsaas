@@ -397,13 +397,16 @@ export default function ChartOfAccountsCreateTabular() {
       setShowNewSubElementGroupDialog(false);
       newSubElementGroupForm.reset();
       
-      // Update the dropdown list
+      // Force an immediate refetch of the data before updating selection
       refetchSubElementGroups().then(() => {
-        // Set the newly created item as selected after data is refreshed
-        if (data && data.id) {
-          setSelectedSubElementGroup(data.id.toString());
-          setSelectedDetailedGroup(null); // Reset the detailed group selection
-        }
+        // Small delay to ensure the data is updated in the state
+        setTimeout(() => {
+          // Set the newly created item as selected after data is refreshed
+          if (data && data.id) {
+            setSelectedSubElementGroup(data.id.toString());
+            setSelectedDetailedGroup(null); // Reset the detailed group selection
+          }
+        }, 100);
       });
     },
     onError: (error: any) => {
@@ -427,16 +430,20 @@ export default function ChartOfAccountsCreateTabular() {
       setShowNewDetailedGroupDialog(false);
       newDetailedGroupForm.reset();
       
-      // Refresh all the relevant data and select the newly created item
-      refetchDetailedGroups().then(() => {
-        // Set the newly created item as selected after data is refreshed
-        if (data && data.id) {
-          setSelectedDetailedGroup(data.id.toString());
-        }
-      });
-      
+      // Invalidate the query cache first
       queryClient.invalidateQueries({ 
         queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups'] 
+      });
+      
+      // Force an immediate refetch of the data before updating selection
+      refetchDetailedGroups().then(() => {
+        // Small delay to ensure the data is updated in the state
+        setTimeout(() => {
+          // Set the newly created item as selected after data is refreshed
+          if (data && data.id) {
+            setSelectedDetailedGroup(data.id.toString());
+          }
+        }, 100);
       });
     },
     onError: (error: any) => {
