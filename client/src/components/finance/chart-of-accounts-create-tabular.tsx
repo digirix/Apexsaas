@@ -1,0 +1,1013 @@
+import React, { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { 
+  ArrowLeft, 
+  Save, 
+  Plus,
+  MinusCircle,
+  PlusCircle,
+  Edit,
+} from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+// Chart of Account schemas
+const accountSchema = z.object({
+  detailedGroupId: z.number(),
+  accountName: z.string().min(1, "Account name is required"),
+  description: z.string().optional(),
+  isActive: z.boolean().default(true),
+  isSystemAccount: z.boolean().default(false),
+  openingBalance: z.string().default("0"),
+  currentBalance: z.string().default("0"),
+});
+
+// New schemas for adding hierarchy groups
+const newMainGroupSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  code: z.string().min(1, "Code is required"),
+});
+
+const newElementGroupSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  code: z.string().min(1, "Code is required"),
+  mainGroupId: z.number(),
+});
+
+const newSubElementGroupSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  code: z.string().min(1, "Code is required"),
+  elementGroupId: z.number(),
+});
+
+const newDetailedGroupSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  code: z.string().min(1, "Code is required"),
+  subElementGroupId: z.number(),
+});
+
+// Predefined values as per config
+const MAIN_GROUPS = [
+  { name: "Balance Sheet", value: "balance_sheet" },
+  { name: "Profit and Loss", value: "profit_and_loss" }
+];
+
+const ELEMENT_GROUPS = {
+  balance_sheet: [
+    { name: "Equity", value: "equity" },
+    { name: "Liabilities", value: "liabilities" },
+    { name: "Assets", value: "assets" }
+  ],
+  profit_and_loss: [
+    { name: "Incomes", value: "incomes" },
+    { name: "Expenses", value: "expenses" }
+  ]
+};
+
+const SUB_ELEMENT_GROUPS = {
+  equity: [
+    { name: "Capital", value: "capital" },
+    { name: "Share Capital", value: "share_capital" },
+    { name: "Reserves", value: "reserves" }
+  ],
+  liabilities: [
+    { name: "Non Current Liabilities", value: "non_current_liabilities" },
+    { name: "Current Liabilities", value: "current_liabilities" }
+  ],
+  assets: [
+    { name: "Non Current Assets", value: "non_current_assets" },
+    { name: "Current Assets", value: "current_assets" }
+  ],
+  incomes: [
+    { name: "Sales", value: "sales" },
+    { name: "Service Revenue", value: "service_revenue" }
+  ],
+  expenses: [
+    { name: "Cost of Sales", value: "cost_of_sales" },
+    { name: "Cost of Service Revenue", value: "cost_of_service_revenue" },
+    { name: "Purchase Returns", value: "purchase_returns" }
+  ]
+};
+
+const DETAILED_GROUPS = {
+  capital: [
+    { name: "Owners Capital", value: "owners_capital" }
+  ],
+  non_current_liabilities: [
+    { name: "Long term loans", value: "long_term_loans" }
+  ],
+  current_liabilities: [
+    { name: "Short term loans", value: "short_term_loans" },
+    { name: "Trade Creditors", value: "trade_creditors" },
+    { name: "Accrued Charges", value: "accrued_charges" },
+    { name: "Other Payables", value: "other_payables" }
+  ],
+  non_current_assets: [
+    { name: "Property Plant and Equipment", value: "property_plant_equipment" },
+    { name: "Intangible Assets", value: "intangible_assets" }
+  ],
+  current_assets: [
+    { name: "Stock in trade", value: "stock_in_trade" },
+    { name: "Trade Debtors", value: "trade_debtors" },
+    { name: "Advances and prepayments", value: "advances_prepayments" },
+    { name: "Other Receivables", value: "other_receivables" },
+    { name: "Cash and Bank Balances", value: "cash_bank_balances" }
+  ],
+  share_capital: [],
+  reserves: [],
+  sales: [],
+  service_revenue: [],
+  cost_of_sales: [],
+  cost_of_service_revenue: [],
+  purchase_returns: []
+};
+
+export default function ChartOfAccountsCreateTabular() {
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  // For table entries
+  const [entries, setEntries] = useState<any[]>([]);
+  const [currentEntry, setCurrentEntry] = useState<any>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  
+  // Dialog states
+  const [showNewMainGroupDialog, setShowNewMainGroupDialog] = useState(false);
+  const [showNewElementGroupDialog, setShowNewElementGroupDialog] = useState(false);
+  const [showNewSubElementGroupDialog, setShowNewSubElementGroupDialog] = useState(false);
+  const [showNewDetailedGroupDialog, setShowNewDetailedGroupDialog] = useState(false);
+  
+  // Selected group values from dropdowns
+  const [selectedMainGroup, setSelectedMainGroup] = useState<string | null>(null);
+  const [selectedElementGroup, setSelectedElementGroup] = useState<string | null>(null);
+  const [selectedSubElementGroup, setSelectedSubElementGroup] = useState<string | null>(null);
+  const [selectedDetailedGroup, setSelectedDetailedGroup] = useState<string | null>(null);
+  
+  // Fetch existing chart of accounts entries
+  const { data: chartOfAccounts, isLoading: chartOfAccountsLoading } = useQuery({
+    queryKey: ['/api/v1/finance/chart-of-accounts'],
+    refetchOnWindowFocus: false,
+  });
+  
+  // Forms for hierarchical groups
+  const newMainGroupForm = useForm<z.infer<typeof newMainGroupSchema>>({
+    resolver: zodResolver(newMainGroupSchema),
+    defaultValues: {
+      name: '',
+      code: '',
+    },
+  });
+  
+  const newElementGroupForm = useForm<z.infer<typeof newElementGroupSchema>>({
+    resolver: zodResolver(newElementGroupSchema),
+    defaultValues: {
+      name: '',
+      code: '',
+      mainGroupId: 0,
+    },
+  });
+  
+  const newSubElementGroupForm = useForm<z.infer<typeof newSubElementGroupSchema>>({
+    resolver: zodResolver(newSubElementGroupSchema),
+    defaultValues: {
+      name: '',
+      code: '',
+      elementGroupId: 0,
+    },
+  });
+  
+  const newDetailedGroupForm = useForm<z.infer<typeof newDetailedGroupSchema>>({
+    resolver: zodResolver(newDetailedGroupSchema),
+    defaultValues: {
+      name: '',
+      code: '',
+      subElementGroupId: 0,
+    },
+  });
+  
+  const form = useForm<z.infer<typeof accountSchema>>({
+    resolver: zodResolver(accountSchema),
+    defaultValues: {
+      accountName: '',
+      description: '',
+      isActive: true,
+      isSystemAccount: false,
+      openingBalance: '0',
+      currentBalance: '0',
+    },
+  });
+  
+  // Effect for loading existing entries
+  useEffect(() => {
+    if (chartOfAccounts && Array.isArray(chartOfAccounts)) {
+      setEntries(chartOfAccounts.map((account: any) => ({
+        ...account,
+        id: account.id,
+      })));
+    }
+  }, [chartOfAccounts]);
+  
+  // Mutations for creating new hierarchical groups
+  const createMainGroupMutation = useMutation({
+    mutationFn: async (values: z.infer<typeof newMainGroupSchema>) => {
+      return apiRequest('POST', '/api/v1/finance/chart-of-accounts/main-groups', values);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Main Group Added",
+        description: "The main group has been added successfully.",
+      });
+      setShowNewMainGroupDialog(false);
+      newMainGroupForm.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error adding main group",
+        description: error.message || "Failed to add main group",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const createElementGroupMutation = useMutation({
+    mutationFn: async (values: z.infer<typeof newElementGroupSchema>) => {
+      return apiRequest('POST', '/api/v1/finance/chart-of-accounts/element-groups', values);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Element Group Added",
+        description: "The element group has been added successfully.",
+      });
+      setShowNewElementGroupDialog(false);
+      newElementGroupForm.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error adding element group",
+        description: error.message || "Failed to add element group",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const createSubElementGroupMutation = useMutation({
+    mutationFn: async (values: z.infer<typeof newSubElementGroupSchema>) => {
+      return apiRequest('POST', '/api/v1/finance/chart-of-accounts/sub-element-groups', values);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Sub Element Group Added",
+        description: "The sub element group has been added successfully.",
+      });
+      setShowNewSubElementGroupDialog(false);
+      newSubElementGroupForm.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error adding sub element group",
+        description: error.message || "Failed to add sub element group",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const createDetailedGroupMutation = useMutation({
+    mutationFn: async (values: z.infer<typeof newDetailedGroupSchema>) => {
+      return apiRequest('POST', '/api/v1/finance/chart-of-accounts/detailed-groups', values);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Detailed Group Added",
+        description: "The detailed group has been added successfully.",
+      });
+      setShowNewDetailedGroupDialog(false);
+      newDetailedGroupForm.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error adding detailed group",
+        description: error.message || "Failed to add detailed group",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const createAccountMutation = useMutation({
+    mutationFn: async (values: z.infer<typeof accountSchema>) => {
+      // Add hierarchy info
+      const payload = {
+        ...values,
+        mainGroup: selectedMainGroup,
+        elementGroup: selectedElementGroup,
+        subElementGroup: selectedSubElementGroup,
+        detailedGroup: selectedDetailedGroup,
+      };
+      
+      return apiRequest('POST', '/api/v1/finance/chart-of-accounts', payload);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Account created",
+        description: "The account has been created successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });
+      form.reset();
+      
+      // Clear form fields
+      setSelectedMainGroup(null);
+      setSelectedElementGroup(null);
+      setSelectedSubElementGroup(null);
+      setSelectedDetailedGroup(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error creating account",
+        description: error.message || "Failed to create account",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle form submission
+  const onSubmit = (values: z.infer<typeof accountSchema>) => {
+    if (!selectedDetailedGroup) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a detailed group for this account",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    createAccountMutation.mutate(values);
+  };
+  
+  // Handle adding new hierarchical items
+  const onAddMainGroup = (values: z.infer<typeof newMainGroupSchema>) => {
+    createMainGroupMutation.mutate(values);
+  };
+  
+  const onAddElementGroup = (values: z.infer<typeof newElementGroupSchema>) => {
+    createElementGroupMutation.mutate(values);
+  };
+  
+  const onAddSubElementGroup = (values: z.infer<typeof newSubElementGroupSchema>) => {
+    createSubElementGroupMutation.mutate(values);
+  };
+  
+  const onAddDetailedGroup = (values: z.infer<typeof newDetailedGroupSchema>) => {
+    createDetailedGroupMutation.mutate(values);
+  };
+
+  // Function to edit an entry
+  const editEntry = (entry: any) => {
+    setSelectedMainGroup(entry.mainGroup);
+    setSelectedElementGroup(entry.elementGroup);
+    setSelectedSubElementGroup(entry.subElementGroup);
+    setSelectedDetailedGroup(entry.detailedGroup);
+    
+    form.setValue('accountName', entry.accountName);
+    form.setValue('description', entry.description || '');
+    form.setValue('isActive', entry.isActive);
+    form.setValue('isSystemAccount', entry.isSystemAccount);
+    form.setValue('openingBalance', entry.openingBalance);
+    form.setValue('currentBalance', entry.currentBalance);
+    
+    setCurrentEntry(entry);
+    setIsEditing(true);
+  };
+  
+  // Function to delete an entry from the table
+  const deleteEntry = (id: number) => {
+    // Here we would implement deletion if needed
+    // Temporary just remove from the displayed list
+    setEntries(entries.filter(entry => entry.id !== id));
+  };
+  
+  // Get available element groups based on selected main group
+  const getElementGroups = () => {
+    if (!selectedMainGroup) return [];
+    return ELEMENT_GROUPS[selectedMainGroup as keyof typeof ELEMENT_GROUPS] || [];
+  };
+  
+  // Get available sub-element groups based on selected element group
+  const getSubElementGroups = () => {
+    if (!selectedElementGroup) return [];
+    return SUB_ELEMENT_GROUPS[selectedElementGroup as keyof typeof SUB_ELEMENT_GROUPS] || [];
+  };
+  
+  // Get available detailed groups based on selected sub-element group
+  const getDetailedGroups = () => {
+    if (!selectedSubElementGroup) return [];
+    return DETAILED_GROUPS[selectedSubElementGroup as keyof typeof DETAILED_GROUPS] || [];
+  };
+  
+  return (
+    <Card className="w-full">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Chart of Accounts Management</CardTitle>
+            <CardDescription>
+              Add new accounts to your chart of accounts
+            </CardDescription>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setLocation('/finance')}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4">
+                <table className="min-w-full border-collapse">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="p-2 text-left">Main Group</th>
+                      <th className="p-2 text-left">Element Group</th>
+                      <th className="p-2 text-left">Sub-Element Group</th>
+                      <th className="p-2 text-left">Detailed Group</th>
+                      <th className="p-2 text-left">Account Name (AC Head)</th>
+                      <th className="p-2 text-left">Opening Balance</th>
+                      <th className="p-2 text-left">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="p-2">
+                        <div className="flex items-center space-x-1">
+                          <Select 
+                            value={selectedMainGroup || ""} 
+                            onValueChange={(value) => {
+                              setSelectedMainGroup(value);
+                              setSelectedElementGroup(null);
+                              setSelectedSubElementGroup(null);
+                              setSelectedDetailedGroup(null);
+                            }}
+                          >
+                            <SelectTrigger className="w-[150px]">
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {MAIN_GROUPS.map((group) => (
+                                <SelectItem key={group.value} value={group.value}>
+                                  {group.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => setShowNewMainGroupDialog(true)}
+                          >
+                            <PlusCircle className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                      <td className="p-2">
+                        <div className="flex items-center space-x-1">
+                          <Select 
+                            value={selectedElementGroup || ""} 
+                            onValueChange={(value) => {
+                              setSelectedElementGroup(value);
+                              setSelectedSubElementGroup(null);
+                              setSelectedDetailedGroup(null);
+                            }}
+                            disabled={!selectedMainGroup}
+                          >
+                            <SelectTrigger className="w-[150px]">
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getElementGroups().map((group) => (
+                                <SelectItem key={group.value} value={group.value}>
+                                  {group.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => setShowNewElementGroupDialog(true)}
+                            disabled={!selectedMainGroup}
+                          >
+                            <PlusCircle className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                      <td className="p-2">
+                        <div className="flex items-center space-x-1">
+                          <Select 
+                            value={selectedSubElementGroup || ""} 
+                            onValueChange={(value) => {
+                              setSelectedSubElementGroup(value);
+                              setSelectedDetailedGroup(null);
+                            }}
+                            disabled={!selectedElementGroup}
+                          >
+                            <SelectTrigger className="w-[150px]">
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getSubElementGroups().map((group) => (
+                                <SelectItem key={group.value} value={group.value}>
+                                  {group.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => setShowNewSubElementGroupDialog(true)}
+                            disabled={!selectedElementGroup}
+                          >
+                            <PlusCircle className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                      <td className="p-2">
+                        <div className="flex items-center space-x-1">
+                          <Select 
+                            value={selectedDetailedGroup || ""} 
+                            onValueChange={(value) => {
+                              setSelectedDetailedGroup(value);
+                            }}
+                            disabled={!selectedSubElementGroup}
+                          >
+                            <SelectTrigger className="w-[150px]">
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getDetailedGroups().map((group) => (
+                                <SelectItem key={group.value} value={group.value}>
+                                  {group.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => setShowNewDetailedGroupDialog(true)}
+                            disabled={!selectedSubElementGroup}
+                          >
+                            <PlusCircle className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                      <td className="p-2">
+                        <FormField
+                          control={form.control}
+                          name="accountName"
+                          render={({ field }) => (
+                            <FormControl>
+                              <Input placeholder="Account Name" {...field} className="w-[150px]" />
+                            </FormControl>
+                          )}
+                        />
+                      </td>
+                      <td className="p-2">
+                        <FormField
+                          control={form.control}
+                          name="openingBalance"
+                          render={({ field }) => (
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                step="0.01" 
+                                placeholder="0.00" 
+                                {...field} 
+                                className="w-[100px]" 
+                              />
+                            </FormControl>
+                          )}
+                        />
+                      </td>
+                      <td className="p-2">
+                        <Button 
+                          type="submit" 
+                          disabled={createAccountMutation.isPending}
+                          size="sm"
+                        >
+                          {createAccountMutation.isPending ? (
+                            <>
+                              <span className="animate-spin mr-1">⣾</span>
+                              Saving
+                            </>
+                          ) : (
+                            <>
+                              <Save className="mr-1 h-4 w-4" />
+                              Save
+                            </>
+                          )}
+                        </Button>
+                      </td>
+                    </tr>
+                    {entries.map((entry) => (
+                      <tr key={entry.id} className="border-t">
+                        <td className="p-2">{entry.mainGroup}</td>
+                        <td className="p-2">{entry.elementGroup}</td>
+                        <td className="p-2">{entry.subElementGroup}</td>
+                        <td className="p-2">{entry.detailedGroup}</td>
+                        <td className="p-2">{entry.accountName}</td>
+                        <td className="p-2">{entry.openingBalance}</td>
+                        <td className="p-2">
+                          <div className="flex space-x-2">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => editEntry(entry)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deleteEntry(entry.id)}
+                            >
+                              <MinusCircle className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="currentBalance"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Current Balance</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Enter account description" 
+                          {...field} 
+                          value={field.value || ''}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="isActive"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Is Active</FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="isSystemAccount"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Is System Account</FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-between">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setLocation('/finance')}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Finance
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => form.reset()}
+              >
+                Clear Form
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </CardContent>
+
+      {/* Dialog for adding new Main Group */}
+      <Dialog open={showNewMainGroupDialog} onOpenChange={setShowNewMainGroupDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Main Group</DialogTitle>
+            <DialogDescription>
+              Add a new main group to the chart of accounts.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...newMainGroupForm}>
+            <form onSubmit={newMainGroupForm.handleSubmit(onAddMainGroup)} className="space-y-4">
+              <FormField
+                control={newMainGroupForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Balance Sheet" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={newMainGroupForm.control}
+                name="code"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Code</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. BS" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowNewMainGroupDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createMainGroupMutation.isPending}>
+                  {createMainGroupMutation.isPending ? "Adding..." : "Add Main Group"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog for adding new Element Group */}
+      <Dialog open={showNewElementGroupDialog} onOpenChange={setShowNewElementGroupDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Element Group</DialogTitle>
+            <DialogDescription>
+              Add a new element group to the selected main group.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...newElementGroupForm}>
+            <form onSubmit={newElementGroupForm.handleSubmit(onAddElementGroup)} className="space-y-4">
+              <FormField
+                control={newElementGroupForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Assets" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={newElementGroupForm.control}
+                name="code"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Code</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. A" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowNewElementGroupDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createElementGroupMutation.isPending}>
+                  {createElementGroupMutation.isPending ? "Adding..." : "Add Element Group"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog for adding new Sub Element Group */}
+      <Dialog open={showNewSubElementGroupDialog} onOpenChange={setShowNewSubElementGroupDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Sub Element Group</DialogTitle>
+            <DialogDescription>
+              Add a new sub element group to the selected element group.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...newSubElementGroupForm}>
+            <form onSubmit={newSubElementGroupForm.handleSubmit(onAddSubElementGroup)} className="space-y-4">
+              <FormField
+                control={newSubElementGroupForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Current Assets" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={newSubElementGroupForm.control}
+                name="code"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Code</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. CA" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowNewSubElementGroupDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createSubElementGroupMutation.isPending}>
+                  {createSubElementGroupMutation.isPending ? "Adding..." : "Add Sub Element Group"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog for adding new Detailed Group */}
+      <Dialog open={showNewDetailedGroupDialog} onOpenChange={setShowNewDetailedGroupDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Detailed Group</DialogTitle>
+            <DialogDescription>
+              Add a new detailed group to the selected sub element group.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...newDetailedGroupForm}>
+            <form onSubmit={newDetailedGroupForm.handleSubmit(onAddDetailedGroup)} className="space-y-4">
+              <FormField
+                control={newDetailedGroupForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Cash and Bank Balances" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={newDetailedGroupForm.control}
+                name="code"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Code</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. CBB" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowNewDetailedGroupDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createDetailedGroupMutation.isPending}>
+                  {createDetailedGroupMutation.isPending ? "Adding..." : "Add Detailed Group"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
