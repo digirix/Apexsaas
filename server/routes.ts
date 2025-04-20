@@ -13,7 +13,8 @@ import {
   insertTaskStatusWorkflowRuleSchema,
   // Basic finance module schemas from schema.ts
   insertInvoiceSchema, insertInvoiceLineItemSchema, insertPaymentSchema, 
-  insertPaymentGatewaySettingSchema, insertChartOfAccountSchema
+  insertPaymentGatewaySettingSchema, insertChartOfAccountSchema,
+  insertJournalEntryTypeSchema
 } from "@shared/schema";
 
 // Import enhanced schemas for finance module with proper type handling
@@ -2887,6 +2888,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             tenantId: tenantId,
             entryDate: invoice.issueDate,
             reference: `INV-${invoice.invoiceNumber}`,
+            entryType: "INV", // Invoice entry type
             description: `Invoice ${invoice.invoiceNumber} created`,
             isPosted: true,
             createdBy: userId,
@@ -3119,6 +3121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             tenantId: tenantId,
             entryDate: payment.paymentDate,
             reference: `PMT-${payment.id}`,
+            entryType: "PMT", // Payment entry type
             description: `Payment received for Invoice ${invoice.invoiceNumber}`,
             isPosted: true,
             createdBy: userId,
