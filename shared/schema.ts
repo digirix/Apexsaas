@@ -655,6 +655,64 @@ export const insertPaymentGatewaySettingSchema = createInsertSchema(paymentGatew
     updatedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
   });
 
+// Journal Entries for accounting transactions
+export const journalEntries = pgTable("journal_entries", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  entryDate: timestamp("entry_date").notNull(),
+  reference: text("reference").notNull(), // E.g., INV-2023-001, PMT-2023-001
+  description: text("description").notNull(),
+  isPosted: boolean("is_posted").default(false).notNull(),
+  postedAt: timestamp("posted_at"),
+  createdBy: integer("created_by").notNull(),
+  updatedBy: integer("updated_by"),
+  sourceDocument: text("source_document").notNull(), // invoice, payment, manual
+  sourceDocumentId: integer("source_document_id"), // ID of the related document
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertJournalEntrySchema = createInsertSchema(journalEntries)
+  .pick({
+    tenantId: true,
+    entryDate: true,
+    reference: true,
+    description: true,
+    isPosted: true,
+    createdBy: true,
+    sourceDocument: true,
+    sourceDocumentId: true,
+  })
+  .extend({
+    entryDate: z.union([z.date(), z.string().transform(str => new Date(str))]),
+    updatedBy: z.number().optional(),
+    postedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
+  });
+
+// Journal Entry Lines for individual line items in a journal entry
+export const journalEntryLines = pgTable("journal_entry_lines", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  journalEntryId: integer("journal_entry_id").notNull(),
+  accountId: integer("account_id").notNull(), // Reference to chart_of_accounts
+  description: text("description").notNull(),
+  debitAmount: decimal("debit_amount", { precision: 10, scale: 2 }).default("0").notNull(),
+  creditAmount: decimal("credit_amount", { precision: 10, scale: 2 }).default("0").notNull(),
+  lineOrder: integer("line_order").notNull(), // For ordering lines within an entry
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertJournalEntryLineSchema = createInsertSchema(journalEntryLines)
+  .pick({
+    tenantId: true,
+    journalEntryId: true,
+    accountId: true,
+    description: true,
+    debitAmount: true,
+    creditAmount: true,
+    lineOrder: true,
+  });
+
 // Financial account types enum
 // Chart of Accounts enums - following accounting structure
 export const mainGroupEnum = pgEnum('main_group', [
@@ -988,3 +1046,10 @@ export const registerSchema = z.object({
 
 export type LoginData = z.infer<typeof loginSchema>;
 export type RegisterData = z.infer<typeof registerSchema>;
+
+// Journal entry types for accounting
+export type JournalEntry = typeof journalEntries.$inferSelect;
+export type InsertJournalEntry = z.infer<typeof insertJournalEntrySchema>;
+
+export type JournalEntryLine = typeof journalEntryLines.$inferSelect;
+export type InsertJournalEntryLine = z.infer<typeof insertJournalEntryLineSchema>;

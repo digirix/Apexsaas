@@ -236,6 +236,20 @@ export interface IStorage {
   createChartOfAccount(account: InsertChartOfAccount): Promise<ChartOfAccount>;
   updateChartOfAccount(id: number, account: Partial<InsertChartOfAccount>): Promise<ChartOfAccount | undefined>;
   deleteChartOfAccount(id: number, tenantId: number): Promise<boolean>;
+  
+  // Journal Entry operations for accounting
+  getJournalEntries(tenantId: number, sourceDocument?: string, sourceDocumentId?: number): Promise<JournalEntry[]>;
+  getJournalEntry(id: number, tenantId: number): Promise<JournalEntry | undefined>;
+  createJournalEntry(entry: InsertJournalEntry): Promise<JournalEntry>;
+  updateJournalEntry(id: number, entry: Partial<InsertJournalEntry>): Promise<JournalEntry | undefined>;
+  deleteJournalEntry(id: number, tenantId: number): Promise<boolean>;
+  
+  // Journal Entry Line operations
+  getJournalEntryLines(tenantId: number, journalEntryId: number): Promise<JournalEntryLine[]>;
+  getJournalEntryLine(id: number, tenantId: number): Promise<JournalEntryLine | undefined>;
+  createJournalEntryLine(line: InsertJournalEntryLine): Promise<JournalEntryLine>;
+  updateJournalEntryLine(id: number, line: Partial<InsertJournalEntryLine>): Promise<JournalEntryLine | undefined>;
+  deleteJournalEntryLine(id: number, tenantId: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
