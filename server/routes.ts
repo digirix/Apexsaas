@@ -23,7 +23,9 @@ import {
   enhancedInvoiceLineItemSchema,
   enhancedPaymentSchema,
   enhancedPaymentGatewaySettingSchema,
-  enhancedChartOfAccountSchema
+  enhancedChartOfAccountSchema,
+  enhancedJournalEntrySchema,
+  enhancedJournalEntryLineSchema
 } from "@shared/finance-schema";
 import { z } from "zod";
 
@@ -3466,26 +3468,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const userId = (req.user as any).id;
       
-      // Add tenant info and convert date string to Date object
-      const { entryDate, ...otherBodyData } = req.body;
+      // Extract data from request body
+      const { entryDate, sourceDocument, sourceDocumentId, lines, ...otherBodyData } = req.body;
+      
+      console.log("Journal Entry Request body:", {
+        entryDate,
+        sourceDocument,
+        sourceDocumentId,
+        lines: Array.isArray(lines) ? `${lines.length} lines` : lines,
+        ...otherBodyData
+      });
       
       // Convert string date to Date object
       const parsedEntryDate = entryDate ? new Date(entryDate) : new Date();
       
-      const data = { 
-        ...otherBodyData, 
-        entryDate: parsedEntryDate,
-        tenantId, 
-        createdBy: userId 
-      };
-      
-      // Wrap in transaction
-      let journalEntry;
-      let journalEntryLines = [];
-      
-      // Get lines from request
-      const { lines, ...entryData } = data;
-      
+      // Validate lines
       if (!lines || !Array.isArray(lines) || lines.length === 0) {
         return res.status(400).json({ message: "Journal entry must have at least one line" });
       }
@@ -3503,36 +3500,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Create journal entry
-      const validatedEntryData = {
-        ...entryData,
-        totalAmount: totalDebit.toString(), // Both debit and credit totals should be equal
+      // Set up the entry data with proper null handling for sourceDocument fields
+      const entryData = { 
+        ...otherBodyData, 
+        entryDate: parsedEntryDate,
+        tenantId, 
+        createdBy: userId,
+        // Ensure these can be null without causing SQL errors
+        sourceDocument: sourceDocument || null,
+        sourceDocumentId: sourceDocumentId ? Number(sourceDocumentId) : null,
+        totalAmount: totalDebit.toString() // Both debit and credit totals should be equal
       };
       
-      journalEntry = await storage.createJournalEntry(validatedEntryData);
+      // Validate the journal entry data using our enhanced schema
+      console.log("Validating journal entry data with schema");
+      const validatedEntryData = enhancedJournalEntrySchema.parse(entryData);
+      
+      // Create journal entry
+      console.log("Creating journal entry with validated data:", validatedEntryData);
+      const journalEntry = await storage.createJournalEntry(validatedEntryData);
+      console.log("Journal entry created:", journalEntry);
       
       // Create journal entry lines
-      for (const line of lines) {
+      const journalEntryLines = [];
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
         const lineData = {
           ...line,
           tenantId,
           journalEntryId: journalEntry.id,
-          createdBy: userId
+          lineOrder: i + 1, // Ensure line order is set properly
+          // Use default values for missing fields
+          debitAmount: line.debitAmount || "0",
+          creditAmount: line.creditAmount || "0"
         };
         
-        const journalEntryLine = await storage.createJournalEntryLine(lineData);
+        // Validate journal entry line data
+        console.log(`Validating journal entry line ${i+1}`);
+        const validatedLineData = enhancedJournalEntryLineSchema.parse(lineData);
+        
+        console.log(`Creating journal entry line ${i+1}:`, validatedLineData);
+        const journalEntryLine = await storage.createJournalEntryLine(validatedLineData);
         journalEntryLines.push(journalEntryLine);
       }
       
+      // Return the complete entry with its lines
       res.status(201).json({
         ...journalEntry,
         lines: journalEntryLines
       });
+      
     } catch (error) {
       console.error("Error creating journal entry:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Validation error", errors: error.errors });
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
       }
+      
       res.status(500).json({ 
         message: "Failed to create journal entry",
         error: error instanceof Error ? error.message : String(error)
