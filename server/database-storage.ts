@@ -1417,13 +1417,26 @@ export class DatabaseStorage implements IStorage {
   }
   
   async deleteTask(id: number, tenantId?: number): Promise<boolean> {
-    let query = db.delete(tasks).where(eq(tasks.id, id));
+    // Always use the and() operator to combine multiple conditions
+    // to ensure proper query construction
+    let deleteConditions = [];
     
+    // Always filter by ID
+    deleteConditions.push(eq(tasks.id, id));
+    
+    // Only filter by tenant if provided
     if (tenantId) {
-      query = query.where(eq(tasks.tenantId, tenantId));
+      deleteConditions.push(eq(tasks.tenantId, tenantId));
     }
     
-    const [deletedTask] = await query.returning({ id: tasks.id });
+    // Execute the delete with the combined conditions
+    const [deletedTask] = await db.delete(tasks)
+      .where(and(...deleteConditions))
+      .returning({ id: tasks.id });
+    
+    // Log the deletion for debugging
+    console.log(`Deleted task with ID: ${id}, tenant ID: ${tenantId}, result: ${!!deletedTask}`);
+    
     return !!deletedTask;
   }
 
