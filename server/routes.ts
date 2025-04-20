@@ -2873,6 +2873,152 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // POST update invoice status
+  app.post("/api/v1/finance/invoices/:id/status", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = (req.user as any).id;
+      const id = parseInt(req.params.id);
+      const { status } = req.body;
+      
+      // Validate the requested status
+      const validStatuses = ['draft', 'approved', 'sent', 'paid', 'partially_paid', 'overdue', 'canceled', 'void'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Invalid invoice status" });
+      }
+      
+      // Get the invoice
+      const invoice = await storage.getInvoice(id, tenantId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      // Check if status change is allowed (implementation of business rules)
+      const allowedTransitions: Record<string, string[]> = {
+        'draft': ['approved', 'sent', 'canceled', 'void'],
+        'sent': ['approved', 'paid', 'partially_paid', 'overdue', 'canceled', 'void'],
+        'approved': ['paid', 'partially_paid', 'overdue', 'canceled', 'void'],
+        'partially_paid': ['paid', 'overdue', 'void'],
+        'overdue': ['paid', 'partially_paid', 'void'],
+        'paid': ['void'],
+        'canceled': ['draft'],
+        'void': [],
+      };
+      
+      const isTransitionAllowed = allowedTransitions[invoice.status]?.includes(status);
+      if (!isTransitionAllowed) {
+        return res.status(400).json({ 
+          message: `Cannot change invoice status from '${invoice.status}' to '${status}'` 
+        });
+      }
+      
+      // Update invoice status
+      await storage.updateInvoice(id, { 
+        status, 
+        updatedAt: new Date(),
+        updatedBy: userId 
+      });
+      
+      // Handle special status transitions with accounting effects
+      const previousStatus = invoice.status;
+      
+      // When invoice is being approved - create accounting entries for double-entry bookkeeping
+      if (previousStatus === 'draft' && status === 'approved') {
+        try {
+          // 1. Find accounts needed for bookkeeping
+          // Accounts receivable (Asset) - Trade Debtors
+          const accountsReceivable = await storage.getChartOfAccountByCode("1200", tenantId);
+          
+          // Revenue account (lookup based on client entity or use default)
+          let revenueAccount;
+          if (invoice.entityId) {
+            const entity = await storage.getEntity(invoice.entityId, tenantId);
+            if (entity && entity.revenueAccountId) {
+              revenueAccount = await storage.getChartOfAccount(entity.revenueAccountId, tenantId);
+            }
+          }
+          
+          // Use default revenue account if not found
+          if (!revenueAccount) {
+            revenueAccount = await storage.getChartOfAccountByCode("4000", tenantId);
+          }
+          
+          // Tax liability account (if tax is present)
+          const taxLiabilityAccount = await storage.getChartOfAccountByCode("2200", tenantId);
+          
+          if (accountsReceivable && revenueAccount) {
+            // 2. Create journal entries
+            const totalAmount = parseFloat(invoice.totalAmount);
+            const taxAmount = parseFloat(invoice.taxAmount || "0");
+            const revenueAmount = totalAmount - taxAmount;
+            
+            // Create journal entry header
+            const journalEntry = await storage.createJournalEntry({
+              tenantId: tenantId,
+              entryDate: new Date(),
+              reference: `INV-${invoice.invoiceNumber}`,
+              entryType: "INVAP", // Invoice approval entry type
+              description: `Invoice ${invoice.invoiceNumber} approved`,
+              isPosted: true,
+              createdBy: userId,
+              sourceDocument: "invoice",
+              sourceDocumentId: invoice.id
+            });
+            
+            // Debit Accounts Receivable (Asset increase)
+            await storage.createJournalEntryLine({
+              tenantId: tenantId,
+              journalEntryId: journalEntry.id,
+              accountId: accountsReceivable.id,
+              description: `Accounts Receivable - Invoice ${invoice.invoiceNumber}`,
+              debitAmount: totalAmount.toString(),
+              creditAmount: "0",
+              lineOrder: 1
+            });
+            
+            // Credit Revenue (Revenue increase)
+            await storage.createJournalEntryLine({
+              tenantId: tenantId,
+              journalEntryId: journalEntry.id,
+              accountId: revenueAccount.id,
+              description: `Revenue - Invoice ${invoice.invoiceNumber}`,
+              debitAmount: "0",
+              creditAmount: revenueAmount.toString(),
+              lineOrder: 2
+            });
+            
+            // If tax exists, credit Tax Liability
+            if (taxAmount > 0 && taxLiabilityAccount) {
+              await storage.createJournalEntryLine({
+                tenantId: tenantId,
+                journalEntryId: journalEntry.id,
+                accountId: taxLiabilityAccount.id,
+                description: `Tax Liability - Invoice ${invoice.invoiceNumber}`,
+                debitAmount: "0",
+                creditAmount: taxAmount.toString(),
+                lineOrder: 3
+              });
+            }
+            
+            console.log(`Created journal entry (ID: ${journalEntry.id}) for approved invoice ${invoice.invoiceNumber}`);
+          } else {
+            console.error("Required accounts not found for accounting entries");
+          }
+        } catch (error) {
+          console.error("Error creating accounting entries for approved invoice:", error);
+          // We don't fail the operation if accounting entries fail, but we log the error
+        }
+      }
+      
+      // Return updated invoice
+      const updatedInvoice = await storage.getInvoice(id, tenantId);
+      res.json(updatedInvoice);
+    } catch (error) {
+      console.error("Error updating invoice status:", error);
+      res.status(500).json({ message: "Error updating invoice status" });
+    }
+  });
+  
   app.post("/api/v1/finance/invoices", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;

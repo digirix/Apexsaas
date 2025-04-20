@@ -9,6 +9,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { AppLayout } from "@/components/layout/app-layout";
 import JournalEntriesList from "@/components/finance/journal-entries-list";
+import { InvoiceActions } from "@/components/finance/invoice-actions";
 import { 
   DollarSign, 
   FileText, 
@@ -203,16 +204,20 @@ export default function FinancePage() {
                               <td className="p-2">{new Date(invoice.dueDate).toLocaleDateString()}</td>
                               <td className="p-2">{formatCurrency(parseFloat(invoice.totalAmount))}</td>
                               <td className="p-2">
-                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
-                                  ${invoice.status === 'paid' ? 'bg-green-100 text-green-800' : ''}
-                                  ${invoice.status === 'draft' ? 'bg-gray-100 text-gray-800' : ''}
-                                  ${invoice.status === 'sent' ? 'bg-blue-100 text-blue-800' : ''}
-                                  ${invoice.status === 'overdue' ? 'bg-red-100 text-red-800' : ''}
-                                  ${invoice.status === 'partially_paid' ? 'bg-yellow-100 text-yellow-800' : ''}
-                                  ${invoice.status === 'canceled' || invoice.status === 'void' ? 'bg-gray-100 text-gray-800' : ''}
-                                `}>
-                                  {invoice.status.replace('_', ' ')}
-                                </span>
+                                <div className="flex items-center justify-between">
+                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
+                                    ${invoice.status === 'paid' ? 'bg-green-100 text-green-800' : ''}
+                                    ${invoice.status === 'draft' ? 'bg-gray-100 text-gray-800' : ''}
+                                    ${invoice.status === 'sent' ? 'bg-blue-100 text-blue-800' : ''}
+                                    ${invoice.status === 'approved' ? 'bg-emerald-100 text-emerald-800' : ''}
+                                    ${invoice.status === 'overdue' ? 'bg-red-100 text-red-800' : ''}
+                                    ${invoice.status === 'partially_paid' ? 'bg-yellow-100 text-yellow-800' : ''}
+                                    ${invoice.status === 'canceled' || invoice.status === 'void' ? 'bg-gray-100 text-gray-800' : ''}
+                                  `}>
+                                    {invoice.status.replace('_', ' ')}
+                                  </span>
+                                  <InvoiceActions invoice={invoice} />
+                                </div>
                               </td>
                             </tr>
                           ))}
