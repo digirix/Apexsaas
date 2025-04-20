@@ -2,7 +2,8 @@ import {
   tenants, tenantSettings, users, designations, departments, countries, currencies, states, 
   entityTypes, taskStatuses, taskStatusWorkflowRules, taxJurisdictions, serviceTypes, 
   clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions, 
-  userPermissions, invoices, invoiceLineItems, payments, paymentGatewaySettings, chartOfAccounts
+  userPermissions, invoices, invoiceLineItems, payments, paymentGatewaySettings, chartOfAccounts,
+  journalEntries, journalEntryLines
 } from "@shared/schema";
 import type { 
   Tenant, User, InsertUser, InsertTenant, 
@@ -17,7 +18,9 @@ import type {
   // Finance module types
   Invoice, InsertInvoice, InvoiceLineItem, InsertInvoiceLineItem, 
   Payment, InsertPayment, PaymentGatewaySetting, InsertPaymentGatewaySetting,
-  ChartOfAccount, InsertChartOfAccount
+  ChartOfAccount, InsertChartOfAccount,
+  // Journal entry types
+  JournalEntry, InsertJournalEntry, JournalEntryLine, InsertJournalEntryLine
 } from "@shared/schema";
 import { IStorage } from "./storage";
 import { db } from "./db";
@@ -1703,5 +1706,104 @@ export class DatabaseStorage implements IStorage {
       ))
       .returning({ id: chartOfAccounts.id });
     return !!deletedAccount;
+  }
+
+  // Journal Entry operations for accounting
+  async getJournalEntries(tenantId: number, sourceDocument?: string, sourceDocumentId?: number): Promise<JournalEntry[]> {
+    let query = db.select().from(journalEntries)
+      .where(eq(journalEntries.tenantId, tenantId))
+      .orderBy(desc(journalEntries.entryDate));
+    
+    if (sourceDocument) {
+      query = query.where(eq(journalEntries.sourceDocument, sourceDocument));
+    }
+    
+    if (sourceDocumentId) {
+      query = query.where(eq(journalEntries.sourceDocumentId, sourceDocumentId));
+    }
+    
+    return await query;
+  }
+
+  async getJournalEntry(id: number, tenantId: number): Promise<JournalEntry | undefined> {
+    const [entry] = await db.select().from(journalEntries)
+      .where(and(
+        eq(journalEntries.id, id),
+        eq(journalEntries.tenantId, tenantId)
+      ));
+    return entry;
+  }
+
+  async createJournalEntry(entry: InsertJournalEntry): Promise<JournalEntry> {
+    const [newEntry] = await db.insert(journalEntries).values(entry).returning();
+    return newEntry;
+  }
+
+  async updateJournalEntry(id: number, entry: Partial<InsertJournalEntry>): Promise<JournalEntry | undefined> {
+    const [updatedEntry] = await db.update(journalEntries)
+      .set(entry)
+      .where(eq(journalEntries.id, id))
+      .returning();
+    return updatedEntry;
+  }
+
+  async deleteJournalEntry(id: number, tenantId: number): Promise<boolean> {
+    // First delete all related journal entry lines
+    await db.delete(journalEntryLines)
+      .where(and(
+        eq(journalEntryLines.journalEntryId, id),
+        eq(journalEntryLines.tenantId, tenantId)
+      ));
+      
+    // Then delete the journal entry
+    const [deletedEntry] = await db.delete(journalEntries)
+      .where(and(
+        eq(journalEntries.id, id),
+        eq(journalEntries.tenantId, tenantId)
+      ))
+      .returning({ id: journalEntries.id });
+    return !!deletedEntry;
+  }
+
+  // Journal Entry Line operations
+  async getJournalEntryLines(tenantId: number, journalEntryId: number): Promise<JournalEntryLine[]> {
+    return await db.select().from(journalEntryLines)
+      .where(and(
+        eq(journalEntryLines.tenantId, tenantId),
+        eq(journalEntryLines.journalEntryId, journalEntryId)
+      ))
+      .orderBy(asc(journalEntryLines.lineOrder));
+  }
+
+  async getJournalEntryLine(id: number, tenantId: number): Promise<JournalEntryLine | undefined> {
+    const [line] = await db.select().from(journalEntryLines)
+      .where(and(
+        eq(journalEntryLines.id, id),
+        eq(journalEntryLines.tenantId, tenantId)
+      ));
+    return line;
+  }
+
+  async createJournalEntryLine(line: InsertJournalEntryLine): Promise<JournalEntryLine> {
+    const [newLine] = await db.insert(journalEntryLines).values(line).returning();
+    return newLine;
+  }
+
+  async updateJournalEntryLine(id: number, line: Partial<InsertJournalEntryLine>): Promise<JournalEntryLine | undefined> {
+    const [updatedLine] = await db.update(journalEntryLines)
+      .set(line)
+      .where(eq(journalEntryLines.id, id))
+      .returning();
+    return updatedLine;
+  }
+
+  async deleteJournalEntryLine(id: number, tenantId: number): Promise<boolean> {
+    const [deletedLine] = await db.delete(journalEntryLines)
+      .where(and(
+        eq(journalEntryLines.id, id),
+        eq(journalEntryLines.tenantId, tenantId)
+      ))
+      .returning({ id: journalEntryLines.id });
+    return !!deletedLine;
   }
 }
