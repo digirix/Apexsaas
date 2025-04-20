@@ -60,6 +60,7 @@ type ChartOfAccountsSubElementGroup = {
   id: number;
   elementGroupId: number;
   name: string;
+  customName?: string;
   code: string;
   description: string | null;
 };
@@ -68,6 +69,7 @@ type ChartOfAccountsDetailedGroup = {
   id: number;
   subElementGroupId: number;
   name: string;
+  customName?: string;
   code: string;
   description: string | null;
 };
@@ -134,11 +136,17 @@ export default function COAConfigurationPage() {
     mutationFn: async (values: z.infer<typeof subElementGroupSchema>) => {
       if (!currentItem) return null;
       
+      // Set the customName field with the user-provided name
+      const data = {
+        ...values,
+        customName: values.name
+      };
+      
       return apiRequest(
         `/api/v1/finance/chart-of-accounts/sub-element-groups/${currentItem.id}`,
         {
           method: 'PATCH',
-          data: values
+          data
         }
       );
     },
@@ -165,11 +173,17 @@ export default function COAConfigurationPage() {
     mutationFn: async (values: z.infer<typeof detailedGroupSchema>) => {
       if (!currentItem) return null;
       
+      // Set the customName field with the user-provided name
+      const data = {
+        ...values,
+        customName: values.name
+      };
+      
       return apiRequest(
         `/api/v1/finance/chart-of-accounts/detailed-groups/${currentItem.id}`,
         {
           method: 'PATCH',
-          data: values
+          data
         }
       );
     },
@@ -339,7 +353,7 @@ export default function COAConfigurationPage() {
                         subElementGroups.map((group: ChartOfAccountsSubElementGroup) => (
                           <TableRow key={group.id}>
                             <TableCell>{group.code}</TableCell>
-                            <TableCell>{group.name}</TableCell>
+                            <TableCell>{group.customName || group.name}</TableCell>
                             <TableCell>{group.description || '-'}</TableCell>
                             <TableCell>
                               <div className="flex space-x-2">
@@ -393,7 +407,7 @@ export default function COAConfigurationPage() {
                         detailedGroups.map((group: ChartOfAccountsDetailedGroup) => (
                           <TableRow key={group.id}>
                             <TableCell>{group.code}</TableCell>
-                            <TableCell>{group.name}</TableCell>
+                            <TableCell>{group.customName || group.name}</TableCell>
                             <TableCell>{group.description || '-'}</TableCell>
                             <TableCell>
                               <div className="flex space-x-2">
@@ -554,7 +568,7 @@ export default function COAConfigurationPage() {
               ) : (
                 <>
                   Are you sure you want to delete
-                  <span className="font-semibold"> {currentItem?.name}?</span>
+                  <span className="font-semibold"> {currentItem?.customName || currentItem?.name}?</span>
                   <br />
                   This action cannot be undone.
                 </>
