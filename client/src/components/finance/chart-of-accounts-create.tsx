@@ -44,9 +44,7 @@ import {
 
 const accountSchema = z.object({
   detailedGroupId: z.number(),
-  accountCode: z.string().min(1, "Account code is required"),
   accountName: z.string().min(1, "Account name is required"),
-  accountType: z.enum(["asset", "liability", "equity", "revenue", "expense"]),
   description: z.string().optional(),
   isActive: z.boolean().default(true),
   isSystemAccount: z.boolean().default(false),
@@ -90,9 +88,7 @@ export default function ChartOfAccountsCreate() {
   const form = useForm<z.infer<typeof accountSchema>>({
     resolver: zodResolver(accountSchema),
     defaultValues: {
-      accountCode: '',
       accountName: '',
-      accountType: 'asset',
       description: '',
       isActive: true,
       isSystemAccount: false,
