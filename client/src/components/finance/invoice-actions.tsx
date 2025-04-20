@@ -28,7 +28,7 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
   // Mutation for updating invoice status
   const updateInvoiceStatusMutation = useMutation({
     mutationFn: async (status: string) => {
-      return apiRequest(`/api/v1/finance/invoices/${invoice.id}/status`, 'POST', { status });
+      return apiRequest('POST', `/api/v1/finance/invoices/${invoice.id}/status`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/invoices'] });
