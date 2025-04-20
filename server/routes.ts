@@ -3456,8 +3456,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const userId = (req.user as any).id;
       
-      // Add tenant info
-      const data = { ...req.body, tenantId, createdBy: userId };
+      // Add tenant info and convert date string to Date object
+      const { entryDate, ...otherBodyData } = req.body;
+      
+      // Convert string date to Date object
+      const parsedEntryDate = entryDate ? new Date(entryDate) : new Date();
+      
+      const data = { 
+        ...otherBodyData, 
+        entryDate: parsedEntryDate,
+        tenantId, 
+        createdBy: userId 
+      };
       
       // Wrap in transaction
       let journalEntry;
@@ -3513,7 +3523,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
-      res.status(500).json({ message: "Failed to create journal entry" });
+      res.status(500).json({ 
+        message: "Failed to create journal entry",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
   
