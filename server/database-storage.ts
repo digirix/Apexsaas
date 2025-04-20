@@ -3,7 +3,9 @@ import {
   entityTypes, taskStatuses, taskStatusWorkflowRules, taxJurisdictions, serviceTypes, 
   clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions, 
   userPermissions, invoices, invoiceLineItems, payments, paymentGatewaySettings, chartOfAccounts,
-  journalEntries, journalEntryLines
+  journalEntries, journalEntryLines,
+  // Chart of Accounts hierarchical structure
+  chartOfAccountsMainGroups, chartOfAccountsElementGroups, chartOfAccountsSubElementGroups, chartOfAccountsDetailedGroups
 } from "@shared/schema";
 import type { 
   Tenant, User, InsertUser, InsertTenant, 
@@ -19,6 +21,11 @@ import type {
   Invoice, InsertInvoice, InvoiceLineItem, InsertInvoiceLineItem, 
   Payment, InsertPayment, PaymentGatewaySetting, InsertPaymentGatewaySetting,
   ChartOfAccount, InsertChartOfAccount,
+  // Chart of Accounts hierarchy types
+  ChartOfAccountsMainGroup, InsertChartOfAccountsMainGroup, 
+  ChartOfAccountsElementGroup, InsertChartOfAccountsElementGroup,
+  ChartOfAccountsSubElementGroup, InsertChartOfAccountsSubElementGroup,
+  ChartOfAccountsDetailedGroup, InsertChartOfAccountsDetailedGroup, 
   // Journal entry types
   JournalEntry, InsertJournalEntry, JournalEntryLine, InsertJournalEntryLine
 } from "@shared/schema";
