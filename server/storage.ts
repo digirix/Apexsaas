@@ -256,7 +256,7 @@ export interface IStorage {
   deleteJournalEntry(id: number, tenantId: number): Promise<boolean>;
   
   // Journal Entry Line operations
-  getJournalEntryLines(tenantId: number, journalEntryId: number): Promise<JournalEntryLine[]>;
+  getJournalEntryLines(tenantId: number, journalEntryId?: number, accountId?: number): Promise<JournalEntryLine[]>;
   getJournalEntryLine(id: number, tenantId: number): Promise<JournalEntryLine | undefined>;
   createJournalEntryLine(line: InsertJournalEntryLine): Promise<JournalEntryLine>;
   updateJournalEntryLine(id: number, line: Partial<InsertJournalEntryLine>): Promise<JournalEntryLine | undefined>;
