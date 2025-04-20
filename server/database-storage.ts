@@ -1417,12 +1417,242 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Chart of Accounts operations
-  async getChartOfAccounts(tenantId: number, accountType?: string): Promise<ChartOfAccount[]> {
+  // Chart of Accounts Hierarchy Operations
+
+  // 1. Main Groups
+  async getChartOfAccountsMainGroups(tenantId: number): Promise<any[]> {
+    return await db.select()
+      .from(chartOfAccountsMainGroups)
+      .where(eq(chartOfAccountsMainGroups.tenantId, tenantId))
+      .orderBy(asc(chartOfAccountsMainGroups.code));
+  }
+
+  async getChartOfAccountsMainGroup(id: number, tenantId: number): Promise<any | undefined> {
+    const [mainGroup] = await db.select()
+      .from(chartOfAccountsMainGroups)
+      .where(and(
+        eq(chartOfAccountsMainGroups.id, id),
+        eq(chartOfAccountsMainGroups.tenantId, tenantId)
+      ));
+    return mainGroup;
+  }
+
+  async createChartOfAccountsMainGroup(mainGroup: any): Promise<any> {
+    const [newMainGroup] = await db.insert(chartOfAccountsMainGroups)
+      .values(mainGroup)
+      .returning();
+    return newMainGroup;
+  }
+
+  async updateChartOfAccountsMainGroup(id: number, tenantId: number, mainGroup: any): Promise<any | undefined> {
+    // Add updatedAt timestamp
+    const updateData = {
+      ...mainGroup,
+      updatedAt: new Date()
+    };
+    
+    const [updatedMainGroup] = await db.update(chartOfAccountsMainGroups)
+      .set(updateData)
+      .where(and(
+        eq(chartOfAccountsMainGroups.id, id),
+        eq(chartOfAccountsMainGroups.tenantId, tenantId)
+      ))
+      .returning();
+    return updatedMainGroup;
+  }
+
+  async deleteChartOfAccountsMainGroup(id: number, tenantId: number): Promise<boolean> {
+    const [deletedMainGroup] = await db.delete(chartOfAccountsMainGroups)
+      .where(and(
+        eq(chartOfAccountsMainGroups.id, id),
+        eq(chartOfAccountsMainGroups.tenantId, tenantId)
+      ))
+      .returning({ id: chartOfAccountsMainGroups.id });
+    return !!deletedMainGroup;
+  }
+
+  // 2. Element Groups
+  async getChartOfAccountsElementGroups(tenantId: number, mainGroupId?: number): Promise<any[]> {
+    let query = db.select()
+      .from(chartOfAccountsElementGroups)
+      .where(eq(chartOfAccountsElementGroups.tenantId, tenantId));
+    
+    if (mainGroupId) {
+      query = query.where(eq(chartOfAccountsElementGroups.mainGroupId, mainGroupId));
+    }
+    
+    return await query.orderBy(asc(chartOfAccountsElementGroups.code));
+  }
+
+  async getChartOfAccountsElementGroup(id: number, tenantId: number): Promise<any | undefined> {
+    const [elementGroup] = await db.select()
+      .from(chartOfAccountsElementGroups)
+      .where(and(
+        eq(chartOfAccountsElementGroups.id, id),
+        eq(chartOfAccountsElementGroups.tenantId, tenantId)
+      ));
+    return elementGroup;
+  }
+
+  async createChartOfAccountsElementGroup(elementGroup: any): Promise<any> {
+    const [newElementGroup] = await db.insert(chartOfAccountsElementGroups)
+      .values(elementGroup)
+      .returning();
+    return newElementGroup;
+  }
+
+  async updateChartOfAccountsElementGroup(id: number, tenantId: number, elementGroup: any): Promise<any | undefined> {
+    // Add updatedAt timestamp
+    const updateData = {
+      ...elementGroup,
+      updatedAt: new Date()
+    };
+    
+    const [updatedElementGroup] = await db.update(chartOfAccountsElementGroups)
+      .set(updateData)
+      .where(and(
+        eq(chartOfAccountsElementGroups.id, id),
+        eq(chartOfAccountsElementGroups.tenantId, tenantId)
+      ))
+      .returning();
+    return updatedElementGroup;
+  }
+
+  async deleteChartOfAccountsElementGroup(id: number, tenantId: number): Promise<boolean> {
+    const [deletedElementGroup] = await db.delete(chartOfAccountsElementGroups)
+      .where(and(
+        eq(chartOfAccountsElementGroups.id, id),
+        eq(chartOfAccountsElementGroups.tenantId, tenantId)
+      ))
+      .returning({ id: chartOfAccountsElementGroups.id });
+    return !!deletedElementGroup;
+  }
+
+  // 3. Sub-Element Groups
+  async getChartOfAccountsSubElementGroups(tenantId: number, elementGroupId?: number): Promise<any[]> {
+    let query = db.select()
+      .from(chartOfAccountsSubElementGroups)
+      .where(eq(chartOfAccountsSubElementGroups.tenantId, tenantId));
+    
+    if (elementGroupId) {
+      query = query.where(eq(chartOfAccountsSubElementGroups.elementGroupId, elementGroupId));
+    }
+    
+    return await query.orderBy(asc(chartOfAccountsSubElementGroups.code));
+  }
+
+  async getChartOfAccountsSubElementGroup(id: number, tenantId: number): Promise<any | undefined> {
+    const [subElementGroup] = await db.select()
+      .from(chartOfAccountsSubElementGroups)
+      .where(and(
+        eq(chartOfAccountsSubElementGroups.id, id),
+        eq(chartOfAccountsSubElementGroups.tenantId, tenantId)
+      ));
+    return subElementGroup;
+  }
+
+  async createChartOfAccountsSubElementGroup(subElementGroup: any): Promise<any> {
+    const [newSubElementGroup] = await db.insert(chartOfAccountsSubElementGroups)
+      .values(subElementGroup)
+      .returning();
+    return newSubElementGroup;
+  }
+
+  async updateChartOfAccountsSubElementGroup(id: number, tenantId: number, subElementGroup: any): Promise<any | undefined> {
+    // Add updatedAt timestamp
+    const updateData = {
+      ...subElementGroup,
+      updatedAt: new Date()
+    };
+    
+    const [updatedSubElementGroup] = await db.update(chartOfAccountsSubElementGroups)
+      .set(updateData)
+      .where(and(
+        eq(chartOfAccountsSubElementGroups.id, id),
+        eq(chartOfAccountsSubElementGroups.tenantId, tenantId)
+      ))
+      .returning();
+    return updatedSubElementGroup;
+  }
+
+  async deleteChartOfAccountsSubElementGroup(id: number, tenantId: number): Promise<boolean> {
+    const [deletedSubElementGroup] = await db.delete(chartOfAccountsSubElementGroups)
+      .where(and(
+        eq(chartOfAccountsSubElementGroups.id, id),
+        eq(chartOfAccountsSubElementGroups.tenantId, tenantId)
+      ))
+      .returning({ id: chartOfAccountsSubElementGroups.id });
+    return !!deletedSubElementGroup;
+  }
+
+  // 4. Detailed Groups
+  async getChartOfAccountsDetailedGroups(tenantId: number, subElementGroupId?: number): Promise<any[]> {
+    let query = db.select()
+      .from(chartOfAccountsDetailedGroups)
+      .where(eq(chartOfAccountsDetailedGroups.tenantId, tenantId));
+    
+    if (subElementGroupId) {
+      query = query.where(eq(chartOfAccountsDetailedGroups.subElementGroupId, subElementGroupId));
+    }
+    
+    return await query.orderBy(asc(chartOfAccountsDetailedGroups.code));
+  }
+
+  async getChartOfAccountsDetailedGroup(id: number, tenantId: number): Promise<any | undefined> {
+    const [detailedGroup] = await db.select()
+      .from(chartOfAccountsDetailedGroups)
+      .where(and(
+        eq(chartOfAccountsDetailedGroups.id, id),
+        eq(chartOfAccountsDetailedGroups.tenantId, tenantId)
+      ));
+    return detailedGroup;
+  }
+
+  async createChartOfAccountsDetailedGroup(detailedGroup: any): Promise<any> {
+    const [newDetailedGroup] = await db.insert(chartOfAccountsDetailedGroups)
+      .values(detailedGroup)
+      .returning();
+    return newDetailedGroup;
+  }
+
+  async updateChartOfAccountsDetailedGroup(id: number, tenantId: number, detailedGroup: any): Promise<any | undefined> {
+    // Add updatedAt timestamp
+    const updateData = {
+      ...detailedGroup,
+      updatedAt: new Date()
+    };
+    
+    const [updatedDetailedGroup] = await db.update(chartOfAccountsDetailedGroups)
+      .set(updateData)
+      .where(and(
+        eq(chartOfAccountsDetailedGroups.id, id),
+        eq(chartOfAccountsDetailedGroups.tenantId, tenantId)
+      ))
+      .returning();
+    return updatedDetailedGroup;
+  }
+
+  async deleteChartOfAccountsDetailedGroup(id: number, tenantId: number): Promise<boolean> {
+    const [deletedDetailedGroup] = await db.delete(chartOfAccountsDetailedGroups)
+      .where(and(
+        eq(chartOfAccountsDetailedGroups.id, id),
+        eq(chartOfAccountsDetailedGroups.tenantId, tenantId)
+      ))
+      .returning({ id: chartOfAccountsDetailedGroups.id });
+    return !!deletedDetailedGroup;
+  }
+
+  // 5. Accounts (AC Heads)
+  async getChartOfAccounts(tenantId: number, accountType?: string, detailedGroupId?: number): Promise<ChartOfAccount[]> {
     let query = db.select().from(chartOfAccounts)
       .where(eq(chartOfAccounts.tenantId, tenantId));
     
     if (accountType) {
       query = query.where(eq(chartOfAccounts.accountType, accountType));
+    }
+    
+    if (detailedGroupId) {
+      query = query.where(eq(chartOfAccounts.detailedGroupId, detailedGroupId));
     }
     
     return await query.orderBy(asc(chartOfAccounts.accountCode));

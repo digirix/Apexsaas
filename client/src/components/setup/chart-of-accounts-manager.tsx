@@ -87,53 +87,29 @@ export default function ChartOfAccountsManager() {
     isActive: true
   });
 
-  // Create dummy data for now since the API endpoints are not implemented yet
-  const dummyMainGroups = [
-    {
-      id: 1,
-      name: 'balance_sheet',
-      code: 'BS',
-      description: 'Balance Sheet accounts',
-      isActive: true
-    },
-    {
-      id: 2,
-      name: 'profit_and_loss',
-      code: 'PL',
-      description: 'Profit and Loss accounts',
-      isActive: true
-    }
-  ];
-
-  // Fetch Chart of Accounts data - using dummy data for now
-  const { data: mainGroups, isLoading: mainGroupsLoading } = useQuery({
-    queryKey: ["/api/v1/finance/chart-of-accounts/main-groups"],
-    enabled: false, // Disable the actual query for now
-    initialData: dummyMainGroups
+  // Fetch Chart of Accounts data using real API endpoints
+  const { data: mainGroups = [], isLoading: mainGroupsLoading } = useQuery<any[]>({
+    queryKey: ["/api/v1/finance/chart-of-accounts/main-groups"]
   });
 
-  const { data: elementGroups, isLoading: elementGroupsLoading } = useQuery({
+  const { data: elementGroups = [], isLoading: elementGroupsLoading } = useQuery<any[]>({
     queryKey: ["/api/v1/finance/chart-of-accounts/element-groups"],
-    enabled: false, // Disable the actual query for now
-    initialData: [] // Empty array for now
+    enabled: activeTab === "element-groups" // Only fetch when needed
   });
 
-  const { data: subElementGroups, isLoading: subElementGroupsLoading } = useQuery({
+  const { data: subElementGroups = [], isLoading: subElementGroupsLoading } = useQuery<any[]>({
     queryKey: ["/api/v1/finance/chart-of-accounts/sub-element-groups"],
-    enabled: false, // Disable the actual query for now
-    initialData: [] // Empty array for now
+    enabled: activeTab === "sub-element-groups" // Only fetch when needed
   });
 
-  const { data: detailedGroups, isLoading: detailedGroupsLoading } = useQuery({
+  const { data: detailedGroups = [], isLoading: detailedGroupsLoading } = useQuery<any[]>({
     queryKey: ["/api/v1/finance/chart-of-accounts/detailed-groups"],
-    enabled: false, // Disable the actual query for now
-    initialData: [] // Empty array for now
+    enabled: activeTab === "detailed-groups" // Only fetch when needed 
   });
 
-  const { data: accounts, isLoading: accountsLoading } = useQuery({
+  const { data: accounts = [], isLoading: accountsLoading } = useQuery<any[]>({
     queryKey: ["/api/v1/finance/chart-of-accounts"],
-    enabled: false, // Disable the actual query for now
-    initialData: [] // Empty array for now
+    enabled: activeTab === "accounts" // Only fetch when needed
   });
 
   // Add mutations
