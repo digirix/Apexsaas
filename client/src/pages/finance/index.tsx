@@ -56,6 +56,87 @@ export default function FinancePage() {
       sum + parseFloat(invoice.amountDue || 0), 0) : 0,
   };
   
+  // Filter invoices by status
+  const filterInvoices = (statuses: string[]) => {
+    if (!invoices) return [];
+    return invoices.filter((invoice: any) => statuses.includes(invoice.status));
+  };
+  
+  // Render invoice table with filtered data
+  const renderInvoiceTable = (filteredInvoices: any[]) => {
+    if (invoicesLoading) {
+      return <div className="text-center py-4">Loading invoices...</div>;
+    }
+    
+    if (!filteredInvoices || filteredInvoices.length === 0) {
+      return (
+        <div className="text-center py-8 border rounded-md bg-slate-50">
+          <ReceiptText className="h-10 w-10 text-slate-400 mx-auto mb-2" />
+          <h3 className="text-lg font-medium">No Invoices</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            No invoices match the selected filter.
+          </p>
+          <Button
+            onClick={() => setLocation("/finance/invoices/create")}
+            variant="outline"
+            className="mt-4"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create an Invoice
+          </Button>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="rounded-md border">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-slate-50">
+              <th className="p-2 text-left font-medium">Invoice #</th>
+              <th className="p-2 text-left font-medium">Client</th>
+              <th className="p-2 text-left font-medium">Issue Date</th>
+              <th className="p-2 text-left font-medium">Due Date</th>
+              <th className="p-2 text-left font-medium">Amount</th>
+              <th className="p-2 text-left font-medium">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredInvoices.map((invoice: any) => (
+              <tr key={invoice.id} className="border-b hover:bg-slate-50">
+                <td className="p-2">
+                  <a href="#" className="font-medium hover:underline">
+                    {invoice.invoiceNumber}
+                  </a>
+                </td>
+                <td className="p-2">{invoice.clientName || "Client"}</td>
+                <td className="p-2">{new Date(invoice.issueDate).toLocaleDateString()}</td>
+                <td className="p-2">{new Date(invoice.dueDate).toLocaleDateString()}</td>
+                <td className="p-2">{formatCurrency(parseFloat(invoice.totalAmount))}</td>
+                <td className="p-2">
+                  <div className="flex items-center justify-between">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
+                      ${invoice.status === 'paid' ? 'bg-green-100 text-green-800' : ''}
+                      ${invoice.status === 'draft' ? 'bg-gray-100 text-gray-800' : ''}
+                      ${invoice.status === 'sent' ? 'bg-blue-100 text-blue-800' : ''}
+                      ${invoice.status === 'approved' ? 'bg-emerald-100 text-emerald-800' : ''}
+                      ${invoice.status === 'overdue' ? 'bg-red-100 text-red-800' : ''}
+                      ${invoice.status === 'partially_paid' ? 'bg-yellow-100 text-yellow-800' : ''}
+                      ${invoice.status === 'canceled' || invoice.status === 'void' ? 'bg-gray-100 text-gray-800' : ''}
+                    `}>
+                      {invoice.status.replace('_', ' ')}
+                    </span>
+                    <InvoiceActions invoice={invoice} />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+  
   return (
     <AppLayout title="Finance">
       <div className="container py-6">
@@ -174,74 +255,33 @@ export default function FinancePage() {
                   <CardDescription>
                     View and manage client invoices
                   </CardDescription>
+                  <div className="pt-2">
+                    <Tabs defaultValue="active">
+                      <TabsList className="grid w-full grid-cols-4">
+                        <TabsTrigger value="active">Active</TabsTrigger>
+                        <TabsTrigger value="paid">Paid</TabsTrigger>
+                        <TabsTrigger value="canceled">Canceled</TabsTrigger>
+                        <TabsTrigger value="all">All</TabsTrigger>
+                      </TabsList>
+                      
+                      <TabsContent value="active" className="pt-4">
+                        {renderInvoiceTable(filterInvoices(['draft', 'sent', 'approved', 'partially_paid', 'overdue']))}
+                      </TabsContent>
+                      
+                      <TabsContent value="paid" className="pt-4">
+                        {renderInvoiceTable(filterInvoices(['paid']))}
+                      </TabsContent>
+                      
+                      <TabsContent value="canceled" className="pt-4">
+                        {renderInvoiceTable(filterInvoices(['canceled', 'void']))}
+                      </TabsContent>
+                      
+                      <TabsContent value="all" className="pt-4">
+                        {renderInvoiceTable(invoices)}
+                      </TabsContent>
+                    </Tabs>
+                  </div>
                 </CardHeader>
-                <CardContent>
-                  {invoicesLoading ? (
-                    <div className="text-center py-4">Loading invoices...</div>
-                  ) : invoices && invoices.length > 0 ? (
-                    <div className="rounded-md border">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b bg-slate-50">
-                            <th className="p-2 text-left font-medium">Invoice #</th>
-                            <th className="p-2 text-left font-medium">Client</th>
-                            <th className="p-2 text-left font-medium">Issue Date</th>
-                            <th className="p-2 text-left font-medium">Due Date</th>
-                            <th className="p-2 text-left font-medium">Amount</th>
-                            <th className="p-2 text-left font-medium">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {invoices.map((invoice: any) => (
-                            <tr key={invoice.id} className="border-b hover:bg-slate-50">
-                              <td className="p-2">
-                                <a href="#" className="font-medium hover:underline">
-                                  {invoice.invoiceNumber}
-                                </a>
-                              </td>
-                              <td className="p-2">{invoice.clientName || "Client"}</td>
-                              <td className="p-2">{new Date(invoice.issueDate).toLocaleDateString()}</td>
-                              <td className="p-2">{new Date(invoice.dueDate).toLocaleDateString()}</td>
-                              <td className="p-2">{formatCurrency(parseFloat(invoice.totalAmount))}</td>
-                              <td className="p-2">
-                                <div className="flex items-center justify-between">
-                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
-                                    ${invoice.status === 'paid' ? 'bg-green-100 text-green-800' : ''}
-                                    ${invoice.status === 'draft' ? 'bg-gray-100 text-gray-800' : ''}
-                                    ${invoice.status === 'sent' ? 'bg-blue-100 text-blue-800' : ''}
-                                    ${invoice.status === 'approved' ? 'bg-emerald-100 text-emerald-800' : ''}
-                                    ${invoice.status === 'overdue' ? 'bg-red-100 text-red-800' : ''}
-                                    ${invoice.status === 'partially_paid' ? 'bg-yellow-100 text-yellow-800' : ''}
-                                    ${invoice.status === 'canceled' || invoice.status === 'void' ? 'bg-gray-100 text-gray-800' : ''}
-                                  `}>
-                                    {invoice.status.replace('_', ' ')}
-                                  </span>
-                                  <InvoiceActions invoice={invoice} />
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 border rounded-md bg-slate-50">
-                      <ReceiptText className="h-10 w-10 text-slate-400 mx-auto mb-2" />
-                      <h3 className="text-lg font-medium">No Invoices</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        You haven't created any invoices yet.
-                      </p>
-                      <Button
-                        onClick={() => setLocation("/finance/invoices/create")}
-                        variant="outline"
-                        className="mt-4"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create an Invoice
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
               </Card>
             </TabsContent>
             

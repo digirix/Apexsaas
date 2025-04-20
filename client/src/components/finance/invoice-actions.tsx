@@ -161,17 +161,31 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
 
   // Handle status change
   const handleStatusChange = (newStatus: string) => {
-    updateInvoiceStatusMutation.mutate({ status: newStatus });
+    // If changing to approved, prompt for income account first
+    if (newStatus === 'approved') {
+      setIncomeAccountDialogOpen(true);
+    } else {
+      // For other status changes, proceed directly
+      updateInvoiceStatusMutation.mutate({ status: newStatus });
+    }
   };
 
   // Handle client account creation confirmation
   const handleCreateClientAccount = (values: z.infer<typeof clientAccountSchema>) => {
     if (values.createClientAccount) {
       // User confirmed to create the client account
-      updateInvoiceStatusMutation.mutate({
-        status: 'approved',
-        createClientAccount: true
-      });
+      // Continue with the previously selected income account
+      if (incomeAccountForm.getValues().incomeAccountId) {
+        updateInvoiceStatusMutation.mutate({
+          status: 'approved',
+          createClientAccount: true,
+          incomeAccountId: incomeAccountForm.getValues().incomeAccountId
+        });
+      } else {
+        // If somehow we got here without an income account selected, show the dialog again
+        setClientAccountDialogOpen(false);
+        setIncomeAccountDialogOpen(true);
+      }
     } else {
       // User declined to create the client account
       setClientAccountDialogOpen(false);
@@ -188,7 +202,6 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
     // Process with the selected income account
     updateInvoiceStatusMutation.mutate({
       status: 'approved',
-      createClientAccount: true,
       incomeAccountId: values.incomeAccountId
     });
   };
