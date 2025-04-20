@@ -47,21 +47,11 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
     },
   });
 
-  // Helper to check if a status change is allowed
+  // Helper to check if a status change is allowed (all transitions allowed)
   const canChangeStatus = (fromStatus: string, toStatus: string): boolean => {
-    // Define allowed status transitions
-    const allowedTransitions: Record<string, string[]> = {
-      'draft': ['approved', 'sent', 'canceled', 'void'],
-      'sent': ['approved', 'paid', 'partially_paid', 'overdue', 'canceled', 'void'],
-      'approved': ['paid', 'partially_paid', 'overdue', 'canceled', 'void'],
-      'partially_paid': ['paid', 'overdue', 'void'],
-      'overdue': ['paid', 'partially_paid', 'void'],
-      'paid': ['void'],
-      'canceled': ['draft'],
-      'void': [],
-    };
-
-    return allowedTransitions[fromStatus]?.includes(toStatus) || false;
+    // Per user request, allow changing from any status to any other status
+    // Don't allow changing to the same status
+    return fromStatus !== toStatus;
   };
 
   // Handle status change
