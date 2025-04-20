@@ -272,6 +272,7 @@ export default function CreateInvoicePage() {
                         <SelectContent>
                           <SelectItem value="draft">Draft</SelectItem>
                           <SelectItem value="sent">Sent</SelectItem>
+                          <SelectItem value="passed">Passed</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
