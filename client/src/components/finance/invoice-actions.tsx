@@ -311,6 +311,138 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Client Account Creation Dialog */}
+      <Dialog open={clientAccountDialogOpen} onOpenChange={setClientAccountDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center text-blue-600">
+              <Users className="h-5 w-5 mr-2" />
+              Client Account Creation
+            </DialogTitle>
+            <DialogDescription>
+              This invoice needs a client account in the Chart of Accounts to record accounting entries.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="mt-2">
+            <div className="bg-amber-50 p-3 rounded-md text-amber-800 text-sm mb-4">
+              <p className="font-semibold mb-1">Client Information:</p>
+              <p>Client: <span className="font-medium">{validationError?.details?.clientName || 'Unknown'}</span></p>
+              <p className="mt-2">We need to create an account in your chart of accounts for this client to record financial transactions correctly.</p>
+            </div>
+
+            <Form {...clientAccountForm}>
+              <form onSubmit={clientAccountForm.handleSubmit(handleCreateClientAccount)}>
+                <FormField
+                  control={clientAccountForm.control}
+                  name="createClientAccount"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 py-2">
+                      <FormControl>
+                        <input
+                          type="checkbox"
+                          checked={field.value}
+                          onChange={field.onChange}
+                          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Create client account automatically</FormLabel>
+                        <FormDescription>
+                          This will create an account in Trade Debtors for this client
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                
+                <DialogFooter className="mt-6">
+                  <Button 
+                    variant="outline" 
+                    type="button"
+                    onClick={() => setClientAccountDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit"
+                    disabled={updateInvoiceStatusMutation.isPending}
+                  >
+                    {updateInvoiceStatusMutation.isPending ? 'Creating...' : 'Create Account & Approve Invoice'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Income Account Selection Dialog */}
+      <Dialog open={incomeAccountDialogOpen} onOpenChange={setIncomeAccountDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center text-green-600">
+              <CreditCard className="h-5 w-5 mr-2" />
+              Select Income Account
+            </DialogTitle>
+            <DialogDescription>
+              Please select an income account to credit for this invoice. This will create the appropriate double-entry accounting entries.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...incomeAccountForm}>
+            <form onSubmit={incomeAccountForm.handleSubmit(handleIncomeAccountSelection)}>
+              <FormField
+                control={incomeAccountForm.control}
+                name="incomeAccountId"
+                render={({ field }) => (
+                  <FormItem className="py-2">
+                    <FormLabel>Income Account</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an income account" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {incomeAccounts.map((account: any) => (
+                          <SelectItem key={account.id} value={account.id.toString()}>
+                            {account.accountCode} - {account.accountName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      This account will be credited with the income from this invoice
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter className="mt-6">
+                <Button 
+                  variant="outline" 
+                  type="button"
+                  onClick={() => setIncomeAccountDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit"
+                  disabled={updateInvoiceStatusMutation.isPending || incomeAccounts.length === 0}
+                >
+                  {updateInvoiceStatusMutation.isPending ? 'Processing...' : 'Select Account & Approve Invoice'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

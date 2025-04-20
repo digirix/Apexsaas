@@ -2879,7 +2879,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const userId = (req.user as any).id;
       const id = parseInt(req.params.id);
-      const { status } = req.body;
+      const { status, createClientAccount, incomeAccountId } = req.body;
       
       // Validate the requested status
       const validStatuses = ['draft', 'approved', 'sent', 'paid', 'partially_paid', 'overdue', 'canceled', 'void'];
@@ -2928,20 +2928,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // 1. Validate required chart of accounts before creating journal entries
           const missingAccounts = [];
           
-          // Accounts receivable (Asset) - Trade Debtors
-          const accountsReceivable = await storage.getChartOfAccountByCode("1200", tenantId);
+          // Get client information if available
+          const client = invoice.clientId ? await storage.getClient(invoice.clientId, tenantId) : null;
+          const clientName = client ? client.clientName : "Unknown Client";
+          
+          // Check if client account exists in the chart of accounts
+          let clientAccount = null;
+          if (invoice.clientId) {
+            // Look for an existing account with this client ID
+            const clientAccounts = await storage.getChartOfAccounts(tenantId, "asset");
+            clientAccount = clientAccounts.find(acc => acc.clientId === invoice.clientId);
+          }
+          
+          // Handle client account creation if requested
+          if (!clientAccount && createClientAccount === true && invoice.clientId) {
+            // Find the Trade Debtors detailed group
+            const detailedGroups = await storage.getChartOfAccountsDetailedGroups(tenantId);
+            const tradeDebtorsGroup = detailedGroups.find(group => 
+              group.name.toLowerCase().includes('trade_debtors') || 
+              group.name.toLowerCase().includes('accounts receivable')
+            );
+            
+            if (tradeDebtorsGroup) {
+              // Create a new client account in Trade Debtors
+              clientAccount = await storage.createChartOfAccount({
+                tenantId: tenantId,
+                detailedGroupId: tradeDebtorsGroup.id,
+                accountCode: `1210-${invoice.clientId}`, // Format: 1210-{clientId}
+                accountName: `${clientName} - Receivable`,
+                accountType: "asset",
+                description: `Accounts receivable for client: ${clientName}`,
+                isSystemAccount: false,
+                isActive: true,
+                clientId: invoice.clientId,
+                openingBalance: "0.00",
+                currentBalance: "0.00"
+              });
+              
+              console.log(`Created new client account in chart of accounts: ${clientAccount.accountName} (ID: ${clientAccount.id})`);
+            } else {
+              missingAccounts.push("Trade Debtors Group (required for client accounts)");
+            }
+          } else if (!clientAccount && invoice.clientId) {
+            // If client account doesn't exist and createClientAccount is not true, return error
+            return res.status(400).json({
+              message: "Cannot approve invoice: Client account needed in Chart of Accounts",
+              details: {
+                missingClientAccount: true,
+                clientId: invoice.clientId,
+                clientName: clientName,
+                guidance: "This client needs an account in your Chart of Accounts to record invoice transactions correctly."
+              }
+            });
+          }
+          
+          // Accounts receivable (Asset) - Use client-specific account if available, otherwise use Trade Debtors
+          const accountsReceivable = clientAccount || await storage.getChartOfAccountByCode("1200", tenantId);
           if (!accountsReceivable) {
             missingAccounts.push("Trade Debtors (1200)");
           }
           
-          // Revenue account (lookup based on client entity or use default)
+          // Revenue account handling (use selected income account if provided)
           let revenueAccount;
-          if (invoice.entityId) {
+          
+          if (incomeAccountId) {
+            // Use the income account selected by the user
+            revenueAccount = await storage.getChartOfAccount(parseInt(incomeAccountId), tenantId);
+            if (!revenueAccount) {
+              missingAccounts.push(`Selected Income Account (${incomeAccountId})`);
+            }
+          } else if (invoice.entityId) {
+            // Fall back to entity's revenue account if available
             const entity = await storage.getEntity(invoice.entityId, tenantId);
             
-            // Check if entity has a revenue account set
-            const entityHasRevenueAccount = entity && entity.revenueAccountId;
-            if (entityHasRevenueAccount) {
+            if (entity && entity.revenueAccountId) {
               revenueAccount = await storage.getChartOfAccount(entity.revenueAccountId, tenantId);
               if (!revenueAccount) {
                 missingAccounts.push(`Entity Revenue Account (${entity.revenueAccountId})`);
@@ -2949,8 +3009,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
           
-          // Check default revenue account if not found on entity
+          // Check default revenue account if not found by other methods
           if (!revenueAccount) {
+            // If income account selection is needed but not provided, prompt user to select one
+            const incomeAccounts = await storage.getChartOfAccounts(tenantId, "revenue");
+            if (incomeAccounts.length > 0 && incomeAccountId === undefined) {
+              return res.status(400).json({
+                message: "Please select an income account for this invoice",
+                details: {
+                  guidance: "You need to select which income account should be credited for this invoice.",
+                  clientName: clientName
+                }
+              });
+            }
+            
             revenueAccount = await storage.getChartOfAccountByCode("4000", tenantId);
             if (!revenueAccount) {
               missingAccounts.push("Default Revenue Account (4000)");
