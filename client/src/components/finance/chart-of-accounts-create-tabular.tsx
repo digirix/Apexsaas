@@ -525,7 +525,7 @@ export default function ChartOfAccountsCreateTabular() {
                             </SelectTrigger>
                             <SelectContent>
                               {getElementGroups().map((group) => (
-                                <SelectItem key={group.value} value={group.value}>
+                                <SelectItem key={group.value || group.id} value={(group.value || group.id).toString()}>
                                   {group.name}
                                 </SelectItem>
                               ))}
@@ -557,7 +557,7 @@ export default function ChartOfAccountsCreateTabular() {
                             </SelectTrigger>
                             <SelectContent>
                               {getSubElementGroups().map((group) => (
-                                <SelectItem key={group.value} value={group.value}>
+                                <SelectItem key={group.value || group.id} value={(group.value || group.id).toString()}>
                                   {group.name}
                                 </SelectItem>
                               ))}
@@ -597,7 +597,7 @@ export default function ChartOfAccountsCreateTabular() {
                             </SelectTrigger>
                             <SelectContent>
                               {getDetailedGroups().map((group) => (
-                                <SelectItem key={group.value} value={group.value}>
+                                <SelectItem key={group.value || group.id} value={(group.value || group.id).toString()}>
                                   {group.name}
                                 </SelectItem>
                               ))}
@@ -899,7 +899,7 @@ export default function ChartOfAccountsCreateTabular() {
                       </FormControl>
                       <SelectContent>
                         {getElementGroups().map((group) => (
-                          <SelectItem key={group.value} value={group.id.toString()}>
+                          <SelectItem key={group.value || group.id} value={(group.id || group.value).toString()}>
                             {group.name}
                           </SelectItem>
                         ))}
@@ -976,7 +976,7 @@ export default function ChartOfAccountsCreateTabular() {
                       </FormControl>
                       <SelectContent>
                         {getSubElementGroups().map((group) => (
-                          <SelectItem key={group.value} value={group.id.toString()}>
+                          <SelectItem key={group.value || group.id} value={(group.id || group.value).toString()}>
                             {group.name}
                           </SelectItem>
                         ))}
