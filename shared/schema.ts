@@ -655,18 +655,48 @@ export const insertPaymentGatewaySettingSchema = createInsertSchema(paymentGatew
     updatedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
   });
 
+// Journal Entry Types
+export const journalEntryTypes = pgTable("journal_entry_types", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  name: text("name").notNull(),
+  code: text("code").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+}, (table) => {
+  return {
+    tenantCodeUnique: unique().on(table.tenantId, table.code),
+  };
+});
+
+export const insertJournalEntryTypeSchema = createInsertSchema(journalEntryTypes)
+  .pick({
+    tenantId: true,
+    name: true,
+    code: true,
+    description: true,
+    isActive: true,
+  })
+  .extend({
+    description: z.string().optional().nullable(),
+    updatedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
+  });
+
 // Journal Entries for accounting transactions
 export const journalEntries = pgTable("journal_entries", {
   id: serial("id").primaryKey(),
   tenantId: integer("tenant_id").notNull(),
   entryDate: timestamp("entry_date").notNull(),
   reference: text("reference").notNull(), // E.g., INV-2023-001, PMT-2023-001
+  entryType: text("entry_type").notNull(), // References journal_entry_types.code
   description: text("description").notNull(),
   isPosted: boolean("is_posted").default(false).notNull(),
   postedAt: timestamp("posted_at"),
   createdBy: integer("created_by").notNull(),
   updatedBy: integer("updated_by"),
-  sourceDocument: text("source_document").notNull(), // invoice, payment, manual
+  sourceDocument: text("source_document"), // invoice, payment, manual (now optional)
   sourceDocumentId: integer("source_document_id"), // ID of the related document
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at"),
@@ -677,14 +707,15 @@ export const insertJournalEntrySchema = createInsertSchema(journalEntries)
     tenantId: true,
     entryDate: true,
     reference: true,
+    entryType: true,
     description: true,
     isPosted: true,
     createdBy: true,
-    sourceDocument: true,
-    sourceDocumentId: true,
   })
   .extend({
     entryDate: z.union([z.date(), z.string().transform(str => new Date(str))]),
+    sourceDocument: z.string().optional(),
+    sourceDocumentId: z.number().optional(),
     updatedBy: z.number().optional(),
     postedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
   });
@@ -1013,6 +1044,15 @@ export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 
 export type PaymentGatewaySetting = typeof paymentGatewaySettings.$inferSelect;
 export type InsertPaymentGatewaySetting = z.infer<typeof insertPaymentGatewaySettingSchema>;
+
+export type JournalEntryType = typeof journalEntryTypes.$inferSelect;
+export type InsertJournalEntryType = z.infer<typeof insertJournalEntryTypeSchema>;
+
+export type JournalEntry = typeof journalEntries.$inferSelect;
+export type InsertJournalEntry = z.infer<typeof insertJournalEntrySchema>;
+
+export type JournalEntryLine = typeof journalEntryLines.$inferSelect;
+export type InsertJournalEntryLine = z.infer<typeof insertJournalEntryLineSchema>;
 
 // Chart of Accounts hierarchy types
 export type ChartOfAccountsMainGroup = typeof chartOfAccountsMainGroups.$inferSelect;
