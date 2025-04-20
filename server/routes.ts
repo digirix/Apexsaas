@@ -3750,47 +3750,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Delete Detailed Group
-  app.delete("/api/v1/finance/chart-of-accounts/detailed-groups/:id", isAuthenticated, async (req, res) => {
-    try {
-      const tenantId = (req.user as any).tenantId;
-      const id = parseInt(req.params.id);
-      
-      // Check if the detailed group exists
-      const detailedGroup = await storage.getChartOfAccountsDetailedGroup(id, tenantId);
-      if (!detailedGroup) {
-        return res.status(404).json({ message: "Detailed group not found" });
-      }
-      
-      // Check if the detailed group is being used in accounts
-      const accounts = await db
-        .select()
-        .from(chartOfAccounts)
-        .where(and(
-          eq(chartOfAccounts.detailedGroupId, id),
-          eq(chartOfAccounts.tenantId, tenantId)
-        ));
-      
-      if (accounts.length > 0) {
-        return res.status(400).json({
-          message: "Cannot delete detailed group that is being used in accounts",
-          usageCount: accounts.length
-        });
-      }
-      
-      // Delete the detailed group
-      const result = await storage.deleteChartOfAccountsDetailedGroup(id, tenantId);
-      if (result) {
-        return res.status(204).end();
-      } else {
-        return res.status(500).json({ message: "Failed to delete detailed group" });
-      }
-    } catch (error) {
-      console.error("Error deleting detailed group:", error);
-      res.status(500).json({ message: "Failed to delete detailed group", error: error.toString() });
-    }
-  });
-  
   // 4.5 Accounts (AC Heads)
   app.get("/api/v1/finance/chart-of-accounts", isAuthenticated, async (req, res) => {
     try {
@@ -3815,30 +3774,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add tenant info
       const data = { ...req.body, tenantId };
       
-      // Check if this is an update or create
-      if (data.id) {
-        // This is an update to an existing account
-        const existingAccount = await storage.getChartOfAccount(data.id, tenantId);
-        if (!existingAccount) {
-          return res.status(404).json({ message: "Account not found" });
-        }
-        
-        // Prepare update data
-        const updateData = {
-          accountName: data.accountName,
-          description: data.description || null,
-          openingBalance: data.openingBalance || existingAccount.openingBalance,
-          accountType: data.accountType || existingAccount.accountType,
-          detailedGroupId: data.detailedGroupId || existingAccount.detailedGroupId,
-          updatedAt: new Date()
-        };
-        
-        // Update the account
-        const updatedAccount = await storage.updateChartOfAccount(data.id, updateData);
-        return res.json(updatedAccount);
-      }
-      
-      // This is a new account creation
       // Set defaults for simplified form
       const simplifiedData = {
         ...data,
@@ -3848,82 +3783,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currentBalance: data.openingBalance || "0.00",
       };
       
-      // Allow direct account type specification or infer from detailed group
-      if (data.accountType) {
-        simplifiedData.accountType = data.accountType;
-      } else {
-        // Validate detailed group exists and infer account type
-        if (!simplifiedData.detailedGroupId) {
-          return res.status(400).json({ message: "Detailed group is required" });
-        }
-        
-        // Get account type from the hierarchy
-        const detailedGroup = await storage.getChartOfAccountsDetailedGroup(simplifiedData.detailedGroupId, tenantId);
-        if (!detailedGroup) {
-          return res.status(400).json({ message: "Invalid detailed group" });
-        }
-        
-        const subElementGroup = await storage.getChartOfAccountsSubElementGroup(detailedGroup.subElementGroupId, tenantId);
-        if (!subElementGroup) {
-          return res.status(400).json({ message: "Invalid sub-element group" });
-        }
-        
-        const elementGroup = await storage.getChartOfAccountsElementGroup(subElementGroup.elementGroupId, tenantId);
-        if (!elementGroup) {
-          return res.status(400).json({ message: "Invalid element group" });
-        }
-        
-        // Determine account type from element group
-        let accountType = "asset"; // default
-        switch(elementGroup.name.toLowerCase()) {
-          case "assets":
-            accountType = "asset";
-            break;
-          case "liabilities":
-            accountType = "liability";
-            break;
-          case "equity":
-            accountType = "equity";
-            break;
-          case "incomes":
-            accountType = "revenue";
-            break;
-          case "expenses":
-            accountType = "expense";
-            break;
-        }
-        
-        simplifiedData.accountType = accountType;
+      // Validate detailed group exists
+      if (!simplifiedData.detailedGroupId) {
+        return res.status(400).json({ message: "Detailed group is required" });
       }
       
-      // Generate account code if not provided
-      if (!simplifiedData.accountCode) {
-        const existingAccounts = await storage.getChartOfAccounts(tenantId, simplifiedData.accountType, simplifiedData.detailedGroupId, true);
-        
-        // Get the detailed group for code prefix
-        const detailedGroup = await storage.getChartOfAccountsDetailedGroup(simplifiedData.detailedGroupId, tenantId);
-        if (detailedGroup) {
-          // Check if we have a valid code format
-          if (detailedGroup.code && detailedGroup.code.includes('-')) {
-            // Use the detailed group code as prefix
-            const nextNumber = (existingAccounts.length + 1).toString().padStart(3, '0');
-            simplifiedData.accountCode = `${detailedGroup.code}-${nextNumber}`;
-          } else {
-            // Generate a simple numbered code
-            const nextNumber = (10000 + existingAccounts.length + 1).toString();
-            simplifiedData.accountCode = nextNumber;
-          }
-        } else {
-          // Fallback: generate a simple numbered code
-          const nextNumber = (10000 + existingAccounts.length + 1).toString();
-          simplifiedData.accountCode = nextNumber;
-        }
+      // Get account type from the hierarchy
+      const detailedGroup = await storage.getChartOfAccountsDetailedGroup(simplifiedData.detailedGroupId, tenantId);
+      if (!detailedGroup) {
+        return res.status(400).json({ message: "Invalid detailed group" });
       }
       
-      console.log("Creating chart of account with data:", JSON.stringify(simplifiedData, null, 2));
+      const subElementGroup = await storage.getChartOfAccountsSubElementGroup(detailedGroup.subElementGroupId, tenantId);
+      if (!subElementGroup) {
+        return res.status(400).json({ message: "Invalid sub-element group" });
+      }
       
-      // Create the account
-      const account = await storage.createChartOfAccount(simplifiedData);
+      const elementGroup = await storage.getChartOfAccountsElementGroup(subElementGroup.elementGroupId, tenantId);
+      if (!elementGroup) {
+        return res.status(400).json({ message: "Invalid element group" });
+      }
+      
+      // Determine account type from element group
+      let accountType = "asset"; // default
+      switch(elementGroup.name.toLowerCase()) {
+        case "assets":
+          accountType = "asset";
+          break;
+        case "liabilities":
+          accountType = "liability";
+          break;
+        case "equity":
+          accountType = "equity";
+          break;
+        case "incomes":
+          accountType = "revenue";
+          break;
+        case "expenses":
+          accountType = "expense";
+          break;
+      }
+      
+      // Generate account code
+      const existingAccounts = await storage.getChartOfAccounts(tenantId, accountType, simplifiedData.detailedGroupId);
+      const baseCode = `${elementGroup.code}.${subElementGroup.code}.${detailedGroup.code}`;
+      const nextNumber = (existingAccounts.length + 1).toString().padStart(3, '0');
+      const accountCode = `${baseCode}.${nextNumber}`;
+      
+      // Prepare complete data
+      const completeData = {
+        ...simplifiedData,
+        accountType,
+        accountCode,
+      };
+      
+      console.log("Creating chart of account with data:", JSON.stringify(completeData, null, 2));
+      
+      // Create the account directly without validation
+      const account = await storage.createChartOfAccount(completeData);
       
       res.status(201).json(account);
     } catch (error) {
@@ -3932,47 +3849,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to create account", error: error.toString() });
-    }
-  });
-  
-  // Delete Chart of Account
-  app.delete("/api/v1/finance/chart-of-accounts/:id", isAuthenticated, async (req, res) => {
-    try {
-      const tenantId = (req.user as any).tenantId;
-      const id = parseInt(req.params.id);
-      
-      // Check if the account exists
-      const account = await storage.getChartOfAccount(id, tenantId);
-      if (!account) {
-        return res.status(404).json({ message: "Account not found" });
-      }
-      
-      // Check if the account is being used in journal entries
-      const journalEntryLines = await db
-        .select()
-        .from(journalEntryLines)
-        .where(and(
-          eq(journalEntryLines.accountId, id),
-          eq(journalEntryLines.tenantId, tenantId)
-        ));
-      
-      if (journalEntryLines.length > 0) {
-        return res.status(400).json({ 
-          message: "Cannot delete account that is being used in journal entries",
-          usageCount: journalEntryLines.length
-        });
-      }
-      
-      // Delete the account
-      const result = await storage.deleteChartOfAccount(id, tenantId);
-      if (result) {
-        return res.status(204).end();
-      } else {
-        return res.status(500).json({ message: "Failed to delete account" });
-      }
-    } catch (error) {
-      console.error("Error deleting account:", error);
-      res.status(500).json({ message: "Failed to delete account", error: error.toString() });
     }
   });
 
