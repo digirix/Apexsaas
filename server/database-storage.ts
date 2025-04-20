@@ -1792,9 +1792,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Journal Entry Line operations
-  async getJournalEntryLines(tenantId: number, journalEntryId: number): Promise<JournalEntryLine[]> {
-    // Join with chart of accounts to get the account name
-    const lines = await db.select({
+  async getJournalEntryLines(tenantId: number, journalEntryId?: number, accountId?: number): Promise<JournalEntryLine[]> {
+    // Create base query
+    let query = db.select({
       id: journalEntryLines.id,
       tenantId: journalEntryLines.tenantId,
       journalEntryId: journalEntryLines.journalEntryId,
@@ -1808,13 +1808,23 @@ export class DatabaseStorage implements IStorage {
     })
     .from(journalEntryLines)
     .leftJoin(chartOfAccounts, eq(journalEntryLines.accountId, chartOfAccounts.id))
-    .where(and(
-      eq(journalEntryLines.tenantId, tenantId),
-      eq(journalEntryLines.journalEntryId, journalEntryId)
-    ))
-    .orderBy(asc(journalEntryLines.lineOrder));
+    .where(eq(journalEntryLines.tenantId, tenantId));
     
-    return lines;
+    // Add filter by journalEntryId if provided
+    if (journalEntryId !== undefined) {
+      query = query.where(eq(journalEntryLines.journalEntryId, journalEntryId));
+    }
+    
+    // Add filter by accountId if provided
+    if (accountId !== undefined) {
+      query = query.where(eq(journalEntryLines.accountId, accountId));
+    }
+    
+    // Order the results
+    query = query.orderBy(asc(journalEntryLines.lineOrder));
+    
+    // Execute and return the query
+    return await query;
   }
 
   async getJournalEntryLine(id: number, tenantId: number): Promise<JournalEntryLine | undefined> {
