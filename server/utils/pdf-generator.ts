@@ -18,17 +18,15 @@ export async function generateInvoicePdf(
   tenant: Tenant
 ): Promise<Buffer> {
   return new Promise((resolve) => {
-    // Create a document
+    // Create a document with simplified info object to avoid undefined values
     const doc = new PDFDocument({ 
       size: 'A4',
       margin: 50,
       info: {
-        Title: `Invoice ${invoice.invoiceNumber}`,
-        Author: tenant.displayName,
+        Title: `Invoice ${invoice.invoiceNumber || ''}`,
+        Author: tenant?.displayName || 'Accounting Platform',
         Subject: 'Invoice',
-        Keywords: 'invoice, finance, accounting',
-        Creator: 'Accounting Management Platform',
-        Producer: 'PDFKit'
+        Creator: 'Accounting Management Platform'
       }
     });
 

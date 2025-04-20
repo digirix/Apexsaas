@@ -1339,11 +1339,16 @@ export class MemStorage implements IStorage {
   }
 
   async deleteTask(id: number, tenantId: number): Promise<boolean> {
+    // First check if task exists and belongs to the tenant
     const task = this.tasks.get(id);
-    if (task && task.tenantId === tenantId) {
-      return this.tasks.delete(id);
+    if (!task || task.tenantId !== tenantId) {
+      return false;
     }
-    return false;
+    
+    // Delete only the specific task with matching ID
+    const result = this.tasks.delete(id);
+    console.log(`Deleted task with ID: ${id}, result: ${result}`);
+    return result;
   }
   
   // User Permission operations
