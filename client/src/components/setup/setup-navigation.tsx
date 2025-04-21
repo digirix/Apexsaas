@@ -163,7 +163,7 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
         <div>
           <h3 className="text-sm font-medium text-slate-500 mb-2 px-2">Finance Configuration</h3>
           <div className="space-y-1">
-            <Link href="/setup/chart-of-accounts">
+            <Link href="/setup/coa-configuration">
               <Button
                 variant="ghost"
                 className="w-full justify-start text-slate-600"
