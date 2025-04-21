@@ -1,22 +1,34 @@
+The conditional dropdowns logic of all the columns to show the values is as follows.
+
+
+1.1 The "AC head" will be created for each cost cnter, which will be formed as a basis of Ledger, and the field of Journal as we see in the accounting cycle of bookkeeping.
+and each "AC Head" will be bind to the values of Element, Sub Element and Detailed Group and will be saved under Either Balance Sheet or Profit and Loss 
+
 1.2 “Element Grp” (having conditional validation based on Main Group Values, 
-If the Main Group is "Balance sheet", it will have one of these, Equity, Liabilities, Assets. 
-If the main Group is "Profit and Loss", it will have one of these, Incomes, Expenses.
+If the Main Group is "Balance sheet", it will have one of these, “Equity”, “Liabilities”, “Assets”. 
+If the main Group is "Profit and Loss", it will have one of these, “Incomes”, “Expenses”.
 
 1.3 “Sub Element Grp” (having conditional validation based on Element Grp Values, 
-if Element Grp is "Equity", it will have one of these, Capital, Share Capital, Reserves, "Add New". (and when added new, user or system can add its own)
-if Element Grp is "Liabilities", it will have one of these, Non Current Liabilities, Current Liabilities, "Add New". (and when added new, user or system can add its own)
-if Element Grp is "Assets", it will have one of these, Non Current Assets, Current Assets, "Add New". (and when added new, user or system can add its own)
-if Element Grp is "Incomes", it will have one of these, Sales, Service Revenue, "Add New". (and when added new, user or system can add its own)
-if Element Grp is "Expenses", it will have one of these, Cost of Sales, Cost of Service Revenue, Purchase Returns, "Add New". (and when added new, user or system can add its own)
+
+if Element Grp is "Equity", it will have one of these, Capital, Share Capital, Reserves, "Add New". (allow the entry of Unique New Value, and make it part of the existing Dropdown of this Field instantly.)
+
+if Element Grp is "Liabilities", it will have one of these, Non Current Liabilities, Current Liabilities, "Add New". (allow the entry of Unique New Value, and make it part of the existing Dropdown of this Field instantly.)
+
+
+if Element Grp is "Assets", it will have one of these, Non Current Assets, Current Assets, "Add New". (allow the entry of Unique New Value, and make it part of the existing Dropdown of this Field instantly.)
+
+if Element Grp is "Incomes", it will have one of these, Sales, Service Revenue, "Add New". (allow the entry of Unique New Value, and make it part of the existing Dropdown of this Field instantly.)
+
+if Element Grp is "Expenses", it will have one of these, Cost of Sales, Cost of Service Revenue, Purchase Returns, "Add New". (allow the entry of Unique New Value, and make it part of the existing Dropdown of this Field instantly.)
 
 1.4 “Detailed Grp” (having conditional validation based on “Sub Element Grp” Values,
 
-If the Sub Element Group is “Capital” it will have one of these, Owners Capital, "Add New". (and when added new, user or system can add its own)
+If the Sub Element Group is “Capital” it will have one of these, Owners Capital, "Add New". (allow the entry of Unique New Value, and make it part of the existing Dropdown of this Field instantly.)
 
-If the Sub Element Group is “Non Current Liabilities” it will have one of these,Long term loans, "Add New". (and when added new, user or system can add its own)
+If the Sub Element Group is “Non Current Liabilities” it will have one of these,Long term loans, "Add New". (allow the entry of Unique New Value, and make it part of the existing Dropdown of this Field instantly.)
 
-If the Sub Element Group is “Current Liabilities” it will have one of these, Short term loans, Trade Creditors, Accrued Charges, Other Payables, "Add New". (and when added new, user or system can add its own)
+If the Sub Element Group is “Current Liabilities” it will have one of these, Short term loans, Trade Creditors, Accrued Charges, Other Payables, "Add New". (allow the entry of Unique New Value, and make it part of the existing Dropdown of this Field instantly.)
 
-If the Sub Element Group is “Non Current Assets” it will have one of these, Property Plant and Equipment, Intangible Assets, "Add New". (and when added new, user or system can add its own)
+If the Sub Element Group is “Non Current Assets” it will have one of these, Property Plant and Equipment, Intangible Assets, "Add New". (allow the entry of Unique New Value, and make it part of the existing Dropdown of this Field instantly.)
 
-If the Sub Element Group is “Current Assets” it will have one of these, Stock in trade, Trade Debtors, Advances and prepayments, Other Receivables, Cash and Bank Balances, "Add New". (and when added new, user or system can add its own)
+If the Sub Element Group is “Current Assets” it will have one of these, Stock in trade, Trade Debtors, Advances and prepayments, Other Receivables, Cash and Bank Balances, "Add New". (allow the entry of Unique New Value, and make it part of the existing Dropdown of this Field instantly.)
