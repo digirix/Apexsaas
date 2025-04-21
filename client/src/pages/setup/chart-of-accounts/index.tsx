@@ -417,7 +417,7 @@ export default function ChartOfAccountsSetupPage() {
   
   const createDetailedGroupMutation = useMutation({
     mutationFn: (data: any) => 
-      apiRequest("/api/v1/finance/chart-of-accounts/detailed-groups", "POST", data),
+      apiRequest("POST", "/api/v1/finance/chart-of-accounts/detailed-groups", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups'] });
       toast({
@@ -437,7 +437,7 @@ export default function ChartOfAccountsSetupPage() {
   
   const updateDetailedGroupMutation = useMutation({
     mutationFn: (data: any) => 
-      apiRequest(`/api/v1/finance/chart-of-accounts/detailed-groups/${editingItem.id}`, "PATCH", data),
+      apiRequest("PATCH", `/api/v1/finance/chart-of-accounts/detailed-groups/${editingItem.id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups'] });
       toast({
@@ -458,7 +458,7 @@ export default function ChartOfAccountsSetupPage() {
   
   const deleteDetailedGroupMutation = useMutation({
     mutationFn: (id: number) => 
-      apiRequest(`/api/v1/finance/chart-of-accounts/detailed-groups/${id}`, "DELETE"),
+      apiRequest("DELETE", `/api/v1/finance/chart-of-accounts/detailed-groups/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups'] });
       toast({
@@ -950,20 +950,62 @@ export default function ChartOfAccountsSetupPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {/* Standard options based on the enum */}
-                        <SelectItem value="capital">Capital</SelectItem>
-                        <SelectItem value="share_capital">Share Capital</SelectItem>
-                        <SelectItem value="reserves">Reserves</SelectItem>
-                        <SelectItem value="non_current_liabilities">Non-Current Liabilities</SelectItem>
-                        <SelectItem value="current_liabilities">Current Liabilities</SelectItem>
-                        <SelectItem value="non_current_assets">Non-Current Assets</SelectItem>
-                        <SelectItem value="current_assets">Current Assets</SelectItem>
-                        <SelectItem value="sales">Sales</SelectItem>
-                        <SelectItem value="service_revenue">Service Revenue</SelectItem>
-                        <SelectItem value="cost_of_sales">Cost of Sales</SelectItem>
-                        <SelectItem value="cost_of_service_revenue">Cost of Service Revenue</SelectItem>
-                        <SelectItem value="purchase_returns">Purchase Returns</SelectItem>
-                        <SelectItem value="custom">Custom (Add your own)</SelectItem>
+                        {/* Conditional options based on selected Element Group */}
+                        {(() => {
+                          const elementGroupId = subElementGroupForm.watch("elementGroupId");
+                          const elementGroup = elementGroups.find((eg: ChartOfAccountsElementGroup) => eg.id === parseInt(elementGroupId || "0"));
+                          
+                          if (!elementGroup) return (
+                            <SelectItem value="custom">Custom (Add your own)</SelectItem>
+                          );
+                          
+                          switch (elementGroup.name.toLowerCase()) {
+                            case 'equity':
+                              return (
+                                <>
+                                  <SelectItem value="capital">Capital</SelectItem>
+                                  <SelectItem value="share_capital">Share Capital</SelectItem>
+                                  <SelectItem value="reserves">Reserves</SelectItem>
+                                  <SelectItem value="custom">Custom (Add your own)</SelectItem>
+                                </>
+                              );
+                            case 'liabilities':
+                              return (
+                                <>
+                                  <SelectItem value="non_current_liabilities">Non-Current Liabilities</SelectItem>
+                                  <SelectItem value="current_liabilities">Current Liabilities</SelectItem>
+                                  <SelectItem value="custom">Custom (Add your own)</SelectItem>
+                                </>
+                              );
+                            case 'assets':
+                              return (
+                                <>
+                                  <SelectItem value="non_current_assets">Non-Current Assets</SelectItem>
+                                  <SelectItem value="current_assets">Current Assets</SelectItem>
+                                  <SelectItem value="custom">Custom (Add your own)</SelectItem>
+                                </>
+                              );
+                            case 'incomes':
+                              return (
+                                <>
+                                  <SelectItem value="sales">Sales</SelectItem>
+                                  <SelectItem value="service_revenue">Service Revenue</SelectItem>
+                                  <SelectItem value="custom">Custom (Add your own)</SelectItem>
+                                </>
+                              );
+                            case 'expenses':
+                              return (
+                                <>
+                                  <SelectItem value="cost_of_sales">Cost of Sales</SelectItem>
+                                  <SelectItem value="cost_of_service_revenue">Cost of Service Revenue</SelectItem>
+                                  <SelectItem value="purchase_returns">Purchase Returns</SelectItem>
+                                  <SelectItem value="custom">Custom (Add your own)</SelectItem>
+                                </>
+                              );
+                            default:
+                              return <SelectItem value="custom">Custom (Add your own)</SelectItem>;
+                          }
+                        })()}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -1082,21 +1124,70 @@ export default function ChartOfAccountsSetupPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {/* Standard options based on the enum */}
-                        <SelectItem value="owners_capital">Owner's Capital</SelectItem>
-                        <SelectItem value="long_term_loans">Long Term Loans</SelectItem>
-                        <SelectItem value="short_term_loans">Short Term Loans</SelectItem>
-                        <SelectItem value="trade_creditors">Trade Creditors</SelectItem>
-                        <SelectItem value="accrued_charges">Accrued Charges</SelectItem>
-                        <SelectItem value="other_payables">Other Payables</SelectItem>
-                        <SelectItem value="property_plant_equipment">Property, Plant & Equipment</SelectItem>
-                        <SelectItem value="intangible_assets">Intangible Assets</SelectItem>
-                        <SelectItem value="stock_in_trade">Stock in Trade</SelectItem>
-                        <SelectItem value="trade_debtors">Trade Debtors</SelectItem>
-                        <SelectItem value="advances_prepayments">Advances & Prepayments</SelectItem>
-                        <SelectItem value="other_receivables">Other Receivables</SelectItem>
-                        <SelectItem value="cash_bank_balances">Cash & Bank Balances</SelectItem>
-                        <SelectItem value="custom">Custom (Add your own)</SelectItem>
+                        {/* Conditional options based on selected Sub Element Group */}
+                        {(() => {
+                          const subElementGroupId = detailedGroupForm.watch("subElementGroupId");
+                          const subElementGroup = subElementGroups.find((seg: ChartOfAccountsSubElementGroup) => seg.id === parseInt(subElementGroupId || "0"));
+                          
+                          if (!subElementGroup) return (
+                            <SelectItem value="custom">Custom (Add your own)</SelectItem>
+                          );
+                          
+                          // Use the name or customName to determine which options to show
+                          const subElementGroupName = (subElementGroup.customName || subElementGroup.name).toLowerCase();
+                          
+                          switch (subElementGroupName) {
+                            case 'capital':
+                              return (
+                                <>
+                                  <SelectItem value="owners_capital">Owner's Capital</SelectItem>
+                                  <SelectItem value="custom">Custom (Add your own)</SelectItem>
+                                </>
+                              );
+                            case 'non_current_liabilities':
+                            case 'non-current liabilities':
+                              return (
+                                <>
+                                  <SelectItem value="long_term_loans">Long Term Loans</SelectItem>
+                                  <SelectItem value="custom">Custom (Add your own)</SelectItem>
+                                </>
+                              );
+                            case 'current_liabilities':
+                            case 'current liabilities':
+                              return (
+                                <>
+                                  <SelectItem value="short_term_loans">Short Term Loans</SelectItem>
+                                  <SelectItem value="trade_creditors">Trade Creditors</SelectItem>
+                                  <SelectItem value="accrued_charges">Accrued Charges</SelectItem>
+                                  <SelectItem value="other_payables">Other Payables</SelectItem>
+                                  <SelectItem value="custom">Custom (Add your own)</SelectItem>
+                                </>
+                              );
+                            case 'non_current_assets':
+                            case 'non-current assets':
+                              return (
+                                <>
+                                  <SelectItem value="property_plant_equipment">Property, Plant & Equipment</SelectItem>
+                                  <SelectItem value="intangible_assets">Intangible Assets</SelectItem>
+                                  <SelectItem value="custom">Custom (Add your own)</SelectItem>
+                                </>
+                              );
+                            case 'current_assets':
+                            case 'current assets':
+                              return (
+                                <>
+                                  <SelectItem value="stock_in_trade">Stock in Trade</SelectItem>
+                                  <SelectItem value="trade_debtors">Trade Debtors</SelectItem>
+                                  <SelectItem value="advances_prepayments">Advances & Prepayments</SelectItem>
+                                  <SelectItem value="other_receivables">Other Receivables</SelectItem>
+                                  <SelectItem value="cash_bank_balances">Cash & Bank Balances</SelectItem>
+                                  <SelectItem value="custom">Custom (Add your own)</SelectItem>
+                                </>
+                              );
+                            default:
+                              return <SelectItem value="custom">Custom (Add your own)</SelectItem>;
+                          }
+                        })()}
                       </SelectContent>
                     </Select>
                     <FormMessage />
