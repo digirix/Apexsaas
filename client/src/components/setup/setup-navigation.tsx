@@ -82,6 +82,11 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
       label: 'Task Categories',
       icon: <FileText className="h-5 w-5" />
     },
+    {
+      id: 'chart-of-accounts',
+      label: 'Chart of Accounts',
+      icon: <BookOpen className="h-5 w-5" />
+    },
     
     // HR Configuration
     {

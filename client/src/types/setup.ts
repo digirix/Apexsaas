@@ -1,2 +1,2 @@
 // Shared types for setup module
-export type SetupSection = 'countries' | 'currencies' | 'states' | 'entity-types' | 'task-statuses' | 'task-status-workflow' | 'task-categories' | 'service-types' | 'tax-jurisdictions' | 'payment-gateways' | 'designations' | 'departments';
+export type SetupSection = 'countries' | 'currencies' | 'states' | 'entity-types' | 'task-statuses' | 'task-status-workflow' | 'task-categories' | 'service-types' | 'tax-jurisdictions' | 'payment-gateways' | 'designations' | 'departments' | 'chart-of-accounts';

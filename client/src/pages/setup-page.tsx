@@ -41,6 +41,20 @@ export default function SetupPage() {
           {activeSection === 'payment-gateways' && <PaymentGatewaysManager />}
           {activeSection === 'designations' && <DesignationsManager />}
           {activeSection === 'departments' && <DepartmentsManager />}
+          {activeSection === 'chart-of-accounts' && (
+            <div className="w-full">
+              <Button 
+                variant="outline"
+                className="mb-4" 
+                onClick={() => window.location.href = '/setup/chart-of-accounts'}
+              >
+                Go to Chart of Accounts Setup
+              </Button>
+              <p className="text-gray-600">
+                Configure your Chart of Accounts with element groups, sub-element groups, detailed groups, and account heads.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </AppLayout>

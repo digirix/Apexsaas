@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import AppLayout from '@/components/app-layout';
+import { AppLayout } from '@/components/layout/app-layout';
 import {
   Card,
   CardContent,
@@ -151,32 +151,32 @@ const ChartOfAccountsSetup = () => {
   });
 
   // Fetch main groups based on account type selection
-  const { data: mainGroups } = useQuery({
+  const { data: mainGroups = [] } = useQuery({
     queryKey: ['/api/v1/finance/chart-of-accounts/main-groups'],
     queryFn: async () => {
-      const response = await apiRequest<MainGroup[]>('/api/v1/finance/chart-of-accounts/main-groups');
-      return response;
+      const response = await apiRequest('/api/v1/finance/chart-of-accounts/main-groups');
+      return response as MainGroup[];
     },
   });
 
   // Get filtered main group based on selected account type
   const filteredMainGroup = React.useMemo(() => {
-    if (!mainGroups) return null;
-    return mainGroups.find(group => 
+    if (!mainGroups.length) return null;
+    return mainGroups.find((group: MainGroup) => 
       (accountType === "balanceSheet" && group.name === "balance_sheet") ||
       (accountType === "profitAndLoss" && group.name === "profit_and_loss")
     );
   }, [mainGroups, accountType]);
 
   // Fetch element groups for the selected main group
-  const { data: elementGroups } = useQuery({
+  const { data: elementGroups = [] } = useQuery({
     queryKey: ['/api/v1/finance/chart-of-accounts/element-groups', filteredMainGroup?.id],
     queryFn: async () => {
       if (!filteredMainGroup) return [];
-      const response = await apiRequest<ElementGroup[]>(
+      const response = await apiRequest(
         `/api/v1/finance/chart-of-accounts/element-groups?mainGroupId=${filteredMainGroup.id}`
       );
-      return response;
+      return response as ElementGroup[];
     },
     enabled: !!filteredMainGroup,
   });
@@ -185,14 +185,14 @@ const ChartOfAccountsSetup = () => {
   const [selectedElementGroupId, setSelectedElementGroupId] = useState<string>("");
 
   // Fetch sub-element groups for the selected element group
-  const { data: subElementGroups } = useQuery({
+  const { data: subElementGroups = [] } = useQuery({
     queryKey: ['/api/v1/finance/chart-of-accounts/sub-element-groups', selectedElementGroupId],
     queryFn: async () => {
       if (!selectedElementGroupId) return [];
-      const response = await apiRequest<SubElementGroup[]>(
+      const response = await apiRequest(
         `/api/v1/finance/chart-of-accounts/sub-element-groups?elementGroupId=${selectedElementGroupId}`
       );
-      return response;
+      return response as SubElementGroup[];
     },
     enabled: !!selectedElementGroupId,
   });
@@ -201,24 +201,24 @@ const ChartOfAccountsSetup = () => {
   const [selectedSubElementGroupId, setSelectedSubElementGroupId] = useState<string>("");
 
   // Fetch detailed groups for the selected sub-element group
-  const { data: detailedGroups } = useQuery({
+  const { data: detailedGroups = [] } = useQuery({
     queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups', selectedSubElementGroupId],
     queryFn: async () => {
       if (!selectedSubElementGroupId) return [];
-      const response = await apiRequest<DetailedGroup[]>(
+      const response = await apiRequest(
         `/api/v1/finance/chart-of-accounts/detailed-groups?subElementGroupId=${selectedSubElementGroupId}`
       );
-      return response;
+      return response as DetailedGroup[];
     },
     enabled: !!selectedSubElementGroupId,
   });
 
   // Fetch account heads data
-  const { data: accountHeads, isLoading } = useQuery({
+  const { data: accountHeads = [], isLoading } = useQuery({
     queryKey: ['/api/v1/finance/chart-of-accounts'],
     queryFn: async () => {
-      const response = await apiRequest<AccountHead[]>('/api/v1/finance/chart-of-accounts');
-      return response;
+      const response = await apiRequest('/api/v1/finance/chart-of-accounts');
+      return response as AccountHead[];
     },
   });
 
