@@ -1,56 +1,35 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { AppLayout } from "@/components/layout/app-layout";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Link } from "wouter";
+import { ArrowLeft, Plus, Edit, Trash2, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+
 import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
+  Card, CardHeader, CardTitle, CardDescription, CardContent 
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+import { 
+  Table, TableHeader, TableRow, TableHead, TableCell, TableBody 
+} from "@/components/ui/table";
+import { 
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+  DialogFooter
 } from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { 
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { toast } from "@/hooks/use-toast";
-import { Edit, Trash2, ArrowLeft, Plus } from "lucide-react";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
-import { Link } from "wouter";
+import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
+import { AppLayout } from "@/components/layout/app-layout";
+
+// Types for chart of accounts structure
 type ChartOfAccountsMainGroup = {
   id: number;
   name: string;
@@ -94,12 +73,10 @@ type ChartOfAccount = {
 
 // Schema for Chart of Account form
 const chartOfAccountSchema = z.object({
-  mainGroup: z.string(),
   elementGroup: z.string(),
   subElementGroup: z.string(),
   detailedGroup: z.string(),
   accountName: z.string().min(2, "Account name must be at least 2 characters"),
-  accountCode: z.string(),
   description: z.string().nullable().optional(),
 });
 
@@ -142,6 +119,9 @@ export default function COAConfigurationPage() {
   const { data: accounts = [], isLoading: isLoadingAccounts } = useQuery({
     queryKey: ['/api/v1/finance/chart-of-accounts'],
   });
+  
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   // Filter main groups based on account type
   const filteredMainGroups = mainGroups.filter((group: ChartOfAccountsMainGroup) => {
@@ -222,29 +202,17 @@ export default function COAConfigurationPage() {
   const chartOfAccountForm = useForm<z.infer<typeof chartOfAccountSchema>>({
     resolver: zodResolver(chartOfAccountSchema),
     defaultValues: {
-      mainGroup: "",
       elementGroup: "",
       subElementGroup: "",
       detailedGroup: "",
       accountName: "",
-      accountCode: "",
       description: "",
     }
   });
   
   // Watch form fields to enable conditional selections
-  const watchMainGroup = chartOfAccountForm.watch("mainGroup");
   const watchElementGroup = chartOfAccountForm.watch("elementGroup");
   const watchSubElementGroup = chartOfAccountForm.watch("subElementGroup");
-  
-  // Reset dependent fields when parent field changes
-  useEffect(() => {
-    if (watchMainGroup) {
-      chartOfAccountForm.setValue("elementGroup", "");
-      chartOfAccountForm.setValue("subElementGroup", "");
-      chartOfAccountForm.setValue("detailedGroup", "");
-    }
-  }, [watchMainGroup, chartOfAccountForm]);
   
   useEffect(() => {
     if (watchElementGroup) {
@@ -259,6 +227,28 @@ export default function COAConfigurationPage() {
     }
   }, [watchSubElementGroup, chartOfAccountForm]);
   
+  // Function to generate account code
+  const generateAccountCode = (
+    detailedGroup: ChartOfAccountsDetailedGroup | undefined,
+    subElementGroup: ChartOfAccountsSubElementGroup | undefined,
+    elementGroup: ChartOfAccountsElementGroup | undefined,
+    mainGroup: ChartOfAccountsMainGroup | undefined,
+    accountName: string
+  ) => {
+    if (!detailedGroup || !subElementGroup || !elementGroup || !mainGroup) {
+      // Generate a fallback code
+      return `AC-${Date.now().toString().slice(-6)}`;
+    }
+    
+    // Get existing accounts for this detailed group
+    const existingAccounts = accounts.filter((a: any) => a.detailedGroupId === detailedGroup.id);
+    const count = existingAccounts.length + 1;
+    
+    // Create account code based on detailed group code and a sequence number
+    const prefix = detailedGroup.code || elementGroup.code || 'AC';
+    return `${prefix}-${count.toString().padStart(3, '0')}`;
+  };
+  
   // Create chart of account mutation
   const createChartOfAccountMutation = useMutation({
     mutationFn: async (values: z.infer<typeof chartOfAccountSchema>) => {
@@ -267,33 +257,49 @@ export default function COAConfigurationPage() {
       const detailedGroup = detailedGroups.find(dg => dg.id === detailedGroupId);
       const subElementGroup = subElementGroups.find(seg => seg.id === detailedGroup?.subElementGroupId);
       const elementGroup = elementGroups.find(eg => eg.id === subElementGroup?.elementGroupId);
+      const mainGroup = elementGroup ? 
+        mainGroups.find(mg => mg.id === elementGroup.mainGroupId) : undefined;
       
       let accountType = "asset"; // Default
       
       if (elementGroup) {
         switch(elementGroup.name) {
           case "Assets":
+          case "assets":
             accountType = "asset";
             break;
           case "Liabilities":
+          case "liabilities":
             accountType = "liability";
             break;
           case "Equity":
+          case "equity":
             accountType = "equity";
             break;
           case "Incomes":
+          case "incomes":
             accountType = "revenue";
             break;
           case "Expenses":
+          case "expenses":
             accountType = "expense";
             break;
         }
       }
       
+      // Generate account code automatically
+      const accountCode = generateAccountCode(
+        detailedGroup, 
+        subElementGroup, 
+        elementGroup, 
+        mainGroup,
+        values.accountName
+      );
+      
       const data = {
         detailedGroupId,
         accountName: values.accountName,
-        accountCode: values.accountCode,
+        accountCode,
         accountType,
         description: values.description || null,
       };
@@ -335,24 +341,31 @@ export default function COAConfigurationPage() {
       const detailedGroup = detailedGroups.find(dg => dg.id === detailedGroupId);
       const subElementGroup = subElementGroups.find(seg => seg.id === detailedGroup?.subElementGroupId);
       const elementGroup = elementGroups.find(eg => eg.id === subElementGroup?.elementGroupId);
+      const mainGroup = elementGroup ?
+        mainGroups.find(mg => mg.id === elementGroup.mainGroupId) : undefined;
       
       let accountType = "asset"; // Default
       
       if (elementGroup) {
         switch(elementGroup.name) {
           case "Assets":
+          case "assets":
             accountType = "asset";
             break;
           case "Liabilities":
+          case "liabilities":
             accountType = "liability";
             break;
           case "Equity":
+          case "equity":
             accountType = "equity";
             break;
           case "Incomes":
+          case "incomes":
             accountType = "revenue";
             break;
           case "Expenses":
+          case "expenses":
             accountType = "expense";
             break;
         }
@@ -361,7 +374,7 @@ export default function COAConfigurationPage() {
       const data = {
         detailedGroupId,
         accountName: values.accountName,
-        accountCode: values.accountCode,
+        accountCode: currentItem.accountCode, // Keep the original account code on update
         accountType,
         description: values.description || null,
       };
@@ -420,12 +433,10 @@ export default function COAConfigurationPage() {
   // Handle opening create dialog
   const handleCreate = () => {
     chartOfAccountForm.reset({
-      mainGroup: filteredMainGroups.length > 0 ? String(filteredMainGroups[0].id) : "",
       elementGroup: "",
       subElementGroup: "",
       detailedGroup: "",
       accountName: "",
-      accountCode: "",
       description: "",
     });
     setCreateDialogOpen(true);
@@ -477,28 +488,12 @@ export default function COAConfigurationPage() {
       return;
     }
     
-    // Find the main group for this element group
-    const mainGroup = mainGroups.find((mg: ChartOfAccountsMainGroup) => 
-      mg.id === elementGroup.mainGroupId
-    );
-    
-    if (!mainGroup) {
-      toast({
-        title: "Error",
-        description: "Could not find main group for this account",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     // Reset form with account data
     chartOfAccountForm.reset({
-      mainGroup: String(mainGroup.id),
       elementGroup: String(elementGroup.id),
       subElementGroup: String(subElementGroup.id),
       detailedGroup: String(detailedGroup.id),
       accountName: account.accountName,
-      accountCode: account.accountCode,
       description: account.description || "",
     });
     
@@ -674,48 +669,13 @@ export default function COAConfigurationPage() {
           <DialogHeader>
             <DialogTitle>Add New Account</DialogTitle>
             <DialogDescription>
-              Create a new account head with its chart of accounts structure.
+              Create a new account head in the {accountType === "balance-sheet" ? "Balance Sheet" : "Profit & Loss"} section.
             </DialogDescription>
           </DialogHeader>
           
           <Form {...chartOfAccountForm}>
             <form onSubmit={chartOfAccountForm.handleSubmit(onCreateSubmit)} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                {/* Main Group Selection */}
-                <FormField
-                  control={chartOfAccountForm.control}
-                  name="mainGroup"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Main Group</FormLabel>
-                      <FormControl>
-                        <Select
-                          value={field.value}
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            // Reset dependent fields
-                            chartOfAccountForm.setValue("elementGroup", "");
-                            chartOfAccountForm.setValue("subElementGroup", "");
-                            chartOfAccountForm.setValue("detailedGroup", "");
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Main Group" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {filteredMainGroups.map((group: ChartOfAccountsMainGroup) => (
-                              <SelectItem key={group.id} value={String(group.id)}>
-                                {group.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
                 {/* Element Group Selection */}
                 <FormField
                   control={chartOfAccountForm.control}
@@ -732,16 +692,24 @@ export default function COAConfigurationPage() {
                             chartOfAccountForm.setValue("subElementGroup", "");
                             chartOfAccountForm.setValue("detailedGroup", "");
                           }}
-                          disabled={!watchMainGroup}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select Element Group" />
                           </SelectTrigger>
                           <SelectContent>
                             {elementGroups
-                              .filter((group: ChartOfAccountsElementGroup) => 
-                                group.mainGroupId === parseInt(watchMainGroup)
-                              )
+                              .filter((group: ChartOfAccountsElementGroup) => {
+                                // Find the main group for this element group
+                                const mainGroup = mainGroups.find(mg => mg.id === group.mainGroupId);
+                                if (!mainGroup) return false;
+                                
+                                // Check if it belongs to the selected account type
+                                if (accountType === "balance-sheet") {
+                                  return mainGroup.name === "Balance Sheet";
+                                } else {
+                                  return mainGroup.name === "Profit and Loss";
+                                }
+                              })
                               .map((group: ChartOfAccountsElementGroup) => (
                                 <SelectItem key={group.id} value={String(group.id)}>
                                   {group.name}
@@ -755,9 +723,7 @@ export default function COAConfigurationPage() {
                     </FormItem>
                   )}
                 />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
+                
                 {/* Sub Element Group Selection */}
                 <FormField
                   control={chartOfAccountForm.control}
@@ -796,7 +762,9 @@ export default function COAConfigurationPage() {
                     </FormItem>
                   )}
                 />
-                
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
                 {/* Detailed Group Selection */}
                 <FormField
                   control={chartOfAccountForm.control}
@@ -831,9 +799,7 @@ export default function COAConfigurationPage() {
                     </FormItem>
                   )}
                 />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
+                
                 {/* Account Name */}
                 <FormField
                   control={chartOfAccountForm.control}
@@ -848,21 +814,6 @@ export default function COAConfigurationPage() {
                     </FormItem>
                   )}
                 />
-                
-                {/* Account Code */}
-                <FormField
-                  control={chartOfAccountForm.control}
-                  name="accountCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Account Code</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter account code" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
               
               {/* Description */}
@@ -871,28 +822,36 @@ export default function COAConfigurationPage() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description (Optional)</FormLabel>
+                    <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Enter description" />
+                      <Textarea 
+                        {...field} 
+                        placeholder="Enter account description (optional)" 
+                        rows={4}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
               
+              <div className="text-sm text-muted-foreground mt-2">
+                <span className="font-medium">Note:</span> Account code will be generated automatically based on the selected groups.
+              </div>
+              
               <DialogFooter>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setCreateDialogOpen(false)}
-                >
+                <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button 
-                  type="submit"
-                  disabled={createChartOfAccountMutation.isPending}
-                >
-                  {createChartOfAccountMutation.isPending ? "Creating..." : "Create Account"}
+                <Button type="submit" disabled={createChartOfAccountMutation.isPending}>
+                  {createChartOfAccountMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Account'
+                  )}
                 </Button>
               </DialogFooter>
             </form>
@@ -906,48 +865,13 @@ export default function COAConfigurationPage() {
           <DialogHeader>
             <DialogTitle>Edit Account</DialogTitle>
             <DialogDescription>
-              Update the account head and its chart of accounts structure.
+              Update this account head with its chart of accounts structure.
             </DialogDescription>
           </DialogHeader>
           
           <Form {...chartOfAccountForm}>
             <form onSubmit={chartOfAccountForm.handleSubmit(onEditSubmit)} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                {/* Main Group Selection */}
-                <FormField
-                  control={chartOfAccountForm.control}
-                  name="mainGroup"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Main Group</FormLabel>
-                      <FormControl>
-                        <Select
-                          value={field.value}
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            // Reset dependent fields
-                            chartOfAccountForm.setValue("elementGroup", "");
-                            chartOfAccountForm.setValue("subElementGroup", "");
-                            chartOfAccountForm.setValue("detailedGroup", "");
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Main Group" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {mainGroups.map((group: ChartOfAccountsMainGroup) => (
-                              <SelectItem key={group.id} value={String(group.id)}>
-                                {group.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
                 {/* Element Group Selection */}
                 <FormField
                   control={chartOfAccountForm.control}
@@ -964,16 +888,27 @@ export default function COAConfigurationPage() {
                             chartOfAccountForm.setValue("subElementGroup", "");
                             chartOfAccountForm.setValue("detailedGroup", "");
                           }}
-                          disabled={!watchMainGroup}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select Element Group" />
                           </SelectTrigger>
                           <SelectContent>
                             {elementGroups
-                              .filter((group: ChartOfAccountsElementGroup) => 
-                                group.mainGroupId === parseInt(watchMainGroup)
-                              )
+                              .filter((group: ChartOfAccountsElementGroup) => {
+                                // For edit mode, we allow all element groups of the current account type
+                                if (!currentItem) return false;
+                                
+                                // Find the main group for this element group
+                                const mainGroup = mainGroups.find(mg => mg.id === group.mainGroupId);
+                                if (!mainGroup) return false;
+                                
+                                // Check if it belongs to the selected account type
+                                if (accountType === "balance-sheet") {
+                                  return mainGroup.name === "Balance Sheet";
+                                } else {
+                                  return mainGroup.name === "Profit and Loss";
+                                }
+                              })
                               .map((group: ChartOfAccountsElementGroup) => (
                                 <SelectItem key={group.id} value={String(group.id)}>
                                   {group.name}
@@ -987,9 +922,7 @@ export default function COAConfigurationPage() {
                     </FormItem>
                   )}
                 />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
+                
                 {/* Sub Element Group Selection */}
                 <FormField
                   control={chartOfAccountForm.control}
@@ -1028,7 +961,9 @@ export default function COAConfigurationPage() {
                     </FormItem>
                   )}
                 />
-                
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
                 {/* Detailed Group Selection */}
                 <FormField
                   control={chartOfAccountForm.control}
@@ -1063,9 +998,7 @@ export default function COAConfigurationPage() {
                     </FormItem>
                   )}
                 />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
+                
                 {/* Account Name */}
                 <FormField
                   control={chartOfAccountForm.control}
@@ -1080,22 +1013,15 @@ export default function COAConfigurationPage() {
                     </FormItem>
                   )}
                 />
-                
-                {/* Account Code */}
-                <FormField
-                  control={chartOfAccountForm.control}
-                  name="accountCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Account Code</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter account code" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
+              
+              {/* Display the account code (read-only) */}
+              {currentItem && (
+                <div className="flex items-center space-x-2 p-3 border rounded-md bg-muted/30">
+                  <div className="text-muted-foreground">Account Code:</div>
+                  <div className="font-medium">{currentItem.accountCode}</div>
+                </div>
+              )}
               
               {/* Description */}
               <FormField
@@ -1103,9 +1029,13 @@ export default function COAConfigurationPage() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description (Optional)</FormLabel>
+                    <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Enter description" />
+                      <Textarea 
+                        {...field} 
+                        placeholder="Enter account description (optional)" 
+                        rows={4}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1113,18 +1043,18 @@ export default function COAConfigurationPage() {
               />
               
               <DialogFooter>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setEditDialogOpen(false)}
-                >
+                <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button 
-                  type="submit"
-                  disabled={updateChartOfAccountMutation.isPending}
-                >
-                  {updateChartOfAccountMutation.isPending ? "Updating..." : "Update Account"}
+                <Button type="submit" disabled={updateChartOfAccountMutation.isPending}>
+                  {updateChartOfAccountMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    'Update Account'
+                  )}
                 </Button>
               </DialogFooter>
             </form>
@@ -1132,34 +1062,62 @@ export default function COAConfigurationPage() {
         </DialogContent>
       </Dialog>
       
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogTitle>Delete Account</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this account?
-              This action cannot be undone and may affect financial reports.
+              Are you sure you want to delete this account? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           
-          {deleteError && (
-            <div className="bg-destructive/15 text-destructive p-3 rounded-md mb-4">
-              {deleteError}
+          {currentItem && (
+            <div className="py-4">
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="font-medium">Account Code:</div>
+                  <div>{currentItem.accountCode}</div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="font-medium">Account Name:</div>
+                  <div>{currentItem.accountName}</div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="font-medium">Account Type:</div>
+                  <div>{getAccountTypeText(currentItem.accountType)}</div>
+                </div>
+              </div>
+              
+              {deleteError && (
+                <div className="mt-4 p-3 text-sm border border-destructive/50 rounded-md bg-destructive/10 text-destructive">
+                  {deleteError}
+                </div>
+              )}
             </div>
           )}
           
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setDeleteDialogOpen(false)}
+            >
               Cancel
             </Button>
             <Button 
-              type="button" 
-              variant="destructive" 
+              variant="destructive"
               onClick={handleDeleteConfirm}
               disabled={deleteChartOfAccountMutation.isPending}
             >
-              {deleteChartOfAccountMutation.isPending ? "Deleting..." : "Delete Account"}
+              {deleteChartOfAccountMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Account'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
