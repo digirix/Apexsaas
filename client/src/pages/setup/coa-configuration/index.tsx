@@ -587,7 +587,7 @@ export default function COAConfigurationPage() {
         <CardContent>
           {/* Filter by Main Group (Balance Sheet or Profit & Loss) */}
           <div className="mb-6">
-            <FormLabel className="text-base">Select Account Type</FormLabel>
+            <div className="text-base font-medium mb-2">Select Account Type</div>
             <RadioGroup
               defaultValue="balance-sheet"
               value={accountType}
