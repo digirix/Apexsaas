@@ -293,7 +293,7 @@ export default function ChartOfAccountsSetupPage() {
   // Mutations for CRUD operations
   const createAccountMutation = useMutation({
     mutationFn: (data: any) => 
-      apiRequest("/api/v1/finance/chart-of-accounts", "POST", data),
+      apiRequest("POST", "/api/v1/finance/chart-of-accounts", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });
       toast({
@@ -313,7 +313,7 @@ export default function ChartOfAccountsSetupPage() {
   
   const updateAccountMutation = useMutation({
     mutationFn: (data: any) => 
-      apiRequest(`/api/v1/finance/chart-of-accounts/${editingItem.id}`, "PATCH", data),
+      apiRequest("PATCH", `/api/v1/finance/chart-of-accounts/${editingItem.id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });
       toast({
@@ -334,7 +334,7 @@ export default function ChartOfAccountsSetupPage() {
   
   const deleteAccountMutation = useMutation({
     mutationFn: (id: number) => 
-      apiRequest(`/api/v1/finance/chart-of-accounts/${id}`, "DELETE"),
+      apiRequest("DELETE", `/api/v1/finance/chart-of-accounts/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });
       toast({
@@ -355,7 +355,7 @@ export default function ChartOfAccountsSetupPage() {
   
   const createSubElementGroupMutation = useMutation({
     mutationFn: (data: any) => 
-      apiRequest("/api/v1/finance/chart-of-accounts/sub-element-groups", "POST", data),
+      apiRequest("POST", "/api/v1/finance/chart-of-accounts/sub-element-groups", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/sub-element-groups'] });
       toast({
@@ -375,7 +375,7 @@ export default function ChartOfAccountsSetupPage() {
   
   const updateSubElementGroupMutation = useMutation({
     mutationFn: (data: any) => 
-      apiRequest(`/api/v1/finance/chart-of-accounts/sub-element-groups/${editingItem.id}`, "PATCH", data),
+      apiRequest("PATCH", `/api/v1/finance/chart-of-accounts/sub-element-groups/${editingItem.id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/sub-element-groups'] });
       toast({
@@ -396,7 +396,7 @@ export default function ChartOfAccountsSetupPage() {
   
   const deleteSubElementGroupMutation = useMutation({
     mutationFn: (id: number) => 
-      apiRequest(`/api/v1/finance/chart-of-accounts/sub-element-groups/${id}`, "DELETE"),
+      apiRequest("DELETE", `/api/v1/finance/chart-of-accounts/sub-element-groups/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/sub-element-groups'] });
       toast({
