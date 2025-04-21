@@ -154,8 +154,9 @@ const ChartOfAccountsSetup = () => {
   const { data: mainGroups = [] } = useQuery({
     queryKey: ['/api/v1/finance/chart-of-accounts/main-groups'],
     queryFn: async () => {
-      const response = await apiRequest('/api/v1/finance/chart-of-accounts/main-groups');
-      return response as MainGroup[];
+      const response = await apiRequest('GET', '/api/v1/finance/chart-of-accounts/main-groups');
+      const data = await response.json();
+      return data as MainGroup[];
     },
   });
 
@@ -174,9 +175,11 @@ const ChartOfAccountsSetup = () => {
     queryFn: async () => {
       if (!filteredMainGroup) return [];
       const response = await apiRequest(
+        'GET',
         `/api/v1/finance/chart-of-accounts/element-groups?mainGroupId=${filteredMainGroup.id}`
       );
-      return response as ElementGroup[];
+      const data = await response.json();
+      return data as ElementGroup[];
     },
     enabled: !!filteredMainGroup,
   });
@@ -190,9 +193,11 @@ const ChartOfAccountsSetup = () => {
     queryFn: async () => {
       if (!selectedElementGroupId) return [];
       const response = await apiRequest(
+        'GET',
         `/api/v1/finance/chart-of-accounts/sub-element-groups?elementGroupId=${selectedElementGroupId}`
       );
-      return response as SubElementGroup[];
+      const data = await response.json();
+      return data as SubElementGroup[];
     },
     enabled: !!selectedElementGroupId,
   });
@@ -206,9 +211,11 @@ const ChartOfAccountsSetup = () => {
     queryFn: async () => {
       if (!selectedSubElementGroupId) return [];
       const response = await apiRequest(
+        'GET',
         `/api/v1/finance/chart-of-accounts/detailed-groups?subElementGroupId=${selectedSubElementGroupId}`
       );
-      return response as DetailedGroup[];
+      const data = await response.json();
+      return data as DetailedGroup[];
     },
     enabled: !!selectedSubElementGroupId,
   });
@@ -217,8 +224,9 @@ const ChartOfAccountsSetup = () => {
   const { data: accountHeads = [], isLoading } = useQuery({
     queryKey: ['/api/v1/finance/chart-of-accounts'],
     queryFn: async () => {
-      const response = await apiRequest('/api/v1/finance/chart-of-accounts');
-      return response as AccountHead[];
+      const response = await apiRequest('GET', '/api/v1/finance/chart-of-accounts');
+      const data = await response.json();
+      return data as AccountHead[];
     },
   });
 
@@ -255,48 +263,41 @@ const ChartOfAccountsSetup = () => {
       let subElementId = data.subElementGroupId;
       if (data.subElementGroupId === "addNew" && data.customSubElementName) {
         // Create new sub element group
-        const newSubElement = await apiRequest('/api/v1/finance/chart-of-accounts/sub-element-groups', {
-          method: 'POST',
-          data: {
-            elementGroupId: parseInt(data.elementGroupId),
-            name: data.customSubElementName.toLowerCase().replace(/\s+/g, '_'),
-            customName: data.customSubElementName,
-            code: `SE-${Date.now().toString().slice(-4)}`,
-            isActive: true
-          }
+        const newSubElementResponse = await apiRequest('POST', '/api/v1/finance/chart-of-accounts/sub-element-groups', {
+          elementGroupId: parseInt(data.elementGroupId),
+          name: data.customSubElementName.toLowerCase().replace(/\s+/g, '_'),
+          customName: data.customSubElementName,
+          code: `SE-${Date.now().toString().slice(-4)}`,
+          isActive: true
         });
-        subElementId = newSubElement.id.toString();
+        const newSubElementData = await newSubElementResponse.json();
+        subElementId = newSubElementData.id.toString();
       }
       
       // Logic for handling "Add New" for Detailed Group
       let detailedId = data.detailedGroupId;
       if (data.detailedGroupId === "addNew" && data.customDetailedName) {
         // Create new detailed group
-        const newDetailed = await apiRequest('/api/v1/finance/chart-of-accounts/detailed-groups', {
-          method: 'POST',
-          data: {
-            subElementGroupId: parseInt(subElementId),
-            name: data.customDetailedName.toLowerCase().replace(/\s+/g, '_'),
-            code: `DG-${Date.now().toString().slice(-4)}`,
-            isActive: true
-          }
+        const newDetailedResponse = await apiRequest('POST', '/api/v1/finance/chart-of-accounts/detailed-groups', {
+          subElementGroupId: parseInt(subElementId),
+          name: data.customDetailedName.toLowerCase().replace(/\s+/g, '_'),
+          code: `DG-${Date.now().toString().slice(-4)}`,
+          isActive: true
         });
-        detailedId = newDetailed.id.toString();
+        const newDetailedData = await newDetailedResponse.json();
+        detailedId = newDetailedData.id.toString();
       }
       
       // Create new account head
-      const newAccountHead = await apiRequest('/api/v1/finance/chart-of-accounts', {
-        method: 'POST',
-        data: {
-          detailedGroupId: parseInt(detailedId),
-          accountCode: data.accountCode,
-          accountName: data.accountHeadName,
-          accountType: accountType === "balanceSheet" ? 
-            (data.elementGroupId === "1" ? "asset" : 
-             data.elementGroupId === "2" ? "liability" : "equity") : 
-            (data.elementGroupId === "4" ? "revenue" : "expense"),
-          isActive: true
-        }
+      await apiRequest('POST', '/api/v1/finance/chart-of-accounts', {
+        detailedGroupId: parseInt(detailedId),
+        accountCode: data.accountCode,
+        accountName: data.accountHeadName,
+        accountType: accountType === "balanceSheet" ? 
+          (data.elementGroupId === "1" ? "asset" : 
+           data.elementGroupId === "2" ? "liability" : "equity") : 
+          (data.elementGroupId === "4" ? "revenue" : "expense"),
+        isActive: true
       });
       
       // Refresh data
@@ -328,13 +329,10 @@ const ChartOfAccountsSetup = () => {
     try {
       // Logic similar to add but with PATCH request
       // Update account head
-      await apiRequest(`/api/v1/finance/chart-of-accounts/${editingRow.id}`, {
-        method: 'PATCH',
-        data: {
-          accountCode: data.accountCode,
-          accountName: data.accountHeadName,
-          detailedGroupId: parseInt(data.detailedGroupId),
-        }
+      await apiRequest('PATCH', `/api/v1/finance/chart-of-accounts/${editingRow.id}`, {
+        accountCode: data.accountCode,
+        accountName: data.accountHeadName,
+        detailedGroupId: parseInt(data.detailedGroupId),
       });
       
       // Refresh data
@@ -363,9 +361,7 @@ const ChartOfAccountsSetup = () => {
     if (!rowToDelete?.id) return;
     
     try {
-      await apiRequest(`/api/v1/finance/chart-of-accounts/${rowToDelete.id}`, {
-        method: 'DELETE',
-      });
+      await apiRequest('DELETE', `/api/v1/finance/chart-of-accounts/${rowToDelete.id}`);
       
       // Refresh data
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });

@@ -13,6 +13,7 @@ import { TaxJurisdictionsManager } from "@/components/setup/tax-jurisdictions-ma
 import DesignationsManager from "@/components/setup/designations-manager";
 import DepartmentsManager from "@/components/setup/departments-manager";
 import PaymentGatewaysManager from "@/components/setup/payment-gateways-manager";
+import { Button } from "@/components/ui/button";
 import { SetupSection } from "@/types/setup";
 
 export default function SetupPage() {
