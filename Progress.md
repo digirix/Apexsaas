@@ -413,6 +413,15 @@ The project has made significant progress across multiple modules:
    - Enhanced backend data handling with better default values
    - Updated the creation endpoint with improved logging and error handling
 
+3. **Chart of Accounts Structure Reorganization:**
+   - Separated "Chart of Accounts" structure management (moved to Setup Module) from "Account Heads" management (remaining in Finance Module)
+   - Created dedicated Account Heads management page in Finance Module with improved navigation
+   - Updated navigation in Finance Module to reflect the separation of responsibilities
+   - Improved COA Configuration page with proper handling of customName field
+   - Implemented hierarchical Chart of Accounts with Main Group → Element Group → Sub Element Group → Detailed Group structure
+   - Enhanced user workflows by restricting additions in higher level groups (Main Group and Element Group)
+   - Enabled adding new values only in Sub-Element Group and Detailed Group levels
+
 3. **Journal Entry System Improvements:**
    - Fixed Journal Entry creation to properly handle date formats and prevent 500 errors
    - Implemented Journal Entry Types management for different accounting transaction classifications

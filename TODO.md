@@ -11,9 +11,12 @@ This document outlines the remaining tasks and future enhancements for the Accou
 
 ## Current Priority
 1. ✓ Fix the Journal Entry source document bug (currently causing 500 error)
-2. Implement financial reporting features (general ledger, trial balance, profit & loss)
-3. Complete the integration between Tasks and Invoices
-4. Fix remaining technical issues in the Finance Module
+2. ✓ Separate Chart of Accounts structure (Setup Module) from Account Heads management (Finance Module)
+3. Complete the Account Heads Management page with full CRUD functionality
+4. Implement proper linking between Chart of Accounts structure and Account Heads
+5. Implement financial reporting features (general ledger, trial balance, profit & loss)
+6. Complete the integration between Tasks and Invoices
+7. Fix remaining technical issues in the Finance Module
 
 ## Priority 1: Critical System Improvements
 
@@ -104,6 +107,9 @@ This document outlines the remaining tasks and future enhancements for the Accou
 - [x] Simplify Chart of Accounts form by removing unnecessary fields
 - [x] Fix date format handling in Journal Entry creation to prevent 500 errors
 - [x] Fix source document handling in Journal Entries (previously causing 500 error)
+- [x] Separate Chart of Accounts structure (Setup Module) from Account Heads management (Finance Module)
+- [ ] Complete Account Heads Management page with CRUD operations
+- [ ] Implement automatic Account Code generation based on selected Chart of Accounts structure
 - [ ] Fix remaining Promise object rendering issues in invoice creation
 - [ ] Create revenue forecasting tools
 - [ ] Implement webhook handlers for payment gateway notifications
