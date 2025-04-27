@@ -465,7 +465,7 @@ export default function COAConfigurationPage() {
         `/api/v1/finance/chart-of-accounts/${id}`
       );
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       toast({
         title: "Success",
         description: "Chart of account deleted successfully",
@@ -473,6 +473,9 @@ export default function COAConfigurationPage() {
       setDeleteDialogOpen(false);
       setDeleteError(null);
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });
+      
+      // Update local state to immediately remove the deleted item
+      setFilteredAccounts(prevAccounts => prevAccounts.filter(account => account.id !== id));
     },
     onError: (error: any) => {
       const errorMessage = error?.response?.data?.message || "An error occurred";
@@ -525,8 +528,9 @@ export default function COAConfigurationPage() {
       const elementGroupId = parseInt(values.elementGroup);
       const data = {
         elementGroupId,
-        name: values.name,
-        customName: values.customName || null,
+        // Keep the original name (which is an enum), just update customName
+        name: currentSubElementGroup.name,
+        customName: values.customName || values.name || null,
         code: values.code,
         description: values.description || null,
         isActive: true
@@ -563,13 +567,16 @@ export default function COAConfigurationPage() {
         `/api/v1/finance/chart-of-accounts/sub-element-groups/${id}`
       );
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       toast({
         title: "Success",
         description: "Sub Element Group deleted successfully",
       });
       setDeleteSubElementGroupDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/sub-element-groups'] });
+      
+      // Invalidate chart of accounts to refresh the whole view
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });
     },
     onError: (error: any) => {
       toast({
@@ -625,8 +632,9 @@ export default function COAConfigurationPage() {
       const subElementGroupId = parseInt(values.subElementGroup);
       const data = {
         subElementGroupId,
-        name: values.name,
-        customName: values.customName || null,
+        // Keep the original name (which is an enum), just update customName
+        name: currentDetailedGroup.name,
+        customName: values.customName || values.name || null,
         code: values.code,
         description: values.description || null,
         isActive: true
@@ -663,13 +671,16 @@ export default function COAConfigurationPage() {
         `/api/v1/finance/chart-of-accounts/detailed-groups/${id}`
       );
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       toast({
         title: "Success",
         description: "Detailed Group deleted successfully",
       });
       setDeleteDetailedGroupDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups'] });
+      
+      // Invalidate chart of accounts to refresh the whole view
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });
     },
     onError: (error: any) => {
       toast({
