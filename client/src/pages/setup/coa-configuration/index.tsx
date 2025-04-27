@@ -24,8 +24,17 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea as BaseTextarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
+// Create a fixed version of Textarea that handles null values properly
+const Textarea = (props: any) => {
+  const fixedProps = {...props};
+  if (fixedProps.value === null || fixedProps.value === undefined) {
+    fixedProps.value = '';
+  }
+  return <BaseTextarea {...fixedProps} />;
+};
 
 import { AppLayout } from "@/components/layout/app-layout";
 
@@ -98,35 +107,7 @@ const detailedGroupSchema = z.object({
   description: z.string().nullable().optional(),
 });
 
-// Helper function to safely handle null values in textarea
-const safeTextareaValue = (value: string | null | undefined): string => {
-  return value === null || value === undefined ? '' : value;
-};
 
-// Safe textarea component that handles null values
-const SafeTextarea = (props: {
-  placeholder?: string;
-  rows?: number;
-  onChange: (...event: any[]) => void;
-  onBlur: () => void;
-  value: string | null | undefined;
-  disabled?: boolean;
-  name: string;
-  ref?: React.Ref<any>;
-}) => {
-  return (
-    <Textarea
-      placeholder={props.placeholder}
-      rows={props.rows}
-      onChange={props.onChange}
-      onBlur={props.onBlur}
-      value={safeTextareaValue(props.value)}
-      disabled={props.disabled}
-      name={props.name}
-      ref={props.ref}
-    />
-  );
-};
 
 export default function COAConfigurationPage() {
   const [accountType, setAccountType] = useState<"balance-sheet" | "profit-loss">("balance-sheet");
