@@ -80,6 +80,24 @@ const chartOfAccountSchema = z.object({
   description: z.string().nullable().optional(),
 });
 
+// Schema for Sub Element Group form
+const subElementGroupSchema = z.object({
+  elementGroup: z.string(),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  customName: z.string().optional(),
+  code: z.string().min(1, "Code is required"),
+  description: z.string().nullable().optional(),
+});
+
+// Schema for Detailed Group form
+const detailedGroupSchema = z.object({
+  subElementGroup: z.string(),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  customName: z.string().optional(),
+  code: z.string().min(1, "Code is required"),
+  description: z.string().nullable().optional(),
+});
+
 export default function COAConfigurationPage() {
   const [accountType, setAccountType] = useState<"balance-sheet" | "profit-loss">("balance-sheet");
   
@@ -89,6 +107,20 @@ export default function COAConfigurationPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState<any>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  
+  // Sub Element Group dialog states
+  const [subElementGroupDialogOpen, setSubElementGroupDialogOpen] = useState(false);
+  const [createSubElementGroupDialogOpen, setCreateSubElementGroupDialogOpen] = useState(false);
+  const [editSubElementGroupDialogOpen, setEditSubElementGroupDialogOpen] = useState(false);
+  const [deleteSubElementGroupDialogOpen, setDeleteSubElementGroupDialogOpen] = useState(false);
+  const [currentSubElementGroup, setCurrentSubElementGroup] = useState<any>(null);
+  
+  // Detailed Group dialog states
+  const [detailedGroupDialogOpen, setDetailedGroupDialogOpen] = useState(false);
+  const [createDetailedGroupDialogOpen, setCreateDetailedGroupDialogOpen] = useState(false);
+  const [editDetailedGroupDialogOpen, setEditDetailedGroupDialogOpen] = useState(false);
+  const [deleteDetailedGroupDialogOpen, setDeleteDetailedGroupDialogOpen] = useState(false);
+  const [currentDetailedGroup, setCurrentDetailedGroup] = useState<any>(null);
   
   // Element selections state
   const [selectedMainGroup, setSelectedMainGroup] = useState<string | null>(null);
@@ -206,6 +238,30 @@ export default function COAConfigurationPage() {
       subElementGroup: "",
       detailedGroup: "",
       accountName: "",
+      description: "",
+    }
+  });
+  
+  // Form for sub element group
+  const subElementGroupForm = useForm<z.infer<typeof subElementGroupSchema>>({
+    resolver: zodResolver(subElementGroupSchema),
+    defaultValues: {
+      elementGroup: "",
+      name: "",
+      customName: "",
+      code: "",
+      description: "",
+    }
+  });
+  
+  // Form for detailed group
+  const detailedGroupForm = useForm<z.infer<typeof detailedGroupSchema>>({
+    resolver: zodResolver(detailedGroupSchema),
+    defaultValues: {
+      subElementGroup: "",
+      name: "",
+      customName: "",
+      code: "",
       description: "",
     }
   });
