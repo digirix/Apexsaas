@@ -1669,7 +1669,8 @@ export class DatabaseStorage implements IStorage {
   // 5. Accounts (AC Heads)
   async getChartOfAccounts(tenantId: number, accountType?: string, detailedGroupId?: number, includeSystemAccounts: boolean = false): Promise<ChartOfAccount[]> {
     let query = db.select().from(chartOfAccounts)
-      .where(eq(chartOfAccounts.tenantId, tenantId));
+      .where(eq(chartOfAccounts.tenantId, tenantId))
+      .where(eq(chartOfAccounts.isActive, true)); // Only get active accounts
     
     if (accountType) {
       query = query.where(eq(chartOfAccounts.accountType, accountType));
