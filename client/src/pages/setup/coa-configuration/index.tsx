@@ -361,11 +361,9 @@ export default function COAConfigurationPage() {
       };
       
       return apiRequest(
+        'POST',
         `/api/v1/finance/chart-of-accounts`,
-        {
-          method: 'POST',
-          data
-        }
+        data
       );
     },
     onSuccess: () => {
@@ -436,11 +434,9 @@ export default function COAConfigurationPage() {
       };
       
       return apiRequest(
+        'PATCH',
         `/api/v1/finance/chart-of-accounts/${currentItem.id}`,
-        {
-          method: 'PATCH',
-          data
-        }
+        data
       );
     },
     onSuccess: () => {
@@ -465,10 +461,8 @@ export default function COAConfigurationPage() {
   const deleteChartOfAccountMutation = useMutation({
     mutationFn: async (id: number) => {
       return apiRequest(
-        `/api/v1/finance/chart-of-accounts/${id}`,
-        {
-          method: 'DELETE'
-        }
+        'DELETE',
+        `/api/v1/finance/chart-of-accounts/${id}`
       );
     },
     onSuccess: () => {
@@ -500,11 +494,9 @@ export default function COAConfigurationPage() {
       };
       
       return apiRequest(
+        'POST',
         `/api/v1/finance/chart-of-accounts/sub-element-groups`,
-        {
-          method: 'POST',
-          data
-        }
+        data
       );
     },
     onSuccess: () => {
@@ -541,11 +533,9 @@ export default function COAConfigurationPage() {
       };
       
       return apiRequest(
+        'PATCH',
         `/api/v1/finance/chart-of-accounts/sub-element-groups/${currentSubElementGroup.id}`,
-        {
-          method: 'PATCH',
-          data
-        }
+        data
       );
     },
     onSuccess: () => {
@@ -569,10 +559,8 @@ export default function COAConfigurationPage() {
   const deleteSubElementGroupMutation = useMutation({
     mutationFn: async (id: number) => {
       return apiRequest(
-        `/api/v1/finance/chart-of-accounts/sub-element-groups/${id}`,
-        {
-          method: 'DELETE'
-        }
+        'DELETE',
+        `/api/v1/finance/chart-of-accounts/sub-element-groups/${id}`
       );
     },
     onSuccess: () => {
@@ -606,11 +594,9 @@ export default function COAConfigurationPage() {
       };
       
       return apiRequest(
+        'POST',
         `/api/v1/finance/chart-of-accounts/detailed-groups`,
-        {
-          method: 'POST',
-          data
-        }
+        data
       );
     },
     onSuccess: () => {
@@ -647,11 +633,9 @@ export default function COAConfigurationPage() {
       };
       
       return apiRequest(
+        'PATCH',
         `/api/v1/finance/chart-of-accounts/detailed-groups/${currentDetailedGroup.id}`,
-        {
-          method: 'PATCH',
-          data
-        }
+        data
       );
     },
     onSuccess: () => {
@@ -675,10 +659,8 @@ export default function COAConfigurationPage() {
   const deleteDetailedGroupMutation = useMutation({
     mutationFn: async (id: number) => {
       return apiRequest(
-        `/api/v1/finance/chart-of-accounts/detailed-groups/${id}`,
-        {
-          method: 'DELETE'
-        }
+        'DELETE',
+        `/api/v1/finance/chart-of-accounts/detailed-groups/${id}`
       );
     },
     onSuccess: () => {
