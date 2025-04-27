@@ -99,12 +99,25 @@ export default function ChartOfAccountsPage() {
     // If we don't have the tenant ID yet, don't filter
     if (!currentTenantId) return unfilteredAccounts;
     
-    // Filter accounts to only show those from the current tenant
-    const filteredAccounts = unfilteredAccounts.filter(account => account.tenantId === currentTenantId);
+    // Advanced filter with strict comparison to prevent type coercion issues
+    const filteredAccounts = unfilteredAccounts.filter(account => 
+      account && Number(account.tenantId) === Number(currentTenantId)
+    );
     
-    // Log any discrepancy for debugging
+    // Detailed logging for debugging tenant isolation issues
     if (filteredAccounts.length !== unfilteredAccounts.length) {
-      console.warn(`Tenant isolation issue detected! Filtered out ${unfilteredAccounts.length - filteredAccounts.length} accounts from other tenants.`);
+      const wrongTenantIds = [...new Set(
+        unfilteredAccounts
+          .filter(account => Number(account.tenantId) !== Number(currentTenantId))
+          .map(account => account.tenantId)
+      )];
+      
+      console.error(
+        `CRITICAL TENANT ISOLATION ISSUE: Found accounts from ${wrongTenantIds.length} other tenants! ` +
+        `Current tenant: ${currentTenantId}, found accounts from tenants: ${wrongTenantIds.join(', ')}`
+      );
+      
+      console.warn(`Filtered out ${unfilteredAccounts.length - filteredAccounts.length} accounts from other tenants.`);
     }
     
     return filteredAccounts;
