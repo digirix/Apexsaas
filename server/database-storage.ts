@@ -1667,8 +1667,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   // 5. Accounts (AC Heads)
-  async getChartOfAccounts(tenantId: number, accountType?: string, detailedGroupId?: number, includeSystemAccounts: boolean = false): Promise<ChartOfAccount[]> {
-    console.log(`CRITICAL: getChartOfAccounts called with tenantId=${tenantId}, accountType=${accountType}, detailedGroupId=${detailedGroupId}, includeSystemAccounts=${includeSystemAccounts}`);
+  async getChartOfAccounts(tenantId: number, accountType?: string, detailedGroupId?: number, includeSystemAccounts: boolean = false, includeInactive: boolean = false): Promise<ChartOfAccount[]> {
+    console.log(`CRITICAL: getChartOfAccounts called with tenantId=${tenantId}, accountType=${accountType}, detailedGroupId=${detailedGroupId}, includeSystemAccounts=${includeSystemAccounts}, includeInactive=${includeInactive}`);
     
     try {
       // First build the query directly with tenant isolation
@@ -1678,7 +1678,7 @@ export class DatabaseStorage implements IStorage {
         .where(
           and(
             eq(chartOfAccounts.tenantId, tenantId),
-            eq(chartOfAccounts.isActive, true),
+            includeInactive ? undefined : eq(chartOfAccounts.isActive, true),
             accountType ? eq(chartOfAccounts.accountType, accountType) : undefined,
             detailedGroupId ? eq(chartOfAccounts.detailedGroupId, detailedGroupId) : undefined,
             includeSystemAccounts ? undefined : eq(chartOfAccounts.isSystemAccount, false)
@@ -1731,8 +1731,41 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createChartOfAccount(account: InsertChartOfAccount): Promise<ChartOfAccount> {
-    const [newAccount] = await db.insert(chartOfAccounts).values(account).returning();
-    return newAccount;
+    try {
+      // Check if an inactive account with the same name already exists
+      const [existingInactiveAccount] = await db.select().from(chartOfAccounts)
+        .where(and(
+          eq(chartOfAccounts.accountName, account.accountName),
+          eq(chartOfAccounts.tenantId, account.tenantId),
+          eq(chartOfAccounts.isActive, false)
+        ));
+      
+      if (existingInactiveAccount) {
+        // Reactivate the existing account with new details
+        console.log(`Reactivating existing inactive account: ${existingInactiveAccount.id} (${existingInactiveAccount.accountName})`);
+        
+        const [reactivatedAccount] = await db.update(chartOfAccounts)
+          .set({
+            detailedGroupId: account.detailedGroupId,
+            accountCode: account.accountCode,
+            accountType: account.accountType,
+            description: account.description,
+            isActive: true,
+            updatedAt: new Date()
+          })
+          .where(eq(chartOfAccounts.id, existingInactiveAccount.id))
+          .returning();
+          
+        return reactivatedAccount;
+      }
+      
+      // If no inactive account exists, create a new one
+      const [newAccount] = await db.insert(chartOfAccounts).values(account).returning();
+      return newAccount;
+    } catch (error) {
+      console.error("Error in createChartOfAccount:", error);
+      throw error;
+    }
   }
 
   async updateChartOfAccount(id: number, account: Partial<InsertChartOfAccount>): Promise<ChartOfAccount | undefined> {
