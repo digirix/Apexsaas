@@ -1668,24 +1668,54 @@ export class DatabaseStorage implements IStorage {
 
   // 5. Accounts (AC Heads)
   async getChartOfAccounts(tenantId: number, accountType?: string, detailedGroupId?: number, includeSystemAccounts: boolean = false): Promise<ChartOfAccount[]> {
-    let query = db.select().from(chartOfAccounts)
-      .where(eq(chartOfAccounts.tenantId, tenantId))
-      .where(eq(chartOfAccounts.isActive, true)); // Only get active accounts
+    console.log(`DEBUG: getChartOfAccounts called with tenantId=${tenantId}, accountType=${accountType}, detailedGroupId=${detailedGroupId}, includeSystemAccounts=${includeSystemAccounts}`);
+    
+    // First build the where conditions separately
+    const conditions = [
+      eq(chartOfAccounts.tenantId, tenantId),
+      eq(chartOfAccounts.isActive, true) // Only get active accounts
+    ];
     
     if (accountType) {
-      query = query.where(eq(chartOfAccounts.accountType, accountType));
+      conditions.push(eq(chartOfAccounts.accountType, accountType));
     }
     
     if (detailedGroupId) {
-      query = query.where(eq(chartOfAccounts.detailedGroupId, detailedGroupId));
+      conditions.push(eq(chartOfAccounts.detailedGroupId, detailedGroupId));
     }
     
     // Only include user-created accounts by default (not system defaults)
     if (!includeSystemAccounts) {
-      query = query.where(eq(chartOfAccounts.isSystemAccount, false));
+      conditions.push(eq(chartOfAccounts.isSystemAccount, false));
     }
     
-    return await query.orderBy(asc(chartOfAccounts.accountCode));
+    // Using the and() operator to combine all conditions
+    const query = db
+      .select()
+      .from(chartOfAccounts)
+      .where(and(...conditions))
+      .orderBy(asc(chartOfAccounts.accountCode));
+    
+    const accounts = await query;
+    
+    // Log the results for debugging
+    console.log(`DEBUG: getChartOfAccounts found ${accounts.length} accounts`);
+    if (accounts.length > 0) {
+      console.log(`DEBUG: First account: tenantId=${accounts[0].tenantId}, accountCode=${accounts[0].accountCode}, accountName=${accounts[0].accountName}`);
+      
+      // Check for tenant mismatch
+      const accountsFromOtherTenants = accounts.filter(acc => acc.tenantId !== tenantId);
+      if (accountsFromOtherTenants.length > 0) {
+        console.error(`ERROR: Found ${accountsFromOtherTenants.length} accounts from other tenants when querying for tenant ${tenantId}!`);
+        console.error(`First mismatched account: tenantId=${accountsFromOtherTenants[0].tenantId}, accountCode=${accountsFromOtherTenants[0].accountCode}`);
+      }
+    }
+    
+    // Filter the results again just to be super sure we only return accounts for this tenant
+    const filteredAccounts = accounts.filter(acc => acc.tenantId === tenantId);
+    console.log(`DEBUG: After extra filtering, returning ${filteredAccounts.length} accounts for tenant ${tenantId}`);
+    
+    return filteredAccounts;
   }
 
   async getChartOfAccount(id: number, tenantId: number): Promise<ChartOfAccount | undefined> {

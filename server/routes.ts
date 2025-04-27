@@ -3962,12 +3962,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/v1/finance/chart-of-accounts", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
+      console.log(`Fetching chart of accounts for tenantId: ${tenantId}`);
       const accountType = req.query.accountType as string | undefined;
       const detailedGroupId = req.query.detailedGroupId ? parseInt(req.query.detailedGroupId as string) : undefined;
       // Add parameter to control whether system accounts are included (default to false)
       const includeSystemAccounts = req.query.includeSystemAccounts === 'true';
       
       const accounts = await storage.getChartOfAccounts(tenantId, accountType, detailedGroupId, includeSystemAccounts);
+      console.log(`Found ${accounts.length} accounts for tenant ${tenantId}`);
+      if (accounts.length > 0) {
+        console.log(`First account tenantId: ${accounts[0].tenantId}`);
+      }
       res.json(accounts);
     } catch (error) {
       console.error("Error fetching accounts:", error);
