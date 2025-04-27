@@ -80,10 +80,35 @@ export default function ChartOfAccountsPage() {
     refetchOnWindowFocus: false,
   });
 
-  const { data: accounts = [], isLoading } = useQuery({
+  // Get the user info to determine the current tenant ID
+  const { data: userData } = useQuery({
+    queryKey: ['/api/v1/auth/me'],
+    refetchOnWindowFocus: false,
+  });
+  
+  const currentTenantId = userData?.user?.tenantId;
+  
+  // Fetch chart of accounts
+  const { data: unfilteredAccounts = [], isLoading } = useQuery({
     queryKey: ['/api/v1/finance/chart-of-accounts'],
     refetchOnWindowFocus: false,
   });
+  
+  // Apply client-side tenant filtering as a safety measure in case the server doesn't filter correctly
+  const accounts = React.useMemo(() => {
+    // If we don't have the tenant ID yet, don't filter
+    if (!currentTenantId) return unfilteredAccounts;
+    
+    // Filter accounts to only show those from the current tenant
+    const filteredAccounts = unfilteredAccounts.filter(account => account.tenantId === currentTenantId);
+    
+    // Log any discrepancy for debugging
+    if (filteredAccounts.length !== unfilteredAccounts.length) {
+      console.warn(`Tenant isolation issue detected! Filtered out ${unfilteredAccounts.length - filteredAccounts.length} accounts from other tenants.`);
+    }
+    
+    return filteredAccounts;
+  }, [unfilteredAccounts, currentTenantId]);
 
   // Delete mutation
   const deleteMutation = useMutation({
