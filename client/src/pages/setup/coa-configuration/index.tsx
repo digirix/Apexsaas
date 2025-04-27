@@ -98,6 +98,11 @@ const detailedGroupSchema = z.object({
   description: z.string().nullable().optional(),
 });
 
+// Helper function to safely handle null values in textarea
+const safeTextareaValue = (value: string | null | undefined): string => {
+  return value === null || value === undefined ? '' : value;
+};
+
 export default function COAConfigurationPage() {
   const [accountType, setAccountType] = useState<"balance-sheet" | "profit-loss">("balance-sheet");
   
@@ -105,7 +110,7 @@ export default function COAConfigurationPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [currentItem, setCurrentItem] = useState<any>(null);
+  const [currentItem, setCurrentItem] = useState<ChartOfAccount | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   
   // Sub Element Group dialog states
@@ -113,14 +118,14 @@ export default function COAConfigurationPage() {
   const [createSubElementGroupDialogOpen, setCreateSubElementGroupDialogOpen] = useState(false);
   const [editSubElementGroupDialogOpen, setEditSubElementGroupDialogOpen] = useState(false);
   const [deleteSubElementGroupDialogOpen, setDeleteSubElementGroupDialogOpen] = useState(false);
-  const [currentSubElementGroup, setCurrentSubElementGroup] = useState<any>(null);
+  const [currentSubElementGroup, setCurrentSubElementGroup] = useState<ChartOfAccountsSubElementGroup | null>(null);
   
   // Detailed Group dialog states
   const [detailedGroupDialogOpen, setDetailedGroupDialogOpen] = useState(false);
   const [createDetailedGroupDialogOpen, setCreateDetailedGroupDialogOpen] = useState(false);
   const [editDetailedGroupDialogOpen, setEditDetailedGroupDialogOpen] = useState(false);
   const [deleteDetailedGroupDialogOpen, setDeleteDetailedGroupDialogOpen] = useState(false);
-  const [currentDetailedGroup, setCurrentDetailedGroup] = useState<any>(null);
+  const [currentDetailedGroup, setCurrentDetailedGroup] = useState<ChartOfAccountsDetailedGroup | null>(null);
   
   // Element selections state
   const [selectedMainGroup, setSelectedMainGroup] = useState<string | null>(null);
@@ -129,27 +134,27 @@ export default function COAConfigurationPage() {
   const [selectedDetailedGroup, setSelectedDetailedGroup] = useState<string | null>(null);
   
   // Account data state
-  const [accountsState, setAccountsState] = useState<any[]>([]);
-  const [filteredAccounts, setFilteredAccounts] = useState<any[]>([]);
+  const [accountsState, setAccountsState] = useState<ChartOfAccount[]>([]);
+  const [filteredAccounts, setFilteredAccounts] = useState<ChartOfAccount[]>([]);
   
   // Query data
-  const { data: mainGroups = [], isLoading: isLoadingMainGroups } = useQuery({
+  const { data: mainGroups = [], isLoading: isLoadingMainGroups } = useQuery<ChartOfAccountsMainGroup[]>({
     queryKey: ['/api/v1/finance/chart-of-accounts/main-groups'],
   });
   
-  const { data: elementGroups = [], isLoading: isLoadingElementGroups } = useQuery({
+  const { data: elementGroups = [], isLoading: isLoadingElementGroups } = useQuery<ChartOfAccountsElementGroup[]>({
     queryKey: ['/api/v1/finance/chart-of-accounts/element-groups'],
   });
   
-  const { data: subElementGroups = [], isLoading: isLoadingSubElementGroups } = useQuery({
+  const { data: subElementGroups = [], isLoading: isLoadingSubElementGroups } = useQuery<ChartOfAccountsSubElementGroup[]>({
     queryKey: ['/api/v1/finance/chart-of-accounts/sub-element-groups'],
   });
   
-  const { data: detailedGroups = [], isLoading: isLoadingDetailedGroups } = useQuery({
+  const { data: detailedGroups = [], isLoading: isLoadingDetailedGroups } = useQuery<ChartOfAccountsDetailedGroup[]>({
     queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups'],
   });
   
-  const { data: accounts = [], isLoading: isLoadingAccounts } = useQuery({
+  const { data: accounts = [], isLoading: isLoadingAccounts } = useQuery<ChartOfAccount[]>({
     queryKey: ['/api/v1/finance/chart-of-accounts'],
   });
   
