@@ -193,9 +193,9 @@ export default function COAConfigurationPage() {
     }
   }, [accounts]);
   
-  // Update filtered accounts when account type changes
+  // Update filtered accounts when account type or accountsState changes
   useEffect(() => {
-    if (accountsState && accountsState.length > 0) {
+    if (accountsState && Array.isArray(accountsState) && accountsState.length > 0) {
       // This is a simplified filter, you may need to adjust based on your actual data structure
       const filtered = accountsState.filter((account: ChartOfAccount) => {
         // Get the detailed group for this account
@@ -236,7 +236,7 @@ export default function COAConfigurationPage() {
       
       setFilteredAccounts(filtered);
     }
-  }, [accountType, accounts, detailedGroups, subElementGroups, elementGroups, mainGroups]);
+  }, [accountType, accountsState, detailedGroups, subElementGroups, elementGroups, mainGroups]);
   
   // Form for the chart of account
   const chartOfAccountForm = useForm<z.infer<typeof chartOfAccountSchema>>({
@@ -481,9 +481,9 @@ export default function COAConfigurationPage() {
       setDeleteDialogOpen(false);
       setDeleteError(null);
       
-      // Update both accounts data and filtered accounts data
-      setAccounts((prevAccounts: any) => prevAccounts.filter((account: any) => account.id !== id));
-      setFilteredAccounts((prevAccounts: any) => prevAccounts.filter((account: any) => account.id !== id));
+      // Immediately update the local state with the item removed
+      setAccountsState(prevAccounts => prevAccounts.filter(account => account.id !== id));
+      setFilteredAccounts(prevAccounts => prevAccounts.filter(account => account.id !== id));
       
       // Also invalidate the query cache for future data fetches
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });
