@@ -3,6 +3,17 @@
 ## Overview
 This document provides a comprehensive overview of the progress made on the Accounting Firm Management Application, a multi-tenant system designed for accounting firms to manage clients, tasks, users, permissions, and system configuration across different countries and service types.
 
+## Latest Updates (April 27, 2025)
+
+### Chart of Accounts Tenant Isolation Fix
+- Implemented dual-layer tenant isolation approach for Chart of Accounts:
+  - Backend database-level filtering with explicit tenant matching
+  - Frontend client-side filtering as additional security measure
+- Added comprehensive error reporting and logging for tenant isolation issues
+- Fixed bug where accounts from other tenants would appear in wrong tenant views
+- Created more robust database query with explicit type checking for tenant IDs
+- Strengthened error handling to gracefully recover from database errors
+
 ## Project Architecture
 
 ### Technology Stack
@@ -276,11 +287,23 @@ This document provides a comprehensive overview of the progress made on the Acco
      - **Equity**: Ownership accounts (e.g., retained earnings)
      - **Revenue**: Income accounts (e.g., service revenue)
      - **Expense**: Cost accounts (e.g., operating expenses)
-   - Each account has:
-     - Unique account code within the tenant
+   - Hierarchical account structure with four levels:
+     - **Main Group**: Balance Sheet or Income Statement (Profit & Loss)
+     - **Element Group**: Major categories (Assets, Liabilities, Equity, Revenues, Expenses)
+     - **Sub-Element Group**: Sub-categories (Current Assets, Non-Current Assets, etc.)
+     - **Detailed Group**: Specific account groups (Cash & Banks, Accounts Receivable, etc.)
+   - Radio buttons for Main Group selection (Balance Sheet or Profit & Loss) at top of interface
+   - Each account ("AC Head") has:
+     - Automatically generated account code based on hierarchy
      - Descriptive account name
+     - Account type (asset, liability, equity, revenue, expense)
      - Activity status flag for temporary deactivation
    - Built-in constraints prevent duplicate account codes/names
+   - Complete tenant isolation with dual-layer protection:
+     - Database-level filtering using tenant ID in queries
+     - Frontend client-side filtering as additional security measure
+   - Soft delete approach (marking isActive=false instead of physical deletion)
+   - Account CRUD operations tied to proper tenant context
 
 5. **Payment Gateway Integration:**
    - Support for multiple payment gateways:
