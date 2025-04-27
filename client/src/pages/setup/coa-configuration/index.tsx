@@ -103,6 +103,31 @@ const safeTextareaValue = (value: string | null | undefined): string => {
   return value === null || value === undefined ? '' : value;
 };
 
+// Safe textarea component that handles null values
+const SafeTextarea = (props: {
+  placeholder?: string;
+  rows?: number;
+  onChange: (...event: any[]) => void;
+  onBlur: () => void;
+  value: string | null | undefined;
+  disabled?: boolean;
+  name: string;
+  ref?: React.Ref<any>;
+}) => {
+  return (
+    <Textarea
+      placeholder={props.placeholder}
+      rows={props.rows}
+      onChange={props.onChange}
+      onBlur={props.onBlur}
+      value={safeTextareaValue(props.value)}
+      disabled={props.disabled}
+      name={props.name}
+      ref={props.ref}
+    />
+  );
+};
+
 export default function COAConfigurationPage() {
   const [accountType, setAccountType] = useState<"balance-sheet" | "profit-loss">("balance-sheet");
   
