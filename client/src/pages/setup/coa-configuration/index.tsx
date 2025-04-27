@@ -128,7 +128,8 @@ export default function COAConfigurationPage() {
   const [selectedSubElementGroup, setSelectedSubElementGroup] = useState<string | null>(null);
   const [selectedDetailedGroup, setSelectedDetailedGroup] = useState<string | null>(null);
   
-  // Filtered account data
+  // Account data state
+  const [accountsState, setAccountsState] = useState<any[]>([]);
   const [filteredAccounts, setFilteredAccounts] = useState<any[]>([]);
   
   // Query data
@@ -185,11 +186,18 @@ export default function COAConfigurationPage() {
       ) 
     : [];
   
-  // Update filtered accounts when account type changes
+  // Keep accountsState in sync with the accounts data
   useEffect(() => {
     if (accounts && accounts.length > 0) {
+      setAccountsState(accounts);
+    }
+  }, [accounts]);
+  
+  // Update filtered accounts when account type changes
+  useEffect(() => {
+    if (accountsState && accountsState.length > 0) {
       // This is a simplified filter, you may need to adjust based on your actual data structure
-      const filtered = accounts.filter((account: ChartOfAccount) => {
+      const filtered = accountsState.filter((account: ChartOfAccount) => {
         // Get the detailed group for this account
         const detailedGroup = detailedGroups.find((dg: ChartOfAccountsDetailedGroup) => 
           dg.id === account.detailedGroupId
@@ -472,10 +480,13 @@ export default function COAConfigurationPage() {
       });
       setDeleteDialogOpen(false);
       setDeleteError(null);
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });
       
-      // Update local state to immediately remove the deleted item
-      setFilteredAccounts(prevAccounts => prevAccounts.filter(account => account.id !== id));
+      // Update both accounts data and filtered accounts data
+      setAccounts((prevAccounts: any) => prevAccounts.filter((account: any) => account.id !== id));
+      setFilteredAccounts((prevAccounts: any) => prevAccounts.filter((account: any) => account.id !== id));
+      
+      // Also invalidate the query cache for future data fetches
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });
     },
     onError: (error: any) => {
       const errorMessage = error?.response?.data?.message || "An error occurred";
