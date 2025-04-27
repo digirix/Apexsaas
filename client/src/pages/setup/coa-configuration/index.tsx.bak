@@ -705,9 +705,9 @@ export default function COAConfigurationPage() {
                                 
                                 // Check if it belongs to the selected account type
                                 if (accountType === "balance-sheet") {
-                                  return mainGroup.name === "balance_sheet";
+                                  return mainGroup.name === "Balance Sheet";
                                 } else {
-                                  return mainGroup.name === "profit_and_loss";
+                                  return mainGroup.name === "Profit and Loss";
                                 }
                               })
                               .map((group: ChartOfAccountsElementGroup) => (
