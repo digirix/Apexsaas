@@ -126,9 +126,9 @@ export default function COAConfigurationPage() {
   // Filter main groups based on account type
   const filteredMainGroups = mainGroups.filter((group: ChartOfAccountsMainGroup) => {
     if (accountType === "balance-sheet") {
-      return group.name === "Balance Sheet";
+      return group.name === "balance_sheet";
     } else {
-      return group.name === "Profit and Loss";
+      return group.name === "profit_and_loss";
     }
   });
   
@@ -188,9 +188,9 @@ export default function COAConfigurationPage() {
         
         // Now check if this account belongs to the selected account type
         if (accountType === "balance-sheet") {
-          return mainGroup.name === "Balance Sheet";
+          return mainGroup.name === "balance_sheet";
         } else {
-          return mainGroup.name === "Profit and Loss";
+          return mainGroup.name === "profit_and_loss";
         }
       });
       
