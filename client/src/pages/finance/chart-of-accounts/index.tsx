@@ -4,6 +4,7 @@ import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 import { AppLayout } from '@/components/layout/app-layout';
 import { apiRequest } from '@/lib/queryClient';
+import ChartOfAccountsCSVUpload from '@/components/finance/chart-of-accounts-csv-upload';
 import { Button } from '@/components/ui/button';
 import { 
   Card, 
@@ -237,6 +238,7 @@ export default function ChartOfAccountsPage() {
                   />
                 </div>
                 <div className="flex gap-2">
+                  <ChartOfAccountsCSVUpload />
                   <Button variant="outline" size="sm">
                     <FileText className="mr-2 h-4 w-4" />
                     Export
