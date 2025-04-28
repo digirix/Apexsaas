@@ -214,6 +214,7 @@ export interface IStorage {
   
   // Element Groups
   getChartOfAccountsElementGroups(tenantId: number, mainGroupId?: number): Promise<any[]>;
+  getChartOfAccountsElementGroupByName(tenantId: number, name: string): Promise<any[]>;
   getChartOfAccountsElementGroup(id: number, tenantId: number): Promise<any | undefined>;
   createChartOfAccountsElementGroup(elementGroup: any): Promise<any>;
   updateChartOfAccountsElementGroup(id: number, tenantId: number, elementGroup: any): Promise<any | undefined>;
@@ -221,6 +222,7 @@ export interface IStorage {
   
   // Sub-Element Groups
   getChartOfAccountsSubElementGroups(tenantId: number, elementGroupId?: number): Promise<any[]>;
+  getChartOfAccountsSubElementGroupByName(tenantId: number, name: string, elementGroupId: number): Promise<any[]>;
   getChartOfAccountsSubElementGroup(id: number, tenantId: number): Promise<any | undefined>;
   createChartOfAccountsSubElementGroup(subElementGroup: any): Promise<any>;
   updateChartOfAccountsSubElementGroup(id: number, tenantId: number, subElementGroup: any): Promise<any | undefined>;
@@ -228,6 +230,7 @@ export interface IStorage {
   
   // Detailed Groups
   getChartOfAccountsDetailedGroups(tenantId: number, subElementGroupId?: number): Promise<any[]>;
+  getChartOfAccountsDetailedGroupByName(tenantId: number, name: string, subElementGroupId: number): Promise<any[]>;
   getChartOfAccountsDetailedGroup(id: number, tenantId: number): Promise<any | undefined>;
   createChartOfAccountsDetailedGroup(detailedGroup: any): Promise<any>;
   updateChartOfAccountsDetailedGroup(id: number, tenantId: number, detailedGroup: any): Promise<any | undefined>;
