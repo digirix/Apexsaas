@@ -4190,22 +4190,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         accounts: [] as any[]
       };
       
+      // Add detailed logging
+      console.log(`Starting CSV import for tenant ${tenantId} with ${accountsData.length} accounts`);
+      
       // Process each account
       for (const accountRow of accountsData) {
         try {
+          console.log(`Processing account: ${JSON.stringify(accountRow)}`);
+          
           // Ensure all required fields are present
           if (!accountRow.accountName || !accountRow.elementGroupName || !accountRow.subElementGroupName || !accountRow.detailedGroupName) {
             results.failed++;
             results.errors.push(`Missing required fields for account "${accountRow.accountName || 'Unknown'}"`);
+            console.log(`Missing required fields for account "${accountRow.accountName || 'Unknown'}"`);
             continue;
           }
           
           // Find the element group by name
           const elementGroups = await storage.getChartOfAccountsElementGroupByName(tenantId, accountRow.elementGroupName);
+          console.log(`Element groups found: ${elementGroups?.length || 0}`);
             
           if (!elementGroups || elementGroups.length === 0) {
             results.failed++;
             results.errors.push(`Element group "${accountRow.elementGroupName}" not found for account "${accountRow.accountName}"`);
+            console.log(`Element group "${accountRow.elementGroupName}" not found for account "${accountRow.accountName}"`);
             continue;
           }
           
@@ -4216,9 +4224,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             elementGroups[0].id
           );
           
+          console.log(`Sub-element groups found: ${subElementGroups?.length || 0}`);
+          
           if (!subElementGroups || subElementGroups.length === 0) {
             results.failed++;
             results.errors.push(`Sub-element group "${accountRow.subElementGroupName}" not found for account "${accountRow.accountName}"`);
+            console.log(`Sub-element group "${accountRow.subElementGroupName}" not found for account "${accountRow.accountName}"`);
             continue;
           }
           
@@ -4229,10 +4240,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
             subElementGroups[0].id
           );
           
+          console.log(`Detailed groups found: ${detailedGroups?.length || 0}`);
+          
+          let finalDetailedGroups = detailedGroups;
+          
           if (!detailedGroups || detailedGroups.length === 0) {
-            results.failed++;
-            results.errors.push(`Detailed group "${accountRow.detailedGroupName}" not found for account "${accountRow.accountName}"`);
-            continue;
+            console.log(`Detailed group "${accountRow.detailedGroupName}" not found, using custom group fallback`);
+            
+            // If detailed group not found and using 'custom', create or find a custom detailed group
+            if (accountRow.detailedGroupName === 'custom') {
+              // Get or create a custom detailed group for this sub element group
+              const customDetailedGroups = await storage.getChartOfAccountsDetailedGroupByName(
+                tenantId,
+                'custom',
+                subElementGroups[0].id
+              );
+              
+              if (customDetailedGroups && customDetailedGroups.length > 0) {
+                console.log(`Using existing custom detailed group`);
+                finalDetailedGroups = customDetailedGroups;
+              } else {
+                results.failed++;
+                results.errors.push(`Custom detailed group not found for account "${accountRow.accountName}"`);
+                console.log(`Custom detailed group not found for account "${accountRow.accountName}"`);
+                continue;
+              }
+            } else {
+              results.failed++;
+              results.errors.push(`Detailed group "${accountRow.detailedGroupName}" not found for account "${accountRow.accountName}"`);
+              console.log(`Detailed group "${accountRow.detailedGroupName}" not found for account "${accountRow.accountName}"`);
+              continue;
+            }
           }
           
           // Determine account type based on element group name
@@ -4261,14 +4299,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Generate account code
           const accountCode = await storage.generateAccountCode(
             tenantId,
-            detailedGroups[0].id,
+            finalDetailedGroups[0].id,
             accountType
           );
           
           // Create account with properly typed data
           const accountData = {
             tenantId,
-            detailedGroupId: detailedGroups[0].id,
+            detailedGroupId: finalDetailedGroups[0].id,
             accountName: accountRow.accountName,
             accountCode,
             accountType: accountType as "asset" | "liability" | "equity" | "revenue" | "expense",
