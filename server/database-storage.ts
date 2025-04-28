@@ -1510,11 +1510,14 @@ export class DatabaseStorage implements IStorage {
   
   // Get element group by name - useful for CSV imports
   async getChartOfAccountsElementGroupByName(tenantId: number, name: string): Promise<any[]> {
+    // Normalize name to lowercase to match database enum values
+    const normalizedName = name.toLowerCase();
+    
     const elements = await db.select()
       .from(chartOfAccountsElementGroups)
       .where(and(
         eq(chartOfAccountsElementGroups.tenantId, tenantId),
-        eq(chartOfAccountsElementGroups.name, name)
+        eq(chartOfAccountsElementGroups.name, normalizedName)
       ))
       .orderBy(asc(chartOfAccountsElementGroups.code));
     

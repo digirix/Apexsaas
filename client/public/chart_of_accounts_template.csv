@@ -1,13 +1,13 @@
 Account Name,Element Group,Sub Element Group,Detailed Group,Description,Opening Balance
-Petty Cash,Assets,Current Assets,Cash and Bank Balances,Cash on hand for small expenses,1000.00
-Bank of America Checking,Assets,Current Assets,Cash and Bank Balances,Main business checking account,25000.00
-Accounts Receivable,Assets,Current Assets,Trade Debtors,Money owed by customers,15000.00
-Office Equipment,Assets,Non Current Assets,Property Plant and Equipment,Office furniture and equipment,8000.00
-Office Supplies,Assets,Current Assets,Other Receivables,Supplies and consumables,1200.00
-Accounts Payable,Liabilities,Current Liabilities,Trade Creditors,Money owed to suppliers,12000.00
-Credit Card Payable,Liabilities,Current Liabilities,Other Payables,Corporate credit card balance,3500.00
-Long Term Loan,Liabilities,Non Current Liabilities,Long term loans,Business expansion loan,50000.00
-Sales Revenue,Incomes,Sales,Sales Revenue,Income from primary services,0.00
-Consulting Revenue,Incomes,Service Revenue,Service Revenue,Income from consulting services,0.00
-Rent Expense,Expenses,Cost of Service Revenue,Operating Expenses,Office space rental,0.00
-Utilities Expense,Expenses,Cost of Service Revenue,Operating Expenses,Electricity and water bills,0.00
+Petty Cash,assets,current_assets,cash_bank_balances,Cash on hand for small expenses,1000.00
+Bank of America Checking,assets,current_assets,cash_bank_balances,Main business checking account,25000.00
+Accounts Receivable,assets,current_assets,trade_debtors,Money owed by customers,15000.00
+Office Equipment,assets,non_current_assets,property_plant_equipment,Office furniture and equipment,8000.00
+Office Supplies,assets,current_assets,other_receivables,Supplies and consumables,1200.00
+Accounts Payable,liabilities,current_liabilities,trade_creditors,Money owed to suppliers,12000.00
+Credit Card Payable,liabilities,current_liabilities,other_payables,Corporate credit card balance,3500.00
+Long Term Loan,liabilities,non_current_liabilities,long_term_loans,Business expansion loan,50000.00
+Sales Revenue,incomes,sales,sales_revenue,Income from primary services,0.00
+Consulting Revenue,incomes,service_revenue,service_revenue,Income from consulting services,0.00
+Rent Expense,expenses,cost_of_service_revenue,operating_expenses,Office space rental,0.00
+Utilities Expense,expenses,cost_of_service_revenue,operating_expenses,Electricity and water bills,0.00
