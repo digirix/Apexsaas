@@ -1507,6 +1507,19 @@ export class DatabaseStorage implements IStorage {
     
     return await query.orderBy(asc(chartOfAccountsElementGroups.code));
   }
+  
+  // Get element group by name - useful for CSV imports
+  async getChartOfAccountsElementGroupByName(tenantId: number, name: string): Promise<any[]> {
+    const elements = await db.select()
+      .from(chartOfAccountsElementGroups)
+      .where(and(
+        eq(chartOfAccountsElementGroups.tenantId, tenantId),
+        eq(chartOfAccountsElementGroups.name, name)
+      ))
+      .orderBy(asc(chartOfAccountsElementGroups.code));
+    
+    return elements;
+  }
 
   async getChartOfAccountsElementGroup(id: number, tenantId: number): Promise<any | undefined> {
     const [elementGroup] = await db.select()
@@ -1564,6 +1577,20 @@ export class DatabaseStorage implements IStorage {
     
     return await query.orderBy(asc(chartOfAccountsSubElementGroups.code));
   }
+  
+  // Get sub-element group by name and element group ID - useful for CSV imports
+  async getChartOfAccountsSubElementGroupByName(tenantId: number, name: string, elementGroupId: number): Promise<any[]> {
+    const subElements = await db.select()
+      .from(chartOfAccountsSubElementGroups)
+      .where(and(
+        eq(chartOfAccountsSubElementGroups.tenantId, tenantId),
+        eq(chartOfAccountsSubElementGroups.name, name),
+        eq(chartOfAccountsSubElementGroups.elementGroupId, elementGroupId)
+      ))
+      .orderBy(asc(chartOfAccountsSubElementGroups.code));
+    
+    return subElements;
+  }
 
   async getChartOfAccountsSubElementGroup(id: number, tenantId: number): Promise<any | undefined> {
     const [subElementGroup] = await db.select()
@@ -1620,6 +1647,20 @@ export class DatabaseStorage implements IStorage {
     }
     
     return await query.orderBy(asc(chartOfAccountsDetailedGroups.code));
+  }
+  
+  // Get detailed group by name and sub-element group ID - useful for CSV imports
+  async getChartOfAccountsDetailedGroupByName(tenantId: number, name: string, subElementGroupId: number): Promise<any[]> {
+    const detailedGroups = await db.select()
+      .from(chartOfAccountsDetailedGroups)
+      .where(and(
+        eq(chartOfAccountsDetailedGroups.tenantId, tenantId),
+        eq(chartOfAccountsDetailedGroups.name, name),
+        eq(chartOfAccountsDetailedGroups.subElementGroupId, subElementGroupId)
+      ))
+      .orderBy(asc(chartOfAccountsDetailedGroups.code));
+    
+    return detailedGroups;
   }
 
   async getChartOfAccountsDetailedGroup(id: number, tenantId: number): Promise<any | undefined> {

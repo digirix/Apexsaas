@@ -4209,14 +4209,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          // Find the sub-element group 
-          const subElementGroups = await db.select()
-            .from(chartOfAccountsSubElementGroups)
-            .where(and(
-              eq(chartOfAccountsSubElementGroups.tenantId, tenantId),
-              eq(chartOfAccountsSubElementGroups.name, accountRow.subElementGroupName),
-              eq(chartOfAccountsSubElementGroups.elementGroupId, elementGroups[0].id)
-            ));
+          // Find the sub-element group by name and element group
+          const subElementGroups = await storage.getChartOfAccountsSubElementGroupByName(
+            tenantId,
+            accountRow.subElementGroupName,
+            elementGroups[0].id
+          );
           
           if (!subElementGroups || subElementGroups.length === 0) {
             results.failed++;
@@ -4224,14 +4222,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          // Find the detailed group
-          const detailedGroups = await db.select()
-            .from(chartOfAccountsDetailedGroups)
-            .where(and(
-              eq(chartOfAccountsDetailedGroups.tenantId, tenantId),
-              eq(chartOfAccountsDetailedGroups.name, accountRow.detailedGroupName),
-              eq(chartOfAccountsDetailedGroups.subElementGroupId, subElementGroups[0].id)
-            ));
+          // Find the detailed group by name and sub element group ID
+          const detailedGroups = await storage.getChartOfAccountsDetailedGroupByName(
+            tenantId,
+            accountRow.detailedGroupName,
+            subElementGroups[0].id
+          );
           
           if (!detailedGroups || detailedGroups.length === 0) {
             results.failed++;
