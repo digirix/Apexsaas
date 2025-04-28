@@ -960,14 +960,14 @@ export default function COAConfigurationPage() {
       
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-start">
+          <div className="flex flex-col space-y-3">
             <div>
               <CardTitle>Chart of Accounts</CardTitle>
               <CardDescription>
                 Manage your account heads with their chart of accounts structure for financial reporting.
               </CardDescription>
             </div>
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => setSubElementGroupDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-1" />
                 Manage Sub Groups
