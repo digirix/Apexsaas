@@ -7,6 +7,7 @@ import { Link } from "wouter";
 import { ArrowLeft, Plus, Edit, Trash2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import ChartOfAccountsCSVImport from "@/components/setup/chart-of-accounts-csv-import";
 
 import { 
   Card, CardHeader, CardTitle, CardDescription, CardContent 
@@ -975,6 +976,7 @@ export default function COAConfigurationPage() {
                 <Plus className="h-4 w-4 mr-1" />
                 Manage Detailed Groups
               </Button>
+              <ChartOfAccountsCSVImport />
               <Button onClick={handleCreate}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add New Account
