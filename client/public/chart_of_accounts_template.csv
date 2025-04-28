@@ -9,5 +9,5 @@ Credit Card Payable,Liabilities,current_liabilities,other_payables,Corporate cre
 Long Term Loan,Liabilities,non_current_liabilities,long_term_loans,Business expansion loan,50000.00
 Sales Revenue,Income,sales,custom,Income from primary services,0.00
 Consulting Revenue,Income,service_revenue,custom,Income from consulting services,0.00
-Rent Expense,Expenses,operating_expenses,custom,Office space rental,0.00
-Utilities Expense,Expenses,operating_expenses,custom,Electricity and water bills,0.00
+Rent Expense,Expenses,cost_of_service_revenue,custom,Office space rental,0.00
+Utilities Expense,Expenses,cost_of_service_revenue,custom,Electricity and water bills,0.00
