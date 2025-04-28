@@ -1632,7 +1632,7 @@ export class DatabaseStorage implements IStorage {
   // Create a new custom sub-element group
   async createCustomSubElementGroup(tenantId: number, elementGroupId: number, name: string): Promise<any> {
     try {
-      // Normalize name for code generation
+      // Normalize name for code generation only, preserve original format for customName
       const normalizedName = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
       
       // Get the element group
@@ -1651,12 +1651,13 @@ export class DatabaseStorage implements IStorage {
       const code = `${elementGroup.code}-${normalizedName.substring(0, 3).toUpperCase()}`;
       
       // Create the sub-element group as a 'custom' type with the provided name in customName
+      // Store the original name format without any normalization
       const [newSubElementGroup] = await db.insert(chartOfAccountsSubElementGroups)
         .values({
           tenantId,
           elementGroupId,
           name: 'custom', // Using the enum value 'custom'
-          customName: name, // Store the actual name here
+          customName: name, // Store the actual name with original formatting
           code,
           description: `Custom sub-element group for ${name}`,
           isActive: true,
@@ -1777,7 +1778,7 @@ export class DatabaseStorage implements IStorage {
   // Create a new custom detailed group
   async createCustomDetailedGroup(tenantId: number, subElementGroupId: number, name: string): Promise<any> {
     try {
-      // Normalize name for code generation
+      // Normalize name for code generation only, preserve original format for customName
       const normalizedName = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
       
       // Get the sub-element group
@@ -1796,12 +1797,13 @@ export class DatabaseStorage implements IStorage {
       const code = `${subElementGroup.code}-${normalizedName.substring(0, 3).toUpperCase()}`;
       
       // Create the detailed group as a 'custom' type with the provided name in customName
+      // Store the original name format without any normalization
       const [newDetailedGroup] = await db.insert(chartOfAccountsDetailedGroups)
         .values({
           tenantId,
           subElementGroupId,
           name: 'custom', // Using the enum value 'custom'
-          customName: name, // Store the actual name here
+          customName: name, // Store the actual name with original formatting
           code,
           description: `Custom detailed group for ${name}`,
           isActive: true,

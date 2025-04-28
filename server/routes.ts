@@ -4266,6 +4266,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const selectedElementGroup = matchingElementGroups[0];
           
           // Find the sub-element group by name and element group
+          // Only normalize for searching, but keep original format for storage
+          const originalSubElementName = accountRow.subElementGroupName;
           const normalizedSubElementName = accountRow.subElementGroupName.toLowerCase().replace(/ /g, '_');
           
           // First try direct match with the selected element group
@@ -4336,6 +4338,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // Find the detailed group by name and sub element group ID
+          // Only normalize for searching, but keep original format for storage
+          const originalDetailedName = accountRow.detailedGroupName;
           const normalizedDetailedName = accountRow.detailedGroupName.toLowerCase().replace(/ /g, '_');
           
           // First try direct match
