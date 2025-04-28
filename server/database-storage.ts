@@ -32,7 +32,7 @@ import type {
 } from "@shared/schema";
 import { IStorage } from "./storage";
 import { db } from "./db";
-import { eq, and, isNull, asc, desc, inArray } from "drizzle-orm";
+import { eq, ne, and, isNull, asc, desc, inArray } from "drizzle-orm";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 import { scrypt, randomBytes } from "crypto";
@@ -1745,16 +1745,22 @@ export class DatabaseStorage implements IStorage {
         console.log(`Reactivating existing inactive account: ${existingInactiveAccount.id} (${existingInactiveAccount.accountName})`);
         
         // Check for existing account code to avoid uniqueness violation
+        // Important: We need to check ALL accounts (active and inactive) that might have this code
+        // But exclude the current account we're reactivating to avoid self-reference
         const existingAccountWithCode = await db.select().from(chartOfAccounts)
           .where(and(
             eq(chartOfAccounts.accountCode, account.accountCode),
-            eq(chartOfAccounts.tenantId, account.tenantId),
-            eq(chartOfAccounts.isActive, true)
+            eq(chartOfAccounts.tenantId, account.tenantId)
           ));
+          
+        // Filter out the current account being reactivated to avoid self-reference
+        const filteredExistingAccounts = existingAccountWithCode.filter(
+          existingAccount => existingAccount.id !== existingInactiveAccount.id
+        );
         
         // Generate a unique account code if needed
         let finalAccountCode = account.accountCode;
-        if (existingAccountWithCode.length > 0) {
+        if (filteredExistingAccounts.length > 0) {
           // Generate a new account code with a suffix
           const baseCode = account.accountCode.split('.').slice(0, -1).join('.');
           const existingAccounts = await this.getChartOfAccounts(
@@ -1786,11 +1792,11 @@ export class DatabaseStorage implements IStorage {
       
       // If no inactive account exists, create a new one
       // But first check for account code uniqueness
+      // Important: We need to check ALL accounts (active and inactive) that might have this code
       const existingActiveAccountWithCode = await db.select().from(chartOfAccounts)
         .where(and(
           eq(chartOfAccounts.accountCode, account.accountCode),
-          eq(chartOfAccounts.tenantId, account.tenantId),
-          eq(chartOfAccounts.isActive, true)
+          eq(chartOfAccounts.tenantId, account.tenantId)
         ));
         
       // Generate a unique account code if needed
