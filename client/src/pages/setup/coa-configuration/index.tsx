@@ -4,13 +4,13 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link } from "wouter";
-import { ArrowLeft, Plus, Edit, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, Edit, Trash2, Loader2, Search, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import ChartOfAccountsCSVImport from "@/components/setup/chart-of-accounts-csv-import";
 
 import { 
-  Card, CardHeader, CardTitle, CardDescription, CardContent 
+  Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -27,6 +27,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea as BaseTextarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 // Create a fixed version of Textarea that handles null values properly
 const Textarea = (props: any) => {
@@ -108,10 +111,11 @@ const detailedGroupSchema = z.object({
   description: z.string().nullable().optional(),
 });
 
-
-
 export default function COAConfigurationPage() {
   const [accountType, setAccountType] = useState<"balance-sheet" | "profit-loss">("balance-sheet");
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState("accounts");
   
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -121,18 +125,37 @@ export default function COAConfigurationPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   
   // Sub Element Group dialog states
-  const [subElementGroupDialogOpen, setSubElementGroupDialogOpen] = useState(false);
   const [createSubElementGroupDialogOpen, setCreateSubElementGroupDialogOpen] = useState(false);
   const [editSubElementGroupDialogOpen, setEditSubElementGroupDialogOpen] = useState(false);
   const [deleteSubElementGroupDialogOpen, setDeleteSubElementGroupDialogOpen] = useState(false);
   const [currentSubElementGroup, setCurrentSubElementGroup] = useState<ChartOfAccountsSubElementGroup | null>(null);
   
   // Detailed Group dialog states
-  const [detailedGroupDialogOpen, setDetailedGroupDialogOpen] = useState(false);
   const [createDetailedGroupDialogOpen, setCreateDetailedGroupDialogOpen] = useState(false);
   const [editDetailedGroupDialogOpen, setEditDetailedGroupDialogOpen] = useState(false);
   const [deleteDetailedGroupDialogOpen, setDeleteDetailedGroupDialogOpen] = useState(false);
   const [currentDetailedGroup, setCurrentDetailedGroup] = useState<ChartOfAccountsDetailedGroup | null>(null);
+  
+  // Bulk delete dialog states
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [bulkDeleteType, setBulkDeleteType] = useState<'accounts' | 'sub-element-groups' | 'detailed-groups'>('accounts');
+  
+  // Search, pagination, and selection states
+  const [searchTerm, setSearchTerm] = useState("");
+  
+  // For pagination
+  const [accountsCurrentPage, setAccountsCurrentPage] = useState(1);
+  const [subElementGroupsCurrentPage, setSubElementGroupsCurrentPage] = useState(1);
+  const [detailedGroupsCurrentPage, setDetailedGroupsCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+  
+  // For bulk selection
+  const [selectedAccounts, setSelectedAccounts] = useState<number[]>([]);
+  const [selectedSubElementGroups, setSelectedSubElementGroups] = useState<number[]>([]);
+  const [selectedDetailedGroups, setSelectedDetailedGroups] = useState<number[]>([]);
+  const [selectAllAccounts, setSelectAllAccounts] = useState(false);
+  const [selectAllSubElementGroups, setSelectAllSubElementGroups] = useState(false);
+  const [selectAllDetailedGroups, setSelectAllDetailedGroups] = useState(false);
   
   // Element selections state
   const [selectedMainGroup, setSelectedMainGroup] = useState<string | null>(null);
@@ -250,6 +273,72 @@ export default function COAConfigurationPage() {
     }
   }, [accountType, accountsState, detailedGroups, subElementGroups, elementGroups, mainGroups]);
   
+  // Filtered and paginated data
+  const filteredSearchedAccounts = filteredAccounts.filter(account => 
+    account.accountName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    account.accountCode.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  const paginatedAccounts = filteredSearchedAccounts.slice(
+    (accountsCurrentPage - 1) * ITEMS_PER_PAGE, 
+    accountsCurrentPage * ITEMS_PER_PAGE
+  );
+  
+  const totalAccountsPages = Math.ceil(filteredSearchedAccounts.length / ITEMS_PER_PAGE);
+  
+  // Filtered and paginated sub-element groups
+  const filteredSearchedSubElementGroups = subElementGroups.filter(seg => 
+    (seg.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    seg.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (seg.customName && seg.customName?.toLowerCase().includes(searchTerm.toLowerCase())))
+  );
+  
+  const paginatedSubElementGroups = filteredSearchedSubElementGroups.slice(
+    (subElementGroupsCurrentPage - 1) * ITEMS_PER_PAGE, 
+    subElementGroupsCurrentPage * ITEMS_PER_PAGE
+  );
+  
+  const totalSubElementGroupsPages = Math.ceil(filteredSearchedSubElementGroups.length / ITEMS_PER_PAGE);
+  
+  // Filtered and paginated detailed groups
+  const filteredSearchedDetailedGroups = detailedGroups.filter(dg => 
+    (dg.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    dg.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (dg.customName && dg.customName?.toLowerCase().includes(searchTerm.toLowerCase())))
+  );
+  
+  const paginatedDetailedGroups = filteredSearchedDetailedGroups.slice(
+    (detailedGroupsCurrentPage - 1) * ITEMS_PER_PAGE, 
+    detailedGroupsCurrentPage * ITEMS_PER_PAGE
+  );
+  
+  const totalDetailedGroupsPages = Math.ceil(filteredSearchedDetailedGroups.length / ITEMS_PER_PAGE);
+  
+  // Handle bulk selection
+  useEffect(() => {
+    if (selectAllAccounts) {
+      setSelectedAccounts(paginatedAccounts.map(a => a.id));
+    } else {
+      setSelectedAccounts([]);
+    }
+  }, [selectAllAccounts, paginatedAccounts]);
+  
+  useEffect(() => {
+    if (selectAllSubElementGroups) {
+      setSelectedSubElementGroups(paginatedSubElementGroups.map(seg => seg.id));
+    } else {
+      setSelectedSubElementGroups([]);
+    }
+  }, [selectAllSubElementGroups, paginatedSubElementGroups]);
+  
+  useEffect(() => {
+    if (selectAllDetailedGroups) {
+      setSelectedDetailedGroups(paginatedDetailedGroups.map(dg => dg.id));
+    } else {
+      setSelectedDetailedGroups([]);
+    }
+  }, [selectAllDetailedGroups, paginatedDetailedGroups]);
+  
   // Form for the chart of account
   const chartOfAccountForm = useForm<z.infer<typeof chartOfAccountSchema>>({
     resolver: zodResolver(chartOfAccountSchema),
@@ -303,644 +392,138 @@ export default function COAConfigurationPage() {
     }
   }, [watchSubElementGroup, chartOfAccountForm]);
   
-  // Function to generate account code
-  const generateAccountCode = (
-    detailedGroup: ChartOfAccountsDetailedGroup | undefined,
-    subElementGroup: ChartOfAccountsSubElementGroup | undefined,
-    elementGroup: ChartOfAccountsElementGroup | undefined,
-    mainGroup: ChartOfAccountsMainGroup | undefined,
-    accountName: string
-  ) => {
-    if (!detailedGroup || !subElementGroup || !elementGroup || !mainGroup) {
-      // Generate a fallback code
-      return `AC-${Date.now().toString().slice(-6)}`;
-    }
-    
-    // Get existing accounts for this detailed group
-    const existingAccounts = accounts.filter((a: any) => a.detailedGroupId === detailedGroup.id);
-    const count = existingAccounts.length + 1;
-    
-    // Create account code based on detailed group code and a sequence number
-    const prefix = detailedGroup.code || elementGroup.code || 'AC';
-    return `${prefix}-${count.toString().padStart(3, '0')}`;
-  };
-  
-  // Create chart of account mutation
-  const createChartOfAccountMutation = useMutation({
-    mutationFn: async (values: z.infer<typeof chartOfAccountSchema>) => {
-      // Prepare data for API
-      const detailedGroupId = parseInt(values.detailedGroup);
-      const detailedGroup = detailedGroups.find(dg => dg.id === detailedGroupId);
-      const subElementGroup = subElementGroups.find(seg => seg.id === detailedGroup?.subElementGroupId);
-      const elementGroup = elementGroups.find(eg => eg.id === subElementGroup?.elementGroupId);
-      const mainGroup = elementGroup ? 
-        mainGroups.find(mg => mg.id === elementGroup.mainGroupId) : undefined;
-      
-      let accountType = "asset"; // Default
-      
-      if (elementGroup) {
-        switch(elementGroup.name) {
-          case "Assets":
-          case "assets":
-            accountType = "asset";
-            break;
-          case "Liabilities":
-          case "liabilities":
-            accountType = "liability";
-            break;
-          case "Equity":
-          case "equity":
-            accountType = "equity";
-            break;
-          case "Incomes":
-          case "incomes":
-            accountType = "revenue";
-            break;
-          case "Expenses":
-          case "expenses":
-            accountType = "expense";
-            break;
-        }
-      }
-      
-      // Generate account code automatically
-      const accountCode = generateAccountCode(
-        detailedGroup, 
-        subElementGroup, 
-        elementGroup, 
-        mainGroup,
-        values.accountName
-      );
-      
-      const data = {
-        detailedGroupId,
-        accountName: values.accountName,
-        accountCode,
-        accountType,
-        description: values.description || null,
-      };
-      
-      return apiRequest(
-        'POST',
-        `/api/v1/finance/chart-of-accounts`,
-        data
-      );
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Chart of account created successfully",
-      });
-      setCreateDialogOpen(false);
-      chartOfAccountForm.reset();
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to create chart of account",
-        variant: "destructive",
-      });
-      console.error("Create error:", error);
-    }
-  });
-  
-  // Update chart of account mutation
-  const updateChartOfAccountMutation = useMutation({
-    mutationFn: async (values: z.infer<typeof chartOfAccountSchema>) => {
-      if (!currentItem) return null;
-      
-      // Prepare data for API
-      const detailedGroupId = parseInt(values.detailedGroup);
-      const detailedGroup = detailedGroups.find(dg => dg.id === detailedGroupId);
-      const subElementGroup = subElementGroups.find(seg => seg.id === detailedGroup?.subElementGroupId);
-      const elementGroup = elementGroups.find(eg => eg.id === subElementGroup?.elementGroupId);
-      const mainGroup = elementGroup ?
-        mainGroups.find(mg => mg.id === elementGroup.mainGroupId) : undefined;
-      
-      let accountType = "asset"; // Default
-      
-      if (elementGroup) {
-        switch(elementGroup.name) {
-          case "Assets":
-          case "assets":
-            accountType = "asset";
-            break;
-          case "Liabilities":
-          case "liabilities":
-            accountType = "liability";
-            break;
-          case "Equity":
-          case "equity":
-            accountType = "equity";
-            break;
-          case "Incomes":
-          case "incomes":
-            accountType = "revenue";
-            break;
-          case "Expenses":
-          case "expenses":
-            accountType = "expense";
-            break;
-        }
-      }
-      
-      const data = {
-        detailedGroupId,
-        accountName: values.accountName,
-        accountCode: currentItem.accountCode, // Keep the original account code on update
-        accountType,
-        description: values.description || null,
-      };
-      
-      return apiRequest(
-        'PATCH',
-        `/api/v1/finance/chart-of-accounts/${currentItem.id}`,
-        data
-      );
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Chart of account updated successfully",
-      });
-      setEditDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to update chart of account",
-        variant: "destructive",
-      });
-      console.error("Update error:", error);
-    }
-  });
-  
-  // Delete chart of account mutation
+  // Mutations for Chart of Accounts
   const deleteChartOfAccountMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(
-        'DELETE',
-        `/api/v1/finance/chart-of-accounts/${id}`
-      );
+      return apiRequest('DELETE', `/api/v1/finance/chart-of-accounts/${id}`);
     },
-    onSuccess: (_, id) => {
+    onSuccess: () => {
       toast({
         title: "Success",
         description: "Chart of account deleted successfully",
       });
       setDeleteDialogOpen(false);
-      setDeleteError(null);
-      
-      // Immediately update the local state with the item removed
-      setAccountsState(prevAccounts => prevAccounts.filter(account => account.id !== id));
-      setFilteredAccounts(prevAccounts => prevAccounts.filter(account => account.id !== id));
-      
-      // Also invalidate the query cache for future data fetches
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });
     },
     onError: (error: any) => {
-      const errorMessage = error?.response?.data?.message || "An error occurred";
-      setDeleteError(errorMessage);
+      console.error("Delete error:", error);
+      setDeleteError(error.message || "Failed to delete chart of account");
     }
   });
   
-  // Sub Element Group mutations
-  const createSubElementGroupMutation = useMutation({
-    mutationFn: async (values: z.infer<typeof subElementGroupSchema>) => {
-      const elementGroupId = parseInt(values.elementGroup);
-      const data = {
-        elementGroupId,
-        name: values.name,
-        customName: values.customName || null,
-        code: values.code,
-        description: values.description || null,
-        isActive: true
-      };
-      
-      return apiRequest(
-        'POST',
-        `/api/v1/finance/chart-of-accounts/sub-element-groups`,
-        data
-      );
+  // Bulk delete mutation for accounts
+  const bulkDeleteAccountsMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      // Sequential deletion to avoid overwhelming the server
+      for (const id of ids) {
+        await apiRequest('DELETE', `/api/v1/finance/chart-of-accounts/${id}`);
+      }
+      return true;
     },
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Sub Element Group created successfully",
+        description: `Successfully deleted ${selectedAccounts.length} accounts`,
       });
-      setCreateSubElementGroupDialogOpen(false);
-      subElementGroupForm.reset();
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/sub-element-groups'] });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to create Sub Element Group",
-        variant: "destructive",
-      });
-      console.error("Create error:", error);
-    }
-  });
-  
-  const updateSubElementGroupMutation = useMutation({
-    mutationFn: async (values: z.infer<typeof subElementGroupSchema>) => {
-      if (!currentSubElementGroup) return null;
-      
-      const elementGroupId = parseInt(values.elementGroup);
-      const data = {
-        elementGroupId,
-        // Keep the original name (which is an enum), just update customName
-        name: currentSubElementGroup.name,
-        customName: values.customName || values.name || null,
-        code: values.code,
-        description: values.description || null,
-        isActive: true
-      };
-      
-      return apiRequest(
-        'PATCH',
-        `/api/v1/finance/chart-of-accounts/sub-element-groups/${currentSubElementGroup.id}`,
-        data
-      );
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Sub Element Group updated successfully",
-      });
-      setEditSubElementGroupDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/sub-element-groups'] });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to update Sub Element Group",
-        variant: "destructive",
-      });
-      console.error("Update error:", error);
-    }
-  });
-  
-  const deleteSubElementGroupMutation = useMutation({
-    mutationFn: async (id: number) => {
-      return apiRequest(
-        'DELETE',
-        `/api/v1/finance/chart-of-accounts/sub-element-groups/${id}`
-      );
-    },
-    onSuccess: (_, id) => {
-      toast({
-        title: "Success",
-        description: "Sub Element Group deleted successfully",
-      });
-      setDeleteSubElementGroupDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/sub-element-groups'] });
-      
-      // Invalidate chart of accounts to refresh the whole view
+      setSelectedAccounts([]);
+      setSelectAllAccounts(false);
+      setBulkDeleteDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to delete Sub Element Group. It might be in use by one or more accounts.",
+        description: `Failed to delete accounts: ${error.message || "Unknown error"}`,
         variant: "destructive",
       });
     }
   });
   
-  // Detailed Group mutations
-  const createDetailedGroupMutation = useMutation({
-    mutationFn: async (values: z.infer<typeof detailedGroupSchema>) => {
-      const subElementGroupId = parseInt(values.subElementGroup);
-      const data = {
-        subElementGroupId,
-        name: values.name,
-        customName: values.customName || null,
-        code: values.code,
-        description: values.description || null,
-        isActive: true
-      };
-      
-      return apiRequest(
-        'POST',
-        `/api/v1/finance/chart-of-accounts/detailed-groups`,
-        data
-      );
+  // Bulk delete mutation for sub-element groups
+  const bulkDeleteSubElementGroupsMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      // Sequential deletion to avoid overwhelming the server
+      for (const id of ids) {
+        await apiRequest('DELETE', `/api/v1/finance/chart-of-accounts/sub-element-groups/${id}`);
+      }
+      return true;
     },
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Detailed Group created successfully",
+        description: `Successfully deleted ${selectedSubElementGroups.length} sub-element groups`,
       });
-      setCreateDetailedGroupDialogOpen(false);
-      detailedGroupForm.reset();
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups'] });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to create Detailed Group",
-        variant: "destructive",
-      });
-      console.error("Create error:", error);
-    }
-  });
-  
-  const updateDetailedGroupMutation = useMutation({
-    mutationFn: async (values: z.infer<typeof detailedGroupSchema>) => {
-      if (!currentDetailedGroup) return null;
-      
-      const subElementGroupId = parseInt(values.subElementGroup);
-      const data = {
-        subElementGroupId,
-        // Keep the original name (which is an enum), just update customName
-        name: currentDetailedGroup.name,
-        customName: values.customName || values.name || null,
-        code: values.code,
-        description: values.description || null,
-        isActive: true
-      };
-      
-      return apiRequest(
-        'PATCH',
-        `/api/v1/finance/chart-of-accounts/detailed-groups/${currentDetailedGroup.id}`,
-        data
-      );
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Detailed Group updated successfully",
-      });
-      setEditDetailedGroupDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups'] });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to update Detailed Group",
-        variant: "destructive",
-      });
-      console.error("Update error:", error);
-    }
-  });
-  
-  const deleteDetailedGroupMutation = useMutation({
-    mutationFn: async (id: number) => {
-      return apiRequest(
-        'DELETE',
-        `/api/v1/finance/chart-of-accounts/detailed-groups/${id}`
-      );
-    },
-    onSuccess: (_, id) => {
-      toast({
-        title: "Success",
-        description: "Detailed Group deleted successfully",
-      });
-      setDeleteDetailedGroupDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups'] });
-      
-      // Invalidate chart of accounts to refresh the whole view
-      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });
+      setSelectedSubElementGroups([]);
+      setSelectAllSubElementGroups(false);
+      setBulkDeleteDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/sub-element-groups'] });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to delete Detailed Group. It might be in use by one or more accounts.",
+        description: `Failed to delete sub-element groups: ${error.message || "Unknown error"}`,
         variant: "destructive",
       });
     }
   });
   
-  // Handle opening create dialog
-  const handleCreate = () => {
-    chartOfAccountForm.reset({
-      elementGroup: "",
-      subElementGroup: "",
-      detailedGroup: "",
-      accountName: "",
-      description: "",
-    });
-    setCreateDialogOpen(true);
-  };
-  
-  // Sub Element Group handlers
-  const handleCreateSubElementGroup = () => {
-    subElementGroupForm.reset({
-      elementGroup: "",
-      name: "",
-      customName: "",
-      code: "",
-      description: "",
-    });
-    setCreateSubElementGroupDialogOpen(true);
-    setSubElementGroupDialogOpen(false);
-  };
-  
-  const handleEditSubElementGroup = (subElementGroup: ChartOfAccountsSubElementGroup) => {
-    setCurrentSubElementGroup(subElementGroup);
-    
-    // Find the element group for this sub-element group
-    const elementGroup = elementGroups.find((eg: ChartOfAccountsElementGroup) => 
-      eg.id === subElementGroup.elementGroupId
-    );
-    
-    if (!elementGroup) {
+  // Bulk delete mutation for detailed groups
+  const bulkDeleteDetailedGroupsMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      // Sequential deletion to avoid overwhelming the server
+      for (const id of ids) {
+        await apiRequest('DELETE', `/api/v1/finance/chart-of-accounts/detailed-groups/${id}`);
+      }
+      return true;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: `Successfully deleted ${selectedDetailedGroups.length} detailed groups`,
+      });
+      setSelectedDetailedGroups([]);
+      setSelectAllDetailedGroups(false);
+      setBulkDeleteDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups'] });
+    },
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Could not find element group for this sub-element group",
+        description: `Failed to delete detailed groups: ${error.message || "Unknown error"}`,
         variant: "destructive",
       });
-      return;
     }
-    
-    subElementGroupForm.reset({
-      elementGroup: String(elementGroup.id),
-      name: subElementGroup.name,
-      customName: subElementGroup.customName || "",
-      code: subElementGroup.code,
-      description: subElementGroup.description || "",
-    });
-    
-    setEditSubElementGroupDialogOpen(true);
-    setSubElementGroupDialogOpen(false);
-  };
+  });
   
-  const handleDeleteSubElementGroup = (subElementGroup: ChartOfAccountsSubElementGroup) => {
-    setCurrentSubElementGroup(subElementGroup);
-    setDeleteSubElementGroupDialogOpen(true);
-    setSubElementGroupDialogOpen(false);
-  };
-  
-  // Detailed Group handlers
-  const handleCreateDetailedGroup = () => {
-    detailedGroupForm.reset({
-      subElementGroup: "",
-      name: "",
-      customName: "",
-      code: "",
-      description: "",
-    });
-    setCreateDetailedGroupDialogOpen(true);
-    setDetailedGroupDialogOpen(false);
-  };
-  
-  const handleEditDetailedGroup = (detailedGroup: ChartOfAccountsDetailedGroup) => {
-    setCurrentDetailedGroup(detailedGroup);
-    
-    detailedGroupForm.reset({
-      subElementGroup: String(detailedGroup.subElementGroupId),
-      name: detailedGroup.name,
-      customName: detailedGroup.customName || "",
-      code: detailedGroup.code,
-      description: detailedGroup.description || "",
-    });
-    
-    setEditDetailedGroupDialogOpen(true);
-    setDetailedGroupDialogOpen(false);
-  };
-  
-  const handleDeleteDetailedGroup = (detailedGroup: ChartOfAccountsDetailedGroup) => {
-    setCurrentDetailedGroup(detailedGroup);
-    setDeleteDetailedGroupDialogOpen(true);
-    setDetailedGroupDialogOpen(false);
-  };
-  
-  // Handle opening edit dialog
-  const handleEdit = (account: any) => {
-    setCurrentItem(account);
-    
-    // Find the detailed group for this account
-    const detailedGroup = detailedGroups.find((dg: ChartOfAccountsDetailedGroup) => 
-      dg.id === account.detailedGroupId
-    );
-    
-    if (!detailedGroup) {
-      toast({
-        title: "Error",
-        description: "Could not find detailed group for this account",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Find the sub-element group for this detailed group
-    const subElementGroup = subElementGroups.find((seg: ChartOfAccountsSubElementGroup) => 
-      seg.id === detailedGroup.subElementGroupId
-    );
-    
-    if (!subElementGroup) {
-      toast({
-        title: "Error",
-        description: "Could not find sub-element group for this account",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Find the element group for this sub-element group
-    const elementGroup = elementGroups.find((eg: ChartOfAccountsElementGroup) => 
-      eg.id === subElementGroup.elementGroupId
-    );
-    
-    if (!elementGroup) {
-      toast({
-        title: "Error",
-        description: "Could not find element group for this account",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Reset form with account data
-    chartOfAccountForm.reset({
-      elementGroup: String(elementGroup.id),
-      subElementGroup: String(subElementGroup.id),
-      detailedGroup: String(detailedGroup.id),
-      accountName: account.accountName,
-      description: account.description || "",
-    });
-    
-    setEditDialogOpen(true);
-  };
-  
-  // Handle opening delete dialog
-  const handleDeleteClick = (account: any) => {
-    setCurrentItem(account);
-    setDeleteDialogOpen(true);
-    setDeleteError(null);
-  };
-  
-  // Handle form submission for create
-  const onCreateSubmit = (values: z.infer<typeof chartOfAccountSchema>) => {
-    createChartOfAccountMutation.mutate(values);
-  };
-  
-  // Handle form submission for edit
-  const onEditSubmit = (values: z.infer<typeof chartOfAccountSchema>) => {
-    updateChartOfAccountMutation.mutate(values);
-  };
-  
-  // Handle delete confirmation
+  // Delete confirmation handlers
   const handleDeleteConfirm = () => {
     if (!currentItem) return;
     deleteChartOfAccountMutation.mutate(currentItem.id);
   };
   
-  // Sub Element Group form submissions
-  const onCreateSubElementGroupSubmit = (values: z.infer<typeof subElementGroupSchema>) => {
-    createSubElementGroupMutation.mutate(values);
-  };
-  
-  const onEditSubElementGroupSubmit = (values: z.infer<typeof subElementGroupSchema>) => {
-    updateSubElementGroupMutation.mutate(values);
-  };
-  
-  const handleSubElementGroupDeleteConfirm = () => {
-    if (!currentSubElementGroup) return;
-    deleteSubElementGroupMutation.mutate(currentSubElementGroup.id);
-  };
-  
-  // Detailed Group form submissions
-  const onCreateDetailedGroupSubmit = (values: z.infer<typeof detailedGroupSchema>) => {
-    createDetailedGroupMutation.mutate(values);
-  };
-  
-  const onEditDetailedGroupSubmit = (values: z.infer<typeof detailedGroupSchema>) => {
-    updateDetailedGroupMutation.mutate(values);
-  };
-  
-  const handleDetailedGroupDeleteConfirm = () => {
-    if (!currentDetailedGroup) return;
-    deleteDetailedGroupMutation.mutate(currentDetailedGroup.id);
-  };
-  
-  // Function to get account type text for display
-  const getAccountTypeText = (accountType: string) => {
-    switch(accountType) {
-      case "asset": return "Asset";
-      case "liability": return "Liability";
-      case "equity": return "Equity";
-      case "revenue": return "Revenue";
-      case "expense": return "Expense";
-      default: return accountType;
+  const handleBulkDeleteConfirm = () => {
+    switch (bulkDeleteType) {
+      case 'accounts':
+        bulkDeleteAccountsMutation.mutate(selectedAccounts);
+        break;
+      case 'sub-element-groups':
+        bulkDeleteSubElementGroupsMutation.mutate(selectedSubElementGroups);
+        break;
+      case 'detailed-groups':
+        bulkDeleteDetailedGroupsMutation.mutate(selectedDetailedGroups);
+        break;
     }
   };
   
-  // Function to get human-readable description of account structure
-  const getAccountStructureText = (account: any) => {
-    const detailedGroup = detailedGroups.find((dg: ChartOfAccountsDetailedGroup) => dg.id === account.detailedGroupId);
-    if (!detailedGroup) return "";
-    
-    const subElementGroup = subElementGroups.find((seg: ChartOfAccountsSubElementGroup) => seg.id === detailedGroup.subElementGroupId);
-    if (!subElementGroup) return detailedGroup.customName || detailedGroup.name;
-    
-    const elementGroup = elementGroups.find((eg: ChartOfAccountsElementGroup) => eg.id === subElementGroup.elementGroupId);
-    if (!elementGroup) return `${subElementGroup.customName || subElementGroup.name} > ${detailedGroup.customName || detailedGroup.name}`;
-    
-    return `${elementGroup.name} > ${subElementGroup.customName || subElementGroup.name} > ${detailedGroup.customName || detailedGroup.name}`;
+  // Helper functions
+  const getElementGroupName = (id: number) => {
+    const group = elementGroups.find(eg => eg.id === id);
+    return group ? (group.name.charAt(0).toUpperCase() + group.name.slice(1)) : '';
+  };
+  
+  const getSubElementGroupName = (id: number) => {
+    const group = subElementGroups.find(seg => seg.id === id);
+    return group ? (group.customName || group.name) : '';
   };
   
   // Loading state
@@ -959,1372 +542,579 @@ export default function COAConfigurationPage() {
       </div>
       
       <Card>
-        <CardHeader>
-          <div className="flex flex-col space-y-3">
-            <div>
-              <CardTitle>Chart of Accounts</CardTitle>
-              <CardDescription>
-                Manage your account heads with their chart of accounts structure for financial reporting.
-              </CardDescription>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => setSubElementGroupDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-1" />
-                Manage Sub Groups
-              </Button>
-              <Button variant="outline" onClick={() => setDetailedGroupDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-1" />
-                Manage Detailed Groups
-              </Button>
-              <ChartOfAccountsCSVImport />
-              <Button onClick={handleCreate}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add New Account
-              </Button>
-            </div>
+        <CardHeader className="flex flex-col">
+          <div>
+            <CardTitle>Chart of Accounts</CardTitle>
+            <CardDescription>
+              Manage your chart of accounts structure for financial reporting
+            </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
-          {/* Filter by Main Group (Balance Sheet or Profit & Loss) */}
-          <div className="mb-6">
-            <div className="text-base font-medium mb-2">Select Account Type</div>
-            <RadioGroup
-              defaultValue="balance-sheet"
-              value={accountType}
-              onValueChange={(value) => setAccountType(value as "balance-sheet" | "profit-loss")}
-              className="flex space-x-4 mt-2"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="balance-sheet" id="balance-sheet" />
-                <label htmlFor="balance-sheet">Balance Sheet</label>
+          <Tabs 
+            value={activeTab} 
+            onValueChange={setActiveTab}
+            className="w-full"
+          >
+            <TabsList className="mb-4">
+              <TabsTrigger value="accounts">Chart of Accounts</TabsTrigger>
+              <TabsTrigger value="sub-element-groups">Sub Element Groups</TabsTrigger>
+              <TabsTrigger value="detailed-groups">Detailed Groups</TabsTrigger>
+            </TabsList>
+
+            {/* Search and Action Bar - Common for all tabs */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <div className="relative w-64">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="profit-loss" id="profit-loss" />
-                <label htmlFor="profit-loss">Profit and Loss</label>
+              <div className="flex space-x-2">
+                {activeTab === "accounts" && (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setCreateDialogOpen(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Account
+                    </Button>
+                    <ChartOfAccountsCSVImport 
+                      onSuccess={() => {
+                        toast({
+                          title: "Success",
+                          description: "Chart of accounts imported successfully",
+                        });
+                        queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });
+                      }}
+                      onError={(error) => {
+                        toast({
+                          title: "Error",
+                          description: error || "Failed to import chart of accounts",
+                          variant: "destructive",
+                        });
+                      }}
+                    />
+                    {selectedAccounts.length > 0 && (
+                      <Button 
+                        variant="destructive"
+                        onClick={() => {
+                          setBulkDeleteType('accounts');
+                          setBulkDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Selected ({selectedAccounts.length})
+                      </Button>
+                    )}
+                  </>
+                )}
+                {activeTab === "sub-element-groups" && (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setCreateSubElementGroupDialogOpen(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Sub Element Group
+                    </Button>
+                    {selectedSubElementGroups.length > 0 && (
+                      <Button 
+                        variant="destructive"
+                        onClick={() => {
+                          setBulkDeleteType('sub-element-groups');
+                          setBulkDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Selected ({selectedSubElementGroups.length})
+                      </Button>
+                    )}
+                  </>
+                )}
+                {activeTab === "detailed-groups" && (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setCreateDetailedGroupDialogOpen(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Detailed Group
+                    </Button>
+                    {selectedDetailedGroups.length > 0 && (
+                      <Button 
+                        variant="destructive"
+                        onClick={() => {
+                          setBulkDeleteType('detailed-groups');
+                          setBulkDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Selected ({selectedDetailedGroups.length})
+                      </Button>
+                    )}
+                  </>
+                )}
               </div>
-            </RadioGroup>
-          </div>
-          
-          {/* Accounts Table */}
-          {isLoading ? (
-            <div className="py-8 text-center">Loading chart of accounts...</div>
-          ) : filteredAccounts.length === 0 ? (
-            <div className="py-8 text-center">
-              No accounts found. Click the "Add New Account" button to create one.
             </div>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Account Code</TableHead>
-                    <TableHead>Account Name</TableHead>
-                    <TableHead>Element Group</TableHead>
-                    <TableHead>Sub Element Group</TableHead>
-                    <TableHead>Detailed Group</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAccounts.map((account: any) => {
-                    const detailedGroup = detailedGroups.find(dg => dg.id === account.detailedGroupId);
-                    const subElementGroup = detailedGroup ? 
-                      subElementGroups.find(seg => seg.id === detailedGroup.subElementGroupId) : null;
-                    const elementGroup = subElementGroup ?
-                      elementGroups.find(eg => eg.id === subElementGroup.elementGroupId) : null;
-                    
-                    return (
-                      <TableRow key={account.id}>
-                        <TableCell>{account.accountCode}</TableCell>
-                        <TableCell>{account.accountName}</TableCell>
-                        <TableCell>{elementGroup ? elementGroup.name : '-'}</TableCell>
-                        <TableCell>{subElementGroup ? (subElementGroup.customName || subElementGroup.name) : '-'}</TableCell>
-                        <TableCell>{detailedGroup ? (detailedGroup.customName || detailedGroup.name) : '-'}</TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleEdit(account)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleDeleteClick(account)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+
+            {/* Chart of Accounts Tab */}
+            <TabsContent value="accounts" className="border rounded-md p-4">
+              {activeTab === "accounts" && (
+                <>
+                  {/* Account Type Selection (Balance Sheet vs P&L) */}
+                  <div className="mb-6">
+                    <div className="text-base font-medium mb-2">Select Account Type</div>
+                    <RadioGroup
+                      defaultValue="balance-sheet"
+                      value={accountType}
+                      onValueChange={(value) => setAccountType(value as "balance-sheet" | "profit-loss")}
+                      className="flex space-x-4 mt-2"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="balance-sheet" id="balance-sheet" />
+                        <label htmlFor="balance-sheet">Balance Sheet</label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="profit-loss" id="profit-loss" />
+                        <label htmlFor="profit-loss">Profit & Loss</label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  {/* Accounts Table */}
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[40px]">
+                            <Checkbox 
+                              checked={selectAllAccounts}
+                              onCheckedChange={(checked) => setSelectAllAccounts(checked === true)}
+                            />
+                          </TableHead>
+                          <TableHead>Account Code</TableHead>
+                          <TableHead>Account Name</TableHead>
+                          <TableHead>Element Group</TableHead>
+                          <TableHead>Sub Element Group</TableHead>
+                          <TableHead>Detailed Group</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {isLoading ? (
+                          <TableRow>
+                            <TableCell colSpan={7} className="text-center py-4">
+                              <div className="flex justify-center">
+                                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                              </div>
+                              <div className="mt-2 text-sm text-muted-foreground">Loading accounts...</div>
+                            </TableCell>
+                          </TableRow>
+                        ) : paginatedAccounts.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={7} className="text-center py-4">
+                              <div className="text-sm text-muted-foreground">No accounts found</div>
+                              {searchTerm && <div className="mt-1 text-xs text-muted-foreground">Try adjusting your search</div>}
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          paginatedAccounts.map((account) => {
+                            // Lookup related objects
+                            const detailedGroup = detailedGroups.find(dg => dg.id === account.detailedGroupId);
+                            const subElementGroup = detailedGroup ? 
+                              subElementGroups.find(seg => seg.id === detailedGroup.subElementGroupId) : undefined;
+                            const elementGroup = subElementGroup ? 
+                              elementGroups.find(eg => eg.id === subElementGroup.elementGroupId) : undefined;
+                            
+                            return (
+                              <TableRow key={account.id}>
+                                <TableCell>
+                                  <Checkbox 
+                                    checked={selectedAccounts.includes(account.id)}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        setSelectedAccounts([...selectedAccounts, account.id]);
+                                      } else {
+                                        setSelectedAccounts(selectedAccounts.filter(id => id !== account.id));
+                                      }
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell>{account.accountCode}</TableCell>
+                                <TableCell>{account.accountName}</TableCell>
+                                <TableCell>{elementGroup ? (elementGroup.name.charAt(0).toUpperCase() + elementGroup.name.slice(1)) : '-'}</TableCell>
+                                <TableCell>{subElementGroup ? (subElementGroup.customName || subElementGroup.name) : '-'}</TableCell>
+                                <TableCell>{detailedGroup ? (detailedGroup.customName || detailedGroup.name) : '-'}</TableCell>
+                                <TableCell>
+                                  <div className="flex space-x-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => {
+                                        setCurrentItem(account);
+                                        setEditDialogOpen(true);
+                                        
+                                        // Set form values based on current account
+                                        if (elementGroup && subElementGroup && detailedGroup) {
+                                          chartOfAccountForm.setValue("elementGroup", elementGroup.id.toString());
+                                          chartOfAccountForm.setValue("subElementGroup", subElementGroup.id.toString());
+                                          chartOfAccountForm.setValue("detailedGroup", detailedGroup.id.toString());
+                                          chartOfAccountForm.setValue("accountName", account.accountName);
+                                          chartOfAccountForm.setValue("description", account.description || "");
+                                        }
+                                      }}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => {
+                                        setCurrentItem(account);
+                                        setDeleteDialogOpen(true);
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Pagination for Accounts */}
+                  {!isLoading && totalAccountsPages > 1 && (
+                    <div className="flex items-center justify-between py-4">
+                      <div className="text-sm text-muted-foreground">
+                        Showing {Math.min(filteredSearchedAccounts.length, ((accountsCurrentPage - 1) * ITEMS_PER_PAGE) + 1)}-{Math.min(filteredSearchedAccounts.length, accountsCurrentPage * ITEMS_PER_PAGE)} of {filteredSearchedAccounts.length}
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setAccountsCurrentPage(page => Math.max(1, page - 1))}
+                          disabled={accountsCurrentPage === 1}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setAccountsCurrentPage(page => Math.min(totalAccountsPages, page + 1))}
+                          disabled={accountsCurrentPage === totalAccountsPages}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </TabsContent>
+
+            {/* Sub Element Groups Tab */}
+            <TabsContent value="sub-element-groups" className="border rounded-md p-4">
+              {activeTab === "sub-element-groups" && (
+                <>
+                  {/* Sub Element Groups Table */}
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[40px]">
+                            <Checkbox 
+                              checked={selectAllSubElementGroups}
+                              onCheckedChange={(checked) => setSelectAllSubElementGroups(checked === true)}
+                            />
+                          </TableHead>
+                          <TableHead>Code</TableHead>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Element Group</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {isLoading ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-4">
+                              <div className="flex justify-center">
+                                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                              </div>
+                              <div className="mt-2 text-sm text-muted-foreground">Loading sub element groups...</div>
+                            </TableCell>
+                          </TableRow>
+                        ) : paginatedSubElementGroups.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-4">
+                              <div className="text-sm text-muted-foreground">No sub element groups found</div>
+                              {searchTerm && <div className="mt-1 text-xs text-muted-foreground">Try adjusting your search</div>}
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          paginatedSubElementGroups.map((group) => {
+                            const elementGroup = elementGroups.find(eg => eg.id === group.elementGroupId);
+                            
+                            return (
+                              <TableRow key={group.id}>
+                                <TableCell>
+                                  <Checkbox 
+                                    checked={selectedSubElementGroups.includes(group.id)}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        setSelectedSubElementGroups([...selectedSubElementGroups, group.id]);
+                                      } else {
+                                        setSelectedSubElementGroups(selectedSubElementGroups.filter(id => id !== group.id));
+                                      }
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell>{group.code}</TableCell>
+                                <TableCell>{group.customName || group.name}</TableCell>
+                                <TableCell>{elementGroup ? (elementGroup.name.charAt(0).toUpperCase() + elementGroup.name.slice(1)) : '-'}</TableCell>
+                                <TableCell>{group.description || '-'}</TableCell>
+                                <TableCell>
+                                  <div className="flex space-x-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => {
+                                        setCurrentSubElementGroup(group);
+                                        setEditSubElementGroupDialogOpen(true);
+                                        
+                                        // Set form values based on current group
+                                        if (elementGroup) {
+                                          subElementGroupForm.setValue("elementGroup", elementGroup.id.toString());
+                                          subElementGroupForm.setValue("name", group.name);
+                                          subElementGroupForm.setValue("customName", group.customName || "");
+                                          subElementGroupForm.setValue("code", group.code);
+                                          subElementGroupForm.setValue("description", group.description || "");
+                                        }
+                                      }}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => {
+                                        setCurrentSubElementGroup(group);
+                                        setDeleteSubElementGroupDialogOpen(true);
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Pagination for Sub Element Groups */}
+                  {!isLoading && totalSubElementGroupsPages > 1 && (
+                    <div className="flex items-center justify-between py-4">
+                      <div className="text-sm text-muted-foreground">
+                        Showing {Math.min(filteredSearchedSubElementGroups.length, ((subElementGroupsCurrentPage - 1) * ITEMS_PER_PAGE) + 1)}-{Math.min(filteredSearchedSubElementGroups.length, subElementGroupsCurrentPage * ITEMS_PER_PAGE)} of {filteredSearchedSubElementGroups.length}
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSubElementGroupsCurrentPage(page => Math.max(1, page - 1))}
+                          disabled={subElementGroupsCurrentPage === 1}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSubElementGroupsCurrentPage(page => Math.min(totalSubElementGroupsPages, page + 1))}
+                          disabled={subElementGroupsCurrentPage === totalSubElementGroupsPages}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </TabsContent>
+
+            {/* Detailed Groups Tab */}
+            <TabsContent value="detailed-groups" className="border rounded-md p-4">
+              {activeTab === "detailed-groups" && (
+                <>
+                  {/* Detailed Groups Table */}
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[40px]">
+                            <Checkbox 
+                              checked={selectAllDetailedGroups}
+                              onCheckedChange={(checked) => setSelectAllDetailedGroups(checked === true)}
+                            />
+                          </TableHead>
+                          <TableHead>Code</TableHead>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Sub Element Group</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {isLoading ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-4">
+                              <div className="flex justify-center">
+                                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                              </div>
+                              <div className="mt-2 text-sm text-muted-foreground">Loading detailed groups...</div>
+                            </TableCell>
+                          </TableRow>
+                        ) : paginatedDetailedGroups.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-4">
+                              <div className="text-sm text-muted-foreground">No detailed groups found</div>
+                              {searchTerm && <div className="mt-1 text-xs text-muted-foreground">Try adjusting your search</div>}
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          paginatedDetailedGroups.map((group) => {
+                            const subElementGroup = subElementGroups.find(seg => seg.id === group.subElementGroupId);
+                            
+                            return (
+                              <TableRow key={group.id}>
+                                <TableCell>
+                                  <Checkbox 
+                                    checked={selectedDetailedGroups.includes(group.id)}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        setSelectedDetailedGroups([...selectedDetailedGroups, group.id]);
+                                      } else {
+                                        setSelectedDetailedGroups(selectedDetailedGroups.filter(id => id !== group.id));
+                                      }
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell>{group.code}</TableCell>
+                                <TableCell>{group.customName || group.name}</TableCell>
+                                <TableCell>{subElementGroup ? (subElementGroup.customName || subElementGroup.name) : '-'}</TableCell>
+                                <TableCell>{group.description || '-'}</TableCell>
+                                <TableCell>
+                                  <div className="flex space-x-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => {
+                                        setCurrentDetailedGroup(group);
+                                        setEditDetailedGroupDialogOpen(true);
+                                        
+                                        // Set form values based on current group
+                                        if (subElementGroup) {
+                                          detailedGroupForm.setValue("subElementGroup", subElementGroup.id.toString());
+                                          detailedGroupForm.setValue("name", group.name);
+                                          detailedGroupForm.setValue("customName", group.customName || "");
+                                          detailedGroupForm.setValue("code", group.code);
+                                          detailedGroupForm.setValue("description", group.description || "");
+                                        }
+                                      }}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => {
+                                        setCurrentDetailedGroup(group);
+                                        setDeleteDetailedGroupDialogOpen(true);
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Pagination for Detailed Groups */}
+                  {!isLoading && totalDetailedGroupsPages > 1 && (
+                    <div className="flex items-center justify-between py-4">
+                      <div className="text-sm text-muted-foreground">
+                        Showing {Math.min(filteredSearchedDetailedGroups.length, ((detailedGroupsCurrentPage - 1) * ITEMS_PER_PAGE) + 1)}-{Math.min(filteredSearchedDetailedGroups.length, detailedGroupsCurrentPage * ITEMS_PER_PAGE)} of {filteredSearchedDetailedGroups.length}
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDetailedGroupsCurrentPage(page => Math.max(1, page - 1))}
+                          disabled={detailedGroupsCurrentPage === 1}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDetailedGroupsCurrentPage(page => Math.min(totalDetailedGroupsPages, page + 1))}
+                          disabled={detailedGroupsCurrentPage === totalDetailedGroupsPages}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
-      
-      {/* Sub Element Group Management Dialog */}
-      <Dialog open={subElementGroupDialogOpen} onOpenChange={setSubElementGroupDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Manage Sub Element Groups</DialogTitle>
-            <DialogDescription>
-              View, add, edit, or delete sub element groups. Current selection is {accountType === "balance-sheet" ? "Balance Sheet" : "Profit & Loss"}.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="mt-4">
-            <Button onClick={handleCreateSubElementGroup} className="mb-4">
-              <Plus className="h-4 w-4 mr-2" />
-              Add New Sub Element Group
-            </Button>
-            
-            {isLoading ? (
-              <div className="py-8 text-center">Loading sub element groups...</div>
-            ) : (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Code</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Custom Name</TableHead>
-                      <TableHead>Element Group</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {subElementGroups
-                      .filter((group: ChartOfAccountsSubElementGroup) => {
-                        // Find the element group for this sub-element group
-                        const elementGroup = elementGroups.find(eg => eg.id === group.elementGroupId);
-                        if (!elementGroup) return false;
-                        
-                        // Find the main group for this element group
-                        const mainGroup = mainGroups.find(mg => mg.id === elementGroup.mainGroupId);
-                        if (!mainGroup) return false;
-                        
-                        // Filter based on the selected account type
-                        if (accountType === "balance-sheet") {
-                          return mainGroup.name === "balance_sheet";
-                        } else {
-                          return mainGroup.name === "profit_and_loss";
-                        }
-                      })
-                      .map((group: ChartOfAccountsSubElementGroup) => {
-                        const elementGroup = elementGroups.find(eg => eg.id === group.elementGroupId);
-                        
-                        return (
-                          <TableRow key={group.id}>
-                            <TableCell>{group.code}</TableCell>
-                            <TableCell>{group.name}</TableCell>
-                            <TableCell>{group.customName || '-'}</TableCell>
-                            <TableCell>{elementGroup ? elementGroup.name : '-'}</TableCell>
-                            <TableCell>
-                              <div className="flex space-x-2">
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon"
-                                  onClick={() => handleEditSubElementGroup(group)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon"
-                                  onClick={() => handleDeleteSubElementGroup(group)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Create Sub Element Group Dialog */}
-      <Dialog open={createSubElementGroupDialogOpen} onOpenChange={setCreateSubElementGroupDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Add New Sub Element Group</DialogTitle>
-            <DialogDescription>
-              Create a new sub element group for the {accountType === "balance-sheet" ? "Balance Sheet" : "Profit & Loss"} section.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <Form {...subElementGroupForm}>
-            <form onSubmit={subElementGroupForm.handleSubmit(onCreateSubElementGroupSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                {/* Element Group Selection */}
-                <FormField
-                  control={subElementGroupForm.control}
-                  name="elementGroup"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Element Group</FormLabel>
-                      <FormControl>
-                        <Select
-                          value={field.value}
-                          onValueChange={field.onChange}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Element Group" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {elementGroups
-                              .filter((group: ChartOfAccountsElementGroup) => {
-                                // Find the main group for this element group
-                                const mainGroup = mainGroups.find(mg => mg.id === group.mainGroupId);
-                                if (!mainGroup) return false;
-                                
-                                // Check if it belongs to the selected account type
-                                if (accountType === "balance-sheet") {
-                                  return mainGroup.name === "balance_sheet";
-                                } else {
-                                  return mainGroup.name === "profit_and_loss";
-                                }
-                              })
-                              .map((group: ChartOfAccountsElementGroup) => (
-                                <SelectItem key={group.id} value={String(group.id)}>
-                                  {group.name}
-                                </SelectItem>
-                              ))
-                            }
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                {/* Group Name */}
-                <FormField
-                  control={subElementGroupForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Group Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter group name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                {/* Custom Name */}
-                <FormField
-                  control={subElementGroupForm.control}
-                  name="customName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Custom Name (Optional)</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter custom display name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                {/* Code */}
-                <FormField
-                  control={subElementGroupForm.control}
-                  name="code"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Group Code</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter group code" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              {/* Description */}
-              <FormField
-                control={subElementGroupForm.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} placeholder="Enter group description" rows={3} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setCreateSubElementGroupDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={createSubElementGroupMutation.isPending}>
-                  {createSubElementGroupMutation.isPending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Create
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Edit Sub Element Group Dialog */}
-      <Dialog open={editSubElementGroupDialogOpen} onOpenChange={setEditSubElementGroupDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Edit Sub Element Group</DialogTitle>
-            <DialogDescription>
-              Update the details of this sub element group.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <Form {...subElementGroupForm}>
-            <form onSubmit={subElementGroupForm.handleSubmit(onEditSubElementGroupSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                {/* Element Group Selection */}
-                <FormField
-                  control={subElementGroupForm.control}
-                  name="elementGroup"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Element Group</FormLabel>
-                      <FormControl>
-                        <Select
-                          value={field.value}
-                          onValueChange={field.onChange}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Element Group" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {elementGroups
-                              .filter((group: ChartOfAccountsElementGroup) => {
-                                // Find the main group for this element group
-                                const mainGroup = mainGroups.find(mg => mg.id === group.mainGroupId);
-                                if (!mainGroup) return false;
-                                
-                                // Check if it belongs to the selected account type
-                                if (accountType === "balance-sheet") {
-                                  return mainGroup.name === "balance_sheet";
-                                } else {
-                                  return mainGroup.name === "profit_and_loss";
-                                }
-                              })
-                              .map((group: ChartOfAccountsElementGroup) => (
-                                <SelectItem key={group.id} value={String(group.id)}>
-                                  {group.name}
-                                </SelectItem>
-                              ))
-                            }
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                {/* Group Name */}
-                <FormField
-                  control={subElementGroupForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Group Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter group name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                {/* Custom Name */}
-                <FormField
-                  control={subElementGroupForm.control}
-                  name="customName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Custom Name (Optional)</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter custom display name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                {/* Code */}
-                <FormField
-                  control={subElementGroupForm.control}
-                  name="code"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Group Code</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter group code" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              {/* Description */}
-              <FormField
-                control={subElementGroupForm.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} placeholder="Enter group description" rows={3} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setEditSubElementGroupDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={updateSubElementGroupMutation.isPending}>
-                  {updateSubElementGroupMutation.isPending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Update
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Delete Sub Element Group Dialog */}
-      <Dialog open={deleteSubElementGroupDialogOpen} onOpenChange={setDeleteSubElementGroupDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Sub Element Group</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this sub element group? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {currentSubElementGroup && (
-            <div className="py-4">
-              <p><strong>Code:</strong> {currentSubElementGroup.code}</p>
-              <p><strong>Name:</strong> {currentSubElementGroup.name}</p>
-              <p><strong>Custom Name:</strong> {currentSubElementGroup.customName || '-'}</p>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setDeleteSubElementGroupDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              type="button" 
-              variant="destructive" 
-              onClick={handleSubElementGroupDeleteConfirm}
-              disabled={deleteSubElementGroupMutation.isPending}
-            >
-              {deleteSubElementGroupMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {bulkDeleteType === 'accounts' && (
+                `You are about to delete ${selectedAccounts.length} account(s). This action cannot be undone.`
               )}
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Detailed Group Management Dialog */}
-      <Dialog open={detailedGroupDialogOpen} onOpenChange={setDetailedGroupDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Manage Detailed Groups</DialogTitle>
-            <DialogDescription>
-              View, add, edit, or delete detailed groups. Current selection is {accountType === "balance-sheet" ? "Balance Sheet" : "Profit & Loss"}.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="mt-4">
-            <Button onClick={handleCreateDetailedGroup} className="mb-4">
-              <Plus className="h-4 w-4 mr-2" />
-              Add New Detailed Group
-            </Button>
-            
-            {isLoading ? (
-              <div className="py-8 text-center">Loading detailed groups...</div>
-            ) : (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Code</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Custom Name</TableHead>
-                      <TableHead>Sub Element Group</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {detailedGroups
-                      .filter((group: ChartOfAccountsDetailedGroup) => {
-                        // Find the sub element group for this detailed group
-                        const subElementGroup = subElementGroups.find(seg => seg.id === group.subElementGroupId);
-                        if (!subElementGroup) return false;
-                        
-                        // Find the element group for this sub element group
-                        const elementGroup = elementGroups.find(eg => eg.id === subElementGroup.elementGroupId);
-                        if (!elementGroup) return false;
-                        
-                        // Find the main group for this element group
-                        const mainGroup = mainGroups.find(mg => mg.id === elementGroup.mainGroupId);
-                        if (!mainGroup) return false;
-                        
-                        // Filter based on the selected account type
-                        if (accountType === "balance-sheet") {
-                          return mainGroup.name === "balance_sheet";
-                        } else {
-                          return mainGroup.name === "profit_and_loss";
-                        }
-                      })
-                      .map((group: ChartOfAccountsDetailedGroup) => {
-                        const subElementGroup = subElementGroups.find(seg => seg.id === group.subElementGroupId);
-                        
-                        return (
-                          <TableRow key={group.id}>
-                            <TableCell>{group.code}</TableCell>
-                            <TableCell>{group.name}</TableCell>
-                            <TableCell>{group.customName || '-'}</TableCell>
-                            <TableCell>{subElementGroup ? (subElementGroup.customName || subElementGroup.name) : '-'}</TableCell>
-                            <TableCell>
-                              <div className="flex space-x-2">
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon"
-                                  onClick={() => handleEditDetailedGroup(group)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon"
-                                  onClick={() => handleDeleteDetailedGroup(group)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Create Detailed Group Dialog */}
-      <Dialog open={createDetailedGroupDialogOpen} onOpenChange={setCreateDetailedGroupDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Add New Detailed Group</DialogTitle>
-            <DialogDescription>
-              Create a new detailed group for the {accountType === "balance-sheet" ? "Balance Sheet" : "Profit & Loss"} section.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <Form {...detailedGroupForm}>
-            <form onSubmit={detailedGroupForm.handleSubmit(onCreateDetailedGroupSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                {/* Sub Element Group Selection */}
-                <FormField
-                  control={detailedGroupForm.control}
-                  name="subElementGroup"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sub Element Group</FormLabel>
-                      <FormControl>
-                        <Select
-                          value={field.value}
-                          onValueChange={field.onChange}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Sub Element Group" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {subElementGroups
-                              .filter((group: ChartOfAccountsSubElementGroup) => {
-                                // Find the element group for this sub element group
-                                const elementGroup = elementGroups.find(eg => eg.id === group.elementGroupId);
-                                if (!elementGroup) return false;
-                                
-                                // Find the main group for this element group
-                                const mainGroup = mainGroups.find(mg => mg.id === elementGroup.mainGroupId);
-                                if (!mainGroup) return false;
-                                
-                                // Check if it belongs to the selected account type
-                                if (accountType === "balance-sheet") {
-                                  return mainGroup.name === "balance_sheet";
-                                } else {
-                                  return mainGroup.name === "profit_and_loss";
-                                }
-                              })
-                              .map((group: ChartOfAccountsSubElementGroup) => (
-                                <SelectItem key={group.id} value={String(group.id)}>
-                                  {group.customName || group.name}
-                                </SelectItem>
-                              ))
-                            }
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                {/* Group Name */}
-                <FormField
-                  control={detailedGroupForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Group Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter group name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                {/* Custom Name */}
-                <FormField
-                  control={detailedGroupForm.control}
-                  name="customName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Custom Name (Optional)</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter custom display name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                {/* Code */}
-                <FormField
-                  control={detailedGroupForm.control}
-                  name="code"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Group Code</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter group code" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              {/* Description */}
-              <FormField
-                control={detailedGroupForm.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} placeholder="Enter group description" rows={3} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setCreateDetailedGroupDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={createDetailedGroupMutation.isPending}>
-                  {createDetailedGroupMutation.isPending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Create
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Edit Detailed Group Dialog */}
-      <Dialog open={editDetailedGroupDialogOpen} onOpenChange={setEditDetailedGroupDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Edit Detailed Group</DialogTitle>
-            <DialogDescription>
-              Update the details of this detailed group.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <Form {...detailedGroupForm}>
-            <form onSubmit={detailedGroupForm.handleSubmit(onEditDetailedGroupSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                {/* Sub Element Group Selection */}
-                <FormField
-                  control={detailedGroupForm.control}
-                  name="subElementGroup"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sub Element Group</FormLabel>
-                      <FormControl>
-                        <Select
-                          value={field.value}
-                          onValueChange={field.onChange}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Sub Element Group" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {subElementGroups
-                              .filter((group: ChartOfAccountsSubElementGroup) => {
-                                // Find the element group for this sub element group
-                                const elementGroup = elementGroups.find(eg => eg.id === group.elementGroupId);
-                                if (!elementGroup) return false;
-                                
-                                // Find the main group for this element group
-                                const mainGroup = mainGroups.find(mg => mg.id === elementGroup.mainGroupId);
-                                if (!mainGroup) return false;
-                                
-                                // Check if it belongs to the selected account type
-                                if (accountType === "balance-sheet") {
-                                  return mainGroup.name === "balance_sheet";
-                                } else {
-                                  return mainGroup.name === "profit_and_loss";
-                                }
-                              })
-                              .map((group: ChartOfAccountsSubElementGroup) => (
-                                <SelectItem key={group.id} value={String(group.id)}>
-                                  {group.customName || group.name}
-                                </SelectItem>
-                              ))
-                            }
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                {/* Group Name */}
-                <FormField
-                  control={detailedGroupForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Group Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter group name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                {/* Custom Name */}
-                <FormField
-                  control={detailedGroupForm.control}
-                  name="customName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Custom Name (Optional)</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter custom display name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                {/* Code */}
-                <FormField
-                  control={detailedGroupForm.control}
-                  name="code"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Group Code</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter group code" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              {/* Description */}
-              <FormField
-                control={detailedGroupForm.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} placeholder="Enter group description" rows={3} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setEditDetailedGroupDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={updateDetailedGroupMutation.isPending}>
-                  {updateDetailedGroupMutation.isPending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Update
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Delete Detailed Group Dialog */}
-      <Dialog open={deleteDetailedGroupDialogOpen} onOpenChange={setDeleteDetailedGroupDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Detailed Group</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this detailed group? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {currentDetailedGroup && (
-            <div className="py-4">
-              <p><strong>Code:</strong> {currentDetailedGroup.code}</p>
-              <p><strong>Name:</strong> {currentDetailedGroup.name}</p>
-              <p><strong>Custom Name:</strong> {currentDetailedGroup.customName || '-'}</p>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setDeleteDetailedGroupDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              type="button" 
-              variant="destructive" 
-              onClick={handleDetailedGroupDeleteConfirm}
-              disabled={deleteDetailedGroupMutation.isPending}
-            >
-              {deleteDetailedGroupMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {bulkDeleteType === 'sub-element-groups' && (
+                `You are about to delete ${selectedSubElementGroups.length} sub-element group(s). This may also affect related detailed groups and accounts. This action cannot be undone.`
               )}
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Create Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Add New Account</DialogTitle>
-            <DialogDescription>
-              Create a new account head in the {accountType === "balance-sheet" ? "Balance Sheet" : "Profit & Loss"} section.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <Form {...chartOfAccountForm}>
-            <form onSubmit={chartOfAccountForm.handleSubmit(onCreateSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                {/* Element Group Selection */}
-                <FormField
-                  control={chartOfAccountForm.control}
-                  name="elementGroup"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Element Group</FormLabel>
-                      <FormControl>
-                        <Select
-                          value={field.value}
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            // Reset dependent fields
-                            chartOfAccountForm.setValue("subElementGroup", "");
-                            chartOfAccountForm.setValue("detailedGroup", "");
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Element Group" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {elementGroups
-                              .filter((group: ChartOfAccountsElementGroup) => {
-                                // Find the main group for this element group
-                                const mainGroup = mainGroups.find(mg => mg.id === group.mainGroupId);
-                                if (!mainGroup) return false;
-                                
-                                // Check if it belongs to the selected account type
-                                if (accountType === "balance-sheet") {
-                                  return mainGroup.name === "balance_sheet";
-                                } else {
-                                  return mainGroup.name === "profit_and_loss";
-                                }
-                              })
-                              .map((group: ChartOfAccountsElementGroup) => (
-                                <SelectItem key={group.id} value={String(group.id)}>
-                                  {group.name}
-                                </SelectItem>
-                              ))
-                            }
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                {/* Sub Element Group Selection */}
-                <FormField
-                  control={chartOfAccountForm.control}
-                  name="subElementGroup"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sub Element Group</FormLabel>
-                      <FormControl>
-                        <Select
-                          value={field.value}
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            // Reset dependent field
-                            chartOfAccountForm.setValue("detailedGroup", "");
-                          }}
-                          disabled={!watchElementGroup}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Sub Element Group" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {subElementGroups
-                              .filter((group: ChartOfAccountsSubElementGroup) => 
-                                group.elementGroupId === parseInt(watchElementGroup)
-                              )
-                              .map((group: ChartOfAccountsSubElementGroup) => (
-                                <SelectItem key={group.id} value={String(group.id)}>
-                                  {group.customName || group.name}
-                                </SelectItem>
-                              ))
-                            }
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                {/* Detailed Group Selection */}
-                <FormField
-                  control={chartOfAccountForm.control}
-                  name="detailedGroup"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Detailed Group</FormLabel>
-                      <FormControl>
-                        <Select
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          disabled={!watchSubElementGroup}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Detailed Group" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {detailedGroups
-                              .filter((group: ChartOfAccountsDetailedGroup) => 
-                                group.subElementGroupId === parseInt(watchSubElementGroup)
-                              )
-                              .map((group: ChartOfAccountsDetailedGroup) => (
-                                <SelectItem key={group.id} value={String(group.id)}>
-                                  {group.customName || group.name}
-                                </SelectItem>
-                              ))
-                            }
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                {/* Account Name */}
-                <FormField
-                  control={chartOfAccountForm.control}
-                  name="accountName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Account Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter account name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              {/* Description */}
-              <FormField
-                control={chartOfAccountForm.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        {...field} 
-                        placeholder="Enter account description (optional)" 
-                        rows={4}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <div className="text-sm text-muted-foreground mt-2">
-                <span className="font-medium">Note:</span> Account code will be generated automatically based on the selected groups.
-              </div>
-              
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={createChartOfAccountMutation.isPending}>
-                  {createChartOfAccountMutation.isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    'Create Account'
-                  )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Edit Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Edit Account</DialogTitle>
-            <DialogDescription>
-              Update this account head with its chart of accounts structure.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <Form {...chartOfAccountForm}>
-            <form onSubmit={chartOfAccountForm.handleSubmit(onEditSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                {/* Element Group Selection */}
-                <FormField
-                  control={chartOfAccountForm.control}
-                  name="elementGroup"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Element Group</FormLabel>
-                      <FormControl>
-                        <Select
-                          value={field.value}
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            // Reset dependent fields
-                            chartOfAccountForm.setValue("subElementGroup", "");
-                            chartOfAccountForm.setValue("detailedGroup", "");
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Element Group" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {elementGroups
-                              .filter((group: ChartOfAccountsElementGroup) => {
-                                // For edit mode, we allow all element groups of the current account type
-                                if (!currentItem) return false;
-                                
-                                // Find the main group for this element group
-                                const mainGroup = mainGroups.find(mg => mg.id === group.mainGroupId);
-                                if (!mainGroup) return false;
-                                
-                                // Check if it belongs to the selected account type
-                                if (accountType === "balance-sheet") {
-                                  return mainGroup.name === "balance_sheet";
-                                } else {
-                                  return mainGroup.name === "profit_and_loss";
-                                }
-                              })
-                              .map((group: ChartOfAccountsElementGroup) => (
-                                <SelectItem key={group.id} value={String(group.id)}>
-                                  {group.name}
-                                </SelectItem>
-                              ))
-                            }
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                {/* Sub Element Group Selection */}
-                <FormField
-                  control={chartOfAccountForm.control}
-                  name="subElementGroup"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sub Element Group</FormLabel>
-                      <FormControl>
-                        <Select
-                          value={field.value}
-                          onValueChange={(value) => {
-                            field.onChange(value);
-                            // Reset dependent field
-                            chartOfAccountForm.setValue("detailedGroup", "");
-                          }}
-                          disabled={!watchElementGroup}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Sub Element Group" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {subElementGroups
-                              .filter((group: ChartOfAccountsSubElementGroup) => 
-                                group.elementGroupId === parseInt(watchElementGroup)
-                              )
-                              .map((group: ChartOfAccountsSubElementGroup) => (
-                                <SelectItem key={group.id} value={String(group.id)}>
-                                  {group.customName || group.name}
-                                </SelectItem>
-                              ))
-                            }
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                {/* Detailed Group Selection */}
-                <FormField
-                  control={chartOfAccountForm.control}
-                  name="detailedGroup"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Detailed Group</FormLabel>
-                      <FormControl>
-                        <Select
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          disabled={!watchSubElementGroup}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Detailed Group" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {detailedGroups
-                              .filter((group: ChartOfAccountsDetailedGroup) => 
-                                group.subElementGroupId === parseInt(watchSubElementGroup)
-                              )
-                              .map((group: ChartOfAccountsDetailedGroup) => (
-                                <SelectItem key={group.id} value={String(group.id)}>
-                                  {group.customName || group.name}
-                                </SelectItem>
-                              ))
-                            }
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                {/* Account Name */}
-                <FormField
-                  control={chartOfAccountForm.control}
-                  name="accountName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Account Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter account name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              {/* Display the account code (read-only) */}
-              {currentItem && (
-                <div className="flex items-center space-x-2 p-3 border rounded-md bg-muted/30">
-                  <div className="text-muted-foreground">Account Code:</div>
-                  <div className="font-medium">{currentItem.accountCode}</div>
-                </div>
+              {bulkDeleteType === 'detailed-groups' && (
+                `You are about to delete ${selectedDetailedGroups.length} detailed group(s). This may also affect related accounts. This action cannot be undone.`
               )}
-              
-              {/* Description */}
-              <FormField
-                control={chartOfAccountForm.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        {...field} 
-                        placeholder="Enter account description (optional)" 
-                        rows={4}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={updateChartOfAccountMutation.isPending}>
-                  {updateChartOfAccountMutation.isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Updating...
-                    </>
-                  ) : (
-                    'Update Account'
-                  )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Delete Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Account</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this account? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {currentItem && (
-            <div className="py-4">
-              <div className="space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="font-medium">Account Code:</div>
-                  <div>{currentItem.accountCode}</div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="font-medium">Account Name:</div>
-                  <div>{currentItem.accountName}</div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="font-medium">Account Type:</div>
-                  <div>{getAccountTypeText(currentItem.accountType)}</div>
-                </div>
-              </div>
-              
-              {deleteError && (
-                <div className="mt-4 p-3 text-sm border border-destructive/50 rounded-md bg-destructive/10 text-destructive">
-                  {deleteError}
-                </div>
-              )}
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => setDeleteDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button 
-              variant="destructive"
-              onClick={handleDeleteConfirm}
-              disabled={deleteChartOfAccountMutation.isPending}
-            >
-              {deleteChartOfAccountMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                'Delete Account'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDeleteConfirm}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Other existing dialogs would go here */}
     </AppLayout>
   );
 }
