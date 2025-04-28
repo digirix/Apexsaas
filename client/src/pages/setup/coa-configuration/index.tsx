@@ -596,7 +596,7 @@ export default function COAConfigurationPage() {
                   <>
                     <Button 
                       variant="outline" 
-                      onClick={() => setCreateDialogOpen(true)}
+                      onClick={handleCreate}
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Add Account
@@ -658,7 +658,7 @@ export default function COAConfigurationPage() {
                   <>
                     <Button 
                       variant="outline" 
-                      onClick={() => setCreateDetailedGroupDialogOpen(true)}
+                      onClick={handleCreateDetailedGroup}
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Add Detailed Group
