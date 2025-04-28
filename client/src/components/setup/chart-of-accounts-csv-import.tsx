@@ -164,14 +164,8 @@ export default function ChartOfAccountsCSVImport() {
   
   // Download sample CSV
   const downloadSampleCSV = () => {
-    const blob = new Blob([SAMPLE_CSV], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'chart_of_accounts_template.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Use the static file from the public directory
+    window.open('/chart_of_accounts_template.csv', '_blank');
   };
   
   // CSV upload mutation
