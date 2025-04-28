@@ -1,0 +1,13 @@
+account_name,detailed_group_code,account_type,description,opening_balance
+Cash at Bank,BS-A-CA-CB,asset,Main bank account,1000.00
+Petty Cash,BS-A-CA-CB,asset,Office petty cash,200.00
+Trade Debtors,BS-A-CA-TD,asset,Customer receivables,0.00
+Office Equipment,BS-A-NCA-PPE,asset,Computers and furniture,5000.00
+Trade Creditors,BS-L-CL-TC,liability,Supplier payables,0.00
+VAT Payable,BS-L-CL-TP,liability,VAT due to tax authority,0.00
+Capital Account,BS-E-C-OC,equity,Owner's investment,5000.00
+Sales Revenue,IS-R-SR,revenue,Primary income,0.00
+Consulting Revenue,IS-R-OR,revenue,Consulting services,0.00
+Utilities Expense,IS-E-OE,expense,Electricity and water,0.00
+Rent Expense,IS-E-OE,expense,Office rent,0.00
+Salaries Expense,IS-E-OE,expense,Staff salaries,0.00
