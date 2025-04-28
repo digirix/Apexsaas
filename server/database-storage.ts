@@ -1660,6 +1660,9 @@ export class DatabaseStorage implements IStorage {
     // Normalize name to lowercase and replace spaces with underscores to match database enum values
     const normalizedName = name.toLowerCase().replace(/ /g, '_');
     
+    console.log(`Looking for detailed group with name: "${normalizedName}" under subElementGroupId: ${subElementGroupId}`);
+    
+    // First attempt an exact match
     const detailedGroups = await db.select()
       .from(chartOfAccountsDetailedGroups)
       .where(and(
@@ -1669,7 +1672,30 @@ export class DatabaseStorage implements IStorage {
       ))
       .orderBy(asc(chartOfAccountsDetailedGroups.code));
     
-    return detailedGroups;
+    if (detailedGroups.length > 0) {
+      console.log(`Found ${detailedGroups.length} detailed groups with exact match for "${normalizedName}"`);
+      return detailedGroups;
+    }
+    
+    // If no results, try the 'custom' detailed group under this sub-element group
+    console.log(`No exact match found for "${normalizedName}", looking for 'custom' detailed group`);
+    const customDetailedGroups = await db.select()
+      .from(chartOfAccountsDetailedGroups)
+      .where(and(
+        eq(chartOfAccountsDetailedGroups.tenantId, tenantId),
+        eq(chartOfAccountsDetailedGroups.name, 'custom'),
+        eq(chartOfAccountsDetailedGroups.subElementGroupId, subElementGroupId)
+      ))
+      .orderBy(asc(chartOfAccountsDetailedGroups.code));
+    
+    // Log the result for debugging
+    if (customDetailedGroups.length > 0) {
+      console.log(`Found ${customDetailedGroups.length} 'custom' detailed groups as fallback`);
+    } else {
+      console.log(`No 'custom' detailed group found under subElementGroupId: ${subElementGroupId}`);
+    }
+    
+    return customDetailedGroups;
   }
 
   async getChartOfAccountsDetailedGroup(id: number, tenantId: number): Promise<any | undefined> {

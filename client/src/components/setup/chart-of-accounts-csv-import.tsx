@@ -181,9 +181,14 @@ export default function ChartOfAccountsCSVImport() {
     },
     onSuccess: (data) => {
       console.log("CSV import response:", data);
+      
+      // Ensure we have valid data
+      const successCount = data?.successful || 0;
+      const failedCount = data?.failed || 0;
+      
       toast({
         title: "CSV Upload Completed",
-        description: `Successfully imported ${data.successful} accounts${data.failed > 0 ? `, ${data.failed} failed` : ''}`,
+        description: `Successfully imported ${successCount} accounts${failedCount > 0 ? `, ${failedCount} failed` : ''}`,
       });
       setUploadStep('results');
       setUploadResults(data);
