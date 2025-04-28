@@ -62,10 +62,12 @@ const parseCSV = (csv: string) => {
       continue;
     }
     
-    // Normalize element group names to lowercase to match database enum values
+    // Normalize group names to match database enum values
     const account = {
       accountName: values[accountNameIndex],
-      elementGroupName: values[elementGroupIndex].toLowerCase(),
+      // Keep element group capitalization as-is, but used in case-insensitive matching on server
+      elementGroupName: values[elementGroupIndex],
+      // Convert sub-element and detailed group to lowercase and replace spaces with underscores
       subElementGroupName: values[subElementGroupIndex].toLowerCase().replace(/ /g, '_'),
       detailedGroupName: values[detailedGroupIndex].toLowerCase().replace(/ /g, '_'),
       description: descriptionIndex !== -1 ? values[descriptionIndex] || null : null,
@@ -80,18 +82,18 @@ const parseCSV = (csv: string) => {
 
 // Sample CSV template for download
 const SAMPLE_CSV = `Account Name,Element Group,Sub Element Group,Detailed Group,Description,Opening Balance
-Petty Cash,assets,current_assets,cash_bank_balances,Cash on hand for small expenses,1000.00
-Bank of America Checking,assets,current_assets,cash_bank_balances,Main business checking account,25000.00
-Accounts Receivable,assets,current_assets,trade_debtors,Money owed by customers,15000.00
-Office Equipment,assets,non_current_assets,property_plant_equipment,Office furniture and equipment,8000.00
-Office Supplies,assets,current_assets,other_receivables,Supplies and consumables,1200.00
-Accounts Payable,liabilities,current_liabilities,trade_creditors,Money owed to suppliers,12000.00
-Credit Card Payable,liabilities,current_liabilities,other_payables,Corporate credit card balance,3500.00
-Long Term Loan,liabilities,non_current_liabilities,long_term_loans,Business expansion loan,50000.00
-Sales Revenue,incomes,sales,custom,Income from primary services,0.00
-Consulting Revenue,incomes,service_revenue,custom,Income from consulting services,0.00
-Rent Expense,expenses,cost_of_service_revenue,custom,Office space rental,0.00
-Utilities Expense,expenses,cost_of_service_revenue,custom,Electricity and water bills,0.00`;
+Petty Cash,Assets,current_assets,cash_and_bank_balances,Cash on hand for small expenses,1000.00
+Bank of America Checking,Assets,current_assets,cash_and_bank_balances,Main business checking account,25000.00
+Accounts Receivable,Assets,current_assets,trade_debtors,Money owed by customers,15000.00
+Office Equipment,Assets,non_current_assets,property_plant_equipment,Office furniture and equipment,8000.00
+Office Supplies,Assets,current_assets,other_receivables,Supplies and consumables,1200.00
+Accounts Payable,Liabilities,current_liabilities,trade_creditors,Money owed to suppliers,12000.00
+Credit Card Payable,Liabilities,current_liabilities,other_payables,Corporate credit card balance,3500.00
+Long Term Loan,Liabilities,non_current_liabilities,long_term_loans,Business expansion loan,50000.00
+Sales Revenue,Income,sales,custom,Income from primary services,0.00
+Consulting Revenue,Income,service_revenue,custom,Income from consulting services,0.00
+Rent Expense,Expenses,operating_expenses,custom,Office space rental,0.00
+Utilities Expense,Expenses,operating_expenses,custom,Electricity and water bills,0.00`;
 
 export default function ChartOfAccountsCSVImport() {
   const { toast } = useToast();
@@ -178,6 +180,7 @@ export default function ChartOfAccountsCSVImport() {
       setUploadStep('uploading');
     },
     onSuccess: (data) => {
+      console.log("CSV import response:", data);
       toast({
         title: "CSV Upload Completed",
         description: `Successfully imported ${data.successful} accounts${data.failed > 0 ? `, ${data.failed} failed` : ''}`,

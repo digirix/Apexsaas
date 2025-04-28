@@ -4206,8 +4206,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          // Find the element group by name
-          const elementGroups = await storage.getChartOfAccountsElementGroupByName(tenantId, accountRow.elementGroupName);
+          // Find the element group by name (case-insensitive)
+          // First try an exact match
+          let elementGroups = await storage.getChartOfAccountsElementGroupByName(tenantId, accountRow.elementGroupName);
+          
+          // If no exact match, try case-insensitive match
+          if (!elementGroups || elementGroups.length === 0) {
+            // Get all element groups and filter case-insensitively
+            const allElementGroups = await storage.getChartOfAccountsElementGroups(tenantId);
+            if (allElementGroups && allElementGroups.length > 0) {
+              elementGroups = allElementGroups.filter(eg => 
+                eg.name.toLowerCase() === accountRow.elementGroupName.toLowerCase()
+              );
+            }
+          }
+          
           console.log(`Element groups found: ${elementGroups?.length || 0}`);
             
           if (!elementGroups || elementGroups.length === 0) {
