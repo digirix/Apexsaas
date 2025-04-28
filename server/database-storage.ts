@@ -1510,18 +1510,66 @@ export class DatabaseStorage implements IStorage {
   
   // Get element group by name - useful for CSV imports
   async getChartOfAccountsElementGroupByName(tenantId: number, name: string): Promise<any[]> {
-    // Normalize name to lowercase to match database enum values
-    const normalizedName = name.toLowerCase();
+    // Normalize the name
+    const normalizedName = name.toLowerCase().trim();
     
-    const elements = await db.select()
+    console.log(`Looking for element group with name: "${normalizedName}"`);
+    
+    // First attempt exact match
+    const elementGroups = await db.select()
       .from(chartOfAccountsElementGroups)
       .where(and(
         eq(chartOfAccountsElementGroups.tenantId, tenantId),
         eq(chartOfAccountsElementGroups.name, normalizedName)
       ))
       .orderBy(asc(chartOfAccountsElementGroups.code));
+      
+    if (elementGroups.length > 0) {
+      console.log(`Found ${elementGroups.length} element groups with exact match for "${normalizedName}"`);
+      return elementGroups;
+    }
     
-    return elements;
+    // Special handling for common variants
+    let alternativeName = normalizedName;
+    
+    // Handle plural/singular variations
+    if (normalizedName === 'income') {
+      alternativeName = 'incomes';
+    } else if (normalizedName === 'incomes') {
+      alternativeName = 'income';
+    } else if (normalizedName === 'expense') {
+      alternativeName = 'expenses';
+    } else if (normalizedName === 'expenses') {
+      alternativeName = 'expense';
+    } else if (normalizedName === 'asset') {
+      alternativeName = 'assets';
+    } else if (normalizedName === 'assets') {
+      alternativeName = 'asset';
+    } else if (normalizedName === 'liability') {
+      alternativeName = 'liabilities';
+    } else if (normalizedName === 'liabilities') {
+      alternativeName = 'liability';
+    }
+    
+    if (alternativeName !== normalizedName) {
+      console.log(`Trying alternative name: "${alternativeName}" for "${normalizedName}"`);
+      
+      const alternativeGroups = await db.select()
+        .from(chartOfAccountsElementGroups)
+        .where(and(
+          eq(chartOfAccountsElementGroups.tenantId, tenantId),
+          eq(chartOfAccountsElementGroups.name, alternativeName)
+        ))
+        .orderBy(asc(chartOfAccountsElementGroups.code));
+        
+      if (alternativeGroups.length > 0) {
+        console.log(`Found ${alternativeGroups.length} element groups with alternative name "${alternativeName}"`);
+        return alternativeGroups;
+      }
+    }
+    
+    console.log(`No element groups found for "${normalizedName}" or "${alternativeName}"`);
+    return [];
   }
 
   async getChartOfAccountsElementGroup(id: number, tenantId: number): Promise<any | undefined> {
@@ -1586,6 +1634,9 @@ export class DatabaseStorage implements IStorage {
     // Normalize name to lowercase and replace spaces with underscores to match database enum values
     const normalizedName = name.toLowerCase().replace(/ /g, '_');
     
+    console.log(`Looking for sub-element group with name: "${normalizedName}" under elementGroupId: ${elementGroupId}`);
+    
+    // First attempt an exact match
     const subElements = await db.select()
       .from(chartOfAccountsSubElementGroups)
       .where(and(
@@ -1595,7 +1646,33 @@ export class DatabaseStorage implements IStorage {
       ))
       .orderBy(asc(chartOfAccountsSubElementGroups.code));
     
-    return subElements;
+    if (subElements.length > 0) {
+      console.log(`Found ${subElements.length} sub-element groups with exact match for "${normalizedName}"`);
+      return subElements;
+    }
+    
+    // Special handling for expense-related sub-element groups
+    if (normalizedName === 'operating_expenses' || normalizedName === 'direct_costs') {
+      const alternativeName = 'cost_of_service_revenue';
+      console.log(`Trying alternative name: "${alternativeName}" for "${normalizedName}"`);
+      
+      const alternativeGroups = await db.select()
+        .from(chartOfAccountsSubElementGroups)
+        .where(and(
+          eq(chartOfAccountsSubElementGroups.tenantId, tenantId),
+          eq(chartOfAccountsSubElementGroups.name, alternativeName),
+          eq(chartOfAccountsSubElementGroups.elementGroupId, elementGroupId)
+        ))
+        .orderBy(asc(chartOfAccountsSubElementGroups.code));
+        
+      if (alternativeGroups.length > 0) {
+        console.log(`Found ${alternativeGroups.length} sub-element groups with alternative name "${alternativeName}"`);
+        return alternativeGroups;
+      }
+    }
+    
+    console.log(`No sub-element groups found for "${normalizedName}" under elementGroupId: ${elementGroupId}`);
+    return [];
   }
 
   async getChartOfAccountsSubElementGroup(id: number, tenantId: number): Promise<any | undefined> {
@@ -1675,6 +1752,24 @@ export class DatabaseStorage implements IStorage {
     if (detailedGroups.length > 0) {
       console.log(`Found ${detailedGroups.length} detailed groups with exact match for "${normalizedName}"`);
       return detailedGroups;
+    }
+    
+    // Special handling for common expense group name variants
+    if (normalizedName === 'operating_expenses') {
+      console.log(`"operating_expenses" detected, trying "cost_of_service_revenue" instead`);
+      const expenseGroups = await db.select()
+        .from(chartOfAccountsDetailedGroups)
+        .where(and(
+          eq(chartOfAccountsDetailedGroups.tenantId, tenantId),
+          eq(chartOfAccountsDetailedGroups.name, 'cost_of_service_revenue'),
+          eq(chartOfAccountsDetailedGroups.subElementGroupId, subElementGroupId)
+        ))
+        .orderBy(asc(chartOfAccountsDetailedGroups.code));
+        
+      if (expenseGroups.length > 0) {
+        console.log(`Found ${expenseGroups.length} "cost_of_service_revenue" groups as alternative to "operating_expenses"`);
+        return expenseGroups;
+      }
     }
     
     // If no results, try the 'custom' detailed group under this sub-element group
