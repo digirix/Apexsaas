@@ -1,13 +1,17 @@
 Account Name,Element Group,Sub Element Group,Detailed Group,Description,Opening Balance
-Petty Cash,Assets,Current Assets,Cash and Bank Balances,Cash on hand for small expenses,1000.00
-Bank of America Checking,Assets,Current Assets,Cash and Bank Balances,Main business checking account,25000.00
-Accounts Receivable,Assets,Current Assets,Trade Debtors,Money owed by customers,15000.00
-Office Equipment,Assets,Non Current Assets,Property Plant and Equipment,Office furniture and equipment,8000.00
-Office Supplies,Assets,Current Assets,Other Receivables,Supplies and consumables,1200.00
-Accounts Payable,Liabilities,Current Liabilities,Trade Creditors,Money owed to suppliers,12000.00
-Credit Card Payable,Liabilities,Current Liabilities,Other Payables,Corporate credit card balance,3500.00
-Long Term Loan,Liabilities,Non Current Liabilities,Long term loans,Business expansion loan,50000.00
-Sales Revenue,Incomes,Sales,Sales Revenue,Income from primary services,0.00
-Consulting Revenue,Incomes,Service Revenue,Service Revenue,Income from consulting services,0.00
-Rent Expense,Expenses,Cost of Service Revenue,Operating Expenses,Office space rental,0.00
-Utilities Expense,Expenses,Cost of Service Revenue,Operating Expenses,Electricity and water bills,0.00
+Cash,Assets,Current Assets,Cash and Cash Equivalents,Main operating cash account,10000.00
+Accounts Receivable,Assets,Current Assets,Accounts Receivable,For tracking money owed by customers,5000.00
+Office Equipment,Assets,Non-Current Assets,Property Plant and Equipment,Computers and office furniture,2500.00
+Office Supplies,Assets,Current Assets,Prepaid Expenses,Paper and other consumables,500.00
+Accounts Payable,Liabilities,Current Liabilities,Accounts Payable,For tracking money owed to suppliers,3000.00
+Credit Cards,Liabilities,Current Liabilities,Credit Cards,Company credit card balance,1500.00
+Loans Payable,Liabilities,Non-Current Liabilities,Long-term Debt,Business loan,50000.00
+Owner's Capital,Equity,Owner's Equity,Capital,Initial investment,75000.00
+Retained Earnings,Equity,Owner's Equity,Retained Earnings,Accumulated profits,25000.00
+Sales Revenue,Revenue,Operating Revenue,Sales,Income from sales,0.00
+Service Revenue,Revenue,Operating Revenue,Services,Income from services,0.00
+Interest Income,Revenue,Non-Operating Revenue,Interest Income,Income from investments,0.00
+Rent Expense,Expenses,Operating Expenses,Rent,Office space rental costs,0.00
+Salaries Expense,Expenses,Operating Expenses,Payroll,Employee salaries,0.00
+Utilities Expense,Expenses,Operating Expenses,Utilities,Electricity and water,0.00
+Advertising Expense,Expenses,Sales and Marketing,Advertising,Marketing and advertising costs,0.00
