@@ -28,6 +28,13 @@ import {
   enhancedJournalEntryLineSchema
 } from "@shared/finance-schema";
 import { z } from "zod";
+import { 
+  chartOfAccounts, 
+  chartOfAccountsDetailedGroups, 
+  chartOfAccountsSubElementGroups, 
+  chartOfAccountsElementGroups
+} from "@shared/schema";
+import { eq, and, desc } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   console.log("Starting to register routes...");
@@ -4152,6 +4159,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting account:", error);
       res.status(500).json({ message: "Failed to delete account", error: error.toString() });
+    }
+  });
+  
+  // CSV Upload for Chart of Accounts
+  app.post("/api/v1/finance/chart-of-accounts/csv-upload", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const accountsData = req.body.accounts;
+      
+      if (!accountsData || !Array.isArray(accountsData) || accountsData.length === 0) {
+        return res.status(400).json({ 
+          message: "Invalid accounts data", 
+          details: "CSV data must contain at least one valid account record"
+        });
+      }
+      
+      // Validation results
+      const results = {
+        successful: 0,
+        failed: 0,
+        errors: [] as string[],
+        accounts: [] as any[]
+      };
+      
+      // Process each account
+      for (const accountRow of accountsData) {
+        try {
+          // Ensure all required fields are present
+          if (!accountRow.accountName || !accountRow.elementGroupName || !accountRow.subElementGroupName || !accountRow.detailedGroupName) {
+            results.failed++;
+            results.errors.push(`Missing required fields for account "${accountRow.accountName || 'Unknown'}"`);
+            continue;
+          }
+          
+          // Find the element group
+          const elementGroups = await db.select()
+            .from(chartOfAccountsElementGroups)
+            .where(and(
+              eq(chartOfAccountsElementGroups.tenantId, tenantId),
+              eq(chartOfAccountsElementGroups.name, accountRow.elementGroupName)
+            ));
+            
+          if (!elementGroups || elementGroups.length === 0) {
+            results.failed++;
+            results.errors.push(`Element group "${accountRow.elementGroupName}" not found for account "${accountRow.accountName}"`);
+            continue;
+          }
+          
+          // Find the sub-element group 
+          const subElementGroups = await db.select()
+            .from(chartOfAccountsSubElementGroups)
+            .where(and(
+              eq(chartOfAccountsSubElementGroups.tenantId, tenantId),
+              eq(chartOfAccountsSubElementGroups.name, accountRow.subElementGroupName),
+              eq(chartOfAccountsSubElementGroups.elementGroupId, elementGroups[0].id)
+            ));
+          
+          if (!subElementGroups || subElementGroups.length === 0) {
+            results.failed++;
+            results.errors.push(`Sub-element group "${accountRow.subElementGroupName}" not found for account "${accountRow.accountName}"`);
+            continue;
+          }
+          
+          // Find the detailed group
+          const detailedGroups = await db.select()
+            .from(chartOfAccountsDetailedGroups)
+            .where(and(
+              eq(chartOfAccountsDetailedGroups.tenantId, tenantId),
+              eq(chartOfAccountsDetailedGroups.name, accountRow.detailedGroupName),
+              eq(chartOfAccountsDetailedGroups.subElementGroupId, subElementGroups[0].id)
+            ));
+          
+          if (!detailedGroups || detailedGroups.length === 0) {
+            results.failed++;
+            results.errors.push(`Detailed group "${accountRow.detailedGroupName}" not found for account "${accountRow.accountName}"`);
+            continue;
+          }
+          
+          // Determine account type based on element group name
+          let accountType = "asset"; // Default
+          switch(elementGroups[0].name.toLowerCase()) {
+            case "assets":
+              accountType = "asset";
+              break;
+            case "liabilities":
+              accountType = "liability";
+              break;
+            case "equity":
+              accountType = "equity";
+              break;
+            case "incomes":
+            case "income":
+            case "revenue":
+              accountType = "revenue";
+              break;
+            case "expenses":
+            case "expense":
+              accountType = "expense";
+              break;
+          }
+          
+          // Generate account code
+          const accountCode = await storage.generateAccountCode(
+            tenantId,
+            detailedGroups[0].id,
+            accountType
+          );
+          
+          // Create account
+          const accountData = {
+            tenantId,
+            detailedGroupId: detailedGroups[0].id,
+            accountName: accountRow.accountName,
+            accountCode,
+            accountType,
+            description: accountRow.description || null,
+            isActive: true,
+            isSystemAccount: false,
+            currentBalance: accountRow.openingBalance || "0.00",
+          };
+          
+          // Save the account
+          const newAccount = await storage.createChartOfAccount(accountData);
+          
+          results.successful++;
+          results.accounts.push(newAccount);
+        } catch (err) {
+          console.error("Error processing account row:", err);
+          results.failed++;
+          results.errors.push(`Error processing account "${accountRow.accountName || 'Unknown'}": ${err.message || 'Unknown error'}`);
+        }
+      }
+      
+      res.status(200).json(results);
+    } catch (error) {
+      console.error("Error processing CSV upload:", error);
+      res.status(500).json({ 
+        message: "Failed to process CSV upload", 
+        error: error.message
+      });
     }
   });
 
