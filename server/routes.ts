@@ -4276,7 +4276,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Try alternative names for sub-element groups
           if (matchingSubElementGroups.length === 0) {
-            if (normalizedSubElementName === 'operating_expenses' || normalizedSubElementName === 'direct_costs') {
+            // Also check custom groups with matching customName
+            matchingSubElementGroups = allSubElementGroups.filter(seg => 
+              seg.name === 'custom' && 
+              seg.customName?.toLowerCase().replace(/ /g, '_') === normalizedSubElementName && 
+              seg.elementGroupId === selectedElementGroup.id
+            );
+            
+            // Try standard alternatives for expense groups
+            if (matchingSubElementGroups.length === 0 && 
+                (normalizedSubElementName === 'operating_expenses' || normalizedSubElementName === 'direct_costs')) {
               // Try cost_of_service_revenue 
               matchingSubElementGroups = allSubElementGroups.filter(seg => 
                 seg.name.toLowerCase() === 'cost_of_service_revenue' && 
@@ -4287,25 +4296,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log(`Sub-element groups found: ${matchingSubElementGroups.length}`);
           
-          // If still not found, try to get any sub-element group for this element group
+          // If no match found, CREATE a new custom sub-element group
+          let selectedSubElementGroup;
           if (matchingSubElementGroups.length === 0) {
-            matchingSubElementGroups = allSubElementGroups.filter(seg => 
-              seg.elementGroupId === selectedElementGroup.id
-            );
-            
-            if (matchingSubElementGroups.length > 0) {
-              console.log(`Using alternate sub-element group: ${matchingSubElementGroups[0].name}`);
+            try {
+              console.log(`Creating new custom sub-element group "${accountRow.subElementGroupName}" for element group ${selectedElementGroup.name}`);
+              
+              selectedSubElementGroup = await storage.createCustomSubElementGroup(
+                tenantId,
+                selectedElementGroup.id,
+                accountRow.subElementGroupName
+              );
+              
+              console.log(`Successfully created custom sub-element group with ID ${selectedSubElementGroup.id}`);
+              
+              // Add the new group to our cached list for future lookups
+              allSubElementGroups.push(selectedSubElementGroup);
+              
+            } catch (subElementError) {
+              console.error(`Failed to create custom sub-element group: ${subElementError}`);
+              
+              // Fallback to any sub-element group for this element if creation fails
+              const fallbackGroups = allSubElementGroups.filter(seg => 
+                seg.elementGroupId === selectedElementGroup.id
+              );
+              
+              if (fallbackGroups.length > 0) {
+                console.log(`Using fallback sub-element group: ${fallbackGroups[0].name}`);
+                selectedSubElementGroup = fallbackGroups[0];
+              } else {
+                results.failed++;
+                results.errors.push(`Could not create or find sub-element group for "${accountRow.accountName}"`);
+                console.log(`Could not create or find sub-element group for "${accountRow.accountName}"`);
+                continue;
+              }
             }
+          } else {
+            selectedSubElementGroup = matchingSubElementGroups[0];
           }
-          
-          if (matchingSubElementGroups.length === 0) {
-            results.failed++;
-            results.errors.push(`Sub-element group "${accountRow.subElementGroupName}" not found for account "${accountRow.accountName}"`);
-            console.log(`Sub-element group "${accountRow.subElementGroupName}" not found for account "${accountRow.accountName}"`);
-            continue;
-          }
-          
-          const selectedSubElementGroup = matchingSubElementGroups[0];
           
           // Find the detailed group by name and sub element group ID
           const normalizedDetailedName = accountRow.detailedGroupName.toLowerCase().replace(/ /g, '_');
@@ -4316,6 +4344,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             dg.subElementGroupId === selectedSubElementGroup.id
           );
           
+          // Also check custom groups with matching customName
+          if (matchingDetailedGroups.length === 0) {
+            matchingDetailedGroups = allDetailedGroups.filter(dg => 
+              dg.name === 'custom' && 
+              dg.customName?.toLowerCase().replace(/ /g, '_') === normalizedDetailedName && 
+              dg.subElementGroupId === selectedSubElementGroup.id
+            );
+          }
+          
           // Try alternatives for expense groups
           if (matchingDetailedGroups.length === 0 && normalizedDetailedName === 'operating_expenses') {
             // Try cost_of_service_revenue for expenses
@@ -4325,35 +4362,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
             );
           }
           
-          // Try 'custom' as fallback
-          if (matchingDetailedGroups.length === 0) {
-            matchingDetailedGroups = allDetailedGroups.filter(dg => 
-              dg.name.toLowerCase() === 'custom' && 
-              dg.subElementGroupId === selectedSubElementGroup.id
-            );
-          }
-          
-          // Last resort - just get any detailed group for this sub-element
-          if (matchingDetailedGroups.length === 0) {
-            matchingDetailedGroups = allDetailedGroups.filter(dg => 
-              dg.subElementGroupId === selectedSubElementGroup.id
-            );
-            
-            if (matchingDetailedGroups.length > 0) {
-              console.log(`Using first available detailed group: ${matchingDetailedGroups[0].name}`);
-            }
-          }
-          
           console.log(`Detailed groups found: ${matchingDetailedGroups.length}`);
           
+          // If no match found, CREATE a new custom detailed group
+          let selectedDetailedGroup;
           if (matchingDetailedGroups.length === 0) {
-            results.failed++;
-            results.errors.push(`No suitable detailed group found for account "${accountRow.accountName}"`);
-            console.log(`No suitable detailed group found for account "${accountRow.accountName}"`);
-            continue;
+            try {
+              console.log(`Creating custom detailed group "${accountRow.detailedGroupName}" for sub-element group ${selectedSubElementGroup.name}`);
+              
+              selectedDetailedGroup = await storage.createCustomDetailedGroup(
+                tenantId,
+                selectedSubElementGroup.id,
+                accountRow.detailedGroupName
+              );
+              
+              console.log(`Successfully created custom detailed group with ID ${selectedDetailedGroup.id}`);
+              
+              // Add the new group to our cached list for future lookups
+              allDetailedGroups.push(selectedDetailedGroup);
+              
+            } catch (detailedGroupError) {
+              console.error(`Failed to create custom detailed group: ${detailedGroupError}`);
+              
+              // Fallback to any detailed group for this sub-element if creation fails
+              const fallbackGroups = allDetailedGroups.filter(dg => 
+                dg.subElementGroupId === selectedSubElementGroup.id
+              );
+              
+              if (fallbackGroups.length > 0) {
+                console.log(`Using fallback detailed group: ${fallbackGroups[0].name}`);
+                selectedDetailedGroup = fallbackGroups[0];
+              } else {
+                results.failed++;
+                results.errors.push(`Could not create or find detailed group for "${accountRow.accountName}"`);
+                console.log(`Could not create or find detailed group for "${accountRow.accountName}"`);
+                continue;
+              }
+            }
+          } else {
+            selectedDetailedGroup = matchingDetailedGroups[0];
           }
-          
-          const selectedDetailedGroup = matchingDetailedGroups[0];
           
           // Determine account type based on element group name
           let accountType = "asset"; // Default
