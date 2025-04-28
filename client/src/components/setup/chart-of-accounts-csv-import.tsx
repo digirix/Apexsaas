@@ -184,9 +184,24 @@ export default function ChartOfAccountsCSVImport() {
       setUploadStep('results');
       setUploadResults(data);
       
-      // Refresh the Chart of Accounts data
+      // Refresh all Chart of Accounts related data
+      // Invalidate all the relevant queries to ensure UI updates properly
       queryClient.invalidateQueries({
         queryKey: ['/api/v1/finance/chart-of-accounts']
+      });
+      
+      // Also invalidate the hierarchical structure queries
+      queryClient.invalidateQueries({
+        queryKey: ['/api/v1/finance/chart-of-accounts/main-groups']
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['/api/v1/finance/chart-of-accounts/element-groups']
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['/api/v1/finance/chart-of-accounts/sub-element-groups']
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups']
       });
     },
     onError: (error: any) => {

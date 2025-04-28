@@ -4277,6 +4277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             description: accountRow.description || null,
             isActive: true,
             isSystemAccount: false,
+            openingBalance: accountRow.openingBalance || "0.00",
             currentBalance: accountRow.openingBalance || "0.00",
           };
           
