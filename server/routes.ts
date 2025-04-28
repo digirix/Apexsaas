@@ -3977,49 +3977,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add parameter to control whether inactive accounts are included (default to false)
       const includeInactive = req.query.includeInactive === 'true';
       
-      // Pagination and search parameters
-      const page = req.query.page ? parseInt(req.query.page as string) : 1;
-      const pageSize = req.query.pageSize ? parseInt(req.query.pageSize as string) : 20;
-      const searchTerm = req.query.search as string | undefined;
-      
       console.log(`Query params: accountType=${accountType}, detailedGroupId=${detailedGroupId}, includeSystemAccounts=${includeSystemAccounts}, includeInactive=${includeInactive}`);
-      console.log(`Pagination: page=${page}, pageSize=${pageSize}, search=${searchTerm || 'none'}`);
       
       // Call with explicit includeInactive parameter
-      let accounts = await storage.getChartOfAccounts(tenantId, accountType, detailedGroupId, includeSystemAccounts, includeInactive);
+      const accounts = await storage.getChartOfAccounts(tenantId, accountType, detailedGroupId, includeSystemAccounts, includeInactive);
       
-      // Apply search filter if provided
-      if (searchTerm && searchTerm.trim()) {
-        const normalizedSearchTerm = searchTerm.toLowerCase().trim();
-        accounts = accounts.filter(account => 
-          account.accountName.toLowerCase().includes(normalizedSearchTerm) || 
-          account.accountCode.toLowerCase().includes(normalizedSearchTerm) || 
-          (account.description && account.description.toLowerCase().includes(normalizedSearchTerm))
-        );
+      console.log(`Found ${accounts.length} accounts for tenant ${tenantId}`);
+      if (accounts.length > 0) {
+        console.log(`First account tenantId: ${accounts[0].tenantId}, name: ${accounts[0].accountName}, isActive: ${accounts[0].isActive}`);
       }
       
-      // Get total count before pagination
-      const totalCount = accounts.length;
-      
-      // Apply pagination
-      const startIndex = (page - 1) * pageSize;
-      const paginatedAccounts = accounts.slice(startIndex, startIndex + pageSize);
-      
-      console.log(`Found ${totalCount} accounts for tenant ${tenantId}, returning ${paginatedAccounts.length} for page ${page}`);
-      if (paginatedAccounts.length > 0) {
-        console.log(`First account tenantId: ${paginatedAccounts[0].tenantId}, name: ${paginatedAccounts[0].accountName}, isActive: ${paginatedAccounts[0].isActive}`);
-      }
-      
-      // Return with pagination metadata
-      res.json({
-        data: paginatedAccounts,
-        pagination: {
-          totalCount,
-          pageCount: Math.ceil(totalCount / pageSize),
-          currentPage: page,
-          pageSize
-        }
-      });
+      res.json(accounts);
     } catch (error) {
       console.error("Error fetching accounts:", error);
       res.status(500).json({ message: "Failed to fetch chart of accounts" });
@@ -4201,85 +4169,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Bulk Delete for Chart of Accounts
-  app.delete("/api/v1/finance/chart-of-accounts/bulk", isAuthenticated, async (req, res) => {
-    try {
-      const tenantId = (req.user as any).tenantId;
-      const accountType = req.query.accountType as string | undefined;
-      const detailedGroupId = req.query.detailedGroupId ? parseInt(req.query.detailedGroupId as string) : undefined;
-      const onlyInactive = req.query.onlyInactive === 'true';
-      
-      console.log(`Bulk deleting chart of accounts for tenantId: ${tenantId}`);
-      console.log(`Filters: accountType=${accountType}, detailedGroupId=${detailedGroupId}, onlyInactive=${onlyInactive}`);
-      
-      // Get all accounts matching the filter criteria
-      let accounts = await storage.getChartOfAccounts(
-        tenantId, 
-        accountType, 
-        detailedGroupId, 
-        false, // We don't want to include system accounts in bulk delete
-        onlyInactive ? true : false // If onlyInactive is true, we need to include inactive accounts only
-      );
-      
-      // If onlyInactive is true, filter to only include inactive accounts
-      if (onlyInactive) {
-        accounts = accounts.filter(account => !account.isActive);
-      }
-      
-      // Filter out system accounts for safety
-      accounts = accounts.filter(account => !account.isSystemAccount);
-      
-      console.log(`Found ${accounts.length} accounts to delete for tenant ${tenantId}`);
-      
-      // Check if any accounts have journal entries
-      const accountsWithJournalEntries = [];
-      for (const account of accounts) {
-        const journalEntries = await storage.getJournalEntryLines(tenantId, undefined, account.id);
-        if (journalEntries.length > 0) {
-          accountsWithJournalEntries.push(account.accountName);
-        }
-      }
-      
-      if (accountsWithJournalEntries.length > 0) {
-        return res.status(400).json({
-          message: "Cannot delete accounts that have journal entries. Consider deactivating them instead.",
-          accounts: accountsWithJournalEntries
-        });
-      }
-      
-      // Delete all accounts
-      let successCount = 0;
-      let failedCount = 0;
-      const failedAccounts = [];
-      
-      for (const account of accounts) {
-        try {
-          const result = await storage.deleteChartOfAccount(account.id, tenantId);
-          if (result) {
-            successCount++;
-          } else {
-            failedCount++;
-            failedAccounts.push(account.accountName);
-          }
-        } catch (error) {
-          console.error(`Error deleting account ${account.id}:`, error);
-          failedCount++;
-          failedAccounts.push(account.accountName);
-        }
-      }
-      
-      return res.json({
-        message: `Successfully deleted ${successCount} accounts${failedCount > 0 ? `, failed to delete ${failedCount} accounts` : ''}`,
-        successCount,
-        failedCount,
-        failedAccounts: failedAccounts.length > 0 ? failedAccounts : undefined
-      });
-    } catch (error) {
-      console.error("Error bulk deleting accounts:", error);
-      res.status(500).json({ message: "Failed to bulk delete accounts", error: error.toString() });
-    }
-  });
-
   // CSV Upload for Chart of Accounts
   app.post("/api/v1/finance/chart-of-accounts/csv-upload", isAuthenticated, async (req, res) => {
     try {
