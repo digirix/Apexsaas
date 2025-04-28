@@ -1706,6 +1706,246 @@ export default function COAConfigurationPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Edit Sub Element Group Dialog */}
+      <Dialog open={editSubElementGroupDialogOpen} onOpenChange={setEditSubElementGroupDialogOpen}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Edit Sub Element Group</DialogTitle>
+            <DialogDescription>
+              Update the sub element group details
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...subElementGroupForm}>
+            <form onSubmit={subElementGroupForm.handleSubmit((values) => {
+              // Edit sub element group mutation
+              if (!currentSubElementGroup) return;
+              
+              const elementGroupId = parseInt(values.elementGroup);
+              
+              apiRequest(
+                'PATCH',
+                `/api/v1/finance/chart-of-accounts/sub-element-groups/${currentSubElementGroup.id}`,
+                {
+                  elementGroupId,
+                  name: "custom", // Always use 'custom' for name
+                  customName: values.customName,
+                  code: values.code,
+                  description: values.description || null,
+                }
+              ).then(() => {
+                toast({
+                  title: "Success",
+                  description: "Sub element group updated successfully",
+                });
+                setEditSubElementGroupDialogOpen(false);
+                queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/sub-element-groups'] });
+              }).catch(error => {
+                toast({
+                  title: "Error",
+                  description: error.message || "Failed to update sub element group",
+                  variant: "destructive",
+                });
+              });
+            })}>
+              <div className="grid gap-4 py-4">
+                <FormField
+                  control={subElementGroupForm.control}
+                  name="elementGroup"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Element Group</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Element Group" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {elementGroups.map((group) => (
+                            <SelectItem key={group.id} value={group.id.toString()}>
+                              {group.name.charAt(0).toUpperCase() + group.name.slice(1)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={subElementGroupForm.control}
+                  name="customName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={subElementGroupForm.control}
+                  name="code"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Code</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter code" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={subElementGroupForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Enter description (optional)" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="submit">Update Sub Element Group</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Detailed Group Dialog */}
+      <Dialog open={editDetailedGroupDialogOpen} onOpenChange={setEditDetailedGroupDialogOpen}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Edit Detailed Group</DialogTitle>
+            <DialogDescription>
+              Update the detailed group details
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...detailedGroupForm}>
+            <form onSubmit={detailedGroupForm.handleSubmit((values) => {
+              // Edit detailed group mutation
+              if (!currentDetailedGroup) return;
+              
+              const subElementGroupId = parseInt(values.subElementGroup);
+              
+              apiRequest(
+                'PATCH',
+                `/api/v1/finance/chart-of-accounts/detailed-groups/${currentDetailedGroup.id}`,
+                {
+                  subElementGroupId,
+                  name: "custom", // Always use 'custom' for name
+                  customName: values.customName,
+                  code: values.code,
+                  description: values.description || null,
+                }
+              ).then(() => {
+                toast({
+                  title: "Success",
+                  description: "Detailed group updated successfully",
+                });
+                setEditDetailedGroupDialogOpen(false);
+                queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups'] });
+              }).catch(error => {
+                toast({
+                  title: "Error",
+                  description: error.message || "Failed to update detailed group",
+                  variant: "destructive",
+                });
+              });
+            })}>
+              <div className="grid gap-4 py-4">
+                <FormField
+                  control={detailedGroupForm.control}
+                  name="subElementGroup"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Sub Element Group</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Sub Element Group" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {subElementGroups.map((group) => (
+                            <SelectItem key={group.id} value={group.id.toString()}>
+                              {group.customName || group.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={detailedGroupForm.control}
+                  name="customName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={detailedGroupForm.control}
+                  name="code"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Code</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter code" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={detailedGroupForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Enter description (optional)" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="submit">Update Detailed Group</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
