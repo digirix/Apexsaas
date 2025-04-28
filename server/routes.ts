@@ -4343,6 +4343,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Before sending response, ensure we have the correct count
+      console.log(`Final results: ${results.successful} successful, ${results.failed} failed`);
+      console.log(`Successfully imported accounts: ${results.accounts.length}`);
+      
+      // Make sure the successful count matches the accounts array length
+      if (results.successful !== results.accounts.length) {
+        results.successful = results.accounts.length;
+      }
+      
       res.status(200).json(results);
     } catch (error) {
       console.error("Error processing CSV upload:", error);
