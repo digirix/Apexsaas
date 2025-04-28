@@ -1758,22 +1758,25 @@ export class DatabaseStorage implements IStorage {
           existingAccount => existingAccount.id !== existingInactiveAccount.id
         );
         
-        // Generate a unique account code if needed
+        // Always generate a new account code for reactivated accounts to avoid collisions
         let finalAccountCode = account.accountCode;
-        if (filteredExistingAccounts.length > 0) {
-          // Generate a new account code with a suffix
-          const baseCode = account.accountCode.split('.').slice(0, -1).join('.');
-          const existingAccounts = await this.getChartOfAccounts(
-            account.tenantId, 
-            account.accountType, 
-            account.detailedGroupId,
-            false,  // Don't include system accounts
-            true    // Include inactive accounts
-          );
-          const nextNumber = (existingAccounts.length + 1).toString().padStart(3, '0');
-          finalAccountCode = `${baseCode}.${nextNumber}`;
-          console.log(`Generated new account code ${finalAccountCode} to avoid duplicate`);
-        }
+        
+        // Generate a new account code with a suffix regardless of filtered results
+        // This ensures we always have a fresh account code for reactivated accounts
+        const baseCode = account.accountCode.split('.').slice(0, -1).join('.');
+        const existingAccounts = await this.getChartOfAccounts(
+          account.tenantId, 
+          account.accountType, 
+          account.detailedGroupId,
+          false,  // Don't include system accounts
+          true    // Include inactive accounts
+        );
+        
+        // Add 10 to ensure we don't conflict with existing codes
+        const nextNumber = (existingAccounts.length + 10).toString().padStart(3, '0');
+        finalAccountCode = `${baseCode}.${nextNumber}`;
+        console.log(`Generated new account code ${finalAccountCode} for reactivated account to ensure uniqueness`);
+        
           
         const [reactivatedAccount] = await db.update(chartOfAccounts)
           .set({
@@ -1811,7 +1814,8 @@ export class DatabaseStorage implements IStorage {
           false,  // Don't include system accounts
           true    // Include inactive accounts
         );
-        const nextNumber = (existingAccounts.length + 1).toString().padStart(3, '0');
+        // Add 10 to ensure we don't conflict with existing codes
+        const nextNumber = (existingAccounts.length + 10).toString().padStart(3, '0');
         finalAccount.accountCode = `${baseCode}.${nextNumber}`;
         console.log(`Generated new account code ${finalAccount.accountCode} to avoid duplicate for new account`);
       }
