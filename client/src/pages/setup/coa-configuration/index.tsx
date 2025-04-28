@@ -1206,7 +1206,7 @@ export default function COAConfigurationPage() {
                       <FormLabel>Element Group</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        value={field.value}
+                        defaultValue={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -1234,7 +1234,7 @@ export default function COAConfigurationPage() {
                       <FormLabel>Sub Element Group</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        value={field.value}
+                        defaultValue={field.value}
                         disabled={!watchElementGroup}
                       >
                         <FormControl>
@@ -1263,7 +1263,7 @@ export default function COAConfigurationPage() {
                       <FormLabel>Detailed Group</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        value={field.value}
+                        defaultValue={field.value}
                         disabled={!watchSubElementGroup}
                       >
                         <FormControl>
@@ -1369,7 +1369,7 @@ export default function COAConfigurationPage() {
                       <FormLabel>Element Group</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        value={field.value}
+                        defaultValue={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -1502,7 +1502,7 @@ export default function COAConfigurationPage() {
                       <FormLabel>Sub Element Group</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        value={field.value}
+                        defaultValue={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -1757,7 +1757,7 @@ export default function COAConfigurationPage() {
                       <FormLabel>Element Group</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        value={field.value}
+                        defaultValue={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -1877,7 +1877,7 @@ export default function COAConfigurationPage() {
                       <FormLabel>Sub Element Group</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        value={field.value}
+                        defaultValue={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
