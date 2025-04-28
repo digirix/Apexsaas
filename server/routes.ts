@@ -4065,6 +4065,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Import Chart of Accounts from CSV
+  app.post("/api/v1/finance/chart-of-accounts/import", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const { accounts } = req.body;
+      
+      if (!accounts || !Array.isArray(accounts) || accounts.length === 0) {
+        return res.status(400).json({ 
+          message: "Invalid import data", 
+          details: "No accounts found in the import data" 
+        });
+      }
+      
+      console.log(`Processing CSV import for tenant ${tenantId} with ${accounts.length} accounts`);
+      
+      const results = {
+        total: accounts.length,
+        success: 0,
+        failures: 0,
+        errors: [] as Array<{row: number, accountName: string, error: string}>
+      };
+      
+      // Get all detailed groups for this tenant for code lookup
+      const detailedGroups = await storage.getChartOfAccountsDetailedGroups(tenantId);
+      
+      if (!detailedGroups || detailedGroups.length === 0) {
+        return res.status(400).json({
+          message: "No detailed groups found",
+          details: "Please set up your Chart of Accounts structure before importing accounts"
+        });
+      }
+      
+      const detailedGroupsByCode = detailedGroups.reduce((acc, group) => {
+        acc[group.code] = group;
+        return acc;
+      }, {} as Record<string, any>);
+      
+      // Process each account in the import
+      for (let i = 0; i < accounts.length; i++) {
+        try {
+          const accountData = accounts[i];
+          const rowNum = i + 2; // +2 for header row and 1-based indexing
+          
+          // Validate required fields
+          if (!accountData.account_name) {
+            results.errors.push({
+              row: rowNum,
+              accountName: accountData.account_name || `Row ${rowNum}`,
+              error: "Account name is required"
+            });
+            results.failures++;
+            continue;
+          }
+          
+          if (!accountData.detailed_group_code) {
+            results.errors.push({
+              row: rowNum,
+              accountName: accountData.account_name,
+              error: "Detailed group code is required"
+            });
+            results.failures++;
+            continue;
+          }
+          
+          if (!accountData.account_type || !['asset', 'liability', 'equity', 'revenue', 'expense'].includes(accountData.account_type)) {
+            results.errors.push({
+              row: rowNum,
+              accountName: accountData.account_name,
+              error: "Invalid account type. Must be one of: asset, liability, equity, revenue, expense"
+            });
+            results.failures++;
+            continue;
+          }
+          
+          // Find the detailed group ID by code
+          const detailedGroup = detailedGroupsByCode[accountData.detailed_group_code];
+          if (!detailedGroup) {
+            results.errors.push({
+              row: rowNum,
+              accountName: accountData.account_name,
+              error: `Detailed group code '${accountData.detailed_group_code}' not found`
+            });
+            results.failures++;
+            continue;
+          }
+          
+          // Find element and sub-element groups
+          const subElementGroup = await storage.getChartOfAccountsSubElementGroup(detailedGroup.subElementGroupId, tenantId);
+          if (!subElementGroup) {
+            results.errors.push({
+              row: rowNum,
+              accountName: accountData.account_name,
+              error: "Invalid sub-element group for the detailed group"
+            });
+            results.failures++;
+            continue;
+          }
+          
+          const elementGroup = await storage.getChartOfAccountsElementGroup(subElementGroup.elementGroupId, tenantId);
+          if (!elementGroup) {
+            results.errors.push({
+              row: rowNum,
+              accountName: accountData.account_name,
+              error: "Invalid element group for the sub-element group"
+            });
+            results.failures++;
+            continue;
+          }
+          
+          // Generate account code similar to how individual accounts are created
+          const existingAccounts = await storage.getChartOfAccounts(tenantId, accountData.account_type, detailedGroup.id);
+          const baseCode = `${elementGroup.code}.${subElementGroup.code}.${detailedGroup.code}`;
+          const nextNumber = (existingAccounts.length + 1).toString().padStart(3, '0');
+          const accountCode = `${baseCode}.${nextNumber}`;
+          
+          // Prepare data for account creation
+          const accountToCreate = {
+            tenantId,
+            detailedGroupId: detailedGroup.id,
+            accountName: accountData.account_name,
+            accountType: accountData.account_type,
+            description: accountData.description || null,
+            currentBalance: accountData.opening_balance || "0.00",
+            accountCode,
+            isActive: true,
+            isSystemAccount: false,
+          };
+          
+          // Create the account
+          await storage.createChartOfAccount(accountToCreate);
+          results.success++;
+          
+        } catch (error) {
+          console.error(`Error importing account row ${i+2}:`, error);
+          results.errors.push({
+            row: i+2,
+            accountName: accounts[i].account_name || `Row ${i+2}`,
+            error: error.message || "Unknown error occurred"
+          });
+          results.failures++;
+        }
+      }
+      
+      res.status(200).json({
+        message: "Import complete",
+        results
+      });
+      
+    } catch (error) {
+      console.error("Error importing chart of accounts:", error);
+      res.status(500).json({ 
+        message: "Failed to import chart of accounts",
+        error: error.message
+      });
+    }
+  });
+  
   // Update an account
   app.patch("/api/v1/finance/chart-of-accounts/:id", isAuthenticated, async (req, res) => {
     try {

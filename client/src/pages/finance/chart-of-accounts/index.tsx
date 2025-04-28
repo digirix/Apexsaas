@@ -42,10 +42,12 @@ import {
   Trash2, 
   Search,
   ArrowUpDown, 
-  FileText 
+  FileText,
+  Upload
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { ChartOfAccountsImport } from '@/components/finance/chart-of-accounts-import';
 
 export default function ChartOfAccountsPage() {
   const [, navigate] = useLocation();
