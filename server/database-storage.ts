@@ -1629,6 +1629,48 @@ export class DatabaseStorage implements IStorage {
     return await query.orderBy(asc(chartOfAccountsSubElementGroups.code));
   }
   
+  // Create a new custom sub-element group
+  async createCustomSubElementGroup(tenantId: number, elementGroupId: number, name: string): Promise<any> {
+    try {
+      // Normalize name for code generation
+      const normalizedName = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      
+      // Get the element group
+      const [elementGroup] = await db.select()
+        .from(chartOfAccountsElementGroups)
+        .where(and(
+          eq(chartOfAccountsElementGroups.id, elementGroupId),
+          eq(chartOfAccountsElementGroups.tenantId, tenantId)
+        ));
+        
+      if (!elementGroup) {
+        throw new Error(`Element group with ID ${elementGroupId} not found`);
+      }
+      
+      // Generate a code based on the element group code
+      const code = `${elementGroup.code}-${normalizedName.substring(0, 3).toUpperCase()}`;
+      
+      // Create the sub-element group as a 'custom' type with the provided name in customName
+      const [newSubElementGroup] = await db.insert(chartOfAccountsSubElementGroups)
+        .values({
+          tenantId,
+          elementGroupId,
+          name: 'custom', // Using the enum value 'custom'
+          customName: name, // Store the actual name here
+          code,
+          description: `Custom sub-element group for ${name}`,
+          isActive: true,
+          createdAt: new Date()
+        })
+        .returning();
+        
+      return newSubElementGroup;
+    } catch (error) {
+      console.error(`Error creating custom sub-element group: ${error.message}`);
+      throw error;
+    }
+  }
+  
   // Get sub-element group by name and element group ID - useful for CSV imports
   async getChartOfAccountsSubElementGroupByName(tenantId: number, name: string, elementGroupId: number): Promise<any[]> {
     // Normalize name to lowercase and replace spaces with underscores to match database enum values
@@ -1730,6 +1772,48 @@ export class DatabaseStorage implements IStorage {
     }
     
     return await query.orderBy(asc(chartOfAccountsDetailedGroups.code));
+  }
+  
+  // Create a new custom detailed group
+  async createCustomDetailedGroup(tenantId: number, subElementGroupId: number, name: string): Promise<any> {
+    try {
+      // Normalize name for code generation
+      const normalizedName = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      
+      // Get the sub-element group
+      const [subElementGroup] = await db.select()
+        .from(chartOfAccountsSubElementGroups)
+        .where(and(
+          eq(chartOfAccountsSubElementGroups.id, subElementGroupId),
+          eq(chartOfAccountsSubElementGroups.tenantId, tenantId)
+        ));
+        
+      if (!subElementGroup) {
+        throw new Error(`Sub-element group with ID ${subElementGroupId} not found`);
+      }
+      
+      // Generate a code based on the sub-element group code
+      const code = `${subElementGroup.code}-${normalizedName.substring(0, 3).toUpperCase()}`;
+      
+      // Create the detailed group as a 'custom' type with the provided name in customName
+      const [newDetailedGroup] = await db.insert(chartOfAccountsDetailedGroups)
+        .values({
+          tenantId,
+          subElementGroupId,
+          name: 'custom', // Using the enum value 'custom'
+          customName: name, // Store the actual name here
+          code,
+          description: `Custom detailed group for ${name}`,
+          isActive: true,
+          createdAt: new Date()
+        })
+        .returning();
+        
+      return newDetailedGroup;
+    } catch (error) {
+      console.error(`Error creating custom detailed group: ${error.message}`);
+      throw error;
+    }
   }
   
   // Get detailed group by name and sub-element group ID - useful for CSV imports
