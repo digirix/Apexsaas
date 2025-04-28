@@ -171,18 +171,10 @@ export default function ChartOfAccountsCSVUpload() {
       setUploadStep('results');
       setUploadResults(data);
       
-      // Refresh ALL Chart of Accounts data including structure
+      // Refresh the Chart of Accounts data
       queryClient.invalidateQueries({
         queryKey: ['/api/v1/finance/chart-of-accounts']
       });
-      
-      // If all accounts imported successfully and no errors, auto-close after a delay
-      if (data.successful > 0 && data.failed === 0) {
-        setTimeout(() => {
-          setIsDialogOpen(false);
-          resetFileInput();
-        }, 2000);
-      }
     },
     onError: (error: any) => {
       setError(error.message || 'Failed to upload CSV');

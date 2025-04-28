@@ -3970,23 +3970,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const tenantId = (req.user as any).tenantId;
       console.log(`Fetching chart of accounts for tenantId: ${tenantId}`);
-      
-      // Get query parameters with proper defaults
       const accountType = req.query.accountType as string | undefined;
       const detailedGroupId = req.query.detailedGroupId ? parseInt(req.query.detailedGroupId as string) : undefined;
+      // Add parameter to control whether system accounts are included (default to false)
       const includeSystemAccounts = req.query.includeSystemAccounts === 'true';
-      const includeInactive = req.query.includeInactive === 'true';
       
-      // Get the accounts with proper filters
-      const accounts = await storage.getChartOfAccounts(
-        tenantId,
-        accountType, 
-        detailedGroupId, 
-        includeSystemAccounts,
-        includeInactive
-      );
-      
+      const accounts = await storage.getChartOfAccounts(tenantId, accountType, detailedGroupId, includeSystemAccounts);
       console.log(`Found ${accounts.length} accounts for tenant ${tenantId}`);
+      if (accounts.length > 0) {
+        console.log(`First account tenantId: ${accounts[0].tenantId}`);
+      }
       res.json(accounts);
     } catch (error) {
       console.error("Error fetching accounts:", error);
@@ -4200,10 +4193,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          // Find the element group using storage interface
-          let elementGroups = await storage.getChartOfAccountsElementGroups(tenantId);
-          elementGroups = elementGroups.filter(group => 
-            group.name.toLowerCase() === accountRow.elementGroupName.toLowerCase());
+          // Find the element group
+          const elementGroups = await db.select()
+            .from(chartOfAccountsElementGroups)
+            .where(and(
+              eq(chartOfAccountsElementGroups.tenantId, tenantId),
+              eq(chartOfAccountsElementGroups.name, accountRow.elementGroupName)
+            ));
             
           if (!elementGroups || elementGroups.length === 0) {
             results.failed++;
@@ -4211,11 +4207,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          // Find the sub-element group using storage interface
-          let subElementGroups = await storage.getChartOfAccountsSubElementGroups(tenantId);
-          subElementGroups = subElementGroups.filter(group => 
-            group.name.toLowerCase() === accountRow.subElementGroupName.toLowerCase() && 
-            group.elementGroupId === elementGroups[0].id);
+          // Find the sub-element group 
+          const subElementGroups = await db.select()
+            .from(chartOfAccountsSubElementGroups)
+            .where(and(
+              eq(chartOfAccountsSubElementGroups.tenantId, tenantId),
+              eq(chartOfAccountsSubElementGroups.name, accountRow.subElementGroupName),
+              eq(chartOfAccountsSubElementGroups.elementGroupId, elementGroups[0].id)
+            ));
           
           if (!subElementGroups || subElementGroups.length === 0) {
             results.failed++;
@@ -4223,11 +4222,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          // Find the detailed group using storage interface
-          let detailedGroups = await storage.getChartOfAccountsDetailedGroups(tenantId);
-          detailedGroups = detailedGroups.filter(group => 
-            group.name.toLowerCase() === accountRow.detailedGroupName.toLowerCase() && 
-            group.subElementGroupId === subElementGroups[0].id);
+          // Find the detailed group
+          const detailedGroups = await db.select()
+            .from(chartOfAccountsDetailedGroups)
+            .where(and(
+              eq(chartOfAccountsDetailedGroups.tenantId, tenantId),
+              eq(chartOfAccountsDetailedGroups.name, accountRow.detailedGroupName),
+              eq(chartOfAccountsDetailedGroups.subElementGroupId, subElementGroups[0].id)
+            ));
           
           if (!detailedGroups || detailedGroups.length === 0) {
             results.failed++;
@@ -4237,20 +4239,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Determine account type based on element group name
           let accountType = "asset"; // Default
-          const elementGroupName = elementGroups[0].name.toLowerCase();
-          if (elementGroupName.includes("asset")) {
-            accountType = "asset";
-          } else if (elementGroupName.includes("liabilit")) {
-            accountType = "liability";
-          } else if (elementGroupName.includes("equit")) {
-            accountType = "equity";
-          } else if (elementGroupName.includes("income") || elementGroupName.includes("revenue")) {
-            accountType = "revenue";
-          } else if (elementGroupName.includes("expense")) {
-            accountType = "expense";
+          switch(elementGroups[0].name.toLowerCase()) {
+            case "assets":
+              accountType = "asset";
+              break;
+            case "liabilities":
+              accountType = "liability";
+              break;
+            case "equity":
+              accountType = "equity";
+              break;
+            case "incomes":
+            case "income":
+            case "revenue":
+              accountType = "revenue";
+              break;
+            case "expenses":
+            case "expense":
+              accountType = "expense";
+              break;
           }
-          
-          console.log(`Processing account ${accountRow.accountName} with type ${accountType} for detailed group ID ${detailedGroups[0].id}`);
           
           // Generate account code
           const accountCode = await storage.generateAccountCode(
@@ -4259,38 +4267,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
             accountType
           );
           
-          console.log(`Generated account code: ${accountCode}`);
-          
-          // Create account with all required fields
+          // Create account
           const accountData = {
             tenantId,
             detailedGroupId: detailedGroups[0].id,
             accountName: accountRow.accountName,
             accountCode,
-            accountType: accountType as "asset" | "liability" | "equity" | "revenue" | "expense",
+            accountType,
             description: accountRow.description || null,
-            openingBalance: accountRow.openingBalance || "0.00",
-            currentBalance: accountRow.openingBalance || "0.00",
             isActive: true,
-            isSystemAccount: false
+            isSystemAccount: false,
+            currentBalance: accountRow.openingBalance || "0.00",
           };
           
           // Save the account
           const newAccount = await storage.createChartOfAccount(accountData);
-          console.log(`Created new account: ${JSON.stringify(newAccount, null, 2)}`);
           
           results.successful++;
           results.accounts.push(newAccount);
         } catch (err) {
           console.error("Error processing account row:", err);
           results.failed++;
-          const errorMessage = err instanceof Error ? err.message : String(err);
-          results.errors.push(`Error processing account "${accountRow.accountName || 'Unknown'}": ${errorMessage}`);
+          results.errors.push(`Error processing account "${accountRow.accountName || 'Unknown'}": ${err.message || 'Unknown error'}`);
         }
       }
       
-      // Even if some accounts failed, return success status with the results
-      // This shows which accounts were imported successfully and which had errors
       res.status(200).json(results);
     } catch (error) {
       console.error("Error processing CSV upload:", error);
