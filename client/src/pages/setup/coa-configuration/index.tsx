@@ -8,7 +8,7 @@ import { ArrowLeft, Plus, Edit, Trash2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { AppLayout } from "@/components/layout/app-layout";
-import { COAImportSimplified } from "@/components/setup/coa-import-simplified";
+import { COAImportBasic } from "@/components/setup/coa-import-basic";
 
 import { 
   Card, CardHeader, CardTitle, CardDescription, CardContent 
@@ -1071,7 +1071,7 @@ export default function COAConfigurationPage() {
       </Card>
       
       {/* Sub Element Group Management Dialog */}
-      <Dialog open={subElementGroupDialogOpen} onOpenChange={setSubElementGroupDialogOpen}>
+      <Dialog open={subElementGroupDialogOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>Manage Sub Element Groups</DialogTitle>
@@ -1157,7 +1157,7 @@ export default function COAConfigurationPage() {
       </Dialog>
       
       {/* Create Sub Element Group Dialog */}
-      <Dialog open={createSubElementGroupDialogOpen} onOpenChange={setCreateSubElementGroupDialogOpen}>
+      <Dialog open={createSubElementGroupDialogOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>Add New Sub Element Group</DialogTitle>
@@ -1554,7 +1554,7 @@ export default function COAConfigurationPage() {
       </Dialog>
       
       {/* Import Chart of Accounts Dialog */}
-      <COAImport open={importDialogOpen} onClose={() => setImportDialogOpen(false)} />
+      <COAImportBasic open={importDialogOpen} onClose={() => setImportDialogOpen(false)} />
       
       {/* Create Detailed Group Dialog */}
       <Dialog open={createDetailedGroupDialogOpen} onOpenChange={setCreateDetailedGroupDialogOpen}>
