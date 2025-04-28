@@ -4193,13 +4193,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          // Find the element group
-          const elementGroups = await db.select()
-            .from(chartOfAccountsElementGroups)
-            .where(and(
-              eq(chartOfAccountsElementGroups.tenantId, tenantId),
-              eq(chartOfAccountsElementGroups.name, accountRow.elementGroupName)
-            ));
+          // Find the element group using storage interface
+          let elementGroups = await storage.getChartOfAccountsElementGroups(tenantId);
+          elementGroups = elementGroups.filter(group => 
+            group.name.toLowerCase() === accountRow.elementGroupName.toLowerCase());
             
           if (!elementGroups || elementGroups.length === 0) {
             results.failed++;
@@ -4207,14 +4204,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          // Find the sub-element group 
-          const subElementGroups = await db.select()
-            .from(chartOfAccountsSubElementGroups)
-            .where(and(
-              eq(chartOfAccountsSubElementGroups.tenantId, tenantId),
-              eq(chartOfAccountsSubElementGroups.name, accountRow.subElementGroupName),
-              eq(chartOfAccountsSubElementGroups.elementGroupId, elementGroups[0].id)
-            ));
+          // Find the sub-element group using storage interface
+          let subElementGroups = await storage.getChartOfAccountsSubElementGroups(tenantId);
+          subElementGroups = subElementGroups.filter(group => 
+            group.name.toLowerCase() === accountRow.subElementGroupName.toLowerCase() && 
+            group.elementGroupId === elementGroups[0].id);
           
           if (!subElementGroups || subElementGroups.length === 0) {
             results.failed++;
@@ -4222,14 +4216,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          // Find the detailed group
-          const detailedGroups = await db.select()
-            .from(chartOfAccountsDetailedGroups)
-            .where(and(
-              eq(chartOfAccountsDetailedGroups.tenantId, tenantId),
-              eq(chartOfAccountsDetailedGroups.name, accountRow.detailedGroupName),
-              eq(chartOfAccountsDetailedGroups.subElementGroupId, subElementGroups[0].id)
-            ));
+          // Find the detailed group using storage interface
+          let detailedGroups = await storage.getChartOfAccountsDetailedGroups(tenantId);
+          detailedGroups = detailedGroups.filter(group => 
+            group.name.toLowerCase() === accountRow.detailedGroupName.toLowerCase() && 
+            group.subElementGroupId === subElementGroups[0].id);
           
           if (!detailedGroups || detailedGroups.length === 0) {
             results.failed++;
@@ -4239,26 +4230,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Determine account type based on element group name
           let accountType = "asset"; // Default
-          switch(elementGroups[0].name.toLowerCase()) {
-            case "assets":
-              accountType = "asset";
-              break;
-            case "liabilities":
-              accountType = "liability";
-              break;
-            case "equity":
-              accountType = "equity";
-              break;
-            case "incomes":
-            case "income":
-            case "revenue":
-              accountType = "revenue";
-              break;
-            case "expenses":
-            case "expense":
-              accountType = "expense";
-              break;
+          const elementGroupName = elementGroups[0].name.toLowerCase();
+          if (elementGroupName.includes("asset")) {
+            accountType = "asset";
+          } else if (elementGroupName.includes("liabilit")) {
+            accountType = "liability";
+          } else if (elementGroupName.includes("equit")) {
+            accountType = "equity";
+          } else if (elementGroupName.includes("income") || elementGroupName.includes("revenue")) {
+            accountType = "revenue";
+          } else if (elementGroupName.includes("expense")) {
+            accountType = "expense";
           }
+          
+          console.log(`Processing account ${accountRow.accountName} with type ${accountType} for detailed group ID ${detailedGroups[0].id}`);
           
           // Generate account code
           const accountCode = await storage.generateAccountCode(
@@ -4266,6 +4251,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             detailedGroups[0].id,
             accountType
           );
+          
+          console.log(`Generated account code: ${accountCode}`);
           
           // Create account
           const accountData = {
@@ -4276,12 +4263,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             accountType,
             description: accountRow.description || null,
             isActive: true,
-            isSystemAccount: false,
-            currentBalance: accountRow.openingBalance || "0.00",
+            isSystemAccount: false
           };
           
           // Save the account
           const newAccount = await storage.createChartOfAccount(accountData);
+          console.log(`Created new account: ${JSON.stringify(newAccount, null, 2)}`);
           
           results.successful++;
           results.accounts.push(newAccount);
