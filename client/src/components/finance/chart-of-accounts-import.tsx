@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, FileUp, Download, AlertTriangle, Check } from 'lucide-react';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import coaTemplatePath from '@/assets/coa_import_template.csv';
+import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -63,7 +64,7 @@ export function ChartOfAccountsImport() {
   };
 
   const parseCSV = (text: string) => {
-    const lines = text.split('\\n');
+    const lines = text.split('\n');
     const headers = lines[0].split(',').map(header => header.trim());
     
     const results = [];

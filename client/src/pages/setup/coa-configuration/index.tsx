@@ -7,6 +7,8 @@ import { Link } from "wouter";
 import { ArrowLeft, Plus, Edit, Trash2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { AppLayout } from "@/components/layout/app-layout";
+import { COAImport } from "@/components/setup/coa-import";
 
 import { 
   Card, CardHeader, CardTitle, CardDescription, CardContent 
@@ -35,9 +37,6 @@ const Textarea = (props: any) => {
   }
   return <BaseTextarea {...fixedProps} />;
 };
-
-import { AppLayout } from "@/components/layout/app-layout";
-import { ChartOfAccountsImport } from "@/components/finance/chart-of-accounts-import";
 
 // Types for chart of accounts structure
 type ChartOfAccountsMainGroup = {
@@ -117,6 +116,7 @@ export default function COAConfigurationPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState<ChartOfAccount | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   
@@ -976,6 +976,9 @@ export default function COAConfigurationPage() {
                 <Plus className="h-4 w-4 mr-1" />
                 Manage Detailed Groups
               </Button>
+              <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+                Import Chart of Accounts
+              </Button>
               <Button onClick={handleCreate}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add New Account
@@ -1547,6 +1550,26 @@ export default function COAConfigurationPage() {
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Import Chart of Accounts Dialog */}
+      <Dialog open={importDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Import Chart of Accounts</DialogTitle>
+            <DialogDescription>
+              Import multiple accounts from a CSV file. Make sure your Chart of Accounts structure is set up first.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="mt-4">
+            <ChartOfAccountsImport />
+          </div>
+          
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>Close</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       
