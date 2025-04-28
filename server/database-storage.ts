@@ -1583,11 +1583,14 @@ export class DatabaseStorage implements IStorage {
   
   // Get sub-element group by name and element group ID - useful for CSV imports
   async getChartOfAccountsSubElementGroupByName(tenantId: number, name: string, elementGroupId: number): Promise<any[]> {
+    // Normalize name to lowercase and replace spaces with underscores to match database enum values
+    const normalizedName = name.toLowerCase().replace(/ /g, '_');
+    
     const subElements = await db.select()
       .from(chartOfAccountsSubElementGroups)
       .where(and(
         eq(chartOfAccountsSubElementGroups.tenantId, tenantId),
-        eq(chartOfAccountsSubElementGroups.name, name),
+        eq(chartOfAccountsSubElementGroups.name, normalizedName),
         eq(chartOfAccountsSubElementGroups.elementGroupId, elementGroupId)
       ))
       .orderBy(asc(chartOfAccountsSubElementGroups.code));
@@ -1654,11 +1657,14 @@ export class DatabaseStorage implements IStorage {
   
   // Get detailed group by name and sub-element group ID - useful for CSV imports
   async getChartOfAccountsDetailedGroupByName(tenantId: number, name: string, subElementGroupId: number): Promise<any[]> {
+    // Normalize name to lowercase and replace spaces with underscores to match database enum values
+    const normalizedName = name.toLowerCase().replace(/ /g, '_');
+    
     const detailedGroups = await db.select()
       .from(chartOfAccountsDetailedGroups)
       .where(and(
         eq(chartOfAccountsDetailedGroups.tenantId, tenantId),
-        eq(chartOfAccountsDetailedGroups.name, name),
+        eq(chartOfAccountsDetailedGroups.name, normalizedName),
         eq(chartOfAccountsDetailedGroups.subElementGroupId, subElementGroupId)
       ))
       .orderBy(asc(chartOfAccountsDetailedGroups.code));
