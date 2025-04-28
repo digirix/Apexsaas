@@ -8,7 +8,7 @@ import { ArrowLeft, Plus, Edit, Trash2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { AppLayout } from "@/components/layout/app-layout";
-import { COAImport } from "@/components/setup/coa-import";
+import { COAImportSimplified } from "@/components/setup/coa-import-simplified";
 
 import { 
   Card, CardHeader, CardTitle, CardDescription, CardContent 
@@ -1554,24 +1554,7 @@ export default function COAConfigurationPage() {
       </Dialog>
       
       {/* Import Chart of Accounts Dialog */}
-      <Dialog open={importDialogOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Import Chart of Accounts</DialogTitle>
-            <DialogDescription>
-              Import multiple accounts from a CSV file. Make sure your Chart of Accounts structure is set up first.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="mt-4">
-            <ChartOfAccountsImport />
-          </div>
-          
-          <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <COAImport open={importDialogOpen} onClose={() => setImportDialogOpen(false)} />
       
       {/* Create Detailed Group Dialog */}
       <Dialog open={createDetailedGroupDialogOpen} onOpenChange={setCreateDetailedGroupDialogOpen}>

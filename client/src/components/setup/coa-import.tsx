@@ -128,10 +128,8 @@ export function COAImport({ open, onClose }: { open: boolean; onClose: () => voi
         variant: response.results.failures > 0 ? "default" : "success"
       });
       
-      // Show detailed results if there were failures
-      if (response.results.failures > 0) {
-        setShowResultsDialog(true);
-      }
+      // Show detailed results dialog
+      setShowResultsDialog(true);
       
       // Refresh accounts list
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });
@@ -165,82 +163,148 @@ export function COAImport({ open, onClose }: { open: boolean; onClose: () => voi
   if (!open) return null;
 
   return (
-    <Dialog open={open}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Import Chart of Accounts</DialogTitle>
-          <DialogDescription>
-            Import multiple accounts from a CSV file. Make sure your Chart of Accounts structure is set up first.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="mt-4">
-          <Card className="w-full shadow-none border-0">
-            <CardContent className="px-0">
-              <div className="flex flex-col space-y-4">
-                <div className="grid w-full max-w-sm items-center gap-1.5">
-                  <label htmlFor="coa-csv" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Select CSV File
-                  </label>
-                  <input
-                    ref={fileInputRef}
-                    id="coa-csv"
-                    type="file"
-                    accept=".csv"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    onChange={handleFileChange}
-                    disabled={isUploading}
-                  />
-                  {file && (
-                    <p className="text-xs text-muted-foreground">Selected: {file.name}</p>
+    <>
+      {/* Main Import Dialog */}
+      <Dialog open={open}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Import Chart of Accounts</DialogTitle>
+            <DialogDescription>
+              Import multiple accounts from a CSV file. Make sure your Chart of Accounts structure is set up first.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="mt-4">
+            <Card className="w-full shadow-none border-0">
+              <CardContent className="px-0">
+                <div className="flex flex-col space-y-4">
+                  <div className="grid w-full max-w-sm items-center gap-1.5">
+                    <label htmlFor="coa-csv" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Select CSV File
+                    </label>
+                    <input
+                      ref={fileInputRef}
+                      id="coa-csv"
+                      type="file"
+                      accept=".csv"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      onChange={handleFileChange}
+                      disabled={isUploading}
+                    />
+                    {file && (
+                      <p className="text-xs text-muted-foreground">Selected: {file.name}</p>
+                    )}
+                  </div>
+                  
+                  {uploadStatus !== 'idle' && (
+                    <div className="space-y-2">
+                      <Progress value={getUploadStatusProgress()} className={uploadStatus === 'error' ? 'bg-red-200' : ''} />
+                      <p className="text-xs text-muted-foreground">
+                        {uploadStatus === 'validating' && 'Validating file...'}
+                        {uploadStatus === 'uploading' && 'Uploading and processing accounts...'}
+                        {uploadStatus === 'success' && 'Import successful!'}
+                        {uploadStatus === 'error' && 'Import failed. Please check the file and try again.'}
+                      </p>
+                    </div>
                   )}
                 </div>
-                
-                {uploadStatus !== 'idle' && (
-                  <div className="space-y-2">
-                    <Progress value={getUploadStatusProgress()} className={uploadStatus === 'error' ? 'bg-red-200' : ''} />
-                    <p className="text-xs text-muted-foreground">
-                      {uploadStatus === 'validating' && 'Validating file...'}
-                      {uploadStatus === 'uploading' && 'Uploading and processing accounts...'}
-                      {uploadStatus === 'success' && 'Import successful!'}
-                      {uploadStatus === 'error' && 'Import failed. Please check the file and try again.'}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-  
-        <div className="mt-2 flex items-center justify-start">
-          <Button variant="link" className="p-0 h-auto" onClick={handleDownloadTemplate}>
-            Download the template <Download className="ml-1 h-4 w-4" />
-          </Button>
-        </div>
+              </CardContent>
+            </Card>
+          </div>
+    
+          <div className="mt-2 flex items-center justify-start">
+            <Button variant="link" className="p-0 h-auto" onClick={handleDownloadTemplate}>
+              Download the template <Download className="ml-1 h-4 w-4" />
+            </Button>
+          </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleImport} 
-            disabled={!file || isUploading}
-            className={isUploading ? 'opacity-80' : ''}
-          >
-            {isUploading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Importing...
-              </>
-            ) : (
-              <>
-                <FileUp className="mr-2 h-4 w-4" />
-                Import Accounts
-              </>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleImport} 
+              disabled={!file || isUploading}
+              className={isUploading ? 'opacity-80' : ''}
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                <>
+                  <FileUp className="mr-2 h-4 w-4" />
+                  Import Accounts
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Results Dialog */}
+      <Dialog open={showResultsDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Import Results</DialogTitle>
+            <DialogDescription>
+              {importResults && (
+                <div className="space-y-2">
+                  <div className="flex space-x-4">
+                    <div className="flex items-center text-green-600">
+                      <Check className="h-5 w-5 mr-1" />
+                      <span className="font-semibold">{importResults.results.success} Successful</span>
+                    </div>
+                    {importResults.results.failures > 0 && (
+                      <div className="flex items-center text-amber-600">
+                        <AlertTriangle className="h-5 w-5 mr-1" />
+                        <span className="font-semibold">{importResults.results.failures} Failed</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {importResults.results.failures > 0 && (
+                    <div className="mt-4">
+                      <h4 className="font-semibold">Errors</h4>
+                      <div className="max-h-64 overflow-y-auto mt-2 border rounded-md">
+                        <table className="min-w-full">
+                          <thead className="bg-muted">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-xs font-semibold">Row</th>
+                              <th className="px-4 py-2 text-left text-xs font-semibold">Account</th>
+                              <th className="px-4 py-2 text-left text-xs font-semibold">Error</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {importResults.results.errors.map((error: any, index: number) => (
+                              <tr key={index} className="bg-card">
+                                <td className="px-4 py-2 text-sm">{error.row}</td>
+                                <td className="px-4 py-2 text-sm">{error.accountName}</td>
+                                <td className="px-4 py-2 text-sm text-red-600">{error.error}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => {
+              setShowResultsDialog(false);
+              if (importResults?.results.success > 0) {
+                onClose(); // Close the main dialog if there was a successful import
+              }
+            }}>
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
