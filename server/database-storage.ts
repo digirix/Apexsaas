@@ -1729,6 +1729,61 @@ export class DatabaseStorage implements IStorage {
       ));
     return account;
   }
+  
+  async generateAccountCode(tenantId: number, detailedGroupId: number, accountType: string): Promise<string> {
+    try {
+      // Get the detailed group
+      const [detailedGroup] = await db.select().from(chartOfAccountsDetailedGroups)
+        .where(and(
+          eq(chartOfAccountsDetailedGroups.id, detailedGroupId),
+          eq(chartOfAccountsDetailedGroups.tenantId, tenantId)
+        ));
+      
+      if (!detailedGroup) {
+        console.warn(`Detailed group with ID ${detailedGroupId} not found for tenant ${tenantId}`);
+        return `AC-${Date.now().toString().slice(-6)}`;
+      }
+      
+      // Get the sub-element group
+      const [subElementGroup] = await db.select().from(chartOfAccountsSubElementGroups)
+        .where(and(
+          eq(chartOfAccountsSubElementGroups.id, detailedGroup.subElementGroupId),
+          eq(chartOfAccountsSubElementGroups.tenantId, tenantId)
+        ));
+      
+      if (!subElementGroup) {
+        console.warn(`Sub-element group not found for detailed group ${detailedGroupId}`);
+        return `${detailedGroup.code}-${Date.now().toString().slice(-6)}`;
+      }
+      
+      // Get the element group
+      const [elementGroup] = await db.select().from(chartOfAccountsElementGroups)
+        .where(and(
+          eq(chartOfAccountsElementGroups.id, subElementGroup.elementGroupId),
+          eq(chartOfAccountsElementGroups.tenantId, tenantId)
+        ));
+      
+      if (!elementGroup) {
+        console.warn(`Element group not found for sub-element group ${subElementGroup.id}`);
+        return `${subElementGroup.code}-${Date.now().toString().slice(-6)}`;
+      }
+      
+      // Generate base code from the hierarchy
+      const baseCode = `${elementGroup.code}.${subElementGroup.code}.${detailedGroup.code}`;
+      
+      // Get existing accounts for this detailed group
+      const existingAccounts = await this.getChartOfAccounts(tenantId, accountType, detailedGroupId);
+      
+      // Generate next number in sequence with a buffer (+10) to avoid conflicts with reactivated accounts
+      const nextNumber = (existingAccounts.length + 1 + 10).toString().padStart(3, '0');
+      
+      // Return full account code
+      return `${baseCode}.${nextNumber}`;
+    } catch (error) {
+      console.error("Error generating account code:", error);
+      return `AC-${Date.now().toString().slice(-6)}`;
+    }
+  }
 
   async createChartOfAccount(account: InsertChartOfAccount): Promise<ChartOfAccount> {
     try {
