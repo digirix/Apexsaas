@@ -4193,6 +4193,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add detailed logging
       console.log(`Starting CSV import for tenant ${tenantId} with ${accountsData.length} accounts`);
       
+      // Get all taxonomy data up front to avoid repeated database calls
+      console.log("Prefetching all account taxonomy data");
+      
+      // Get all element groups for this tenant
+      const allElementGroups = await storage.getChartOfAccountsElementGroups(tenantId);
+      
+      // Get all sub-element groups for this tenant
+      const allSubElementGroups = await storage.getChartOfAccountsSubElementGroups(tenantId);
+      
+      // Get all detailed groups for this tenant
+      const allDetailedGroups = await storage.getChartOfAccountsDetailedGroups(tenantId);
+      
+      console.log(`Prefetched ${allElementGroups.length} element groups, ${allSubElementGroups.length} sub-element groups, and ${allDetailedGroups.length} detailed groups`);
+      
       // Process each account
       for (const accountRow of accountsData) {
         try {
@@ -4207,92 +4221,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // Find the element group by name (case-insensitive)
-          // First try an exact match
-          let elementGroups = await storage.getChartOfAccountsElementGroupByName(tenantId, accountRow.elementGroupName);
+          // Filter locally from prefetched data
+          const normalizedElementName = accountRow.elementGroupName.toLowerCase().trim();
+          let matchingElementGroups = allElementGroups.filter(eg => 
+            eg.name.toLowerCase() === normalizedElementName
+          );
           
-          // If no exact match, try case-insensitive match
-          if (!elementGroups || elementGroups.length === 0) {
-            // Get all element groups and filter case-insensitively
-            const allElementGroups = await storage.getChartOfAccountsElementGroups(tenantId);
-            if (allElementGroups && allElementGroups.length > 0) {
-              elementGroups = allElementGroups.filter(eg => 
-                eg.name.toLowerCase() === accountRow.elementGroupName.toLowerCase()
-              );
+          // Try alternative names (singular/plural variations)
+          if (matchingElementGroups.length === 0) {
+            let alternativeName = normalizedElementName;
+            
+            if (normalizedElementName === 'income') {
+              alternativeName = 'incomes';
+            } else if (normalizedElementName === 'incomes') {
+              alternativeName = 'income';
+            } else if (normalizedElementName === 'expense') {
+              alternativeName = 'expenses';
+            } else if (normalizedElementName === 'expenses') {
+              alternativeName = 'expense';
+            } else if (normalizedElementName === 'asset') {
+              alternativeName = 'assets';
+            } else if (normalizedElementName === 'assets') {
+              alternativeName = 'asset';
+            } else if (normalizedElementName === 'liability') {
+              alternativeName = 'liabilities';
+            } else if (normalizedElementName === 'liabilities') {
+              alternativeName = 'liability';
             }
+            
+            matchingElementGroups = allElementGroups.filter(eg => 
+              eg.name.toLowerCase() === alternativeName
+            );
           }
           
-          console.log(`Element groups found: ${elementGroups?.length || 0}`);
+          console.log(`Element groups found: ${matchingElementGroups.length}`);
             
-          if (!elementGroups || elementGroups.length === 0) {
+          if (matchingElementGroups.length === 0) {
             results.failed++;
             results.errors.push(`Element group "${accountRow.elementGroupName}" not found for account "${accountRow.accountName}"`);
             console.log(`Element group "${accountRow.elementGroupName}" not found for account "${accountRow.accountName}"`);
             continue;
           }
           
+          const selectedElementGroup = matchingElementGroups[0];
+          
           // Find the sub-element group by name and element group
-          const subElementGroups = await storage.getChartOfAccountsSubElementGroupByName(
-            tenantId,
-            accountRow.subElementGroupName,
-            elementGroups[0].id
+          const normalizedSubElementName = accountRow.subElementGroupName.toLowerCase().replace(/ /g, '_');
+          
+          // First try direct match with the selected element group
+          let matchingSubElementGroups = allSubElementGroups.filter(seg => 
+            seg.name.toLowerCase() === normalizedSubElementName && 
+            seg.elementGroupId === selectedElementGroup.id
           );
           
-          console.log(`Sub-element groups found: ${subElementGroups?.length || 0}`);
+          // Try alternative names for sub-element groups
+          if (matchingSubElementGroups.length === 0) {
+            if (normalizedSubElementName === 'operating_expenses' || normalizedSubElementName === 'direct_costs') {
+              // Try cost_of_service_revenue 
+              matchingSubElementGroups = allSubElementGroups.filter(seg => 
+                seg.name.toLowerCase() === 'cost_of_service_revenue' && 
+                seg.elementGroupId === selectedElementGroup.id
+              );
+            }
+          }
           
-          if (!subElementGroups || subElementGroups.length === 0) {
+          console.log(`Sub-element groups found: ${matchingSubElementGroups.length}`);
+          
+          // If still not found, try to get any sub-element group for this element group
+          if (matchingSubElementGroups.length === 0) {
+            matchingSubElementGroups = allSubElementGroups.filter(seg => 
+              seg.elementGroupId === selectedElementGroup.id
+            );
+            
+            if (matchingSubElementGroups.length > 0) {
+              console.log(`Using alternate sub-element group: ${matchingSubElementGroups[0].name}`);
+            }
+          }
+          
+          if (matchingSubElementGroups.length === 0) {
             results.failed++;
             results.errors.push(`Sub-element group "${accountRow.subElementGroupName}" not found for account "${accountRow.accountName}"`);
             console.log(`Sub-element group "${accountRow.subElementGroupName}" not found for account "${accountRow.accountName}"`);
             continue;
           }
           
+          const selectedSubElementGroup = matchingSubElementGroups[0];
+          
           // Find the detailed group by name and sub element group ID
-          const detailedGroups = await storage.getChartOfAccountsDetailedGroupByName(
-            tenantId,
-            accountRow.detailedGroupName,
-            subElementGroups[0].id
+          const normalizedDetailedName = accountRow.detailedGroupName.toLowerCase().replace(/ /g, '_');
+          
+          // First try direct match
+          let matchingDetailedGroups = allDetailedGroups.filter(dg => 
+            dg.name.toLowerCase() === normalizedDetailedName && 
+            dg.subElementGroupId === selectedSubElementGroup.id
           );
           
-          console.log(`Detailed groups found: ${detailedGroups?.length || 0}`);
+          // Try alternatives for expense groups
+          if (matchingDetailedGroups.length === 0 && normalizedDetailedName === 'operating_expenses') {
+            // Try cost_of_service_revenue for expenses
+            matchingDetailedGroups = allDetailedGroups.filter(dg => 
+              dg.name.toLowerCase() === 'cost_of_service_revenue' && 
+              dg.subElementGroupId === selectedSubElementGroup.id
+            );
+          }
           
-          let finalDetailedGroups = detailedGroups;
+          // Try 'custom' as fallback
+          if (matchingDetailedGroups.length === 0) {
+            matchingDetailedGroups = allDetailedGroups.filter(dg => 
+              dg.name.toLowerCase() === 'custom' && 
+              dg.subElementGroupId === selectedSubElementGroup.id
+            );
+          }
           
-          if (!detailedGroups || detailedGroups.length === 0) {
-            console.log(`Detailed group "${accountRow.detailedGroupName}" not found, using custom group fallback`);
+          // Last resort - just get any detailed group for this sub-element
+          if (matchingDetailedGroups.length === 0) {
+            matchingDetailedGroups = allDetailedGroups.filter(dg => 
+              dg.subElementGroupId === selectedSubElementGroup.id
+            );
             
-            // If detailed group not found and using 'custom', create or find a custom detailed group
-            if (accountRow.detailedGroupName === 'custom') {
-              // Get or create a custom detailed group for this sub element group
-              const customDetailedGroups = await storage.getChartOfAccountsDetailedGroupByName(
-                tenantId,
-                'custom',
-                subElementGroups[0].id
-              );
-              
-              if (customDetailedGroups && customDetailedGroups.length > 0) {
-                console.log(`Using existing custom detailed group`);
-                finalDetailedGroups = customDetailedGroups;
-              } else {
-                results.failed++;
-                results.errors.push(`Custom detailed group not found for account "${accountRow.accountName}"`);
-                console.log(`Custom detailed group not found for account "${accountRow.accountName}"`);
-                continue;
-              }
-            } else {
-              results.failed++;
-              results.errors.push(`Detailed group "${accountRow.detailedGroupName}" not found for account "${accountRow.accountName}"`);
-              console.log(`Detailed group "${accountRow.detailedGroupName}" not found for account "${accountRow.accountName}"`);
-              continue;
+            if (matchingDetailedGroups.length > 0) {
+              console.log(`Using first available detailed group: ${matchingDetailedGroups[0].name}`);
             }
           }
           
+          console.log(`Detailed groups found: ${matchingDetailedGroups.length}`);
+          
+          if (matchingDetailedGroups.length === 0) {
+            results.failed++;
+            results.errors.push(`No suitable detailed group found for account "${accountRow.accountName}"`);
+            console.log(`No suitable detailed group found for account "${accountRow.accountName}"`);
+            continue;
+          }
+          
+          const selectedDetailedGroup = matchingDetailedGroups[0];
+          
           // Determine account type based on element group name
           let accountType = "asset"; // Default
-          switch(elementGroups[0].name.toLowerCase()) {
+          switch(selectedElementGroup.name.toLowerCase()) {
             case "assets":
+            case "asset":  
               accountType = "asset";
               break;
             case "liabilities":
+            case "liability":
               accountType = "liability";
               break;
             case "equity":
@@ -4312,14 +4383,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Generate account code
           const accountCode = await storage.generateAccountCode(
             tenantId,
-            finalDetailedGroups[0].id,
+            selectedDetailedGroup.id,
             accountType
           );
           
           // Create account with properly typed data
           const accountData = {
             tenantId,
-            detailedGroupId: finalDetailedGroups[0].id,
+            detailedGroupId: selectedDetailedGroup.id,
             accountName: accountRow.accountName,
             accountCode,
             accountType: accountType as "asset" | "liability" | "equity" | "revenue" | "expense",
@@ -4336,6 +4407,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           results.successful++;
           results.accounts.push(newAccount);
+          console.log(`Successfully created account: ${accountRow.accountName} with code ${accountCode}`);
+          
         } catch (err) {
           console.error("Error processing account row:", err);
           results.failed++;

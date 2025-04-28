@@ -1739,58 +1739,80 @@ export class DatabaseStorage implements IStorage {
     
     console.log(`Looking for detailed group with name: "${normalizedName}" under subElementGroupId: ${subElementGroupId}`);
     
-    // First attempt an exact match
-    const detailedGroups = await db.select()
-      .from(chartOfAccountsDetailedGroups)
-      .where(and(
-        eq(chartOfAccountsDetailedGroups.tenantId, tenantId),
-        eq(chartOfAccountsDetailedGroups.name, normalizedName),
-        eq(chartOfAccountsDetailedGroups.subElementGroupId, subElementGroupId)
-      ))
-      .orderBy(asc(chartOfAccountsDetailedGroups.code));
-    
-    if (detailedGroups.length > 0) {
-      console.log(`Found ${detailedGroups.length} detailed groups with exact match for "${normalizedName}"`);
-      return detailedGroups;
-    }
-    
-    // Special handling for common expense group name variants
-    if (normalizedName === 'operating_expenses') {
-      console.log(`"operating_expenses" detected, trying "cost_of_service_revenue" instead`);
-      const expenseGroups = await db.select()
+    try {
+      // First attempt - get all detailed groups for this tenant and sub-element group
+      const allDetailedGroups = await db.select()
         .from(chartOfAccountsDetailedGroups)
         .where(and(
           eq(chartOfAccountsDetailedGroups.tenantId, tenantId),
-          eq(chartOfAccountsDetailedGroups.name, 'cost_of_service_revenue'),
           eq(chartOfAccountsDetailedGroups.subElementGroupId, subElementGroupId)
         ))
         .orderBy(asc(chartOfAccountsDetailedGroups.code));
-        
-      if (expenseGroups.length > 0) {
-        console.log(`Found ${expenseGroups.length} "cost_of_service_revenue" groups as alternative to "operating_expenses"`);
-        return expenseGroups;
+      
+      // Filter matching groups in JS to avoid database enum constraints
+      const exactMatches = allDetailedGroups.filter(group => group.name === normalizedName);
+      
+      if (exactMatches.length > 0) {
+        console.log(`Found ${exactMatches.length} detailed groups with exact match for "${normalizedName}"`);
+        return exactMatches;
       }
+      
+      // Special handling for expense groups - look for cost_of_service_revenue
+      if (normalizedName === 'operating_expenses' || normalizedName === 'direct_costs') {
+        console.log(`"${normalizedName}" detected, looking for "cost_of_service_revenue" instead`);
+        
+        const alternativeMatches = allDetailedGroups.filter(group => 
+          group.name === 'cost_of_service_revenue'
+        );
+        
+        if (alternativeMatches.length > 0) {
+          console.log(`Found ${alternativeMatches.length} "cost_of_service_revenue" groups as alternative`);
+          return alternativeMatches;
+        }
+      }
+      
+      // If no results, look for 'custom' detailed group
+      console.log(`No exact match found for "${normalizedName}", looking for 'custom' detailed group`);
+      const customGroups = allDetailedGroups.filter(group => group.name === 'custom');
+      
+      if (customGroups.length > 0) {
+        console.log(`Found ${customGroups.length} 'custom' detailed groups as fallback`);
+        return customGroups;
+      }
+      
+      // If still no results, just return the first available group as a last resort
+      if (allDetailedGroups.length > 0) {
+        console.log(`No matching group found, using first available detailed group as last resort`);
+        return [allDetailedGroups[0]];
+      }
+      
+      // Nothing found at all
+      console.log(`No detailed groups found under subElementGroupId: ${subElementGroupId}`);
+      return [];
+      
+    } catch (error) {
+      console.error(`Error finding detailed group: ${error.message}`);
+      
+      // As a last-ditch effort, try to get any 'custom' detailed group for this tenant
+      try {
+        const fallbackGroups = await db.select()
+          .from(chartOfAccountsDetailedGroups)
+          .where(and(
+            eq(chartOfAccountsDetailedGroups.tenantId, tenantId),
+            eq(chartOfAccountsDetailedGroups.name, 'custom')
+          ))
+          .limit(1);
+          
+        if (fallbackGroups.length > 0) {
+          console.log(`Found fallback 'custom' group outside of sub-element: ${fallbackGroups[0].id}`);
+          return fallbackGroups;
+        }
+      } catch (fallbackError) {
+        console.error(`Fallback error: ${fallbackError.message}`);
+      }
+      
+      return [];
     }
-    
-    // If no results, try the 'custom' detailed group under this sub-element group
-    console.log(`No exact match found for "${normalizedName}", looking for 'custom' detailed group`);
-    const customDetailedGroups = await db.select()
-      .from(chartOfAccountsDetailedGroups)
-      .where(and(
-        eq(chartOfAccountsDetailedGroups.tenantId, tenantId),
-        eq(chartOfAccountsDetailedGroups.name, 'custom'),
-        eq(chartOfAccountsDetailedGroups.subElementGroupId, subElementGroupId)
-      ))
-      .orderBy(asc(chartOfAccountsDetailedGroups.code));
-    
-    // Log the result for debugging
-    if (customDetailedGroups.length > 0) {
-      console.log(`Found ${customDetailedGroups.length} 'custom' detailed groups as fallback`);
-    } else {
-      console.log(`No 'custom' detailed group found under subElementGroupId: ${subElementGroupId}`);
-    }
-    
-    return customDetailedGroups;
   }
 
   async getChartOfAccountsDetailedGroup(id: number, tenantId: number): Promise<any | undefined> {
