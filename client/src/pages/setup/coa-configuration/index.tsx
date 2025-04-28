@@ -1234,7 +1234,7 @@ export default function COAConfigurationPage() {
                       <FormLabel>Sub Element Group</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        value={field.value}
                         disabled={!watchElementGroup}
                       >
                         <FormControl>
@@ -1263,7 +1263,7 @@ export default function COAConfigurationPage() {
                       <FormLabel>Detailed Group</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        value={field.value}
                         disabled={!watchSubElementGroup}
                       >
                         <FormControl>
@@ -1757,7 +1757,7 @@ export default function COAConfigurationPage() {
                       <FormLabel>Element Group</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        value={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -1877,7 +1877,7 @@ export default function COAConfigurationPage() {
                       <FormLabel>Sub Element Group</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        value={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
