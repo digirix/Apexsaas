@@ -167,6 +167,22 @@ export default function COAConfigurationPage() {
   const [accountsState, setAccountsState] = useState<ChartOfAccount[]>([]);
   const [filteredAccounts, setFilteredAccounts] = useState<ChartOfAccount[]>([]);
   
+  // Handle create actions
+  const handleCreate = () => {
+    chartOfAccountForm.reset();
+    setCreateDialogOpen(true);
+  };
+  
+  const handleCreateSubElementGroup = () => {
+    subElementGroupForm.reset();
+    setCreateSubElementGroupDialogOpen(true);
+  };
+  
+  const handleCreateDetailedGroup = () => {
+    detailedGroupForm.reset();
+    setCreateDetailedGroupDialogOpen(true);
+  };
+  
   // Query data
   const { data: mainGroups = [], isLoading: isLoadingMainGroups } = useQuery<ChartOfAccountsMainGroup[]>({
     queryKey: ['/api/v1/finance/chart-of-accounts/main-groups'],
@@ -619,7 +635,7 @@ export default function COAConfigurationPage() {
                   <>
                     <Button 
                       variant="outline" 
-                      onClick={() => setCreateSubElementGroupDialogOpen(true)}
+                      onClick={handleCreateSubElementGroup}
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Add Sub Element Group
@@ -1114,7 +1130,582 @@ export default function COAConfigurationPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Other existing dialogs would go here */}
+      {/* Create Chart of Account Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Add New Account</DialogTitle>
+            <DialogDescription>
+              Create a new account in your chart of accounts
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...chartOfAccountForm}>
+            <form onSubmit={chartOfAccountForm.handleSubmit((values) => {
+              // Create chart of account mutation
+              const detailedGroupId = parseInt(values.detailedGroup);
+              const detailedGroup = detailedGroups.find(dg => dg.id === detailedGroupId);
+              const subElementGroup = subElementGroups.find(seg => seg.id === detailedGroup?.subElementGroupId);
+              const elementGroup = elementGroups.find(eg => eg.id === subElementGroup?.elementGroupId);
+              const mainGroup = elementGroup ? 
+                mainGroups.find(mg => mg.id === elementGroup.mainGroupId) : undefined;
+              
+              let accountType = "asset"; // Default
+              
+              if (elementGroup) {
+                switch(elementGroup.name.toLowerCase()) {
+                  case "assets":
+                    accountType = "asset";
+                    break;
+                  case "liabilities":
+                    accountType = "liability";
+                    break;
+                  case "equity":
+                    accountType = "equity";
+                    break;
+                  case "incomes":
+                    accountType = "revenue";
+                    break;
+                  case "expenses":
+                    accountType = "expense";
+                    break;
+                }
+              }
+              
+              // API request to create account
+              apiRequest(
+                'POST',
+                `/api/v1/finance/chart-of-accounts`,
+                {
+                  detailedGroupId,
+                  accountName: values.accountName,
+                  accountType,
+                  description: values.description || null,
+                }
+              ).then(() => {
+                toast({
+                  title: "Success",
+                  description: "Account created successfully",
+                });
+                setCreateDialogOpen(false);
+                chartOfAccountForm.reset();
+                queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });
+              }).catch(error => {
+                toast({
+                  title: "Error",
+                  description: error.message || "Failed to create account",
+                  variant: "destructive",
+                });
+              });
+            })}>
+              <div className="grid gap-4 py-4">
+                <FormField
+                  control={chartOfAccountForm.control}
+                  name="elementGroup"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Element Group</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Element Group" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {filteredElementGroups.map((group) => (
+                            <SelectItem key={group.id} value={group.id.toString()}>
+                              {group.name.charAt(0).toUpperCase() + group.name.slice(1)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={chartOfAccountForm.control}
+                  name="subElementGroup"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Sub Element Group</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        disabled={!watchElementGroup}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Sub Element Group" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {filteredSubElementGroups.map((group) => (
+                            <SelectItem key={group.id} value={group.id.toString()}>
+                              {group.customName || group.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={chartOfAccountForm.control}
+                  name="detailedGroup"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Detailed Group</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        disabled={!watchSubElementGroup}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Detailed Group" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {filteredDetailedGroups.map((group) => (
+                            <SelectItem key={group.id} value={group.id.toString()}>
+                              {group.customName || group.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={chartOfAccountForm.control}
+                  name="accountName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Account Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter account name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={chartOfAccountForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Enter description (optional)" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="submit">Create Account</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Sub Element Group Dialog */}
+      <Dialog open={createSubElementGroupDialogOpen} onOpenChange={setCreateSubElementGroupDialogOpen}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Add New Sub Element Group</DialogTitle>
+            <DialogDescription>
+              Create a new sub element group for your chart of accounts
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...subElementGroupForm}>
+            <form onSubmit={subElementGroupForm.handleSubmit((values) => {
+              // Create sub element group mutation  
+              const elementGroupId = parseInt(values.elementGroup);
+              
+              apiRequest(
+                'POST',
+                `/api/v1/finance/chart-of-accounts/sub-element-groups`,
+                {
+                  elementGroupId,
+                  name: "custom", // Always use 'custom' as enum value
+                  customName: values.name, // Store actual name in customName field
+                  code: values.code,
+                  description: values.description || null,
+                }
+              ).then(() => {
+                toast({
+                  title: "Success",
+                  description: "Sub Element Group created successfully",
+                });
+                setCreateSubElementGroupDialogOpen(false);
+                subElementGroupForm.reset();
+                queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/sub-element-groups'] });
+              }).catch(error => {
+                toast({
+                  title: "Error",
+                  description: error.message || "Failed to create sub element group",
+                  variant: "destructive",
+                });
+              });
+            })}>
+              <div className="grid gap-4 py-4">
+                <FormField
+                  control={subElementGroupForm.control}
+                  name="elementGroup"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Element Group</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Element Group" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {elementGroups.map((group) => (
+                            <SelectItem key={group.id} value={group.id.toString()}>
+                              {group.name.charAt(0).toUpperCase() + group.name.slice(1)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={subElementGroupForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={subElementGroupForm.control}
+                  name="customName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Custom Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter custom name (optional)" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={subElementGroupForm.control}
+                  name="code"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Code</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter code" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={subElementGroupForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Enter description (optional)" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="submit">Create Sub Element Group</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Detailed Group Dialog */}
+      <Dialog open={createDetailedGroupDialogOpen} onOpenChange={setCreateDetailedGroupDialogOpen}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Add New Detailed Group</DialogTitle>
+            <DialogDescription>
+              Create a new detailed group for your chart of accounts
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...detailedGroupForm}>
+            <form onSubmit={detailedGroupForm.handleSubmit((values) => {
+              // Create detailed group mutation
+              const subElementGroupId = parseInt(values.subElementGroup);
+              
+              apiRequest(
+                'POST',
+                `/api/v1/finance/chart-of-accounts/detailed-groups`,
+                {
+                  subElementGroupId,
+                  name: "custom", // Always use 'custom' as enum value
+                  customName: values.name, // Store actual name in customName field
+                  code: values.code,
+                  description: values.description || null,
+                }
+              ).then(() => {
+                toast({
+                  title: "Success",
+                  description: "Detailed Group created successfully",
+                });
+                setCreateDetailedGroupDialogOpen(false);
+                detailedGroupForm.reset();
+                queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups'] });
+              }).catch(error => {
+                toast({
+                  title: "Error",
+                  description: error.message || "Failed to create detailed group",
+                  variant: "destructive",
+                });
+              });
+            })}>
+              <div className="grid gap-4 py-4">
+                <FormField
+                  control={detailedGroupForm.control}
+                  name="subElementGroup"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Sub Element Group</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Sub Element Group" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {subElementGroups.map((group) => (
+                            <SelectItem key={group.id} value={group.id.toString()}>
+                              {group.customName || group.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={detailedGroupForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={detailedGroupForm.control}
+                  name="customName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Custom Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter custom name (optional)" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={detailedGroupForm.control}
+                  name="code"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Code</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter code" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={detailedGroupForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Enter description (optional)" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="submit">Create Detailed Group</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialogs */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Account</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the account "{currentItem?.accountName}"?
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {deleteError && (
+            <div className="bg-destructive/15 p-3 rounded-md mb-4 text-sm text-destructive">
+              {deleteError}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteConfirm}
+              disabled={deleteChartOfAccountMutation.isPending}
+            >
+              {deleteChartOfAccountMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteSubElementGroupDialogOpen} onOpenChange={setDeleteSubElementGroupDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Sub Element Group</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the sub element group "{currentSubElementGroup?.customName || currentSubElementGroup?.name}"?
+              This action cannot be undone and may affect related detailed groups and accounts.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteSubElementGroupDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                if (!currentSubElementGroup) return;
+                
+                apiRequest(
+                  'DELETE',
+                  `/api/v1/finance/chart-of-accounts/sub-element-groups/${currentSubElementGroup.id}`
+                ).then(() => {
+                  toast({
+                    title: "Success",
+                    description: "Sub Element Group deleted successfully",
+                  });
+                  setDeleteSubElementGroupDialogOpen(false);
+                  queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/sub-element-groups'] });
+                }).catch(error => {
+                  toast({
+                    title: "Error",
+                    description: error.message || "Failed to delete sub element group",
+                    variant: "destructive",
+                  });
+                });
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteDetailedGroupDialogOpen} onOpenChange={setDeleteDetailedGroupDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Detailed Group</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the detailed group "{currentDetailedGroup?.customName || currentDetailedGroup?.name}"?
+              This action cannot be undone and may affect related accounts.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDetailedGroupDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                if (!currentDetailedGroup) return;
+                
+                apiRequest(
+                  'DELETE',
+                  `/api/v1/finance/chart-of-accounts/detailed-groups/${currentDetailedGroup.id}`
+                ).then(() => {
+                  toast({
+                    title: "Success",
+                    description: "Detailed Group deleted successfully",
+                  });
+                  setDeleteDetailedGroupDialogOpen(false);
+                  queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups'] });
+                }).catch(error => {
+                  toast({
+                    title: "Error",
+                    description: error.message || "Failed to delete detailed group",
+                    variant: "destructive",
+                  });
+                });
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
