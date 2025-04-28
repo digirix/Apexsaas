@@ -237,6 +237,7 @@ export interface IStorage {
   getChartOfAccounts(tenantId: number, accountType?: string, detailedGroupId?: number): Promise<ChartOfAccount[]>;
   getChartOfAccount(id: number, tenantId: number): Promise<ChartOfAccount | undefined>;
   getChartOfAccountByCode(accountCode: string, tenantId: number): Promise<ChartOfAccount | undefined>;
+  generateAccountCode(tenantId: number, detailedGroupId: number, accountType: string): Promise<string>;
   createChartOfAccount(account: InsertChartOfAccount): Promise<ChartOfAccount>;
   updateChartOfAccount(id: number, account: Partial<InsertChartOfAccount>): Promise<ChartOfAccount | undefined>;
   deleteChartOfAccount(id: number, tenantId: number): Promise<boolean>;
@@ -1839,6 +1840,44 @@ export class MemStorage implements IStorage {
     return accounts.find(
       account => account.accountCode === accountCode && account.tenantId === tenantId
     );
+  }
+  
+  async generateAccountCode(tenantId: number, detailedGroupId: number, accountType: string): Promise<string> {
+    // Get the detailed group
+    const detailedGroups = await this.getChartOfAccountsDetailedGroups(tenantId);
+    const detailedGroup = detailedGroups.find(dg => dg.id === detailedGroupId);
+    
+    if (!detailedGroup) {
+      return `AC-${Date.now().toString().slice(-6)}`;
+    }
+    
+    // Get the sub-element group
+    const subElementGroups = await this.getChartOfAccountsSubElementGroups(tenantId);
+    const subElementGroup = subElementGroups.find(seg => seg.id === detailedGroup.subElementGroupId);
+    
+    if (!subElementGroup) {
+      return `${detailedGroup.code}-${Date.now().toString().slice(-6)}`;
+    }
+    
+    // Get the element group
+    const elementGroups = await this.getChartOfAccountsElementGroups(tenantId);
+    const elementGroup = elementGroups.find(eg => eg.id === subElementGroup.elementGroupId);
+    
+    if (!elementGroup) {
+      return `${subElementGroup.code}-${Date.now().toString().slice(-6)}`;
+    }
+    
+    // Generate base code
+    const baseCode = `${elementGroup.code}.${subElementGroup.code}.${detailedGroup.code}`;
+    
+    // Get existing accounts for this detailed group
+    const existingAccounts = await this.getChartOfAccounts(tenantId, accountType);
+    const accountsInGroup = existingAccounts.filter(acc => acc.detailedGroupId === detailedGroupId);
+    
+    // Generate next number in sequence with a buffer (+10) to avoid conflicts with reactivated accounts
+    const nextNumber = (accountsInGroup.length + 1 + 10).toString().padStart(3, '0');
+    
+    return `${baseCode}.${nextNumber}`;
   }
   
   async createChartOfAccount(account: InsertChartOfAccount): Promise<ChartOfAccount> {
