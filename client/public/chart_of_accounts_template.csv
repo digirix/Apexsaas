@@ -7,7 +7,7 @@ Office Supplies,assets,current_assets,other_receivables,Supplies and consumables
 Accounts Payable,liabilities,current_liabilities,trade_creditors,Money owed to suppliers,12000.00
 Credit Card Payable,liabilities,current_liabilities,other_payables,Corporate credit card balance,3500.00
 Long Term Loan,liabilities,non_current_liabilities,long_term_loans,Business expansion loan,50000.00
-Sales Revenue,incomes,sales,sales_revenue,Income from primary services,0.00
-Consulting Revenue,incomes,service_revenue,service_revenue,Income from consulting services,0.00
-Rent Expense,expenses,cost_of_service_revenue,operating_expenses,Office space rental,0.00
-Utilities Expense,expenses,cost_of_service_revenue,operating_expenses,Electricity and water bills,0.00
+Sales Revenue,incomes,sales,custom,Income from primary services,0.00
+Consulting Revenue,incomes,service_revenue,custom,Income from consulting services,0.00
+Rent Expense,expenses,cost_of_service_revenue,custom,Office space rental,0.00
+Utilities Expense,expenses,cost_of_service_revenue,custom,Electricity and water bills,0.00
