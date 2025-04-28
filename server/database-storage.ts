@@ -1744,10 +1744,35 @@ export class DatabaseStorage implements IStorage {
         // Reactivate the existing account with new details
         console.log(`Reactivating existing inactive account: ${existingInactiveAccount.id} (${existingInactiveAccount.accountName})`);
         
+        // Check for existing account code to avoid uniqueness violation
+        const existingAccountWithCode = await db.select().from(chartOfAccounts)
+          .where(and(
+            eq(chartOfAccounts.accountCode, account.accountCode),
+            eq(chartOfAccounts.tenantId, account.tenantId),
+            eq(chartOfAccounts.isActive, true)
+          ));
+        
+        // Generate a unique account code if needed
+        let finalAccountCode = account.accountCode;
+        if (existingAccountWithCode.length > 0) {
+          // Generate a new account code with a suffix
+          const baseCode = account.accountCode.split('.').slice(0, -1).join('.');
+          const existingAccounts = await this.getChartOfAccounts(
+            account.tenantId, 
+            account.accountType, 
+            account.detailedGroupId,
+            false,  // Don't include system accounts
+            true    // Include inactive accounts
+          );
+          const nextNumber = (existingAccounts.length + 1).toString().padStart(3, '0');
+          finalAccountCode = `${baseCode}.${nextNumber}`;
+          console.log(`Generated new account code ${finalAccountCode} to avoid duplicate`);
+        }
+          
         const [reactivatedAccount] = await db.update(chartOfAccounts)
           .set({
             detailedGroupId: account.detailedGroupId,
-            accountCode: account.accountCode,
+            accountCode: finalAccountCode,
             accountType: account.accountType,
             description: account.description,
             isActive: true,
@@ -1760,7 +1785,32 @@ export class DatabaseStorage implements IStorage {
       }
       
       // If no inactive account exists, create a new one
-      const [newAccount] = await db.insert(chartOfAccounts).values(account).returning();
+      // But first check for account code uniqueness
+      const existingActiveAccountWithCode = await db.select().from(chartOfAccounts)
+        .where(and(
+          eq(chartOfAccounts.accountCode, account.accountCode),
+          eq(chartOfAccounts.tenantId, account.tenantId),
+          eq(chartOfAccounts.isActive, true)
+        ));
+        
+      // Generate a unique account code if needed
+      let finalAccount = {...account};
+      if (existingActiveAccountWithCode.length > 0) {
+        // Generate a new account code with a suffix
+        const baseCode = account.accountCode.split('.').slice(0, -1).join('.');
+        const existingAccounts = await this.getChartOfAccounts(
+          account.tenantId, 
+          account.accountType, 
+          account.detailedGroupId,
+          false,  // Don't include system accounts
+          true    // Include inactive accounts
+        );
+        const nextNumber = (existingAccounts.length + 1).toString().padStart(3, '0');
+        finalAccount.accountCode = `${baseCode}.${nextNumber}`;
+        console.log(`Generated new account code ${finalAccount.accountCode} to avoid duplicate for new account`);
+      }
+      
+      const [newAccount] = await db.insert(chartOfAccounts).values(finalAccount).returning();
       return newAccount;
     } catch (error) {
       console.error("Error in createChartOfAccount:", error);
