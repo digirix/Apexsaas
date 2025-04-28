@@ -3974,12 +3974,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const detailedGroupId = req.query.detailedGroupId ? parseInt(req.query.detailedGroupId as string) : undefined;
       // Add parameter to control whether system accounts are included (default to false)
       const includeSystemAccounts = req.query.includeSystemAccounts === 'true';
+      // Add parameter to control whether inactive accounts are included (default to false)
+      const includeInactive = req.query.includeInactive === 'true';
       
-      const accounts = await storage.getChartOfAccounts(tenantId, accountType, detailedGroupId, includeSystemAccounts);
+      console.log(`Query params: accountType=${accountType}, detailedGroupId=${detailedGroupId}, includeSystemAccounts=${includeSystemAccounts}, includeInactive=${includeInactive}`);
+      
+      // Call with explicit includeInactive parameter
+      const accounts = await storage.getChartOfAccounts(tenantId, accountType, detailedGroupId, includeSystemAccounts, includeInactive);
+      
       console.log(`Found ${accounts.length} accounts for tenant ${tenantId}`);
       if (accounts.length > 0) {
-        console.log(`First account tenantId: ${accounts[0].tenantId}`);
+        console.log(`First account tenantId: ${accounts[0].tenantId}, name: ${accounts[0].accountName}, isActive: ${accounts[0].isActive}`);
       }
+      
       res.json(accounts);
     } catch (error) {
       console.error("Error fetching accounts:", error);
@@ -4193,13 +4200,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          // Find the element group
-          const elementGroups = await db.select()
-            .from(chartOfAccountsElementGroups)
-            .where(and(
-              eq(chartOfAccountsElementGroups.tenantId, tenantId),
-              eq(chartOfAccountsElementGroups.name, accountRow.elementGroupName)
-            ));
+          // Find the element group by name
+          const elementGroups = await storage.getChartOfAccountsElementGroupByName(tenantId, accountRow.elementGroupName);
             
           if (!elementGroups || elementGroups.length === 0) {
             results.failed++;
@@ -4267,18 +4269,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             accountType
           );
           
-          // Create account
+          // Create account with properly typed data
           const accountData = {
             tenantId,
             detailedGroupId: detailedGroups[0].id,
             accountName: accountRow.accountName,
             accountCode,
-            accountType,
+            accountType: accountType as "asset" | "liability" | "equity" | "revenue" | "expense",
             description: accountRow.description || null,
             isActive: true,
             isSystemAccount: false,
-            openingBalance: accountRow.openingBalance || "0.00",
-            currentBalance: accountRow.openingBalance || "0.00",
+            openingBalance: accountRow.openingBalance?.toString() || "0.00",
+            currentBalance: accountRow.openingBalance?.toString() || "0.00",
+            userId: (req.user as any).id || null
           };
           
           // Save the account
