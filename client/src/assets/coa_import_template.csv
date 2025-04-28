@@ -1,13 +1,17 @@
 account_name,detailed_group_code,account_type,description,opening_balance
-Cash at Bank,BS-A-CA-CB,asset,Main bank account,1000.00
-Petty Cash,BS-A-CA-CB,asset,Office petty cash,200.00
-Trade Debtors,BS-A-CA-TD,asset,Customer receivables,0.00
-Office Equipment,BS-A-NCA-PPE,asset,Computers and furniture,5000.00
-Trade Creditors,BS-L-CL-TC,liability,Supplier payables,0.00
-VAT Payable,BS-L-CL-TP,liability,VAT due to tax authority,0.00
-Capital Account,BS-E-C-OC,equity,Owner's investment,5000.00
-Sales Revenue,IS-R-SR,revenue,Primary income,0.00
-Consulting Revenue,IS-R-OR,revenue,Consulting services,0.00
-Utilities Expense,IS-E-OE,expense,Electricity and water,0.00
-Rent Expense,IS-E-OE,expense,Office rent,0.00
-Salaries Expense,IS-E-OE,expense,Staff salaries,0.00
+Cash on Hand,1.1.1,asset,Cash available for daily operations,1000.00
+Main Checking Account,1.1.1,asset,Primary business checking account,5000.00
+Accounts Receivable,1.1.2,asset,Money owed by customers,2500.00
+Office Equipment,1.2.2,asset,Computers and furniture,3500.00
+Vehicle,1.2.3,asset,Company vehicle,15000.00
+Accounts Payable,2.1.1,liability,Money owed to vendors,1500.00
+Credit Card,2.1.1,liability,Company credit card balance,750.00
+Office Rent Payable,2.1.3,liability,Monthly office rent,2000.00
+Bank Loan,2.2.1,liability,Business expansion loan,10000.00
+Owner's Equity,3.1.1,equity,Owner's investment in the business,20000.00
+Retained Earnings,3.2.1,equity,Accumulated earnings,5000.00
+Service Revenue,4.1.1,revenue,Income from services provided,0.00
+Product Sales,4.1.2,revenue,Income from product sales,0.00
+Rent Expense,5.1.2,expense,Office rent,0.00
+Utilities Expense,5.1.2,expense,Electricity and water,0.00
+Salaries Expense,5.2.1,expense,Employee salaries,0.00
