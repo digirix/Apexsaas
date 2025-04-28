@@ -37,6 +37,7 @@ const Textarea = (props: any) => {
 };
 
 import { AppLayout } from "@/components/layout/app-layout";
+import { ChartOfAccountsImport } from "@/components/finance/chart-of-accounts-import";
 
 // Types for chart of accounts structure
 type ChartOfAccountsMainGroup = {
