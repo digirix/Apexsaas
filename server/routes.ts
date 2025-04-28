@@ -3970,16 +3970,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const tenantId = (req.user as any).tenantId;
       console.log(`Fetching chart of accounts for tenantId: ${tenantId}`);
+      
+      // Get query parameters with proper defaults
       const accountType = req.query.accountType as string | undefined;
       const detailedGroupId = req.query.detailedGroupId ? parseInt(req.query.detailedGroupId as string) : undefined;
-      // Add parameter to control whether system accounts are included (default to false)
       const includeSystemAccounts = req.query.includeSystemAccounts === 'true';
+      const includeInactive = req.query.includeInactive === 'true';
       
-      const accounts = await storage.getChartOfAccounts(tenantId, accountType, detailedGroupId, includeSystemAccounts);
+      // Get the accounts with proper filters
+      const accounts = await storage.getChartOfAccounts(
+        tenantId,
+        accountType, 
+        detailedGroupId, 
+        includeSystemAccounts,
+        includeInactive
+      );
+      
       console.log(`Found ${accounts.length} accounts for tenant ${tenantId}`);
-      if (accounts.length > 0) {
-        console.log(`First account tenantId: ${accounts[0].tenantId}`);
-      }
       res.json(accounts);
     } catch (error) {
       console.error("Error fetching accounts:", error);
@@ -4254,14 +4261,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log(`Generated account code: ${accountCode}`);
           
-          // Create account
+          // Create account with all required fields
           const accountData = {
             tenantId,
             detailedGroupId: detailedGroups[0].id,
             accountName: accountRow.accountName,
             accountCode,
-            accountType,
+            accountType: accountType as "asset" | "liability" | "equity" | "revenue" | "expense",
             description: accountRow.description || null,
+            openingBalance: accountRow.openingBalance || "0.00",
+            currentBalance: accountRow.openingBalance || "0.00",
             isActive: true,
             isSystemAccount: false
           };
@@ -4275,10 +4284,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (err) {
           console.error("Error processing account row:", err);
           results.failed++;
-          results.errors.push(`Error processing account "${accountRow.accountName || 'Unknown'}": ${err.message || 'Unknown error'}`);
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          results.errors.push(`Error processing account "${accountRow.accountName || 'Unknown'}": ${errorMessage}`);
         }
       }
       
+      // Even if some accounts failed, return success status with the results
+      // This shows which accounts were imported successfully and which had errors
       res.status(200).json(results);
     } catch (error) {
       console.error("Error processing CSV upload:", error);
