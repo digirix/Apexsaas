@@ -7,8 +7,6 @@ import { Link } from "wouter";
 import { ArrowLeft, Plus, Edit, Trash2, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { AppLayout } from "@/components/layout/app-layout";
-import { COAImportBasic } from "@/components/setup/coa-import-basic";
 
 import { 
   Card, CardHeader, CardTitle, CardDescription, CardContent 
@@ -37,6 +35,8 @@ const Textarea = (props: any) => {
   }
   return <BaseTextarea {...fixedProps} />;
 };
+
+import { AppLayout } from "@/components/layout/app-layout";
 
 // Types for chart of accounts structure
 type ChartOfAccountsMainGroup = {
@@ -116,7 +116,6 @@ export default function COAConfigurationPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState<ChartOfAccount | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   
@@ -976,9 +975,6 @@ export default function COAConfigurationPage() {
                 <Plus className="h-4 w-4 mr-1" />
                 Manage Detailed Groups
               </Button>
-              <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
-                Import Chart of Accounts
-              </Button>
               <Button onClick={handleCreate}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add New Account
@@ -1071,7 +1067,7 @@ export default function COAConfigurationPage() {
       </Card>
       
       {/* Sub Element Group Management Dialog */}
-      <Dialog open={subElementGroupDialogOpen}>
+      <Dialog open={subElementGroupDialogOpen} onOpenChange={setSubElementGroupDialogOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>Manage Sub Element Groups</DialogTitle>
@@ -1157,7 +1153,7 @@ export default function COAConfigurationPage() {
       </Dialog>
       
       {/* Create Sub Element Group Dialog */}
-      <Dialog open={createSubElementGroupDialogOpen}>
+      <Dialog open={createSubElementGroupDialogOpen} onOpenChange={setCreateSubElementGroupDialogOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>Add New Sub Element Group</DialogTitle>
@@ -1552,9 +1548,6 @@ export default function COAConfigurationPage() {
           </div>
         </DialogContent>
       </Dialog>
-      
-      {/* Import Chart of Accounts Dialog */}
-      <COAImportBasic open={importDialogOpen} onClose={() => setImportDialogOpen(false)} />
       
       {/* Create Detailed Group Dialog */}
       <Dialog open={createDetailedGroupDialogOpen} onOpenChange={setCreateDetailedGroupDialogOpen}>

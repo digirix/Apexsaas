@@ -42,12 +42,10 @@ import {
   Trash2, 
   Search,
   ArrowUpDown, 
-  FileText,
-  Upload
+  FileText 
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ChartOfAccountsImport } from '@/components/finance/chart-of-accounts-import';
 
 export default function ChartOfAccountsPage() {
   const [, navigate] = useLocation();
@@ -223,9 +221,8 @@ export default function ChartOfAccountsPage() {
         <CardContent>
           <Tabs defaultValue="accounts">
             <TabsList className="mb-4">
-              <TabsTrigger value="accounts" data-value="accounts">Accounts</TabsTrigger>
-              <TabsTrigger value="structure" data-value="structure">Structure</TabsTrigger>
-              <TabsTrigger value="import" data-value="import">Import</TabsTrigger>
+              <TabsTrigger value="accounts">Accounts</TabsTrigger>
+              <TabsTrigger value="structure">Structure</TabsTrigger>
             </TabsList>
 
             <TabsContent value="accounts">
@@ -240,14 +237,6 @@ export default function ChartOfAccountsPage() {
                   />
                 </div>
                 <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => document.querySelector('[data-value="import"]')?.click()}
-                  >
-                    <Upload className="mr-2 h-4 w-4" />
-                    Import
-                  </Button>
                   <Button variant="outline" size="sm">
                     <FileText className="mr-2 h-4 w-4" />
                     Export
@@ -409,31 +398,6 @@ export default function ChartOfAccountsPage() {
                     </CardContent>
                   </Card>
                 ))}
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="import">
-              <div className="max-w-4xl mx-auto">
-                <div className="mb-6">
-                  <h3 className="text-lg font-medium mb-2">Import Chart of Accounts</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Upload a CSV file to bulk import accounts. Please ensure your CSV follows the required format.
-                  </p>
-                  
-                  <ChartOfAccountsImport />
-                  
-                  <div className="mt-8">
-                    <h4 className="text-md font-medium mb-2">Before You Import</h4>
-                    <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
-                      <li>Make sure your Chart of Accounts structure (Main Groups, Element Groups, etc.) is set up first</li>
-                      <li>Each account must belong to an existing Detailed Group code</li>
-                      <li>Account names must be unique within your tenant</li>
-                      <li>Required columns: account_name, detailed_group_code, account_type</li>
-                      <li>Optional columns: description, opening_balance</li>
-                      <li>Account codes will be automatically generated</li>
-                    </ul>
-                  </div>
-                </div>
               </div>
             </TabsContent>
           </Tabs>
