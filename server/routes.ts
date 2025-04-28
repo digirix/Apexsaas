@@ -3977,17 +3977,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add parameter to control whether inactive accounts are included (default to false)
       const includeInactive = req.query.includeInactive === 'true';
       
+      // Pagination and search parameters
+      const page = req.query.page ? parseInt(req.query.page as string) : 1;
+      const pageSize = req.query.pageSize ? parseInt(req.query.pageSize as string) : 20;
+      const searchTerm = req.query.search as string | undefined;
+      
       console.log(`Query params: accountType=${accountType}, detailedGroupId=${detailedGroupId}, includeSystemAccounts=${includeSystemAccounts}, includeInactive=${includeInactive}`);
+      console.log(`Pagination: page=${page}, pageSize=${pageSize}, search=${searchTerm || 'none'}`);
       
       // Call with explicit includeInactive parameter
-      const accounts = await storage.getChartOfAccounts(tenantId, accountType, detailedGroupId, includeSystemAccounts, includeInactive);
+      let accounts = await storage.getChartOfAccounts(tenantId, accountType, detailedGroupId, includeSystemAccounts, includeInactive);
       
-      console.log(`Found ${accounts.length} accounts for tenant ${tenantId}`);
-      if (accounts.length > 0) {
-        console.log(`First account tenantId: ${accounts[0].tenantId}, name: ${accounts[0].accountName}, isActive: ${accounts[0].isActive}`);
+      // Apply search filter if provided
+      if (searchTerm && searchTerm.trim()) {
+        const normalizedSearchTerm = searchTerm.toLowerCase().trim();
+        accounts = accounts.filter(account => 
+          account.accountName.toLowerCase().includes(normalizedSearchTerm) || 
+          account.accountCode.toLowerCase().includes(normalizedSearchTerm) || 
+          (account.description && account.description.toLowerCase().includes(normalizedSearchTerm))
+        );
       }
       
-      res.json(accounts);
+      // Get total count before pagination
+      const totalCount = accounts.length;
+      
+      // Apply pagination
+      const startIndex = (page - 1) * pageSize;
+      const paginatedAccounts = accounts.slice(startIndex, startIndex + pageSize);
+      
+      console.log(`Found ${totalCount} accounts for tenant ${tenantId}, returning ${paginatedAccounts.length} for page ${page}`);
+      if (paginatedAccounts.length > 0) {
+        console.log(`First account tenantId: ${paginatedAccounts[0].tenantId}, name: ${paginatedAccounts[0].accountName}, isActive: ${paginatedAccounts[0].isActive}`);
+      }
+      
+      // Return with pagination metadata
+      res.json({
+        data: paginatedAccounts,
+        pagination: {
+          totalCount,
+          pageCount: Math.ceil(totalCount / pageSize),
+          currentPage: page,
+          pageSize
+        }
+      });
     } catch (error) {
       console.error("Error fetching accounts:", error);
       res.status(500).json({ message: "Failed to fetch chart of accounts" });
