@@ -2945,21 +2945,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Check if entity account exists in the chart of accounts (for debit entry)
           let entityAccount = null;
           
-          // Look for an existing account with this entity name
+          // Look for an existing account with this entity ID or entity name
           const assetAccounts = await storage.getChartOfAccounts(tenantId, "asset");
-          entityAccount = assetAccounts.find(acc => acc.accountName === entityName);
+          entityAccount = assetAccounts.find(acc => 
+            (acc.entityId === invoice.entityId) || 
+            (acc.accountName === entityName) ||
+            (acc.accountName && acc.accountName.includes(entityName))
+          );
           
           // If entity account doesn't exist, we'll need to create it
           if (!entityAccount) {
             // Find the Trade Debtors detailed group for creating the entity account
             const detailedGroups = await storage.getChartOfAccountsDetailedGroups(tenantId);
-            const tradeDebtorsGroup = detailedGroups.find(group => 
+            let tradeDebtorsGroup = detailedGroups.find(group => 
               group.name === 'trade_debtors' || 
               (group.customName && (
                 group.customName.toLowerCase().includes('trade debtors') || 
                 group.customName.toLowerCase().includes('receivable')
               ))
             );
+            
+            // If no specific trade_debtors group found, try to find any detailed group in current_assets
+            if (!tradeDebtorsGroup) {
+              const subElementGroups = await storage.getChartOfAccountsSubElementGroups(tenantId);
+              const currentAssetsGroup = subElementGroups.find(group => 
+                group.name === 'current_assets'
+              );
+              
+              if (currentAssetsGroup) {
+                const currentAssetDetailGroups = detailedGroups.filter(group => 
+                  group.subElementGroupId === currentAssetsGroup.id
+                );
+                
+                if (currentAssetDetailGroups.length > 0) {
+                  // Use the first detailed group in current assets
+                  tradeDebtorsGroup = currentAssetDetailGroups[0];
+                }
+              }
+            }
             
             if (!tradeDebtorsGroup) {
               missingAccounts.push("Trade Debtors Group (required for entity accounts)");
@@ -3007,7 +3030,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
             );
             
             if (!discountAllowedAccount) {
-              missingAccounts.push("Discount Allowed Account");
+              // Try to create the Discount Allowed account
+              try {
+                // Find an expense group to put this account in
+                const elementGroups = await storage.getChartOfAccountsElementGroups(tenantId);
+                const expensesGroup = elementGroups.find(group => group.name === 'expenses');
+                
+                if (expensesGroup) {
+                  // Get sub-element groups in expenses
+                  const subElementGroups = await storage.getChartOfAccountsSubElementGroups(tenantId);
+                  let expenseSubGroup = subElementGroups.find(group => 
+                    group.elementGroupId === expensesGroup.id
+                  );
+                  
+                  if (expenseSubGroup) {
+                    // Get detailed groups in expense sub-group
+                    const detailedGroups = await storage.getChartOfAccountsDetailedGroups(tenantId);
+                    let expenseDetailedGroup = detailedGroups.find(group => 
+                      group.subElementGroupId === expenseSubGroup.id
+                    );
+                    
+                    if (expenseDetailedGroup) {
+                      // Create Discount Allowed account
+                      discountAllowedAccount = await storage.createChartOfAccount({
+                        tenantId: tenantId,
+                        detailedGroupId: expenseDetailedGroup.id,
+                        accountCode: `7000-DA`,
+                        accountName: `Discount Allowed`,
+                        accountType: "expense",
+                        description: `Discounts allowed on sales`,
+                        isSystemAccount: false,
+                        isActive: true,
+                        openingBalance: "0.00",
+                        currentBalance: "0.00"
+                      });
+                      
+                      console.log(`Created new Discount Allowed account: ${discountAllowedAccount.accountName} (ID: ${discountAllowedAccount.id})`);
+                    }
+                  }
+                }
+              } catch (error) {
+                console.error("Failed to auto-create Discount Allowed account:", error);
+                missingAccounts.push("Discount Allowed Account");
+              }
             }
           }
           
@@ -3025,7 +3090,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
             );
             
             if (!taxPayableAccount) {
-              missingAccounts.push("Tax Payable Account");
+              // Try to create the Tax Payable account
+              try {
+                // Find a liability group to put this account in
+                const elementGroups = await storage.getChartOfAccountsElementGroups(tenantId);
+                const liabilityGroup = elementGroups.find(group => group.name === 'liabilities');
+                
+                if (liabilityGroup) {
+                  // Get sub-element groups in liabilities
+                  const subElementGroups = await storage.getChartOfAccountsSubElementGroups(tenantId);
+                  let currentLiabilityGroup = subElementGroups.find(group => 
+                    group.elementGroupId === liabilityGroup.id && 
+                    (group.name === 'current_liabilities' || 
+                    (group.customName && group.customName.toLowerCase().includes('current')))
+                  );
+                  
+                  if (currentLiabilityGroup) {
+                    // Get detailed groups in current liabilities
+                    const detailedGroups = await storage.getChartOfAccountsDetailedGroups(tenantId);
+                    let liabilityDetailedGroup = detailedGroups.find(group => 
+                      group.subElementGroupId === currentLiabilityGroup.id
+                    );
+                    
+                    if (liabilityDetailedGroup) {
+                      // Create Tax Payable account
+                      taxPayableAccount = await storage.createChartOfAccount({
+                        tenantId: tenantId,
+                        detailedGroupId: liabilityDetailedGroup.id,
+                        accountCode: `2200-TAX`,
+                        accountName: `Sales Tax Payable`,
+                        accountType: "liability",
+                        description: `Sales tax collected on behalf of tax authorities`,
+                        isSystemAccount: false,
+                        isActive: true,
+                        openingBalance: "0.00",
+                        currentBalance: "0.00"
+                      });
+                      
+                      console.log(`Created new Tax Payable account: ${taxPayableAccount.accountName} (ID: ${taxPayableAccount.id})`);
+                    }
+                  }
+                }
+              } catch (error) {
+                console.error("Failed to auto-create Tax Payable account:", error);
+                missingAccounts.push("Tax Payable Account");
+              }
             }
           }
           
