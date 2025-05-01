@@ -4639,6 +4639,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Update an existing journal entry
+  app.put("/api/v1/finance/journal-entries/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = (req.user as any).id;
+      const entryId = parseInt(req.params.id);
+      
+      // Check if entry exists and belongs to tenant
+      const existingEntry = await storage.getJournalEntry(entryId, tenantId);
+      if (!existingEntry) {
+        return res.status(404).json({ message: "Journal entry not found" });
+      }
+      
+      // Don't allow updating already posted entries
+      if (existingEntry.isPosted) {
+        return res.status(400).json({ message: "Cannot update a posted journal entry" });
+      }
+      
+      // Extract data from request body
+      const { entryDate, sourceDocument, sourceDocumentId, lines, ...otherBodyData } = req.body;
+      
+      // Convert string date to Date object
+      const parsedEntryDate = entryDate ? new Date(entryDate) : existingEntry.entryDate;
+      
+      // Validate lines
+      if (!lines || !Array.isArray(lines) || lines.length === 0) {
+        return res.status(400).json({ message: "Journal entry must have at least one line" });
+      }
+      
+      // Calculate totals
+      const totalDebit = lines.reduce((sum, line) => sum + parseFloat(line.debitAmount || 0), 0);
+      const totalCredit = lines.reduce((sum, line) => sum + parseFloat(line.creditAmount || 0), 0);
+      
+      // Validate double-entry principle
+      if (Math.abs(totalDebit - totalCredit) > 0.0001) {
+        return res.status(400).json({ 
+          message: "Journal entry must balance (total debits must equal total credits)",
+          totalDebit,
+          totalCredit
+        });
+      }
+      
+      // Set up the entry data with proper null handling for sourceDocument fields
+      const entryData = { 
+        ...otherBodyData, 
+        entryDate: parsedEntryDate,
+        updatedBy: userId,
+        updatedAt: new Date(),
+        // Use existing values if not provided
+        sourceDocument: sourceDocument || existingEntry.sourceDocument,
+        sourceDocumentId: sourceDocumentId ? Number(sourceDocumentId) : existingEntry.sourceDocumentId,
+        totalAmount: totalDebit.toString() // Both debit and credit totals should be equal
+      };
+      
+      // Update journal entry
+      const updatedEntry = await storage.updateJournalEntry(entryId, entryData);
+      
+      // Delete existing lines
+      const existingLines = await storage.getJournalEntryLines(tenantId, entryId);
+      for (const line of existingLines) {
+        await storage.deleteJournalEntryLine(line.id, tenantId);
+      }
+      
+      // Create new journal entry lines
+      const journalEntryLines = [];
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const lineData = {
+          ...line,
+          tenantId,
+          journalEntryId: entryId,
+          lineOrder: i + 1, // Ensure line order is set properly
+          // Use default values for missing fields
+          debitAmount: line.debitAmount || "0",
+          creditAmount: line.creditAmount || "0"
+        };
+        
+        const journalEntryLine = await storage.createJournalEntryLine(lineData);
+        journalEntryLines.push(journalEntryLine);
+      }
+      
+      // Return the complete updated entry with its lines
+      res.json({
+        ...updatedEntry,
+        lines: journalEntryLines
+      });
+      
+    } catch (error) {
+      console.error("Error updating journal entry:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      
+      res.status(500).json({ 
+        message: "Failed to update journal entry",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Delete a journal entry
+  app.delete("/api/v1/finance/journal-entries/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const entryId = parseInt(req.params.id);
+      
+      // Check if entry exists and belongs to tenant
+      const existingEntry = await storage.getJournalEntry(entryId, tenantId);
+      if (!existingEntry) {
+        return res.status(404).json({ message: "Journal entry not found" });
+      }
+      
+      // Don't allow deleting already posted entries
+      if (existingEntry.isPosted) {
+        return res.status(400).json({ message: "Cannot delete a posted journal entry" });
+      }
+      
+      // Delete the journal entry (this will also delete associated lines)
+      const success = await storage.deleteJournalEntry(entryId, tenantId);
+      
+      if (success) {
+        res.status(204).end();
+      } else {
+        res.status(500).json({ message: "Failed to delete journal entry" });
+      }
+      
+    } catch (error) {
+      console.error("Error deleting journal entry:", error);
+      res.status(500).json({ 
+        message: "Failed to delete journal entry",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
   // 6. Payment Gateway Settings
   app.get("/api/v1/finance/payment-gateways", isAuthenticated, async (req, res) => {
     try {

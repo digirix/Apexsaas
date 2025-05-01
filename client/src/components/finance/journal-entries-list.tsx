@@ -1,7 +1,8 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { format } from 'date-fns';
+import { apiRequest } from '@/lib/queryClient';
 
 import {
   Card,
@@ -26,16 +27,65 @@ import {
   FileText,
   DollarSign,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Pencil,
+  Trash2,
+  MoreHorizontal
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from '@/hooks/use-toast';
 
 export default function JournalEntriesList() {
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [entryToDelete, setEntryToDelete] = useState<any>(null);
   
   // Fetch journal entries
   const { data: journalEntries, isLoading: journalEntriesLoading } = useQuery({
     queryKey: ['/api/v1/finance/journal-entries'],
     refetchOnWindowFocus: false,
+  });
+  
+  // Delete journal entry mutation
+  const deleteJournalEntryMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/v1/finance/journal-entries/${id}`, {
+        method: 'DELETE',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/journal-entries'] });
+      toast({
+        title: "Journal entry deleted",
+        description: "The journal entry has been successfully deleted.",
+      });
+      setDeleteDialogOpen(false);
+    },
+    onError: (error: any) => {
+      console.error('Error deleting journal entry:', error);
+      toast({
+        title: "Error deleting journal entry",
+        description: error.message || "An error occurred while deleting the journal entry.",
+        variant: "destructive",
+      });
+    },
   });
   
   // Format currency values
@@ -44,6 +94,24 @@ export default function JournalEntriesList() {
       style: 'currency',
       currency: 'USD',
     }).format(amount);
+  };
+  
+  // Handle edit journal entry
+  const handleEditEntry = (entry: any) => {
+    setLocation(`/finance/journal-entries/edit/${entry.id}`);
+  };
+  
+  // Handle delete journal entry
+  const handleDeleteEntry = (entry: any) => {
+    setEntryToDelete(entry);
+    setDeleteDialogOpen(true);
+  };
+  
+  // Confirm delete journal entry
+  const confirmDeleteEntry = () => {
+    if (entryToDelete) {
+      deleteJournalEntryMutation.mutate(entryToDelete.id);
+    }
   };
   
   return (
@@ -169,16 +237,46 @@ export default function JournalEntriesList() {
                         </tr>
                       </tbody>
                     </table>
-                    <div className="p-3 bg-slate-50 flex flex-col sm:flex-row sm:justify-between text-sm">
-                      <div className="mb-2 sm:mb-0">
-                        <span className="font-medium">Created by:</span> {entry.createdByName || 'System'}
-                      </div>
-                      <div className="mb-2 sm:mb-0">
-                        <span className="font-medium">Created on:</span> {format(new Date(entry.createdAt), 'MMM d, yyyy HH:mm')}
-                      </div>
-                      {entry.isPosted && entry.postedAt && (
+                    <div className="p-3 bg-slate-50 flex flex-col sm:flex-row justify-between text-sm">
+                      <div className="space-y-1 mb-2 sm:mb-0">
                         <div>
-                          <span className="font-medium">Posted on:</span> {format(new Date(entry.postedAt), 'MMM d, yyyy HH:mm')}
+                          <span className="font-medium">Created by:</span> {entry.createdByName || 'System'}
+                        </div>
+                        <div>
+                          <span className="font-medium">Created on:</span> {format(new Date(entry.createdAt), 'MMM d, yyyy HH:mm')}
+                        </div>
+                        {entry.isPosted && entry.postedAt && (
+                          <div>
+                            <span className="font-medium">Posted on:</span> {format(new Date(entry.postedAt), 'MMM d, yyyy HH:mm')}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Actions */}
+                      {!entry.isPosted && (
+                        <div className="flex space-x-2 items-start">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditEntry(entry);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteEntry(entry);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -205,6 +303,27 @@ export default function JournalEntriesList() {
           </div>
         )}
       </CardContent>
+      
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this journal entry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the journal entry and all of its associated lines.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteEntry}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
