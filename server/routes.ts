@@ -2932,92 +2932,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // When invoice is being approved - validate accounts and create accounting entries for double-entry bookkeeping
       if (previousStatus === 'draft' && status === 'approved') {
         try {
-          // 1. Validate required chart of accounts before creating journal entries
           const missingAccounts = [];
           
-          // Get client information if available
-          const client = invoice.clientId ? await storage.getClient(invoice.clientId, tenantId) : null;
-          const clientName = client ? client.clientName : "Unknown Client";
+          // 1. Validate all accounts needed for the entries
+          const client = await storage.getClient(invoice.clientId, tenantId);
+          const clientName = client ? client.displayName : "Unknown Client";
           
-          // Check if client account exists in the chart of accounts
-          let clientAccount = null;
-          if (invoice.clientId) {
-            // Look for an existing account with this client ID
-            const clientAccounts = await storage.getChartOfAccounts(tenantId, "asset");
-            clientAccount = clientAccounts.find(acc => acc.clientId === invoice.clientId);
-          }
+          // Get the entity
+          const entity = await storage.getEntity(invoice.entityId, tenantId);
+          const entityName = entity ? entity.name : "Unknown Entity";
           
-          // Handle client account creation if requested
-          if (!clientAccount && createClientAccount === true && invoice.clientId) {
-            // Find the Trade Debtors detailed group
+          // Check if entity account exists in the chart of accounts (for debit entry)
+          let entityAccount = null;
+          
+          // Look for an existing account with this entity name
+          const assetAccounts = await storage.getChartOfAccounts(tenantId, "asset");
+          entityAccount = assetAccounts.find(acc => acc.accountName === entityName);
+          
+          // If entity account doesn't exist, we'll need to create it
+          if (!entityAccount) {
+            // Find the Trade Debtors detailed group for creating the entity account
             const detailedGroups = await storage.getChartOfAccountsDetailedGroups(tenantId);
             const tradeDebtorsGroup = detailedGroups.find(group => 
-              group.name.toLowerCase().includes('trade_debtors') || 
-              group.name.toLowerCase().includes('accounts receivable')
+              group.name === 'trade_debtors' || 
+              (group.customName && (
+                group.customName.toLowerCase().includes('trade debtors') || 
+                group.customName.toLowerCase().includes('receivable')
+              ))
             );
             
-            if (tradeDebtorsGroup) {
-              // Create a new client account in Trade Debtors
-              clientAccount = await storage.createChartOfAccount({
+            if (!tradeDebtorsGroup) {
+              missingAccounts.push("Trade Debtors Group (required for entity accounts)");
+            } else {
+              // Create a new entity account in Trade Debtors
+              entityAccount = await storage.createChartOfAccount({
                 tenantId: tenantId,
                 detailedGroupId: tradeDebtorsGroup.id,
-                accountCode: `1210-${invoice.clientId}`, // Format: 1210-{clientId}
-                accountName: `${clientName} - Receivable`,
+                accountCode: `1210-E${invoice.entityId}`, // Format: 1210-E{entityId}
+                accountName: entityName,
                 accountType: "asset",
-                description: `Accounts receivable for client: ${clientName}`,
+                description: `Accounts receivable for entity: ${entityName}`,
                 isSystemAccount: false,
                 isActive: true,
-                clientId: invoice.clientId,
+                entityId: invoice.entityId,
                 openingBalance: "0.00",
                 currentBalance: "0.00"
               });
               
-              console.log(`Created new client account in chart of accounts: ${clientAccount.accountName} (ID: ${clientAccount.id})`);
-            } else {
-              missingAccounts.push("Trade Debtors Group (required for client accounts)");
+              console.log(`Created new entity account in chart of accounts: ${entityAccount.accountName} (ID: ${entityAccount.id})`);
             }
-          } else if (!clientAccount && invoice.clientId) {
-            // If client account doesn't exist and createClientAccount is not true, return error
+          }
+          
+          // Verify entity account was created or exists
+          if (!entityAccount) {
             return res.status(400).json({
-              message: "Cannot approve invoice: Client account needed in Chart of Accounts",
+              message: "Cannot approve invoice: Entity account needed in Chart of Accounts",
               details: {
-                missingClientAccount: true,
-                clientId: invoice.clientId,
-                clientName: clientName,
-                guidance: "This client needs an account in your Chart of Accounts to record invoice transactions correctly."
+                entityId: invoice.entityId,
+                entityName: entityName,
+                guidance: "This entity needs an account in your Chart of Accounts to record invoice transactions correctly."
               }
             });
           }
           
-          // Accounts receivable (Asset) - Use client-specific account if available, otherwise use Trade Debtors
-          const accountsReceivable = clientAccount || await storage.getChartOfAccountByCode("1200", tenantId);
-          if (!accountsReceivable) {
-            missingAccounts.push("Trade Debtors (1200)");
+          // Check for "Discount Allowed" account - only needed if discount amount is not zero
+          const discountAmount = parseFloat(invoice.discountAmount || "0");
+          let discountAllowedAccount = null;
+          
+          if (discountAmount > 0) {
+            // Look for an account named "Discount Allowed"
+            const allAccounts = await storage.getChartOfAccounts(tenantId);
+            discountAllowedAccount = allAccounts.find(acc => 
+              acc.accountName.toLowerCase().includes('discount allowed')
+            );
+            
+            if (!discountAllowedAccount) {
+              missingAccounts.push("Discount Allowed Account");
+            }
+          }
+          
+          // Check for "Tax Payable" account - only needed if tax amount is greater than zero
+          const taxAmount = parseFloat(invoice.taxAmount || "0");
+          let taxPayableAccount = null;
+          
+          if (taxAmount > 0) {
+            // Look for an account named "Tax Payable" or "Sales Tax Payable"
+            const allAccounts = await storage.getChartOfAccounts(tenantId);
+            taxPayableAccount = allAccounts.find(acc => 
+              acc.accountName.toLowerCase().includes('tax payable') || 
+              acc.accountName.toLowerCase().includes('s.tax payable') ||
+              acc.accountName.toLowerCase().includes('sales tax payable')
+            );
+            
+            if (!taxPayableAccount) {
+              missingAccounts.push("Tax Payable Account");
+            }
           }
           
           // Revenue account handling (use selected income account if provided)
-          let revenueAccount;
+          let incomeAccount;
           
           if (incomeAccountId) {
             // Use the income account selected by the user
-            revenueAccount = await storage.getChartOfAccount(parseInt(incomeAccountId), tenantId);
-            if (!revenueAccount) {
+            incomeAccount = await storage.getChartOfAccount(parseInt(incomeAccountId), tenantId);
+            if (!incomeAccount) {
               missingAccounts.push(`Selected Income Account (${incomeAccountId})`);
             }
-          } else if (invoice.entityId) {
-            // Fall back to entity's revenue account if available
-            const entity = await storage.getEntity(invoice.entityId, tenantId);
-            
-            if (entity && entity.revenueAccountId) {
-              revenueAccount = await storage.getChartOfAccount(entity.revenueAccountId, tenantId);
-              if (!revenueAccount) {
-                missingAccounts.push(`Entity Revenue Account (${entity.revenueAccountId})`);
-              }
-            }
-          }
-          
-          // Check default revenue account if not found by other methods
-          if (!revenueAccount) {
+          } else {
             // If income account selection is needed but not provided, prompt user to select one
             const incomeAccounts = await storage.getChartOfAccounts(tenantId, "revenue");
             if (incomeAccounts.length > 0 && incomeAccountId === undefined) {
@@ -3030,18 +3051,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             }
             
-            revenueAccount = await storage.getChartOfAccountByCode("4000", tenantId);
-            if (!revenueAccount) {
-              missingAccounts.push("Default Revenue Account (4000)");
-            }
-          }
-          
-          // Check tax liability account if invoice has tax
-          const taxAmount = parseFloat(invoice.taxAmount || "0");
-          if (taxAmount > 0) {
-            const taxLiabilityAccount = await storage.getChartOfAccountByCode("2200", tenantId);
-            if (!taxLiabilityAccount) {
-              missingAccounts.push("Tax Liability Account (2200)");
+            // If no income account is selected, look for a default one
+            const defaultIncomeAccounts = await storage.getChartOfAccounts(tenantId, "revenue");
+            if (defaultIncomeAccounts.length > 0) {
+              incomeAccount = defaultIncomeAccounts[0]; // Use first available income account
+            } else {
+              missingAccounts.push("Income Account");
             }
           }
           
@@ -3056,58 +3071,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
           
-          // Tax liability account (if tax is present)
-          const taxLiabilityAccount = await storage.getChartOfAccountByCode("2200", tenantId);
+          // Get the description from the invoice and first line item
+          let invoiceDescription = "";
+          const lineItems = await storage.getInvoiceLineItems(tenantId, invoice.id);
+          if (lineItems && lineItems.length > 0) {
+            invoiceDescription = lineItems[0].description || "";
+          }
           
           // 2. Create journal entries (all accounts have been validated at this point)
-          const totalAmount = parseFloat(invoice.totalAmount);
-          const revenueAmount = totalAmount - taxAmount;
+          const subtotalAmount = parseFloat(invoice.subtotal || "0");
+          const totalAmount = parseFloat(invoice.totalAmount || "0");
           
           // Create journal entry header
           const journalEntry = await storage.createJournalEntry({
             tenantId: tenantId,
-            entryDate: new Date(),
-            reference: `INV-${invoice.invoiceNumber}`,
+            entryDate: new Date(), // Current date as the approval date
+            reference: `IN${invoice.invoiceNumber}`,
             entryType: "INVAP", // Invoice approval entry type
-            description: `Invoice ${invoice.invoiceNumber} approved`,
+            description: `${invoiceDescription}-IN${invoice.invoiceNumber}`,
             isPosted: true,
             createdBy: userId,
             sourceDocument: "invoice",
             sourceDocumentId: invoice.id
           });
           
-          // Debit Accounts Receivable (Asset increase)
+          let lineOrder = 1;
+          
+          // Debit Entity Account with the total invoice amount
           await storage.createJournalEntryLine({
             tenantId: tenantId,
             journalEntryId: journalEntry.id,
-            accountId: accountsReceivable.id,
-            description: `Accounts Receivable - Invoice ${invoice.invoiceNumber}`,
+            accountId: entityAccount.id,
+            description: `${invoiceDescription}-IN${invoice.invoiceNumber}`,
             debitAmount: totalAmount.toString(),
             creditAmount: "0",
-            lineOrder: 1
+            lineOrder: lineOrder++
           });
           
-          // Credit Revenue (Revenue increase)
-          await storage.createJournalEntryLine({
-            tenantId: tenantId,
-            journalEntryId: journalEntry.id,
-            accountId: revenueAccount.id,
-            description: `Revenue - Invoice ${invoice.invoiceNumber}`,
-            debitAmount: "0",
-            creditAmount: revenueAmount.toString(),
-            lineOrder: 2
-          });
-          
-          // If tax exists, credit Tax Liability
-          if (taxAmount > 0 && taxLiabilityAccount) {
+          // Debit Discount Allowed account if discount amount exists
+          if (discountAmount > 0 && discountAllowedAccount) {
             await storage.createJournalEntryLine({
               tenantId: tenantId,
               journalEntryId: journalEntry.id,
-              accountId: taxLiabilityAccount.id,
-              description: `Tax Liability - Invoice ${invoice.invoiceNumber}`,
+              accountId: discountAllowedAccount.id,
+              description: `${invoiceDescription}-IN${invoice.invoiceNumber}`,
+              debitAmount: discountAmount.toString(),
+              creditAmount: "0",
+              lineOrder: lineOrder++
+            });
+          }
+          
+          // Credit Income account with the subtotal amount
+          if (incomeAccount) {
+            await storage.createJournalEntryLine({
+              tenantId: tenantId,
+              journalEntryId: journalEntry.id,
+              accountId: incomeAccount.id,
+              description: `${invoiceDescription}-IN${invoice.invoiceNumber}`,
+              debitAmount: "0",
+              creditAmount: subtotalAmount.toString(),
+              lineOrder: lineOrder++
+            });
+          }
+          
+          // Credit Tax Payable account if tax amount exists
+          if (taxAmount > 0 && taxPayableAccount) {
+            await storage.createJournalEntryLine({
+              tenantId: tenantId,
+              journalEntryId: journalEntry.id,
+              accountId: taxPayableAccount.id,
+              description: `${invoiceDescription}-IN${invoice.invoiceNumber}`,
               debitAmount: "0",
               creditAmount: taxAmount.toString(),
-              lineOrder: 3
+              lineOrder: lineOrder++
+            });
+          }
+          
+          // Credit Entity Account with the discount amount as contra entry if discount exists
+          if (discountAmount > 0 && entityAccount) {
+            await storage.createJournalEntryLine({
+              tenantId: tenantId,
+              journalEntryId: journalEntry.id,
+              accountId: entityAccount.id,
+              description: `${invoiceDescription}-IN${invoice.invoiceNumber}`,
+              debitAmount: "0",
+              creditAmount: discountAmount.toString(),
+              lineOrder: lineOrder++
             });
           }
             
