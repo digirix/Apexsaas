@@ -66,9 +66,7 @@ export default function JournalEntriesList() {
   // Delete journal entry mutation
   const deleteJournalEntryMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/v1/finance/journal-entries/${id}`, {
-        method: 'DELETE',
-      });
+      return apiRequest('DELETE', `/api/v1/finance/journal-entries/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/journal-entries'] });
