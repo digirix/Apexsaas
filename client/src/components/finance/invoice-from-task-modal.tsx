@@ -162,7 +162,10 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
   useEffect(() => {
     const calculateTotal = () => {
       const subtotal = parseFloat(form.getValues("subtotal") || "0");
-      const tax = parseFloat(form.getValues("taxAmount") || "0");
+      // Calculate tax as 10% of subtotal if not explicitly set
+      const taxAmount = parseFloat(form.getValues("taxAmount") || "0");
+      const tax = taxAmount > 0 ? taxAmount : subtotal * 0.1;
+      form.setValue("taxAmount", tax.toFixed(2));
       const discount = parseFloat(form.getValues("discountAmount") || "0");
       
       const total = subtotal + tax - discount;
@@ -332,7 +335,7 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
   
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             {invoice ? "Invoice Created" : "Create Invoice from Task"}
