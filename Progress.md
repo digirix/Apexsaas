@@ -3,9 +3,21 @@
 ## Overview
 This document provides a comprehensive overview of the progress made on the Accounting Firm Management Application, a multi-tenant system designed for accounting firms to manage clients, tasks, users, permissions, and system configuration across different countries and service types.
 
-## Latest Updates (April 27, 2025)
+## Latest Updates (May 1, 2025)
 
-### Chart of Accounts Tenant Isolation Fix
+### Journal Entries CRUD Enhancements
+- Implemented full CRUD functionality for Journal Entries:
+  - Added API endpoints for updating and deleting journal entries
+  - Created comprehensive Edit Journal Entry form with validation
+  - Added edit route at `/finance/journal-entries/edit/:id`
+  - Implemented validation to prevent editing/deleting posted entries
+  - Enhanced Journal Entries list with proper edit and delete functionality
+  - Added confirmation dialogs for safe deletion of journal entries
+  - Ensured proper debit/credit balance validation in both create and edit forms
+- Removed redundant Account Heads tab from Finance Module as it duplicated functionality in the Chart of Accounts
+- Ensured tenant isolation throughout all Journal Entry operations
+
+### Chart of Accounts Tenant Isolation Fix (April 27, 2025)
 - Implemented dual-layer tenant isolation approach for Chart of Accounts:
   - Backend database-level filtering with explicit tenant matching
   - Frontend client-side filtering as additional security measure
@@ -456,6 +468,13 @@ The project has made significant progress across multiple modules:
    - Ensured double-entry accounting principles with automatic balance checking
    - Fixed source document handling to properly support manual journal entries
    - Removed redundant header elements from Finance pages to eliminate duplication of information already available in the top navigation
+   - Implemented full CRUD functionality with Edit and Delete operations
+   - Created comprehensive Edit Journal Entry form with route at /finance/journal-entries/edit/:id
+   - Added validation to prevent editing or deleting posted entries
+   - Enhanced Journal Entries list with edit and delete buttons (only for non-posted entries)
+   - Added confirmation dialogs for safe deletion of journal entries
+   - Ensured proper debit/credit balance validation in both create and edit forms
+   - Removed redundant Account Heads tab as it duplicated Chart of Accounts functionality
    - Made the Finance Dashboard the central hub with tabs for Invoices, Payments, and Chart of Accounts
 
 2. **API Integration Fixes:**

@@ -14,12 +14,15 @@ This document outlines the remaining tasks and future enhancements for the Accou
 2. ✓ Separate Chart of Accounts structure (Setup Module) from Account Heads management (Finance Module)
 3. ✓ Fix tenant isolation in Chart of Accounts with dual-layer protection
 4. ✓ Fix the bug where deleting accounts would not properly respect tenant isolation
-5. Implement TypeScript type definitions for all components in Chart of Accounts related pages
-6. Implement automatic Account Code generation based on selected Chart of Accounts structure
-7. Complete the Account Heads Management page with full CRUD functionality
-8. Implement financial reporting features (general ledger, trial balance, profit & loss)
-9. Complete the integration between Tasks and Invoices
-10. Fix remaining technical issues in the Finance Module
+5. ✓ Implement full CRUD functionality for Journal Entries (create, read, update, delete)
+6. ✓ Add validation to prevent editing or deleting posted journal entries
+7. ✓ Add confirmation dialogs for safe deletion of journal entries
+8. ✓ Remove redundant Account Heads tab from Finance Module
+9. Implement TypeScript type definitions for all components in Chart of Accounts and Journal Entries related pages
+10. Implement automatic Account Code generation based on selected Chart of Accounts structure
+11. Implement financial reporting features (general ledger, trial balance, profit & loss)
+12. Complete the integration between Tasks and Invoices
+13. Fix remaining technical issues in the Finance Module
 
 ## Priority 1: Critical System Improvements
 
@@ -111,6 +114,9 @@ This document outlines the remaining tasks and future enhancements for the Accou
 - [x] Fix date format handling in Journal Entry creation to prevent 500 errors
 - [x] Fix source document handling in Journal Entries (previously causing 500 error)
 - [x] Separate Chart of Accounts structure (Setup Module) from Account Heads management (Finance Module)
+- [x] Implement full CRUD functionality for Journal Entries with edit and delete operations
+- [x] Add validation to prevent editing or deleting posted journal entries
+- [x] Remove redundant Account Heads tab as it duplicated Chart of Accounts functionality
 - [ ] Complete Account Heads Management page with CRUD operations
 - [ ] Implement automatic Account Code generation based on selected Chart of Accounts structure
 - [ ] Fix remaining Promise object rendering issues in invoice creation
