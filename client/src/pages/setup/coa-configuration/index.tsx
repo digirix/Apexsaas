@@ -1243,11 +1243,13 @@ export default function COAConfigurationPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {filteredSubElementGroups.map((group) => (
-                            <SelectItem key={group.id} value={group.id.toString()}>
-                              {group.customName || group.name}
-                            </SelectItem>
-                          ))}
+                          {subElementGroups
+                            .filter(group => watchElementGroup ? group.elementGroupId === parseInt(watchElementGroup) : false)
+                            .map((group) => (
+                              <SelectItem key={group.id} value={group.id.toString()}>
+                                {group.customName || group.name}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -1272,11 +1274,13 @@ export default function COAConfigurationPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {filteredDetailedGroups.map((group) => (
-                            <SelectItem key={group.id} value={group.id.toString()}>
-                              {group.customName || group.name}
-                            </SelectItem>
-                          ))}
+                          {detailedGroups
+                            .filter(group => watchSubElementGroup ? group.subElementGroupId === parseInt(watchSubElementGroup) : false)
+                            .map((group) => (
+                              <SelectItem key={group.id} value={group.id.toString()}>
+                                {group.customName || group.name}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />
