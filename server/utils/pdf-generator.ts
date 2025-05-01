@@ -21,7 +21,7 @@ export async function generateInvoicePdf(
     // Create a document with compression enabled for smaller file size
     const doc = new PDFDocument({ 
       size: 'A4',
-      margin: 40,
+      margin: 35, // Reduced margin to fit more content
       compress: true, // Enable compression for smaller file size
       info: {
         Title: `Invoice ${invoice.invoiceNumber || ''}`,
@@ -82,35 +82,14 @@ export async function generateInvoicePdf(
       .font('Helvetica')
       .text(new Date(invoice.dueDate).toLocaleDateString(), 460, 95);
 
-    // Status section
+    // Payment terms (replacing status section)
     doc
       .font('Helvetica-Bold')
       .fillColor(primaryColor)
-      .text('STATUS:', 400, 105)
-      .font('Helvetica');
-    
-    // Color code the status
-    let statusColor = primaryColor;
-    switch(invoice.status) {
-      case 'paid':
-        statusColor = '#22c55e'; // Green
-        break;
-      case 'overdue':
-        statusColor = '#ef4444'; // Red
-        break;
-      case 'sent':
-        statusColor = '#f97316'; // Orange
-        break;
-      case 'approved':
-        statusColor = '#0ea5e9'; // Blue
-        break;
-      case 'passed':
-        statusColor = '#0ea5e9'; // Blue
-        break;
-    }
-    
-    doc.fillColor(statusColor)
-      .text(invoice.status.toUpperCase(), 460, 105);
+      .text('PAYMENT TERMS:', 400, 105)
+      .font('Helvetica')
+      .fillColor(textColor)
+      .text('Net 30 days', 490, 105);
 
     // Bill to section
     doc
@@ -164,14 +143,17 @@ export async function generateInvoicePdf(
     
     // If no line items, add service description as a single line item
     if (!lineItems || lineItems.length === 0) {
+      // Use the invoice notes as the service description or default
+      const description = invoice.notes || 'Professional Services';
+      
       doc
         .fillColor(textColor)
         .font('Helvetica')
         .fontSize(8)
-        .text(invoice.notes || 'Professional Services', 40, y, { width: 250 });
+        .text(description, 40, y, { width: 250 });
       
       // Fill to the end of the line
-      const textHeight = doc.heightOfString(invoice.notes || 'Professional Services', { width: 250 });
+      const textHeight = doc.heightOfString(description, { width: 250 });
       const finalY = y + Math.max(textHeight, 12);
       
       doc

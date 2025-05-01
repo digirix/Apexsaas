@@ -197,7 +197,9 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
         tenantId: task.tenantId,
         issueDate: new Date(data.issueDate),
         dueDate: new Date(data.dueDate),
-        taskId: task.id
+        taskId: task.id,
+        // Store task details in notes field for the invoice
+        notes: data.serviceDescription || task?.taskDetails || ""
       };
       
       const response = await apiRequest("POST", "/api/v1/finance/invoices", invoiceData);
@@ -369,8 +371,8 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
                   <p className="text-sm text-slate-600">{invoice.invoiceNumber}</p>
                 </div>
                 <div>
-                  <p className="font-medium mb-1">Status</p>
-                  <p className="text-sm text-slate-600">{invoice.status}</p>
+                  <p className="font-medium mb-1">Description</p>
+                  <p className="text-sm text-slate-600">{task?.taskDetails || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="font-medium mb-1">Issue Date</p>
