@@ -45,6 +45,13 @@ export async function generateInvoicePdf(
     const formatCurrency = (amount: string) => {
       return `${invoice.currencyCode}${parseFloat(amount).toFixed(2)}`;
     };
+    
+    // Helper function to calculate days between dates
+    const getDaysBetween = (start: Date, end: Date) => {
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays;
+    };
 
     // Add company logo and header (more compact)
     doc
@@ -83,13 +90,14 @@ export async function generateInvoicePdf(
       .text(new Date(invoice.dueDate).toLocaleDateString(), 460, 95);
 
     // Payment terms (replacing status section)
+    const paymentDays = getDaysBetween(new Date(invoice.issueDate), new Date(invoice.dueDate));
     doc
       .font('Helvetica-Bold')
       .fillColor(primaryColor)
       .text('PAYMENT TERMS:', 400, 105)
       .font('Helvetica')
       .fillColor(textColor)
-      .text('Net 30 days', 490, 105);
+      .text(`Net ${paymentDays} days`, 490, 105);
 
     // Bill to section
     doc
@@ -100,10 +108,10 @@ export async function generateInvoicePdf(
       .fillColor(textColor)
       .fontSize(9)
       .font('Helvetica-Bold')
-      .text(client.name, 40, 100)
+      .text(client.displayName || '', 40, 100)
       .font('Helvetica')
       .fontSize(8)
-      .text(`Entity: ${entity.name}`, 40, 110);
+      .text(`Entity: ${entity.name || ''}`, 40, 110);
 
     // Add address if available (truncated with ellipsis if too long)
     if (entity.address) {
@@ -207,7 +215,7 @@ export async function generateInvoicePdf(
     
     y += 10;
 
-    // Summary section (more compact)
+    // Summary section (more compact with tighter spacing)
     const summaryColX = 420;
     doc
       .fontSize(8)
@@ -216,18 +224,16 @@ export async function generateInvoicePdf(
       .font('Helvetica')
       .text(formatCurrency(invoice.subtotal), 490, y);
     
-    y += 12;
+    y += 10; // Reduced spacing
     
-    // Add tax if present
-    if (parseFloat(invoice.taxAmount) > 0) {
-      doc
-        .font('Helvetica-Bold')
-        .text('Tax:', summaryColX, y)
-        .font('Helvetica')
-        .text(formatCurrency(invoice.taxAmount), 490, y);
-      
-      y += 12;
-    }
+    // Add tax (always show, even if zero)
+    doc
+      .font('Helvetica-Bold')
+      .text('Tax:', summaryColX, y)
+      .font('Helvetica')
+      .text(formatCurrency(invoice.taxAmount), 490, y);
+    
+    y += 10; // Reduced spacing
     
     // Add discount if present
     if (parseFloat(invoice.discountAmount) > 0) {
@@ -237,18 +243,18 @@ export async function generateInvoicePdf(
         .font('Helvetica')
         .text(`-${formatCurrency(invoice.discountAmount)}`, 490, y);
       
-      y += 12;
+      y += 10; // Reduced spacing
     }
     
     // Add total (smaller but still prominent)
     doc
       .font('Helvetica-Bold')
       .fillColor(primaryColor)
-      .fontSize(10)
+      .fontSize(9) // Slightly smaller
       .text('TOTAL:', summaryColX, y)
       .text(formatCurrency(invoice.totalAmount), 490, y);
     
-    y += 15;
+    y += 10; // Reduced spacing
     
     // Add amount due if different from total
     if (parseFloat(invoice.amountDue) > 0 && invoice.amountDue !== invoice.totalAmount) {
@@ -256,12 +262,12 @@ export async function generateInvoicePdf(
         .text('AMOUNT DUE:', summaryColX, y)
         .text(formatCurrency(invoice.amountDue), 490, y);
       
-      y += 15;
+      y += 10; // Reduced spacing
     }
     
     // Add notes if provided (limited height)
     if (invoice.notes) {
-      y += 10;
+      y += 5; // Reduced spacing
       doc
         .fillColor(textColor)
         .fontSize(8)
@@ -270,17 +276,17 @@ export async function generateInvoicePdf(
         .font('Helvetica')
         .fontSize(7);
       
-      // Limit notes to prevent overflow
-      const truncatedNotes = invoice.notes.length > 150 ? 
-        invoice.notes.substring(0, 150) + '...' : 
+      // Limit notes with shorter max length
+      const truncatedNotes = invoice.notes.length > 100 ? 
+        invoice.notes.substring(0, 100) + '...' : 
         invoice.notes;
       
-      doc.text(truncatedNotes, 40, y + 10, { width: 515 });
+      doc.text(truncatedNotes, 40, y + 8, { width: 515 }); // Reduced spacing
     }
     
     // Add terms and conditions if provided (limited height)
     if (invoice.termsAndConditions) {
-      y += 35;
+      y += 25; // Reduced spacing
       doc
         .fillColor(textColor)
         .fontSize(8)
@@ -289,16 +295,16 @@ export async function generateInvoicePdf(
         .font('Helvetica')
         .fontSize(7);
       
-      // Limit T&C to prevent overflow
-      const truncatedTerms = invoice.termsAndConditions.length > 200 ? 
-        invoice.termsAndConditions.substring(0, 200) + '...' : 
+      // Limit T&C with shorter max length
+      const truncatedTerms = invoice.termsAndConditions.length > 100 ? 
+        invoice.termsAndConditions.substring(0, 100) + '...' : 
         invoice.termsAndConditions;
       
-      doc.text(truncatedTerms, 40, y + 10, { width: 515 });
+      doc.text(truncatedTerms, 40, y + 8, { width: 515 }); // Reduced spacing
     }
 
-    // Add footer
-    const footerY = doc.page.height - 30;
+    // Add footer with fixed position to ensure it stays on first page
+    const footerY = doc.page.height - 20; // Moved up
     doc
       .moveTo(40, footerY - 10)
       .lineTo(555, footerY - 10)
@@ -308,7 +314,7 @@ export async function generateInvoicePdf(
     
     doc
       .fillColor(mutedColor)
-      .fontSize(7)
+      .fontSize(6) // Smaller font
       .text(
         `Invoice #${invoice.invoiceNumber} | ${tenant.name} | Generated on ${new Date().toLocaleDateString()}`,
         40, footerY, { align: 'center', width: 515 }

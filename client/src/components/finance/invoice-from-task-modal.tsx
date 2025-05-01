@@ -162,10 +162,8 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
   useEffect(() => {
     const calculateTotal = () => {
       const subtotal = parseFloat(form.getValues("subtotal") || "0");
-      // Calculate tax as 10% of subtotal if not explicitly set
-      const taxAmount = parseFloat(form.getValues("taxAmount") || "0");
-      const tax = taxAmount > 0 ? taxAmount : subtotal * 0.1;
-      form.setValue("taxAmount", tax.toFixed(2));
+      // Keep tax as manually entered - no automatic calculation
+      const tax = parseFloat(form.getValues("taxAmount") || "0");
       const discount = parseFloat(form.getValues("discountAmount") || "0");
       
       const total = subtotal + tax - discount;
