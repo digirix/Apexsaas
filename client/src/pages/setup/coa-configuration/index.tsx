@@ -1149,6 +1149,21 @@ export default function COAConfigurationPage() {
               const mainGroup = elementGroup ? 
                 mainGroups.find(mg => mg.id === elementGroup.mainGroupId) : undefined;
               
+              // Check for duplicate account name (case-insensitive)
+              // Use accountsState which includes all accounts (active and inactive)
+              const accountNameExists = accountsState.some(account => 
+                account.accountName.toLowerCase() === values.accountName.toLowerCase()
+              );
+              
+              if (accountNameExists) {
+                toast({
+                  title: "Validation Error",
+                  description: "An account with this name already exists (name comparison is case-insensitive)",
+                  variant: "destructive",
+                });
+                return;
+              }
+              
               let accountType = "asset"; // Default
               
               if (elementGroup) {
