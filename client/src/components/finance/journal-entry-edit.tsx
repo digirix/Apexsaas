@@ -43,7 +43,8 @@ import {
   AlertCircle,
   Trash2,
   Receipt,
-  Loader2
+  Loader2,
+  CheckCircle2
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -146,10 +147,7 @@ export default function JournalEntryEdit() {
         }))
       };
       
-      return apiRequest(`/api/v1/finance/journal-entries/${entryId}`, {
-        method: 'PUT',
-        data: formattedValues,
-      });
+      return apiRequest('PUT', `/api/v1/finance/journal-entries/${entryId}`, formattedValues);
     },
     onSuccess: () => {
       toast({
