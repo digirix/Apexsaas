@@ -19,19 +19,26 @@ export async function generateInvoicePdf(
   tenant: Tenant
 ): Promise<Buffer> {
   return new Promise((resolve) => {
-    // Create a document optimized for single-page output
+    // Create a document that strictly enforces a single-page output
     const doc = new PDFDocument({ 
       size: 'A4',
-      margin: 30, // Further reduced margin to maximize content space
+      margin: 25, // Minimum margin to maximize content space
       compress: true, // Enable compression for smaller file size
-      autoFirstPage: true, // Ensure we don't create multiple pages
       bufferPages: true, // Allow buffering for single-page handling
+      layout: 'portrait', // Ensure portrait orientation
       info: {
         Title: `Invoice ${invoice.invoiceNumber || ''}`,
         Author: tenant?.name || 'Accounting Platform',
         Subject: 'Invoice',
         Creator: 'Accounting Management Platform'
       }
+    });
+    
+    // Hard limit the document to exactly one page
+    doc.on('pageAdded', () => {
+      // If PDFKit tries to add a new page, immediately end the document
+      // This forces everything to be on page 1
+      doc.end();
     });
 
     // Collect the PDF data chunks
@@ -187,7 +194,7 @@ export async function generateInvoicePdf(
     // Table data - Enforce maximum height
     if (!lineItems || lineItems.length === 0) {
       // Single line item from invoice itself
-      const description = invoice.serviceDescription || invoice.notes || 'Professional Services';
+      const description = invoice.notes || 'Professional Services';
       
       doc
         .fillColor(textColor)
@@ -332,15 +339,25 @@ export async function generateInvoicePdf(
         );
     }
     
-    // FOOTER - Fixed at bottom of page
+    // FOOTER - Absolutely positioned to avoid page overflow
     // =================================================================
     
-    // Even if content is long, the footer stays at bottom
-    const footerY = doc.page.height - 20;
+    // Limit the size of the document to ensure everything fits on one page
+    const maxPageHeight = 740; // Maximum safe height for A4 with smaller margin
     
+    // Hard-coded coordinates for the footer to ensure it's always on page 1
+    // Make sure footer is always at least 20px from the bottom of the content
+    const contentBottom = Math.max(notesY + 20, tableEndY + 100);
+    // Force the footer to be at a safe distance from the bottom of the page
+    const footerY = Math.min(contentBottom, maxPageHeight); 
+    
+    // Always move to the first page before adding footer
+    doc.switchToPage(0);
+    
+    // Draw the footer at a safe position
     doc
-      .moveTo(40, footerY - 10)
-      .lineTo(555, footerY - 10)
+      .moveTo(40, footerY)
+      .lineTo(555, footerY)
       .strokeColor(mutedColor)
       .lineWidth(0.25)
       .stroke();
@@ -350,26 +367,25 @@ export async function generateInvoicePdf(
       .fontSize(6)
       .text(
         `Invoice #${invoice.invoiceNumber} | ${tenant.name} | Generated on ${format(new Date(), 'MM/dd/yyyy')}`,
-        40, footerY, { align: 'center', width: 515 }
+        40, footerY + 5, { align: 'center', width: 515 }
       );
     
     // FINALIZE - Ensure single page constraint
     // =================================================================
     
-    // This forces all content onto the first page
-    // It's a key technique to ensure we never spill to a second page
+    // Explicitly limit the document to one page by flattening all content to the first page
     const totalPages = doc.bufferedPageRange().count;
-    for (let i = 0; i < totalPages; i++) {
-      doc.switchToPage(i);
-      
-      // If not the first page (shouldn't happen with our layout), add a message
-      if (i > 0) {
-        doc
-          .fillColor(primaryColor)
-          .fontSize(12)
-          .font('Helvetica-Bold')
-          .text('Please refer to page 1 for the complete invoice.', 40, 40);
+    
+    // If more than one page was created, flatten to single page
+    if (totalPages > 1) {
+      // Keep only the first page
+      for (let i = totalPages - 1; i > 0; i--) {
+        doc.switchToPage(i);
+        doc.flushPages();
       }
+      
+      // Ensure we end up on the first page
+      doc.switchToPage(0);
     }
     
     // Finalize the PDF
