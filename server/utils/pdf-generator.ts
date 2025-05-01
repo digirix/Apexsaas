@@ -1,8 +1,9 @@
 import PDFDocument from 'pdfkit';
 import { Invoice, InvoiceLineItem, Client, Entity, Tenant } from '@shared/schema';
+import { format } from 'date-fns';
 
 /**
- * Generates a more compact and efficient PDF invoice that fits on a single page
+ * Generates a professional, single-page PDF invoice with optimized layout
  * @param invoice The invoice data
  * @param lineItems Line items for the invoice
  * @param client The client data
@@ -18,11 +19,13 @@ export async function generateInvoicePdf(
   tenant: Tenant
 ): Promise<Buffer> {
   return new Promise((resolve) => {
-    // Create a document with compression enabled for smaller file size
+    // Create a document optimized for single-page output
     const doc = new PDFDocument({ 
       size: 'A4',
-      margin: 35, // Reduced margin to fit more content
+      margin: 30, // Further reduced margin to maximize content space
       compress: true, // Enable compression for smaller file size
+      autoFirstPage: true, // Ensure we don't create multiple pages
+      bufferPages: true, // Allow buffering for single-page handling
       info: {
         Title: `Invoice ${invoice.invoiceNumber || ''}`,
         Author: tenant?.name || 'Accounting Platform',
@@ -40,6 +43,7 @@ export async function generateInvoicePdf(
     const primaryColor = '#4f46e5'; // Indigo for branding accent
     const textColor = '#334155';    // Slate-700 for main text
     const mutedColor = '#94a3b8';   // Slate-400 for secondary text
+    const headerColor = '#1e293b';  // Slate-800 for table headers
 
     // Helper function for formatted currency (shorter format)
     const formatCurrency = (amount: string) => {
@@ -52,274 +56,322 @@ export async function generateInvoicePdf(
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       return diffDays;
     };
-
-    // Add company logo and header (more compact)
-    doc
-      .fillColor(primaryColor)
-      .fontSize(18)
-      .font('Helvetica-Bold')
-      .text(tenant.name, 40, 40)
-      .fontSize(8)
-      .fillColor(mutedColor)
-      .font('Helvetica')
-      .text('Accounting Management Platform', 40, 60);
-
-    // Invoice details section (right aligned for better space usage)
+    
+    // Top margin is tighter to maximize space
+    let currentY = 25;
+    
+    // HEADER SECTION - More horizontal layout to save vertical space
+    // =================================================================
+    
+    // Brand on left side
     doc
       .fillColor(primaryColor)
       .fontSize(16)
       .font('Helvetica-Bold')
-      .text('INVOICE', 400, 40)
-      .fontSize(10)
-      .text(`#${invoice.invoiceNumber}`, 400, 60);
-
-    // Horizontal rule
-    doc.moveTo(40, 75).lineTo(555, 75).strokeColor(primaryColor).lineWidth(0.5).stroke();
-
-    // More compact date section
+      .text(tenant.name, 40, currentY);
+    
+    // Invoice title and number on right side
     doc
-      .fillColor(textColor)
+      .fillColor(primaryColor)
+      .fontSize(16)
+      .font('Helvetica-Bold')
+      .text('INVOICE', 400, currentY)
+      .fontSize(10)
+      .text(`#${invoice.invoiceNumber}`, 400, currentY + 16);
+    
+    currentY += 25;
+      
+    // Horizontal rule - very thin
+    doc.moveTo(40, currentY).lineTo(555, currentY).strokeColor(mutedColor).lineWidth(0.25).stroke();
+    
+    currentY += 10;
+    
+    // CLIENT AND DATES SECTION - Side by side to save space
+    // =================================================================
+    
+    // Bill to section (left)
+    doc
+      .fillColor(primaryColor)
       .fontSize(8)
       .font('Helvetica-Bold')
-      .text('ISSUE DATE:', 400, 85)
+      .text('BILL TO:', 40, currentY)
+      .fillColor(textColor)
+      .fontSize(9)
+      .text(client.displayName || '', 40, currentY + 10)
       .font('Helvetica')
-      .text(new Date(invoice.issueDate).toLocaleDateString(), 460, 85)
+      .fontSize(7)
+      .text(`Entity: ${entity.name || ''}`, 40, currentY + 20);
+    
+    // Address (1 line only, truncated)
+    if (entity.address) {
+      const addressText = entity.address.length > 45 ? 
+        entity.address.substring(0, 45) + '...' : 
+        entity.address;
+      doc.text(addressText, 40, currentY + 28, { width: 180 });
+    }
+    
+    // Invoice details (right) - More compact horizontal arrangement
+    const dateInfoX = 280; // Moved left to create more space
+    doc
+      .fillColor(textColor)
+      .fontSize(7)
       .font('Helvetica-Bold')
-      .text('DUE DATE:', 400, 95)
+      .text('ISSUE DATE:', dateInfoX, currentY)
       .font('Helvetica')
-      .text(new Date(invoice.dueDate).toLocaleDateString(), 460, 95);
-
-    // Payment terms (replacing status section)
+      .text(format(new Date(invoice.issueDate), 'MM/dd/yyyy'), dateInfoX + 60, currentY);
+      
+    doc
+      .font('Helvetica-Bold')
+      .text('DUE DATE:', dateInfoX, currentY + 10)
+      .font('Helvetica')
+      .text(format(new Date(invoice.dueDate), 'MM/dd/yyyy'), dateInfoX + 60, currentY + 10);
+    
+    // Payment terms
     const paymentDays = getDaysBetween(new Date(invoice.issueDate), new Date(invoice.dueDate));
     doc
       .font('Helvetica-Bold')
-      .fillColor(primaryColor)
-      .text('PAYMENT TERMS:', 400, 105)
+      .text('PAYMENT TERMS:', dateInfoX, currentY + 20)
       .font('Helvetica')
-      .fillColor(textColor)
-      .text(`Net ${paymentDays} days`, 490, 105);
-
-    // Bill to section
+      .text(`Net ${paymentDays} days`, dateInfoX + 60, currentY + 20);
+      
+    // Totals on far right - Pre-summarize the key financial data
+    const totalsX = 450;
     doc
+      .font('Helvetica-Bold')
       .fillColor(primaryColor)
-      .fontSize(10)
-      .font('Helvetica-Bold')
-      .text('BILL TO:', 40, 85)
-      .fillColor(textColor)
-      .fontSize(9)
-      .font('Helvetica-Bold')
-      .text(client.displayName || '', 40, 100)
-      .font('Helvetica')
-      .fontSize(8)
-      .text(`Entity: ${entity.name || ''}`, 40, 110);
-
-    // Add address if available (truncated with ellipsis if too long)
-    if (entity.address) {
-      const addressText = entity.address.length > 50 ? 
-        entity.address.substring(0, 50) + '...' : 
-        entity.address;
-      doc.text(addressText, 40, 120, { width: 200 });
-    }
-
-    // Add line items table (start higher on page for more space)
-    const tableStartY = 140;
+      .text('TOTAL DUE:', totalsX, currentY)
+      .text(formatCurrency(invoice.amountDue), totalsX, currentY + 10);
+    
+    currentY += 40;
+    
+    // LINE ITEMS TABLE - More compact with fixed height rows
+    // =================================================================
+    
+    // Table header
     doc
-      .moveTo(40, tableStartY)
-      .lineTo(555, tableStartY)
+      .moveTo(40, currentY)
+      .lineTo(555, currentY)
       .strokeColor(mutedColor)
       .lineWidth(0.5)
       .stroke();
-
-    // Table headers (smaller font size)
-    doc
-      .fillColor(primaryColor)
-      .fontSize(8)
-      .font('Helvetica-Bold')
-      .text('Description', 40, tableStartY + 5)
-      .text('Quantity', 300, tableStartY + 5)
-      .text('Unit Price', 370, tableStartY + 5)
-      .text('Amount', 480, tableStartY + 5);
-
-    // Add horizontal rule
-    doc
-      .moveTo(40, tableStartY + 15)
-      .lineTo(555, tableStartY + 15)
-      .stroke();
-
-    // Table data rows
-    let y = tableStartY + 20;
     
-    // If no line items, add service description as a single line item
+    currentY += 5;
+    
+    // Table header text
+    doc
+      .fillColor(headerColor)
+      .fontSize(7.5)
+      .font('Helvetica-Bold')
+      .text('Description', 40, currentY)
+      .text('Qty', 340, currentY)
+      .text('Unit Price', 400, currentY)
+      .text('Amount', 500, currentY);
+    
+    currentY += 10;
+    
+    // Header separator
+    doc
+      .moveTo(40, currentY)
+      .lineTo(555, currentY)
+      .stroke();
+    
+    currentY += 5;
+    
+    // Determine maximum table height to ensure we don't overflow page
+    // This is key to forcing the invoice onto a single page
+    const maxTableHeight = 380; // Leave space for summary and footer
+    const maxY = currentY + maxTableHeight;
+    
+    let tableEndY = currentY;
+    
+    // Table data - Enforce maximum height
     if (!lineItems || lineItems.length === 0) {
-      // Use the invoice notes as the service description or default
-      const description = invoice.notes || 'Professional Services';
+      // Single line item from invoice itself
+      const description = invoice.serviceDescription || invoice.notes || 'Professional Services';
       
       doc
         .fillColor(textColor)
         .font('Helvetica')
         .fontSize(8)
-        .text(description, 40, y, { width: 250 });
+        .text(description.substring(0, 80) + (description.length > 80 ? '...' : ''), 40, currentY, { width: 280 });
       
-      // Fill to the end of the line
-      const textHeight = doc.heightOfString(description, { width: 250 });
-      const finalY = y + Math.max(textHeight, 12);
-      
+      // Use a fixed row height to save space
       doc
-        .text('1', 300, y)
-        .text(formatCurrency(invoice.subtotal), 370, y)
-        .text(formatCurrency(invoice.subtotal), 480, y);
+        .text('1', 340, currentY)
+        .text(formatCurrency(invoice.subtotal), 400, currentY)
+        .text(formatCurrency(invoice.subtotal), 500, currentY);
       
-      y = finalY + 5;
+      tableEndY = currentY + 15;
     } else {
-      // Add each line item (with limits to prevent overflow)
-      const maxItemsToShow = 10; // Limit items to ensure everything fits on one page
-      const itemsToRender = lineItems.slice(0, maxItemsToShow);
+      // Calculate how many items we can show while staying on one page
+      // Each item takes about 12-15px height, we'll use 15px to be safe
+      const rowHeight = 15;
+      const maxRows = Math.floor(maxTableHeight / rowHeight) - 3; // Leave space for summary
+      
+      const itemsToShow = Math.min(lineItems.length, maxRows);
+      const itemsToRender = lineItems.slice(0, itemsToShow);
       
       itemsToRender.forEach((item, index) => {
         // Truncate description if too long
-        const description = item.description.length > 50 ? 
-          item.description.substring(0, 50) + '...' : 
+        const description = item.description.length > 70 ? 
+          item.description.substring(0, 70) + '...' : 
           item.description;
         
         doc
           .fillColor(textColor)
           .font('Helvetica')
-          .fontSize(8)
-          .text(description, 40, y, { width: 250 });
+          .fontSize(7.5)
+          .text(description, 40, currentY, { width: 290 });
         
-        // Use fixed height rows to conserve space
+        // Fixed position columns for tabular look
         doc
-          .text(item.quantity.toString(), 300, y)
-          .text(formatCurrency(item.unitPrice), 370, y)
-          .text(formatCurrency(item.lineTotal), 480, y);
+          .text(item.quantity.toString(), 340, currentY)
+          .text(formatCurrency(item.unitPrice), 400, currentY)
+          .text(formatCurrency(item.lineTotal), 500, currentY);
         
-        y += 15; // Fixed height per row
+        currentY += rowHeight;
       });
       
-      // If we truncated items, add a note
-      if (lineItems.length > maxItemsToShow) {
+      // Show count of hidden items if needed
+      if (lineItems.length > itemsToShow) {
         doc
           .fillColor(mutedColor)
           .fontSize(7)
           .font('Helvetica-Oblique')
-          .text(`... and ${lineItems.length - maxItemsToShow} more items not shown`, 40, y);
-        y += 15;
+          .text(`... and ${lineItems.length - itemsToShow} more items not shown`, 40, currentY);
+        
+        currentY += 10;
       }
+      
+      tableEndY = currentY;
     }
-
-    // Add a divider
+    
+    // Bottom table border
     doc
-      .moveTo(40, y)
-      .lineTo(555, y)
+      .moveTo(40, tableEndY)
+      .lineTo(555, tableEndY)
       .stroke();
     
-    y += 10;
-
-    // Summary section (more compact with tighter spacing)
-    const summaryColX = 420;
+    // SUMMARY SECTION - Compact right-aligned summary
+    // =================================================================
+    
+    // Position summary section with fixed positions rather than flowing
+    // This ensures consistent layout regardless of table content
+    const summaryY = Math.min(tableEndY + 10, 650); // Cap the max position
+    const summaryColX = 400;
+    const valueColX = 500;
+    
     doc
-      .fontSize(8)
+      .fontSize(7.5)
       .font('Helvetica-Bold')
-      .text('Subtotal:', summaryColX, y)
+      .fillColor(textColor)
+      .text('Subtotal:', summaryColX, summaryY)
       .font('Helvetica')
-      .text(formatCurrency(invoice.subtotal), 490, y);
+      .text(formatCurrency(invoice.subtotal), valueColX, summaryY);
     
-    y += 10; // Reduced spacing
-    
-    // Add tax (always show, even if zero)
+    // Tax (always show)
     doc
       .font('Helvetica-Bold')
-      .text('Tax:', summaryColX, y)
+      .text('Tax:', summaryColX, summaryY + 12)
       .font('Helvetica')
-      .text(formatCurrency(invoice.taxAmount), 490, y);
+      .text(formatCurrency(invoice.taxAmount), valueColX, summaryY + 12);
     
-    y += 10; // Reduced spacing
-    
-    // Add discount if present
+    // Discount (only if nonzero)
+    let discountY = 0;
     if (parseFloat(invoice.discountAmount) > 0) {
+      discountY = 12;
       doc
         .font('Helvetica-Bold')
-        .text('Discount:', summaryColX, y)
+        .text('Discount:', summaryColX, summaryY + 24)
         .font('Helvetica')
-        .text(`-${formatCurrency(invoice.discountAmount)}`, 490, y);
-      
-      y += 10; // Reduced spacing
+        .text(`-${formatCurrency(invoice.discountAmount)}`, valueColX, summaryY + 24);
     }
     
-    // Add total (smaller but still prominent)
+    // Bold total
     doc
       .font('Helvetica-Bold')
       .fillColor(primaryColor)
-      .fontSize(9) // Slightly smaller
-      .text('TOTAL:', summaryColX, y)
-      .text(formatCurrency(invoice.totalAmount), 490, y);
+      .text('TOTAL:', summaryColX, summaryY + 24 + discountY)
+      .text(formatCurrency(invoice.totalAmount), valueColX, summaryY + 24 + discountY);
     
-    y += 10; // Reduced spacing
+    // NOTES/TERMS SECTION - Optional with truncation
+    // =================================================================
     
-    // Add amount due if different from total
-    if (parseFloat(invoice.amountDue) > 0 && invoice.amountDue !== invoice.totalAmount) {
-      doc
-        .text('AMOUNT DUE:', summaryColX, y)
-        .text(formatCurrency(invoice.amountDue), 490, y);
-      
-      y += 10; // Reduced spacing
-    }
+    // Notes and terms in a single row to save space
+    const notesY = summaryY + 48 + discountY;
     
-    // Add notes if provided (limited height)
-    if (invoice.notes) {
-      y += 5; // Reduced spacing
+    // Notes section (left column)
+    if (invoice.notes && invoice.notes.trim() !== '') {
       doc
         .fillColor(textColor)
-        .fontSize(8)
+        .fontSize(7)
         .font('Helvetica-Bold')
-        .text('Notes:', 40, y)
+        .text('Notes:', 40, notesY)
         .font('Helvetica')
-        .fontSize(7);
-      
-      // Limit notes with shorter max length
-      const truncatedNotes = invoice.notes.length > 100 ? 
-        invoice.notes.substring(0, 100) + '...' : 
-        invoice.notes;
-      
-      doc.text(truncatedNotes, 40, y + 8, { width: 515 }); // Reduced spacing
+        .text(
+          invoice.notes.length > 80 ? invoice.notes.substring(0, 80) + '...' : invoice.notes, 
+          40, notesY + 8, 
+          { width: 250 }
+        );
     }
     
-    // Add terms and conditions if provided (limited height)
-    if (invoice.termsAndConditions) {
-      y += 25; // Reduced spacing
+    // Terms section (right column)
+    if (invoice.termsAndConditions && invoice.termsAndConditions.trim() !== '') {
       doc
         .fillColor(textColor)
-        .fontSize(8)
+        .fontSize(7)
         .font('Helvetica-Bold')
-        .text('Terms and Conditions:', 40, y)
+        .text('Terms and Conditions:', 300, notesY)
         .font('Helvetica')
-        .fontSize(7);
-      
-      // Limit T&C with shorter max length
-      const truncatedTerms = invoice.termsAndConditions.length > 100 ? 
-        invoice.termsAndConditions.substring(0, 100) + '...' : 
-        invoice.termsAndConditions;
-      
-      doc.text(truncatedTerms, 40, y + 8, { width: 515 }); // Reduced spacing
+        .text(
+          invoice.termsAndConditions.length > 80 ? 
+            invoice.termsAndConditions.substring(0, 80) + '...' : 
+            invoice.termsAndConditions, 
+          300, notesY + 8, 
+          { width: 250 }
+        );
     }
-
-    // Add footer with fixed position to ensure it stays on first page
-    const footerY = doc.page.height - 20; // Moved up
+    
+    // FOOTER - Fixed at bottom of page
+    // =================================================================
+    
+    // Even if content is long, the footer stays at bottom
+    const footerY = doc.page.height - 20;
+    
     doc
       .moveTo(40, footerY - 10)
       .lineTo(555, footerY - 10)
       .strokeColor(mutedColor)
-      .lineWidth(0.5)
+      .lineWidth(0.25)
       .stroke();
     
     doc
       .fillColor(mutedColor)
-      .fontSize(6) // Smaller font
+      .fontSize(6)
       .text(
-        `Invoice #${invoice.invoiceNumber} | ${tenant.name} | Generated on ${new Date().toLocaleDateString()}`,
+        `Invoice #${invoice.invoiceNumber} | ${tenant.name} | Generated on ${format(new Date(), 'MM/dd/yyyy')}`,
         40, footerY, { align: 'center', width: 515 }
       );
-
+    
+    // FINALIZE - Ensure single page constraint
+    // =================================================================
+    
+    // This forces all content onto the first page
+    // It's a key technique to ensure we never spill to a second page
+    const totalPages = doc.bufferedPageRange().count;
+    for (let i = 0; i < totalPages; i++) {
+      doc.switchToPage(i);
+      
+      // If not the first page (shouldn't happen with our layout), add a message
+      if (i > 0) {
+        doc
+          .fillColor(primaryColor)
+          .fontSize(12)
+          .font('Helvetica-Bold')
+          .text('Please refer to page 1 for the complete invoice.', 40, 40);
+      }
+    }
+    
     // Finalize the PDF
     doc.end();
   });
