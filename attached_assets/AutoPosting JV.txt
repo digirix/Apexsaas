@@ -1,0 +1,41 @@
+Lets work on the Invoices section in finance module.
+
+As now when the invoice is created it is correctly going to finance module Invoice section list as a draft. One Action Item is of Approval on these Invoice items. Here is what i want when the Invoice is approved. I want the system to auto post the Journal Entry Voucher in the Journal Entry Tab of the Finance Module.
+
+Debit “Entity Name” account name with the total amount of Invoice
+Debit the “Discount Allowed” account name with the amount of Discount (do this only if the amount is not zero)
+Credit Relevant “S.Tax Payable” Account Name with Tax Amount of the Invoice (do this only if the amount is not greater than zero.
+Credit relevant “Income” Account Name with the sub total amount of the Invoice
+
+The date of voucher shall be the date when Invoice is approved.
+The description in the Invoice will be added as description of the voucher both if debit and credit sides, along with other details.
+
+For an Invoice Like
+
+
+Invoice Number: IN1515
+Bill To: Entity1Name
+Description: Income tax Return 2025		
+Subtotal:12
+Tax: 122
+Discount: -111
+Total: 23						
+ 
+
+Here is how the Voucher Entry look like
+
+	Account Name	Description				Debit		Credit
+Debit>	Entity1Name		Income tax Return 2025-IN1515	134			Debit>	Discount Allowed	Income tax Return 2025-IN1515	111
+Credit>	Income 		Income tax Return 2025-IN1515			12
+Credit>Tax Payable		Income tax Return 2025-IN1515			122
+Credit>Entity1Name		Income tax Return 2025-IN1515			111
+
+
+1. If not already exist in the Chart of Account, The system should Create an “Account Name” in the Chart of Account with the name of “Entity Name” Under the “Main Group” = Balance Sheet, “Element Group” = Assets, Sub “Element Group” = current_assets and “Detailed Group” = trade_debtors.
+But if that Entity Name already exists in the Account Name then there is no need to create.
+
+
+2. For account Name of Discount Allowed and Tax Payable ask the user to create it, if not already created.
+3. When user Approve the invoice, ask the user to select the account name under incomes, show him the account names opened under income to select which account name he wants to use for posting the above journal Entry.
+
+Please make a robust and streamed lined mechanism to make this Automation of Journal Entry Voucher. And when this is posted, show it in the list of Journal Entries for further processing.
