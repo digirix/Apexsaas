@@ -32,34 +32,29 @@ export default function FinancePage() {
   const [activeTab, setActiveTab] = useState("invoices");
   
   // Fetch invoices
-  const { data: invoices, isLoading: invoicesLoading } = useQuery({
+  const { data: invoices = [], isLoading: invoicesLoading } = useQuery({
     queryKey: ["/api/v1/finance/invoices"],
   });
   
   // Fetch payments
-  const { data: payments, isLoading: paymentsLoading } = useQuery({
+  const { data: payments = [], isLoading: paymentsLoading } = useQuery({
     queryKey: ["/api/v1/finance/payments"],
-  });
-  
-  // Fetch chart of accounts
-  const { data: accounts, isLoading: accountsLoading } = useQuery({
-    queryKey: ["/api/v1/finance/chart-of-accounts"],
   });
   
   // Calculate financial metrics
   const financialMetrics = {
-    totalInvoiced: !invoicesLoading && invoices ? invoices.reduce((sum: number, invoice: any) => 
+    totalInvoiced: !invoicesLoading ? (invoices as any[]).reduce((sum: number, invoice: any) => 
       sum + parseFloat(invoice.totalAmount || 0), 0) : 0,
-    totalReceived: !paymentsLoading && payments ? payments.reduce((sum: number, payment: any) => 
+    totalReceived: !paymentsLoading ? (payments as any[]).reduce((sum: number, payment: any) => 
       sum + parseFloat(payment.amount || 0), 0) : 0,
-    totalOutstanding: !invoicesLoading && invoices ? invoices.reduce((sum: number, invoice: any) => 
+    totalOutstanding: !invoicesLoading ? (invoices as any[]).reduce((sum: number, invoice: any) => 
       sum + parseFloat(invoice.amountDue || 0), 0) : 0,
   };
   
   // Filter invoices by status
   const filterInvoices = (statuses: string[]) => {
-    if (!invoices) return [];
-    return invoices.filter((invoice: any) => statuses.includes(invoice.status));
+    if (!invoices || !Array.isArray(invoices)) return [];
+    return (invoices as any[]).filter((invoice: any) => statuses.includes(invoice.status));
   };
   
   // Render invoice table with filtered data
@@ -200,10 +195,6 @@ export default function FinancePage() {
                   <FileText className="h-4 w-4 mr-2" />
                   Invoices
                 </TabsTrigger>
-                <TabsTrigger value="chart-of-accounts" className="flex items-center">
-                  <BookOpen className="h-4 w-4 mr-2" />
-                  Account Heads
-                </TabsTrigger>
                 <TabsTrigger value="journal-entries" className="flex items-center">
                   <BookText className="h-4 w-4 mr-2" />
                   Journal Entries
@@ -224,27 +215,7 @@ export default function FinancePage() {
               )}
               
 
-              
-              {activeTab === "chart-of-accounts" && (
-                <div className="flex space-x-2">
-                  <Button 
-                    variant="default" 
-                    size="sm"
-                    onClick={() => setLocation("/finance/account-heads")}
-                  >
-                    <BookOpen className="h-4 w-4 mr-2" />
-                    Manage Account Heads
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setLocation("/finance/chart-of-accounts/create")}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Account
-                  </Button>
-                </div>
-              )}
+
               
               {activeTab === "journal-entries" && (
                 <Button 
@@ -287,7 +258,7 @@ export default function FinancePage() {
                       </TabsContent>
                       
                       <TabsContent value="all" className="pt-4">
-                        {renderInvoiceTable(invoices)}
+                        {renderInvoiceTable(invoices as any[])}
                       </TabsContent>
                     </Tabs>
                   </div>
@@ -296,69 +267,7 @@ export default function FinancePage() {
             </TabsContent>
             
 
-            
-            <TabsContent value="chart-of-accounts" className="mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Account Heads</CardTitle>
-                  <CardDescription>
-                    Manage your account heads used for financial transactions
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {accountsLoading ? (
-                    <div className="text-center py-4">Loading accounts...</div>
-                  ) : accounts && accounts.length > 0 ? (
-                    <div className="rounded-md border">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b bg-slate-50">
-                            <th className="p-2 text-left font-medium">Account Code</th>
-                            <th className="p-2 text-left font-medium">Account Name</th>
-                            <th className="p-2 text-left font-medium">Type</th>
-                            <th className="p-2 text-left font-medium">Description</th>
-                            <th className="p-2 text-left font-medium">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {accounts.map((account: any) => (
-                            <tr key={account.id} className="border-b hover:bg-slate-50">
-                              <td className="p-2 font-medium">{account.accountCode}</td>
-                              <td className="p-2">{account.accountName}</td>
-                              <td className="p-2">{account.accountType}</td>
-                              <td className="p-2">{account.description || "-"}</td>
-                              <td className="p-2">
-                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
-                                  ${account.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}
-                                `}>
-                                  {account.isActive ? "Active" : "Inactive"}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 border rounded-md bg-slate-50">
-                      <BookOpen className="h-10 w-10 text-slate-400 mx-auto mb-2" />
-                      <h3 className="text-lg font-medium">No Account Heads</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        You haven't created any account heads yet.
-                      </p>
-                      <Button
-                        variant="outline"
-                        className="mt-4"
-                        onClick={() => setLocation("/finance/chart-of-accounts/create")}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create Account Head
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+
             
             <TabsContent value="journal-entries" className="mt-6">
               <JournalEntriesList />
