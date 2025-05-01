@@ -1214,7 +1214,7 @@ export default function COAConfigurationPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {filteredElementGroups.map((group) => (
+                          {elementGroups.map((group) => (
                             <SelectItem key={group.id} value={group.id.toString()}>
                               {group.name.charAt(0).toUpperCase() + group.name.slice(1)}
                             </SelectItem>
