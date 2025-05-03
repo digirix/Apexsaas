@@ -21,6 +21,7 @@ import CreatePaymentPage from "@/pages/finance/payments/create";
 import CreateChartOfAccountPage from "@/pages/finance/chart-of-accounts/create";
 import CreateJournalEntryPage from "@/pages/finance/journal-entries/create";
 import EditJournalEntryPage from "@/pages/finance/journal-entries/edit";
+import ViewJournalEntryPage from "@/pages/finance/journal-entries/view";
 import AccountHeadsManagementPage from "@/pages/finance/account-heads";
 import COAConfigurationPage from "@/pages/setup/coa-configuration";
 
@@ -43,6 +44,7 @@ function Router() {
       <ProtectedRoute path="/finance/chart-of-accounts/create" component={CreateChartOfAccountPage} />
       <ProtectedRoute path="/finance/journal-entries/create" component={CreateJournalEntryPage} />
       <ProtectedRoute path="/finance/journal-entries/edit/:id" component={EditJournalEntryPage} />
+      <ProtectedRoute path="/finance/journal-entries/view/:id" component={ViewJournalEntryPage} />
       <ProtectedRoute path="/users" component={UsersPage} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />

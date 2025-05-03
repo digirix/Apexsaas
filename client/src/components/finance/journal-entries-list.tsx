@@ -95,10 +95,10 @@ export default function JournalEntriesList() {
   // Toggle journal entry status mutation
   const toggleStatusMutation = useMutation({
     mutationFn: async ({ id, isPosted }: { id: number, isPosted: boolean }) => {
-      return apiRequest('PUT', `/api/v1/finance/journal-entries/${id}`, { isPosted });
+      const response = await apiRequest('PUT', `/api/v1/finance/journal-entries/${id}`, { isPosted });
+      return response as unknown as { isPosted: boolean };
     },
-    onSuccess: (response) => {
-      const data = response as { isPosted: boolean };
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/journal-entries'] });
       toast({
         title: data.isPosted ? "Journal entry posted" : "Journal entry set to draft",

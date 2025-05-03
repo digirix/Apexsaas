@@ -47,11 +47,39 @@ export default function JournalEntryView() {
   const entryId = params.id;
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
 
+  // Define journal entry type to handle the response data
+  interface JournalEntry {
+    id: number;
+    reference: string;
+    description: string;
+    entryDate: string;
+    entryType: string;
+    entryTypeName: string;
+    sourceDocument?: string;
+    sourceDocumentId?: string;
+    isPosted: boolean;
+    postedAt?: string;
+    createdAt: string;
+    createdByName?: string;
+    notes?: string;
+    lines: Array<{
+      id: number;
+      accountId: number;
+      accountName: string;
+      accountCode: string;
+      description: string;
+      debitAmount: string;
+      creditAmount: string;
+    }>;
+    totalAmount: number;
+  }
+
   // Fetch journal entry details
   const { data: journalEntry, isLoading } = useQuery({
     queryKey: ['/api/v1/finance/journal-entries', entryId],
     queryFn: async () => {
-      return apiRequest('GET', `/api/v1/finance/journal-entries/${entryId}`);
+      const response = await apiRequest('GET', `/api/v1/finance/journal-entries/${entryId}`);
+      return response as unknown as JournalEntry;
     },
     enabled: !!entryId,
   });
@@ -59,10 +87,10 @@ export default function JournalEntryView() {
   // Toggle journal entry status mutation
   const toggleStatusMutation = useMutation({
     mutationFn: async ({ id, isPosted }: { id: number, isPosted: boolean }) => {
-      return apiRequest('PUT', `/api/v1/finance/journal-entries/${id}`, { isPosted });
+      const response = await apiRequest('PUT', `/api/v1/finance/journal-entries/${id}`, { isPosted });
+      return response as unknown as { isPosted: boolean };
     },
-    onSuccess: (response) => {
-      const data = response as { isPosted: boolean };
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/journal-entries', entryId] });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/journal-entries'] });
       toast({
