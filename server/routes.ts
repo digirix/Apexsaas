@@ -5039,6 +5039,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Ledger operations
+  // Get all accounts for ledger dropdown
+  app.get("/api/v1/finance/ledger-accounts", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      // Get all accounts
+      const accounts = await storage.getChartOfAccounts(tenantId);
+      
+      // Return only the needed fields for the dropdown
+      const accountOptions = accounts.map(account => ({
+        id: account.id,
+        accountCode: account.accountCode,
+        accountName: account.accountName
+      }));
+      
+      res.status(200).json(accountOptions);
+    } catch (error) {
+      console.error("Error fetching accounts for ledger:", error);
+      res.status(500).json({ 
+        message: "An error occurred while fetching accounts",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Get Ledger entries for a specific account
+  app.get("/api/v1/finance/ledger/:accountId", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const accountId = parseInt(req.params.accountId);
+      const page = parseInt(req.query.page as string) || 1;
+      const pageSize = parseInt(req.query.pageSize as string) || 10;
+
+      if (!accountId) {
+        return res.status(400).json({ message: "Invalid account ID" });
+      }
+
+      // Get the account details first to verify it exists
+      const account = await storage.getChartOfAccount(accountId, tenantId);
+      if (!account) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+
+      const ledgerData = await storage.getLedgerEntries(tenantId, accountId, page, pageSize);
+      
+      res.status(200).json({
+        ...ledgerData,
+        accountDetails: {
+          id: account.id,
+          accountCode: account.accountCode,
+          accountName: account.accountName
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching ledger entries:", error);
+      res.status(500).json({ 
+        message: "An error occurred while fetching ledger entries",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
   // 6. Payment Gateway Settings
   app.get("/api/v1/finance/payment-gateways", isAuthenticated, async (req, res) => {
     try {

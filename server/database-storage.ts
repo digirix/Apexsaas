@@ -32,7 +32,7 @@ import type {
 } from "@shared/schema";
 import { IStorage } from "./storage";
 import { db } from "./db";
-import { eq, ne, and, isNull, asc, desc, inArray } from "drizzle-orm";
+import { eq, ne, and, isNull, asc, desc, inArray, sql } from "drizzle-orm";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 import { scrypt, randomBytes } from "crypto";

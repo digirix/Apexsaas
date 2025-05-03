@@ -65,9 +65,9 @@ export default function LedgerReport() {
 
   // Fetch accounts for the dropdown
   const { data: accounts, isLoading: accountsLoading } = useQuery({
-    queryKey: ['/api/v1/finance/chart-of-accounts'],
+    queryKey: ['/api/v1/finance/ledger-accounts'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/v1/finance/chart-of-accounts');
+      const response = await apiRequest('GET', '/api/v1/finance/ledger-accounts');
       return response as Account[];
     },
   });
@@ -77,12 +77,17 @@ export default function LedgerReport() {
     queryKey: ['/api/v1/finance/ledger', selectedAccount, currentPage],
     queryFn: async () => {
       if (!selectedAccount) return null;
-      const response = await apiRequest('GET', `/api/v1/finance/ledger?accountId=${selectedAccount}&page=${currentPage}&pageSize=${pageSize}`);
+      const response = await apiRequest('GET', `/api/v1/finance/ledger/${selectedAccount}?page=${currentPage}&pageSize=${pageSize}`);
       return response as {
         entries: JournalEntryLine[];
         totalCount: number;
         openingBalance: string;
         closingBalance: string;
+        accountDetails: {
+          id: number;
+          accountCode: string;
+          accountName: string;
+        }
       };
     },
     enabled: !!selectedAccount,
@@ -166,10 +171,21 @@ export default function LedgerReport() {
                 <div>
                   <h3 className="text-sm font-medium text-slate-500">Account</h3>
                   <p className="font-medium">
-                    {accounts?.find(a => a.id === selectedAccount)?.accountName} 
-                    <span className="text-sm ml-2 text-slate-500">
-                      ({accounts?.find(a => a.id === selectedAccount)?.accountCode})
-                    </span>
+                    {ledgerEntries?.accountDetails ? (
+                      <>
+                        {ledgerEntries.accountDetails.accountName}
+                        <span className="text-sm ml-2 text-slate-500">
+                          ({ledgerEntries.accountDetails.accountCode})
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        {accounts?.find(a => a.id === selectedAccount)?.accountName} 
+                        <span className="text-sm ml-2 text-slate-500">
+                          ({accounts?.find(a => a.id === selectedAccount)?.accountCode})
+                        </span>
+                      </>
+                    )}
                   </p>
                 </div>
                 <div className="text-right">
