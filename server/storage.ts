@@ -265,6 +265,14 @@ export interface IStorage {
   createJournalEntryLine(line: InsertJournalEntryLine): Promise<JournalEntryLine>;
   updateJournalEntryLine(id: number, line: Partial<InsertJournalEntryLine>): Promise<JournalEntryLine | undefined>;
   deleteJournalEntryLine(id: number, tenantId: number): Promise<boolean>;
+  
+  // Ledger operations
+  getLedgerEntries(tenantId: number, accountId: number, page?: number, pageSize?: number): Promise<{
+    entries: any[];
+    totalCount: number;
+    openingBalance: string;
+    closingBalance: string;
+  }>;
 }
 
 export class MemStorage implements IStorage {
