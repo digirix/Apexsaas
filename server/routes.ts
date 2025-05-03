@@ -4899,12 +4899,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Update just the status with proper type handling
+        // Cast to make TypeScript happy about the fields
         const statusUpdate = {
           isPosted: req.body.isPosted,
-          updatedBy: userId || undefined,
+          updatedBy: userId ? Number(userId) : undefined, // Ensure number type
           updatedAt: new Date(),
-          // For TypeScript compatibility, we'll use undefined instead of null
-          // when setting to draft (unposted)
+          // For TypeScript compatibility, undefined for draft status
           postedAt: req.body.isPosted ? new Date() : undefined
         };
         
@@ -4943,7 +4943,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const entryData = { 
         ...otherBodyData, 
         entryDate: parsedEntryDate,
-        updatedBy: userId,
+        updatedBy: userId ? Number(userId) : undefined,
         updatedAt: new Date(),
         // Use existing values if not provided
         sourceDocument: sourceDocument || existingEntry.sourceDocument,

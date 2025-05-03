@@ -2257,6 +2257,7 @@ export class DatabaseStorage implements IStorage {
       journalEntryId: journalEntryLines.journalEntryId,
       accountId: journalEntryLines.accountId,
       accountName: chartOfAccounts.accountName,
+      accountCode: chartOfAccounts.accountCode,
       description: journalEntryLines.description,
       debitAmount: journalEntryLines.debitAmount,
       creditAmount: journalEntryLines.creditAmount,
