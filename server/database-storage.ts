@@ -2355,4 +2355,104 @@ export class DatabaseStorage implements IStorage {
       .returning({ id: journalEntryTypes.id });
     return !!deletedType;
   }
+  
+  // Ledger operations
+  async getLedgerEntries(tenantId: number, accountId: number, page = 1, pageSize = 10): Promise<{
+    entries: any[];
+    totalCount: number;
+    openingBalance: string;
+    closingBalance: string;
+  }> {
+    // Get the total count first
+    const [countResult] = await db.select({
+      count: sql<number>`count(*)::int`,
+    })
+    .from(journalEntryLines)
+    .where(and(
+      eq(journalEntryLines.tenantId, tenantId),
+      eq(journalEntryLines.accountId, accountId)
+    ));
+    
+    const totalCount = countResult?.count || 0;
+    
+    // Calculate opening balance by summing all entries before the current page
+    const allEntries = await db.select({
+      debitAmount: journalEntryLines.debitAmount,
+      creditAmount: journalEntryLines.creditAmount,
+      createdAt: journalEntryLines.createdAt,
+    })
+    .from(journalEntryLines)
+    .where(and(
+      eq(journalEntryLines.tenantId, tenantId),
+      eq(journalEntryLines.accountId, accountId)
+    ))
+    .orderBy(asc(journalEntryLines.createdAt));
+    
+    // Calculate opening and closing balances (simple version)
+    let openingBalance = "0.00";
+    let closingBalance = "0.00";
+    
+    // For a real system, this would depend on account type (asset, liability, etc.)
+    // but for simplicity, we'll assume debits increase balance and credits decrease
+    // This would be opposite for liability and equity accounts
+    if (allEntries.length > 0) {
+      const balance = allEntries.reduce((sum, entry) => {
+        const debit = parseFloat(entry.debitAmount.toString() || "0");
+        const credit = parseFloat(entry.creditAmount.toString() || "0");
+        return sum + debit - credit;
+      }, 0);
+      
+      closingBalance = balance.toFixed(2);
+      
+      // If we're on a page beyond the first, calculate opening balance
+      // by considering only entries before the current page
+      if (page > 1) {
+        const entriesToSkip = (page - 1) * pageSize;
+        const previousEntries = allEntries.slice(0, entriesToSkip);
+        
+        const previousBalance = previousEntries.reduce((sum, entry) => {
+          const debit = parseFloat(entry.debitAmount.toString() || "0");
+          const credit = parseFloat(entry.creditAmount.toString() || "0");
+          return sum + debit - credit;
+        }, 0);
+        
+        openingBalance = previousBalance.toFixed(2);
+      }
+    }
+    
+    // Get paginated entries
+    const entries = await db.select({
+      id: journalEntryLines.id,
+      journalEntryId: journalEntryLines.journalEntryId,
+      accountId: journalEntryLines.accountId,
+      accountName: chartOfAccounts.accountName,
+      accountCode: chartOfAccounts.accountCode,
+      description: journalEntryLines.description,
+      debitAmount: journalEntryLines.debitAmount,
+      creditAmount: journalEntryLines.creditAmount,
+      entryDate: journalEntries.entryDate,
+      reference: journalEntries.reference,
+      lineOrder: journalEntryLines.lineOrder,
+      createdAt: journalEntryLines.createdAt,
+    })
+    .from(journalEntryLines)
+    .leftJoin(chartOfAccounts, eq(journalEntryLines.accountId, chartOfAccounts.id))
+    .leftJoin(journalEntries, eq(journalEntryLines.journalEntryId, journalEntries.id))
+    .where(and(
+      eq(journalEntryLines.tenantId, tenantId),
+      eq(journalEntryLines.accountId, accountId),
+      // Only include posted entries in the ledger
+      eq(journalEntries.isPosted, true)
+    ))
+    .orderBy(asc(journalEntryLines.createdAt))
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
+    
+    return {
+      entries,
+      totalCount,
+      openingBalance,
+      closingBalance
+    };
+  }
 }
