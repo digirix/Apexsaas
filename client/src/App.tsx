@@ -24,6 +24,8 @@ import EditJournalEntryPage from "@/pages/finance/journal-entries/edit";
 import ViewJournalEntryPage from "@/pages/finance/journal-entries/view";
 import AccountHeadsManagementPage from "@/pages/finance/account-heads";
 import COAConfigurationPage from "@/pages/setup/coa-configuration";
+import FinancialReportsPage from "@/pages/finance/reports";
+import LedgerReportPage from "@/pages/finance/ledger";
 
 function Router() {
   return (
@@ -45,6 +47,8 @@ function Router() {
       <ProtectedRoute path="/finance/journal-entries/create" component={CreateJournalEntryPage} />
       <ProtectedRoute path="/finance/journal-entries/edit/:id" component={EditJournalEntryPage} />
       <ProtectedRoute path="/finance/journal-entries/view/:id" component={ViewJournalEntryPage} />
+      <ProtectedRoute path="/finance/reports" component={FinancialReportsPage} />
+      <ProtectedRoute path="/finance/ledger" component={LedgerReportPage} />
       <ProtectedRoute path="/users" component={UsersPage} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />

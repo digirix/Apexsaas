@@ -241,6 +241,16 @@ export default function FinancePage() {
             </CardContent>
           </Card>
         </div>
+
+        <div className="flex justify-end mt-4">
+          <Button
+            variant="outline"
+            onClick={() => setLocation("/finance/reports")}
+          >
+            <BarChart4 className="h-4 w-4 mr-2" />
+            Financial Reports
+          </Button>
+        </div>
         
         <div className="mt-6">
           <Tabs 
