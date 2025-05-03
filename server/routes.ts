@@ -3081,7 +3081,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const discountAmount = parseFloat(invoice.discountAmount || "0");
           let discountAllowedAccount = null;
           
-          if (discountAmount > 0) {
+          if (discountAmount !== 0) {
             // Look for an account named "Discount Allowed"
             const allAccounts = await storage.getChartOfAccounts(tenantId);
             discountAllowedAccount = allAccounts.find(acc => 
@@ -3276,8 +3276,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             lineOrder: lineOrder++
           });
           
-          // Debit Discount Allowed account if discount amount exists
-          if (discountAmount > 0 && discountAllowedAccount) {
+          // Debit Discount Allowed account if discount amount is not zero
+          if (discountAmount !== 0 && discountAllowedAccount) {
             await storage.createJournalEntryLine({
               tenantId: tenantId,
               journalEntryId: journalEntry.id,
