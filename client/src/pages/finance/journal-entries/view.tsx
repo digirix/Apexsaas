@@ -78,8 +78,27 @@ export default function JournalEntryView() {
   const { data: journalEntry, isLoading } = useQuery({
     queryKey: ['/api/v1/finance/journal-entries', entryId],
     queryFn: async () => {
-      const response = await apiRequest('GET', `/api/v1/finance/journal-entries/${entryId}`);
-      return response as unknown as JournalEntry;
+      // Use direct fetch to ensure we get the latest data
+      const response = await fetch(`/api/v1/finance/journal-entries/${entryId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch journal entry');
+      }
+      const data = await response.json();
+      console.log('Fetched journal entry:', data);
+      
+      // Ensure line details are complete
+      if (data.lines) {
+        data.lines = data.lines.map(line => ({
+          ...line,
+          // Provide fallbacks in case these are missing
+          accountName: line.accountName || 'Unknown Account',
+          accountCode: line.accountCode || 'N/A',
+          debitAmount: line.debitAmount || '0.00',
+          creditAmount: line.creditAmount || '0.00',
+        }));
+      }
+      
+      return data as unknown as JournalEntry;
     },
     enabled: !!entryId,
   });
@@ -168,7 +187,7 @@ export default function JournalEntryView() {
 
   // Handle back
   const handleBack = () => {
-    setLocation('/finance');
+    setLocation('/finance/journal-entries');
   };
   
   // Handle print functionality

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { useLocation } from 'wouter';
 import {
   Card,
   CardContent,
@@ -65,6 +66,7 @@ interface JournalEntryLine {
 }
 
 export default function LedgerReport() {
+  const [, setLocation] = useLocation();
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [startDate, setStartDate] = useState<Date | undefined>(startOfMonth(new Date()));
@@ -75,14 +77,21 @@ export default function LedgerReport() {
   const { data: accounts = [], isLoading: accountsLoading } = useQuery({
     queryKey: ['/api/v1/finance/chart-of-accounts'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/v1/finance/chart-of-accounts');
-      if (Array.isArray(response)) {
-        // Transform the chart of accounts into a simplified format for the dropdown
-        return response.map(account => ({
-          id: account.id,
-          accountCode: account.accountCode,
-          accountName: account.accountName
-        }));
+      // Direct API call to ensure we get the latest data
+      const response = await fetch('/api/v1/finance/chart-of-accounts');
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          console.log('Loaded accounts:', data.length);
+          // Transform the chart of accounts into a simplified format for the dropdown
+          return data.map(account => ({
+            id: account.id,
+            accountCode: account.accountCode,
+            accountName: account.accountName
+          }));
+        }
+      } else {
+        console.error('Failed to load accounts:', response.status);
       }
       return [];
     },
@@ -98,12 +107,20 @@ export default function LedgerReport() {
       const formattedStartDate = startDate ? format(startDate, 'yyyy-MM-dd') : '';
       const formattedEndDate = endDate ? format(endDate, 'yyyy-MM-dd') : '';
       
-      const response = await apiRequest(
-        'GET', 
-        `/api/v1/finance/ledger/${selectedAccount}?page=${currentPage}&pageSize=${pageSize}${formattedStartDate ? `&startDate=${formattedStartDate}` : ''}${formattedEndDate ? `&endDate=${formattedEndDate}` : ''}`
-      );
+      const url = `/api/v1/finance/ledger/${selectedAccount}?page=${currentPage}&pageSize=${pageSize}${formattedStartDate ? `&startDate=${formattedStartDate}` : ''}${formattedEndDate ? `&endDate=${formattedEndDate}` : ''}`;
+      console.log('Fetching ledger data:', url);
       
-      return response as {
+      // Use direct fetch to ensure we get the latest data
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.error('Error fetching ledger entries:', response.status, response.statusText);
+        throw new Error('Failed to fetch ledger entries');
+      }
+      
+      const data = await response.json();
+      console.log('Ledger data received:', data);
+      
+      return data as {
         entries: JournalEntryLine[];
         totalCount: number;
         openingBalance: string;
@@ -157,6 +174,10 @@ export default function LedgerReport() {
               View account transaction history and balances
             </CardDescription>
           </div>
+          <Button variant="outline" size="sm" onClick={() => setLocation('/finance')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Finance
+          </Button>
         </div>
       </CardHeader>
 
