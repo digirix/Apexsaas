@@ -4877,12 +4877,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Journal entry not found" });
       }
       
-      // Don't allow updating already posted entries
-      if (existingEntry.isPosted) {
+      // Check if this is only a status toggle
+      const isStatusToggleOnly = Object.keys(req.body).length === 1 && 'isPosted' in req.body;
+      
+      // For posted entries, only allow status changes
+      if (existingEntry.isPosted && !isStatusToggleOnly) {
         return res.status(400).json({ message: "Cannot update a posted journal entry" });
       }
       
-      // Extract data from request body
+      // Special handling for status toggle
+      if (isStatusToggleOnly) {
+        // For security, prevent changing a posted entry without lines to draft
+        if (existingEntry.isPosted && req.body.isPosted === false) {
+          // Verify the entry has at least one line
+          const existingLines = await storage.getJournalEntryLines(tenantId, entryId);
+          if (!existingLines || existingLines.length === 0) {
+            return res.status(400).json({ message: "Journal entry must have at least one line" });
+          }
+        }
+        
+        // Update just the status
+        const statusUpdate: Partial<JournalEntry> = {
+          isPosted: req.body.isPosted,
+          updatedBy: userId,
+          updatedAt: new Date(),
+          // For TypeScript compatibility, we'll use undefined instead of null
+          // when setting to draft (unposted)
+          postedAt: req.body.isPosted ? new Date() : undefined
+        };
+        
+        const updatedEntry = await storage.updateJournalEntry(entryId, statusUpdate);
+        return res.json({
+          ...updatedEntry,
+          lines: await storage.getJournalEntryLines(tenantId, entryId)
+        });
+      }
+      
+      // Extract data from request body for full updates
       const { entryDate, sourceDocument, sourceDocumentId, lines, ...otherBodyData } = req.body;
       
       // Convert string date to Date object
@@ -4979,9 +5010,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Journal entry not found" });
       }
       
-      // Don't allow deleting already posted entries
-      if (existingEntry.isPosted) {
-        return res.status(400).json({ message: "Cannot delete a posted journal entry" });
+      // Don't allow deleting already posted entries, but allow with a query param force=true
+      const forceDelete = req.query.force === 'true';
+      if (existingEntry.isPosted && !forceDelete) {
+        return res.status(400).json({ 
+          message: "Cannot delete a posted journal entry. Set it to draft first or use force=true parameter.",
+          canBeForced: true
+        });
       }
       
       // Delete the journal entry (this will also delete associated lines)
