@@ -61,6 +61,10 @@ export function TaskList() {
   const [isCreateInvoiceModalOpen, setIsCreateInvoiceModalOpen] = useState(false);
   const [selectedTaskForInvoice, setSelectedTaskForInvoice] = useState<Task | null>(null);
   
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+  
   // Get current user for "My Tasks" tab
   const { data: currentUser } = useQuery<{ id: number }>({
     queryKey: ["/api/v1/auth/me"],
@@ -151,6 +155,20 @@ export function TaskList() {
         return true;
     }
   });
+  
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredTasks.length / ITEMS_PER_PAGE);
+  
+  // Get current page's tasks
+  const currentTasks = filteredTasks.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+  
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [taskTabFilter, statusFilter, assigneeFilter, categoryFilter, searchTerm]);
   
   // Reset all filters
   const resetFilters = () => {
