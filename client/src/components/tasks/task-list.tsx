@@ -16,6 +16,8 @@ import {
   X,
   UserCircle,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -228,6 +230,22 @@ export function TaskList() {
       toast({
         title: "Error",
         description: "Task not found. Please refresh the page and try again.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Handle edit existing invoice from task
+  const handleEditInvoice = (taskId: number) => {
+    // Find the task by ID
+    const task = tasks.find(t => t.id === taskId);
+    if (task && task.invoiceId) {
+      setSelectedTaskForInvoice(task);
+      setIsCreateInvoiceModalOpen(true);
+    } else {
+      toast({
+        title: "Error",
+        description: "Task has no associated invoice. Please refresh the page and try again.",
         variant: "destructive",
       });
     }
@@ -471,7 +489,8 @@ export function TaskList() {
           </div>
         ) : (
           <>
-            {filteredTasks.map((task) => {
+            {/* Use the paginated tasks instead of all filtered tasks */}
+            {currentTasks.map((task) => {
               // Find status name
               const status = taskStatuses.find(s => s.id === task.statusId);
               const statusName = status ? status.name : "Unknown";
@@ -532,6 +551,35 @@ export function TaskList() {
                 />
               );
             })}
+            
+            {/* Pagination controls */}
+            {filteredTasks.length > 0 && totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                <div className="text-sm text-muted-foreground">
+                  Showing {Math.min(filteredTasks.length, ((currentPage - 1) * ITEMS_PER_PAGE) + 1)}-{Math.min(filteredTasks.length, currentPage * ITEMS_PER_PAGE)} of {filteredTasks.length} tasks
+                </div>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(page => Math.min(totalPages, page + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
