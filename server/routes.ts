@@ -32,7 +32,9 @@ import {
   chartOfAccounts, 
   chartOfAccountsDetailedGroups, 
   chartOfAccountsSubElementGroups, 
-  chartOfAccountsElementGroups
+  chartOfAccountsElementGroups,
+  journalEntries,
+  type JournalEntry
 } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 
@@ -4896,10 +4898,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
-        // Update just the status
-        const statusUpdate: Partial<JournalEntry> = {
+        // Update just the status with proper type handling
+        const statusUpdate = {
           isPosted: req.body.isPosted,
-          updatedBy: userId,
+          updatedBy: userId || undefined,
           updatedAt: new Date(),
           // For TypeScript compatibility, we'll use undefined instead of null
           // when setting to draft (unposted)
