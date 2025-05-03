@@ -73,10 +73,18 @@ export default function LedgerReport() {
 
   // Fetch accounts for the dropdown
   const { data: accounts = [], isLoading: accountsLoading } = useQuery({
-    queryKey: ['/api/v1/finance/ledger-accounts'],
+    queryKey: ['/api/v1/finance/chart-of-accounts'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/v1/finance/ledger-accounts');
-      return Array.isArray(response) ? response : [];
+      const response = await apiRequest('GET', '/api/v1/finance/chart-of-accounts');
+      if (Array.isArray(response)) {
+        // Transform the chart of accounts into a simplified format for the dropdown
+        return response.map(account => ({
+          id: account.id,
+          accountCode: account.accountCode,
+          accountName: account.accountName
+        }));
+      }
+      return [];
     },
   });
 
