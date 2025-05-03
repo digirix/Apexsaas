@@ -120,15 +120,29 @@ export default function LedgerReport() {
       const data = await response.json();
       console.log('Ledger data received:', data);
       
-      return data as {
-        entries: JournalEntryLine[];
-        totalCount: number;
-        openingBalance: string;
-        closingBalance: string;
-        accountDetails: {
-          id: number;
-          accountCode: string;
-          accountName: string;
+      // Create a properly structured return object with default values as needed
+      return {
+        entries: Array.isArray(data.entries) ? data.entries.map((entry: any) => ({
+          ...entry,
+          debitAmount: entry.debitAmount || '0.00',
+          creditAmount: entry.creditAmount || '0.00',
+          entryDate: entry.entryDate || new Date().toISOString(),
+          description: entry.description || '',
+          reference: entry.reference || '',
+          accountCode: entry.accountCode || '',
+          accountName: entry.accountName || 'Unknown Account'
+        })) : [],
+        totalCount: data.totalCount || 0,
+        openingBalance: data.openingBalance || '0.00',
+        closingBalance: data.closingBalance || '0.00',
+        accountDetails: data.accountDetails ? {
+          id: data.accountDetails.id || selectedAccount,
+          accountCode: data.accountDetails.accountCode || '',
+          accountName: data.accountDetails.accountName || ''
+        } : {
+          id: selectedAccount,
+          accountCode: accounts.find(a => a.id === selectedAccount)?.accountCode || '',
+          accountName: accounts.find(a => a.id === selectedAccount)?.accountName || ''
         }
       };
     },

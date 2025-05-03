@@ -88,7 +88,7 @@ export default function JournalEntryView() {
       
       // Ensure line details are complete
       if (data.lines) {
-        data.lines = data.lines.map(line => ({
+        data.lines = data.lines.map((line: any) => ({
           ...line,
           // Provide fallbacks in case these are missing
           accountName: line.accountName || 'Unknown Account',
