@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
-import { format } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import {
   Card,
   CardContent,
@@ -27,6 +27,12 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { 
   Search, 
   BookText, 
@@ -34,7 +40,7 @@ import {
   ArrowRight,
   Download,
   FileText,
-  Calendar
+  Calendar as CalendarIcon
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -61,6 +67,8 @@ interface JournalEntryLine {
 export default function LedgerReport() {
   const [selectedAccount, setSelectedAccount] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [startDate, setStartDate] = useState<Date | undefined>(startOfMonth(new Date()));
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const pageSize = 10;
 
   // Fetch accounts for the dropdown
@@ -74,10 +82,19 @@ export default function LedgerReport() {
 
   // Fetch ledger entries for the selected account
   const { data: ledgerEntries, isLoading: entriesLoading } = useQuery({
-    queryKey: ['/api/v1/finance/ledger', selectedAccount, currentPage],
+    queryKey: ['/api/v1/finance/ledger', selectedAccount, currentPage, startDate, endDate],
     queryFn: async () => {
       if (!selectedAccount) return null;
-      const response = await apiRequest('GET', `/api/v1/finance/ledger/${selectedAccount}?page=${currentPage}&pageSize=${pageSize}`);
+      
+      // Format dates for API request
+      const formattedStartDate = startDate ? format(startDate, 'yyyy-MM-dd') : '';
+      const formattedEndDate = endDate ? format(endDate, 'yyyy-MM-dd') : '';
+      
+      const response = await apiRequest(
+        'GET', 
+        `/api/v1/finance/ledger/${selectedAccount}?page=${currentPage}&pageSize=${pageSize}${formattedStartDate ? `&startDate=${formattedStartDate}` : ''}${formattedEndDate ? `&endDate=${formattedEndDate}` : ''}`
+      );
+      
       return response as {
         entries: JournalEntryLine[];
         totalCount: number;
@@ -161,6 +178,62 @@ export default function LedgerReport() {
                 )}
               </SelectContent>
             </Select>
+          </div>
+          
+          {/* Start Date Picker */}
+          <div className="w-full md:w-1/4">
+            <Label htmlFor="start-date">From Date</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  id="start-date"
+                  variant="outline"
+                  className="w-full justify-start text-left font-normal"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {startDate ? format(startDate, 'PPP') : 'Select start date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={startDate}
+                  onSelect={setStartDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          
+          {/* End Date Picker */}
+          <div className="w-full md:w-1/4">
+            <Label htmlFor="end-date">To Date</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  id="end-date"
+                  variant="outline"
+                  className="w-full justify-start text-left font-normal"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {endDate ? format(endDate, 'PPP') : 'Select end date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={endDate}
+                  onSelect={setEndDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          
+          <div className="w-full md:w-auto">
+            <Button onClick={() => setCurrentPage(1)}>
+              Apply Filters
+            </Button>
           </div>
         </div>
 
