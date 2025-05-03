@@ -542,11 +542,13 @@ export function TaskList() {
                   assignee={assigneeName}
                   priority={priority}
                   isAdmin={task.isAdmin}
+                  invoiceId={task.invoiceId}
                   onViewDetails={() => handleViewTaskDetails(task.id)}
                   onComplete={() => handleCompleteTask(task.id)}
                   isCompletingTask={completeTaskMutation.isPending}
                   onStatusChange={(statusId) => handleStatusChange(task.id, statusId)}
                   onCreateInvoice={() => handleCreateInvoice(task.id)}
+                  onEditInvoice={() => handleEditInvoice(task.id)}
                   availableStatuses={taskStatuses}
                 />
               );
@@ -617,11 +619,13 @@ interface TaskCardProps {
   assignee: string;
   priority: "low" | "medium" | "high";
   isAdmin: boolean;
+  invoiceId?: number | null; // Add invoiceId prop
   onViewDetails: () => void;
   onComplete: () => void;
   isCompletingTask: boolean;
   onStatusChange: (statusId: number) => void;
   onCreateInvoice: () => void;
+  onEditInvoice?: () => void; // Add edit invoice handler
   availableStatuses: TaskStatus[];
 }
 
@@ -640,11 +644,13 @@ function TaskCard({
   assignee, 
   priority,
   isAdmin,
+  invoiceId,
   onViewDetails,
   onComplete,
   isCompletingTask,
   onStatusChange,
   onCreateInvoice,
+  onEditInvoice,
   availableStatuses
 }: TaskCardProps) {
   const formattedDueDate = new Date(dueDate).toLocaleDateString();
@@ -708,17 +714,29 @@ function TaskCard({
               View Details
             </Button>
 
-            {/* Create Invoice Button - Only show for non-admin tasks */}
+            {/* Invoice Buttons - Only show for non-admin tasks */}
             {!isAdmin && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
-                onClick={onCreateInvoice}
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                Create Invoice
-              </Button>
+              invoiceId ? (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700"
+                  onClick={onEditInvoice}
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  Edit Invoice
+                </Button>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
+                  onClick={onCreateInvoice}
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  Create Invoice
+                </Button>
+              )
             )}
             
             {/* Status change dropdown */}

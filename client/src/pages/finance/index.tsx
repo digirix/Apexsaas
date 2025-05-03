@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,7 +23,9 @@ import {
   User,
   Clock,
   Receipt,
-  BookText
+  BookText,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 
 export default function FinancePage() {
