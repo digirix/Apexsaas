@@ -242,7 +242,11 @@ export default function JournalEntryView() {
           </div>
           <div className="space-y-1">
             <div className="text-sm text-muted-foreground">Date</div>
-            <div className="font-medium">{format(new Date(journalEntry.entryDate), 'MMMM d, yyyy')}</div>
+            <div className="font-medium">
+              {journalEntry.entryDate ? 
+                format(new Date(journalEntry.entryDate), 'MMMM d, yyyy') : 
+                'No date provided'}
+            </div>
           </div>
           <div className="space-y-1">
             <div className="text-sm text-muted-foreground">Source Document</div>
@@ -311,11 +315,15 @@ export default function JournalEntryView() {
                 <span className="font-medium">Created by:</span> {journalEntry.createdByName || 'System'}
               </div>
               <div>
-                <span className="font-medium">Created on:</span> {format(new Date(journalEntry.createdAt), 'MMM d, yyyy HH:mm')}
+                <span className="font-medium">Created on:</span> {journalEntry.createdAt ? format(new Date(journalEntry.createdAt), 'MMM d, yyyy HH:mm') : 'Unknown'}
               </div>
               {journalEntry.isPosted && journalEntry.postedAt && (
                 <div>
-                  <span className="font-medium">Posted on:</span> {format(new Date(journalEntry.postedAt), 'MMM d, yyyy HH:mm')}
+                  <span className="font-medium">Posted on:</span> {
+                    journalEntry.postedAt ? 
+                      format(new Date(journalEntry.postedAt), 'MMM d, yyyy HH:mm') : 
+                      'Unknown'
+                  }
                 </div>
               )}
               {journalEntry.notes && (
