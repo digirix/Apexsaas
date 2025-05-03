@@ -2955,54 +2955,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // If entity account doesn't exist, we'll need to create it
           if (!entityAccount) {
-            // Find the Trade Debtors detailed group for creating the entity account
-            const detailedGroups = await storage.getChartOfAccountsDetailedGroups(tenantId);
-            let tradeDebtorsGroup = detailedGroups.find(group => 
-              group.name === 'trade_debtors' || 
-              (group.customName && (
-                group.customName.toLowerCase().includes('trade debtors') || 
-                group.customName.toLowerCase().includes('receivable')
-              ))
-            );
+            console.log(`DEBUG: Entity account not found for entity ID ${invoice.entityId} (${entityName}). Attempting to create one...`);
             
-            // If no specific trade_debtors group found, try to find any detailed group in current_assets
-            if (!tradeDebtorsGroup) {
-              const subElementGroups = await storage.getChartOfAccountsSubElementGroups(tenantId);
-              const currentAssetsGroup = subElementGroups.find(group => 
-                group.name === 'current_assets'
+            try {
+              // Find the Trade Debtors detailed group for creating the entity account
+              const detailedGroups = await storage.getChartOfAccountsDetailedGroups(tenantId);
+              console.log(`DEBUG: Found ${detailedGroups.length} detailed groups for tenant ${tenantId}`);
+              
+              let tradeDebtorsGroup = detailedGroups.find(group => 
+                group.name === 'trade_debtors' || 
+                (group.customName && (
+                  group.customName.toLowerCase().includes('trade debtors') || 
+                  group.customName.toLowerCase().includes('receivable')
+                ))
               );
               
-              if (currentAssetsGroup) {
-                const currentAssetDetailGroups = detailedGroups.filter(group => 
-                  group.subElementGroupId === currentAssetsGroup.id
+              if (tradeDebtorsGroup) {
+                console.log(`DEBUG: Found Trade Debtors group: ${tradeDebtorsGroup.id} - ${tradeDebtorsGroup.customName || tradeDebtorsGroup.name}`);
+              } else {
+                console.log(`DEBUG: No Trade Debtors group found, looking for current assets group...`);
+              }
+              
+              // If no specific trade_debtors group found, try to find any detailed group in current_assets
+              if (!tradeDebtorsGroup) {
+                const subElementGroups = await storage.getChartOfAccountsSubElementGroups(tenantId);
+                console.log(`DEBUG: Found ${subElementGroups.length} sub-element groups`);
+                
+                const currentAssetsGroup = subElementGroups.find(group => 
+                  group.name === 'current_assets' || 
+                  (group.customName && group.customName.toLowerCase().includes('current asset'))
                 );
                 
-                if (currentAssetDetailGroups.length > 0) {
-                  // Use the first detailed group in current assets
-                  tradeDebtorsGroup = currentAssetDetailGroups[0];
+                if (currentAssetsGroup) {
+                  console.log(`DEBUG: Found Current Assets group: ${currentAssetsGroup.id} - ${currentAssetsGroup.customName || currentAssetsGroup.name}`);
+                  
+                  const currentAssetDetailGroups = detailedGroups.filter(group => 
+                    group.subElementGroupId === currentAssetsGroup.id
+                  );
+                  
+                  console.log(`DEBUG: Found ${currentAssetDetailGroups.length} detailed groups in Current Assets`);
+                  
+                  if (currentAssetDetailGroups.length > 0) {
+                    // Use the first detailed group in current assets
+                    tradeDebtorsGroup = currentAssetDetailGroups[0];
+                    console.log(`DEBUG: Using detailed group: ${tradeDebtorsGroup.id} - ${tradeDebtorsGroup.customName || tradeDebtorsGroup.name}`);
+                  }
+                } else {
+                  console.log(`DEBUG: No Current Assets group found`);
                 }
               }
-            }
-            
-            if (!tradeDebtorsGroup) {
-              missingAccounts.push("Trade Debtors Group (required for entity accounts)");
-            } else {
-              // Create a new entity account in Trade Debtors
-              entityAccount = await storage.createChartOfAccount({
-                tenantId: tenantId,
-                detailedGroupId: tradeDebtorsGroup.id,
-                accountCode: `1210-E${invoice.entityId}`, // Format: 1210-E{entityId}
-                accountName: entityName,
-                accountType: "asset",
-                description: `Accounts receivable for entity: ${entityName}`,
-                isSystemAccount: false,
-                isActive: true,
-                entityId: invoice.entityId,
-                openingBalance: "0.00",
-                currentBalance: "0.00"
-              });
               
-              console.log(`Created new entity account in chart of accounts: ${entityAccount.accountName} (ID: ${entityAccount.id})`);
+              // Fallback: If we still can't find a suitable group, just use any asset-related detailed group
+              if (!tradeDebtorsGroup) {
+                console.log(`DEBUG: No suitable group found, using any asset-related detailed group as fallback...`);
+                
+                // Get the elementGroups to find the Assets group
+                const elementGroups = await storage.getChartOfAccountsElementGroups(tenantId);
+                const assetsGroup = elementGroups.find(group => 
+                  group.name === 'assets' || 
+                  (group.customName && group.customName.toLowerCase().includes('asset'))
+                );
+                
+                if (assetsGroup) {
+                  console.log(`DEBUG: Found Assets element group: ${assetsGroup.id}`);
+                  
+                  // Find any detailed group that might be related to assets
+                  const assetDetailedGroups = detailedGroups.filter(group => {
+                    // We can't directly link detailedGroups to elementGroups, so use a naming convention check
+                    return group.code && (
+                      group.code.startsWith('BS-A') || 
+                      group.code.includes('ASSET') || 
+                      (group.customName && group.customName.toLowerCase().includes('asset'))
+                    );
+                  });
+                  
+                  if (assetDetailedGroups.length > 0) {
+                    tradeDebtorsGroup = assetDetailedGroups[0];
+                    console.log(`DEBUG: Using fallback detailed group: ${tradeDebtorsGroup.id} - ${tradeDebtorsGroup.customName || tradeDebtorsGroup.name}`);
+                  }
+                }
+              }
+              
+              if (!tradeDebtorsGroup) {
+                console.log(`DEBUG: Failed to find any suitable group for entity accounts`);
+                missingAccounts.push("Trade Debtors Group (required for entity accounts)");
+              } else {
+                // Create a new entity account in Trade Debtors
+                console.log(`DEBUG: Creating new entity account in group ${tradeDebtorsGroup.id}`);
+                
+                entityAccount = await storage.createChartOfAccount({
+                  tenantId: tenantId,
+                  detailedGroupId: tradeDebtorsGroup.id,
+                  accountCode: `1210-E${invoice.entityId}`, // Format: 1210-E{entityId}
+                  accountName: entityName,
+                  accountType: "asset",
+                  description: `Accounts receivable for entity: ${entityName}`,
+                  isSystemAccount: false,
+                  isActive: true,
+                  entityId: invoice.entityId,
+                  openingBalance: "0.00",
+                  currentBalance: "0.00"
+                });
+                
+                console.log(`SUCCESS: Created new entity account in chart of accounts: ${entityAccount.accountName} (ID: ${entityAccount.id})`);
+              }
+            } catch (error) {
+              console.error(`ERROR creating entity account:`, error);
+              missingAccounts.push(`Entity Account (${entityName})`);
             }
           }
           

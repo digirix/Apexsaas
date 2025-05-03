@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -108,10 +108,42 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
   });
 
   // Query for income accounts (revenue account type)
-  const { data: incomeAccounts = [] } = useQuery({
-    queryKey: ['/api/v1/finance/chart-of-accounts', { accountType: 'revenue' }],
+  const { data: allAccounts = [] } = useQuery({
+    queryKey: ['/api/v1/finance/chart-of-accounts'],
     enabled: incomeAccountDialogOpen,
   });
+  
+  // Query for element groups to filter accounts by income/revenue group
+  const { data: elementGroups = [] as any[] } = useQuery({
+    queryKey: ['/api/v1/finance/chart-of-accounts/element-groups'],
+    enabled: incomeAccountDialogOpen,
+  });
+  
+  // Filter accounts to only show those with revenue/income account type
+  // or belong to the Income Statement > Revenues element group
+  const incomeAccounts = useMemo(() => {
+    // Find the income/revenue element group
+    const revenueGroup = elementGroups.find((group: any) => 
+      group.name === 'revenues' || 
+      (group.customName && 
+       (group.customName.toLowerCase().includes('revenue') || 
+        group.customName.toLowerCase().includes('income')))
+    );
+    
+    return allAccounts.filter((account: any) => {
+      // Include if account type is revenue
+      if (account.accountType === 'revenue') return true;
+      
+      // Include if account belongs to revenue element group
+      if (revenueGroup && account.detailedGroupId) {
+        // This is a simplified check - in a full implementation, you'd trace
+        // from detailed group to element group
+        return account.accountCode.includes('IS-R');
+      }
+      
+      return false;
+    });
+  }, [allAccounts, elementGroups]);
 
   // Mutation for updating invoice status
   const updateInvoiceStatusMutation = useMutation({
