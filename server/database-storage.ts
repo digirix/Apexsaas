@@ -2193,6 +2193,7 @@ export class DatabaseStorage implements IStorage {
 
   // Journal Entry operations for accounting
   async getJournalEntries(tenantId: number, sourceDocument?: string, sourceDocumentId?: number): Promise<JournalEntry[]> {
+    // First get the journal entries
     let query = db.select().from(journalEntries)
       .where(eq(journalEntries.tenantId, tenantId))
       .orderBy(desc(journalEntries.entryDate));
@@ -2205,7 +2206,18 @@ export class DatabaseStorage implements IStorage {
       query = query.where(eq(journalEntries.sourceDocumentId, sourceDocumentId));
     }
     
-    return await query;
+    const entries = await query;
+    
+    // For each entry, get the lines with account details
+    const entriesWithLines = await Promise.all(entries.map(async (entry) => {
+      const lines = await this.getJournalEntryLines(tenantId, entry.id);
+      return {
+        ...entry,
+        lines
+      };
+    }));
+    
+    return entriesWithLines;
   }
 
   async getJournalEntry(id: number, tenantId: number): Promise<JournalEntry | undefined> {
