@@ -32,6 +32,23 @@ export default function FinancePage() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("invoices");
+  const [invoiceTab, setInvoiceTab] = useState("active");
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [activeCurrentPage, setActiveCurrentPage] = useState(1);
+  const [paidCurrentPage, setPaidCurrentPage] = useState(1);
+  const [canceledCurrentPage, setCanceledCurrentPage] = useState(1);
+  const [allCurrentPage, setAllCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+  
+  // Reset pagination when tab changes
+  useEffect(() => {
+    setActiveCurrentPage(1);
+    setPaidCurrentPage(1);
+    setCanceledCurrentPage(1);
+    setAllCurrentPage(1);
+  }, [invoiceTab]);
   
   // Fetch invoices
   const { data: invoices = [], isLoading: invoicesLoading } = useQuery({
@@ -60,7 +77,7 @@ export default function FinancePage() {
   };
   
   // Render invoice table with filtered data
-  const renderInvoiceTable = (filteredInvoices: any[]) => {
+  const renderInvoiceTable = (filteredInvoices: any[], currentPageState: number, setCurrentPageState: React.Dispatch<React.SetStateAction<number>>) => {
     if (invoicesLoading) {
       return <div className="text-center py-4">Loading invoices...</div>;
     }
@@ -85,51 +102,91 @@ export default function FinancePage() {
       );
     }
     
+    // Calculate pagination
+    const totalPages = Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE);
+    
+    // Get current page's invoices
+    const currentInvoices = filteredInvoices.slice(
+      (currentPageState - 1) * ITEMS_PER_PAGE,
+      currentPageState * ITEMS_PER_PAGE
+    );
+    
     return (
-      <div className="rounded-md border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b bg-slate-50">
-              <th className="p-2 text-left font-medium">Invoice #</th>
-              <th className="p-2 text-left font-medium">Client</th>
-              <th className="p-2 text-left font-medium">Issue Date</th>
-              <th className="p-2 text-left font-medium">Due Date</th>
-              <th className="p-2 text-left font-medium">Amount</th>
-              <th className="p-2 text-left font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredInvoices.map((invoice: any) => (
-              <tr key={invoice.id} className="border-b hover:bg-slate-50">
-                <td className="p-2">
-                  <a href="#" className="font-medium hover:underline">
-                    {invoice.invoiceNumber}
-                  </a>
-                </td>
-                <td className="p-2">{invoice.clientName || "Client"}</td>
-                <td className="p-2">{new Date(invoice.issueDate).toLocaleDateString()}</td>
-                <td className="p-2">{new Date(invoice.dueDate).toLocaleDateString()}</td>
-                <td className="p-2">{formatCurrency(parseFloat(invoice.totalAmount))}</td>
-                <td className="p-2">
-                  <div className="flex items-center justify-between">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
-                      ${invoice.status === 'paid' ? 'bg-green-100 text-green-800' : ''}
-                      ${invoice.status === 'draft' ? 'bg-gray-100 text-gray-800' : ''}
-                      ${invoice.status === 'sent' ? 'bg-blue-100 text-blue-800' : ''}
-                      ${invoice.status === 'approved' ? 'bg-emerald-100 text-emerald-800' : ''}
-                      ${invoice.status === 'overdue' ? 'bg-red-100 text-red-800' : ''}
-                      ${invoice.status === 'partially_paid' ? 'bg-yellow-100 text-yellow-800' : ''}
-                      ${invoice.status === 'canceled' || invoice.status === 'void' ? 'bg-gray-100 text-gray-800' : ''}
-                    `}>
-                      {invoice.status.replace('_', ' ')}
-                    </span>
-                    <InvoiceActions invoice={invoice} />
-                  </div>
-                </td>
+      <div>
+        <div className="rounded-md border">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-slate-50">
+                <th className="p-2 text-left font-medium">Invoice #</th>
+                <th className="p-2 text-left font-medium">Client</th>
+                <th className="p-2 text-left font-medium">Issue Date</th>
+                <th className="p-2 text-left font-medium">Due Date</th>
+                <th className="p-2 text-left font-medium">Amount</th>
+                <th className="p-2 text-left font-medium">Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {currentInvoices.map((invoice: any) => (
+                <tr key={invoice.id} className="border-b hover:bg-slate-50">
+                  <td className="p-2">
+                    <a href="#" className="font-medium hover:underline">
+                      {invoice.invoiceNumber}
+                    </a>
+                  </td>
+                  <td className="p-2">{invoice.clientName || "Client"}</td>
+                  <td className="p-2">{new Date(invoice.issueDate).toLocaleDateString()}</td>
+                  <td className="p-2">{new Date(invoice.dueDate).toLocaleDateString()}</td>
+                  <td className="p-2">{formatCurrency(parseFloat(invoice.totalAmount))}</td>
+                  <td className="p-2">
+                    <div className="flex items-center justify-between">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
+                        ${invoice.status === 'paid' ? 'bg-green-100 text-green-800' : ''}
+                        ${invoice.status === 'draft' ? 'bg-gray-100 text-gray-800' : ''}
+                        ${invoice.status === 'sent' ? 'bg-blue-100 text-blue-800' : ''}
+                        ${invoice.status === 'approved' ? 'bg-emerald-100 text-emerald-800' : ''}
+                        ${invoice.status === 'overdue' ? 'bg-red-100 text-red-800' : ''}
+                        ${invoice.status === 'partially_paid' ? 'bg-yellow-100 text-yellow-800' : ''}
+                        ${invoice.status === 'canceled' || invoice.status === 'void' ? 'bg-gray-100 text-gray-800' : ''}
+                      `}>
+                        {invoice.status.replace('_', ' ')}
+                      </span>
+                      <InvoiceActions invoice={invoice} />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        
+        {/* Pagination controls */}
+        {filteredInvoices.length > 0 && totalPages > 1 && (
+          <div className="flex items-center justify-between mt-6 pt-4 border-t">
+            <div className="text-sm text-muted-foreground">
+              Showing {Math.min(filteredInvoices.length, ((currentPageState - 1) * ITEMS_PER_PAGE) + 1)}-{Math.min(filteredInvoices.length, currentPageState * ITEMS_PER_PAGE)} of {filteredInvoices.length} invoices
+            </div>
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPageState(page => Math.max(1, page - 1))}
+                disabled={currentPageState === 1}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPageState(page => Math.min(totalPages, page + 1))}
+                disabled={currentPageState === totalPages}
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -239,7 +296,11 @@ export default function FinancePage() {
                     View and manage client invoices
                   </CardDescription>
                   <div className="pt-2">
-                    <Tabs defaultValue="active">
+                    <Tabs 
+                      defaultValue="active" 
+                      value={invoiceTab}
+                      onValueChange={setInvoiceTab}
+                    >
                       <TabsList className="grid w-full grid-cols-4">
                         <TabsTrigger value="active">Active</TabsTrigger>
                         <TabsTrigger value="paid">Paid</TabsTrigger>
@@ -248,19 +309,19 @@ export default function FinancePage() {
                       </TabsList>
                       
                       <TabsContent value="active" className="pt-4">
-                        {renderInvoiceTable(filterInvoices(['draft', 'sent', 'approved', 'partially_paid', 'overdue']))}
+                        {renderInvoiceTable(filterInvoices(['draft', 'sent', 'approved', 'partially_paid', 'overdue']), activeCurrentPage, setActiveCurrentPage)}
                       </TabsContent>
                       
                       <TabsContent value="paid" className="pt-4">
-                        {renderInvoiceTable(filterInvoices(['paid']))}
+                        {renderInvoiceTable(filterInvoices(['paid']), paidCurrentPage, setPaidCurrentPage)}
                       </TabsContent>
                       
                       <TabsContent value="canceled" className="pt-4">
-                        {renderInvoiceTable(filterInvoices(['canceled', 'void']))}
+                        {renderInvoiceTable(filterInvoices(['canceled', 'void']), canceledCurrentPage, setCanceledCurrentPage)}
                       </TabsContent>
                       
                       <TabsContent value="all" className="pt-4">
-                        {renderInvoiceTable(invoices as any[])}
+                        {renderInvoiceTable(invoices as any[], allCurrentPage, setAllCurrentPage)}
                       </TabsContent>
                     </Tabs>
                   </div>
