@@ -108,7 +108,7 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
   });
 
   // Query for income accounts (revenue account type)
-  const { data: allAccounts = [] } = useQuery({
+  const { data: allAccounts = [] as any[] } = useQuery({
     queryKey: ['/api/v1/finance/chart-of-accounts'],
     enabled: incomeAccountDialogOpen,
   });
@@ -122,15 +122,33 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
   // Filter accounts to only show those with revenue/income account type
   // or belong to the Income Statement > Revenues element group
   const incomeAccounts = useMemo(() => {
+    // Use type assertions to handle the unknown types from the query
+    const typedElementGroups = elementGroups as Array<{
+      id: number;
+      name: string;
+      customName?: string;
+      code?: string;
+    }>;
+    
+    const typedAccounts = allAccounts as Array<{
+      id: number;
+      accountName: string;
+      accountType: string;
+      accountCode: string;
+      detailedGroupId?: number;
+      description?: string;
+    }>;
+    
     // Find the income/revenue element group
-    const revenueGroup = elementGroups.find((group: any) => 
+    const revenueGroup = typedElementGroups.find(group => 
       group.name === 'revenues' || 
-      (group.customName && 
-       (group.customName.toLowerCase().includes('revenue') || 
-        group.customName.toLowerCase().includes('income')))
+      (group.customName && (
+        group.customName.toLowerCase().includes('revenue') || 
+        group.customName.toLowerCase().includes('income')
+      ))
     );
     
-    return allAccounts.filter((account: any) => {
+    return typedAccounts.filter(account => {
       // Include if account type is revenue
       if (account.accountType === 'revenue') return true;
       
