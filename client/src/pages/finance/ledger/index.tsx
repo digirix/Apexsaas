@@ -64,11 +64,11 @@ export default function LedgerReport() {
   const pageSize = 10;
 
   // Fetch accounts for the dropdown
-  const { data: accounts, isLoading: accountsLoading } = useQuery({
+  const { data: accounts = [], isLoading: accountsLoading } = useQuery({
     queryKey: ['/api/v1/finance/ledger-accounts'],
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/v1/finance/ledger-accounts');
-      return response as Account[];
+      return Array.isArray(response) ? response : [];
     },
   });
 

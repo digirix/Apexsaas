@@ -168,7 +168,12 @@ export default function JournalEntryView() {
 
   // Handle back
   const handleBack = () => {
-    setLocation('/finance/journal-entries');
+    setLocation('/finance');
+  };
+  
+  // Handle print functionality
+  const handlePrint = () => {
+    window.print();
   };
 
   if (isLoading) {
@@ -338,7 +343,7 @@ export default function JournalEntryView() {
           <div>
             <h4 className="font-medium mb-3">Actions</h4>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={handlePrint}>
                 <Printer className="mr-2 h-4 w-4" />
                 Print
               </Button>
