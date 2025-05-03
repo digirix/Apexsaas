@@ -3276,15 +3276,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             lineOrder: lineOrder++
           });
           
-          // Debit Discount Allowed account if discount amount is not zero
+          // Handle Discount Allowed account if discount amount is not zero
           if (discountAmount !== 0 && discountAllowedAccount) {
+            const absDiscountAmount = Math.abs(discountAmount);
+            
+            // If discount is positive, DEBIT Discount Allowed
+            // If discount is negative, CREDIT Discount Allowed
             await storage.createJournalEntryLine({
               tenantId: tenantId,
               journalEntryId: journalEntry.id,
               accountId: discountAllowedAccount.id,
               description: `${invoiceDescription}-IN${invoice.invoiceNumber}`,
-              debitAmount: discountAmount.toString(),
-              creditAmount: "0",
+              debitAmount: discountAmount > 0 ? absDiscountAmount.toString() : "0",
+              creditAmount: discountAmount < 0 ? absDiscountAmount.toString() : "0",
               lineOrder: lineOrder++
             });
           }
@@ -3315,15 +3319,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
           
-          // Credit Entity Account with the discount amount as contra entry if discount exists
-          if (discountAmount > 0 && entityAccount) {
+          // Handle Entity Account contra entry for discount amount if discount exists
+          if (discountAmount !== 0 && entityAccount) {
+            const absDiscountAmount = Math.abs(discountAmount);
+            
+            // If discount is positive, CREDIT Entity Account (contra)
+            // If discount is negative, DEBIT Entity Account (contra)
             await storage.createJournalEntryLine({
               tenantId: tenantId,
               journalEntryId: journalEntry.id,
               accountId: entityAccount.id,
               description: `${invoiceDescription}-IN${invoice.invoiceNumber}`,
-              debitAmount: "0",
-              creditAmount: discountAmount.toString(),
+              debitAmount: discountAmount < 0 ? absDiscountAmount.toString() : "0",
+              creditAmount: discountAmount > 0 ? absDiscountAmount.toString() : "0",
               lineOrder: lineOrder++
             });
           }
