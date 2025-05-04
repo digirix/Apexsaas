@@ -3,9 +3,19 @@
 ## Overview
 This document provides a comprehensive overview of the progress made on the Accounting Firm Management Application, a multi-tenant system designed for accounting firms to manage clients, tasks, users, permissions, and system configuration across different countries and service types.
 
-## Latest Updates (May 3, 2025)
+## Latest Updates (May 4, 2025)
 
-### Finance Module Enhancements - Ledger and Journal Entry Fixes
+### Invoice Update Workflow Enhancements
+- Implemented unified invoice update functionality through task management:
+  - Fixed form field data loading issues (category, discount, tax values)
+  - Corrected mapping between categoryId and taskCategoryId fields
+  - Improved API call path handling for invoice updates in both task and finance modules
+  - Added automatic task-invoice linkage when new invoices are created
+  - Enhanced query invalidation to ensure finance module data is refreshed after task-based changes
+  - Applied proper error handling with detailed logging for debugging
+  - Fixed discount amount and tax percentage handling in invoice calculations
+
+### Finance Module Enhancements - Ledger and Journal Entry Fixes (May 3, 2025)
 - Implemented comprehensive fixes to the Journal Entry and General Ledger systems:
   - Added back navigation to the Ledger Report page with proper `/finance` routing
   - Fixed account selection dropdown in the General Ledger report to properly display available accounts

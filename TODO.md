@@ -5,9 +5,9 @@ This document outlines the remaining tasks and future enhancements for the Accou
 ## Current Implementation Status
 - Setup Module: 100% complete
 - Clients Module: 100% complete
-- Tasks Module: 90% complete (task editing in progress)
+- Tasks Module: 95% complete (invoice integration added, task assignment notifications pending)
 - Users Module: 100% complete  
-- Finance Module: 90% complete (chart of accounts, journal entries, and general ledger reporting added; trial balance and P&L pending)
+- Finance Module: 90% complete (invoice-task integration complete, auto-posting journal entries and financial reporting in progress)
 
 ## Current Priority
 1. ✓ Fix the Journal Entry source document bug (currently causing 500 error)
@@ -23,12 +23,18 @@ This document outlines the remaining tasks and future enhancements for the Accou
 11. ✓ Fix back navigation in the Ledger report to return to Finance module
 12. ✓ Add proper display of account details and debit/credit amounts in Journal Entry view
 13. ✓ Fix 404 error when accessing General Ledger from Financial Reports section
-14. Implement TypeScript type definitions for all components in Chart of Accounts and Journal Entries related pages
-15. Implement automatic Account Code generation based on selected Chart of Accounts structure
-16. Complete the implementation of financial reporting features (trial balance, profit & loss)
-17. Complete the integration between Tasks and Invoices
-18. Implement single-page PDF invoice layout with professional design
-19. Implement auto-posting of journal entries when invoice status changes
+14. ✓ Update invoice functionality through task management (fixed form field mapping & data loading)
+15. ✓ Improve API paths and synchronization between Tasks and Finance modules for invoice updates
+16. ✓ Implement automated task-invoice linking for better traceability
+17. Implement auto-posting of journal entries when invoice status changes to "approved":
+   - Add interface for selecting income account during invoice approval
+   - Create entity accounts automatically in chart of accounts if not existing
+   - Generate proper journal entry with debits/credits as per accounting rules
+   - Handle discount and tax posting with appropriate accounts
+18. Implement TypeScript type definitions for all components in Chart of Accounts and Journal Entries related pages
+19. Implement automatic Account Code generation based on selected Chart of Accounts structure
+20. Complete the implementation of financial reporting features (trial balance, profit & loss)
+21. Implement single-page PDF invoice layout with professional design
 
 ## Priority 1: Critical System Improvements
 
