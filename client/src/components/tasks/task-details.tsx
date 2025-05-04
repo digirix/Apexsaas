@@ -286,8 +286,8 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
       } else {
         // Get discount and tax values from the invoice if available
         // Note: Tasks don't have discountAmount or taxPercent fields, only invoices do
-        const discountAmount = invoiceData?.discountAmount ?? 0;
-        const taxPercent = invoiceData?.taxPercent ?? 0;
+        const discountAmount = invoiceData?.discountAmount ? parseFloat(invoiceData.discountAmount) : 0;
+        const taxPercent = invoiceData?.taxPercent ? parseFloat(invoiceData.taxPercent) : 0;
         
         console.log("Invoice data for task:", { 
           taskId: task.id,
