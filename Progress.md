@@ -3,9 +3,19 @@
 ## Overview
 This document provides a comprehensive overview of the progress made on the Accounting Firm Management Application, a multi-tenant system designed for accounting firms to manage clients, tasks, users, permissions, and system configuration across different countries and service types.
 
-## Latest Updates (May 1, 2025)
+## Latest Updates (May 3, 2025)
 
-### Journal Entries CRUD Enhancements
+### Finance Module Enhancements - Ledger and Journal Entry Fixes
+- Implemented comprehensive fixes to the Journal Entry and General Ledger systems:
+  - Added back navigation to the Ledger Report page with proper `/finance` routing
+  - Fixed account selection dropdown in the General Ledger report to properly display available accounts
+  - Enhanced data fetching with robust error handling and fallback handling for missing data
+  - Improved API data retrieval with proper debug logging to identify data formatting issues
+  - Implemented date range filtering in the General Ledger report for flexible reporting periods
+  - Fixed 404 error when accessing the General Ledger from the financial reports section
+  - Added standardized pagination with consistent 10 items per page limit across lists
+
+### Journal Entries CRUD Enhancements (May 1, 2025)
 - Implemented full CRUD functionality for Journal Entries:
   - Added API endpoints for updating and deleting journal entries
   - Created comprehensive Edit Journal Entry form with validation
