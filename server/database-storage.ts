@@ -112,6 +112,25 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updatedSetting;
   }
+  
+  // Set tenant setting (create if it doesn't exist or update if it does)
+  async setTenantSetting(tenantId: number, key: string, value: string): Promise<TenantSetting> {
+    // Check if setting exists first
+    const existingSetting = await this.getTenantSetting(tenantId, key);
+    
+    if (existingSetting) {
+      // Update existing setting
+      const updatedSetting = await this.updateTenantSetting(existingSetting.id, { value });
+      return updatedSetting as TenantSetting;
+    } else {
+      // Create new setting
+      return await this.createTenantSetting({
+        tenantId,
+        key,
+        value
+      });
+    }
+  }
 
   // Modified to match IStorage interface
   async deleteTenantSetting(tenantId: number, key: string): Promise<boolean> {
@@ -2210,7 +2229,7 @@ export class DatabaseStorage implements IStorage {
     
     // For each entry, get the lines with account details
     const entriesWithLines = await Promise.all(entries.map(async (entry) => {
-      const lines = await this.getJournalEntryLines(tenantId, entry.id);
+      const lines = await this.getJournalEntryLines(entry.id, tenantId);
       return {
         ...entry,
         lines
@@ -2218,6 +2237,11 @@ export class DatabaseStorage implements IStorage {
     }));
     
     return entriesWithLines;
+  }
+  
+  // Get journal entries by source document (for example, all entries related to an invoice)
+  async getJournalEntriesBySourceDocument(sourceDocument: string, sourceDocumentId: number, tenantId: number): Promise<JournalEntry[]> {
+    return this.getJournalEntries(tenantId, sourceDocument, sourceDocumentId);
   }
 
   async getJournalEntry(id: number, tenantId: number): Promise<JournalEntry | undefined> {
@@ -2261,7 +2285,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Journal Entry Line operations
-  async getJournalEntryLines(tenantId: number, journalEntryId?: number, accountId?: number): Promise<JournalEntryLine[]> {
+  async getJournalEntryLines(journalEntryId: number, tenantId: number, accountId?: number): Promise<JournalEntryLine[]> {
     // Create base query
     let query = db.select({
       id: journalEntryLines.id,
