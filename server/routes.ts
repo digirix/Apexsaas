@@ -3740,6 +3740,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedBy: userId
       };
       
+      // Convert date strings to Date objects
+      if (data.issueDate && typeof data.issueDate === 'string') {
+        data.issueDate = new Date(data.issueDate);
+      }
+      
+      if (data.dueDate && typeof data.dueDate === 'string') {
+        data.dueDate = new Date(data.dueDate);
+      }
+      
       // Always set status to draft when editing a non-draft invoice
       if (wasApproved && existingInvoice.status !== 'draft') {
         console.log(`Setting invoice ${id} from status '${existingInvoice.status}' to 'draft' for editing`);
@@ -3932,11 +3941,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
-      }
-      
-      // Check if the invoice update was successful
-      if (!updatedInvoice) {
-        return res.status(404).json({ message: "Invoice not found or could not be updated" });
       }
       
       res.status(500).json({ 

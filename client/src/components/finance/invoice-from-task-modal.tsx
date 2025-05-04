@@ -160,7 +160,13 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
             form.setValue("dueDate", format(new Date(invoiceData.dueDate), "yyyy-MM-dd"));
             form.setValue("currencyCode", invoiceData.currencyCode);
             form.setValue("subtotal", invoiceData.subtotal.toString());
-            form.setValue("taxPercent", invoiceData.taxPercent.toString());
+            
+            // Properly handle tax percent, ensuring it's parsed as a number
+            console.log("Tax percent from invoice:", invoiceData.taxPercent, "type:", typeof invoiceData.taxPercent);
+            const taxPercent = parseFloat(invoiceData.taxPercent || "0");
+            form.setValue("taxPercent", taxPercent.toString());
+            console.log("Set taxPercent to:", taxPercent);
+            
             form.setValue("taxAmount", invoiceData.taxAmount.toString());
             form.setValue("discountAmount", invoiceData.discountAmount.toString());
             form.setValue("totalAmount", invoiceData.totalAmount.toString());
