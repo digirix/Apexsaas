@@ -240,8 +240,8 @@ export function TaskList() {
     // Find the task by ID
     const task = tasks.find(t => t.id === taskId);
     if (task && task.invoiceId) {
-      setSelectedTaskForInvoice(task);
-      setIsCreateInvoiceModalOpen(true);
+      // Instead of opening the create modal, redirect to the invoice edit page directly
+      window.location.href = `/finance/invoices/${task.invoiceId}/edit`;
     } else {
       toast({
         title: "Error",
