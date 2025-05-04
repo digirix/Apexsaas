@@ -613,21 +613,6 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
                   )}
                 />
                 
-                {/* Tax Amount */}
-                <FormField
-                  control={form.control}
-                  name="taxAmount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tax Amount</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" {...field} disabled={isSubmitting} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
                 {/* Discount Amount */}
                 <FormField
                   control={form.control}
@@ -638,6 +623,39 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
                       <FormControl>
                         <Input type="number" step="0.01" {...field} disabled={isSubmitting} />
                       </FormControl>
+                      <FormDescription>Enter discount amount (if applicable)</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {/* Tax Percentage */}
+                <FormField
+                  control={form.control}
+                  name="taxPercent"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tax Percentage (%)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" {...field} disabled={isSubmitting} />
+                      </FormControl>
+                      <FormDescription>Enter tax percentage (e.g., 15 for 15%)</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {/* Tax Amount (calculated automatically) */}
+                <FormField
+                  control={form.control}
+                  name="taxAmount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tax Amount</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" {...field} disabled={true} />
+                      </FormControl>
+                      <FormDescription>Auto-calculated: (Subtotal-Discount)*Tax%</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

@@ -1380,22 +1380,68 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
                             )}
                           />
                           
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                              control={revenueTaskForm.control}
+                              name="serviceRate"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Service Rate</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      placeholder="Enter service rate"
+                                      {...field}
+                                    />
+                                  </FormControl>
+                                  <FormDescription>
+                                    The base rate to be charged for this service
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            
+                            <FormField
+                              control={revenueTaskForm.control}
+                              name="discountAmount"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Discount Amount</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      placeholder="0.00"
+                                      {...field}
+                                    />
+                                  </FormControl>
+                                  <FormDescription>
+                                    Optional discount to apply to invoice
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                          
                           <FormField
                             control={revenueTaskForm.control}
-                            name="serviceRate"
+                            name="taxPercent"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Service Rate</FormLabel>
+                                <FormLabel>Tax Percentage (%)</FormLabel>
                                 <FormControl>
                                   <Input
                                     type="number"
                                     step="0.01"
-                                    placeholder="Enter service rate"
+                                    placeholder="0"
                                     {...field}
                                   />
                                 </FormControl>
                                 <FormDescription>
-                                  The rate to be charged for this service
+                                  Tax percentage will be applied as: (Subtotal - Discount) × Tax%
                                 </FormDescription>
                                 <FormMessage />
                               </FormItem>
