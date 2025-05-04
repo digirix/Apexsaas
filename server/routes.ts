@@ -3429,25 +3429,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
             invoiceDescription = lineItems[0].description || "";
           }
           
-          // 2. Create journal entries according to auto-posting JV requirements
+          // 2. Check for existing journal entries
+          // First, check if there are existing journal entries for this invoice
+          const existingJournalEntries = await storage.getJournalEntriesBySourceDocument('invoice', invoice.id, tenantId);
+          
           // Get the values we need
           const subtotalAmount = parseFloat(invoice.subtotal || "0");
           const totalAmount = parseFloat(invoice.totalAmount || "0");
           // These variables are already declared above, so we just reuse them
           const absDiscountAmount = Math.abs(discountAmount);
           
-          // Create journal entry header
-          const journalEntry = await storage.createJournalEntry({
-            tenantId: tenantId,
-            entryDate: new Date(), // Current date as the approval date
-            reference: `IN${invoice.invoiceNumber}`,
-            entryType: "INVAP", // Invoice approval entry type
-            description: `${invoiceDescription}-IN${invoice.invoiceNumber}`,
-            isPosted: true,
-            createdBy: userId,
-            sourceDocument: "invoice",
-            sourceDocumentId: invoice.id
-          });
+          let journalEntry;
+          
+          if (existingJournalEntries && existingJournalEntries.length > 0) {
+            // Use the existing journal entry
+            console.log(`Found existing journal entry for invoice ${invoice.invoiceNumber}, updating instead of creating new one`);
+            
+            journalEntry = existingJournalEntries[0];
+            
+            // Update the existing journal entry
+            await storage.updateJournalEntry(journalEntry.id, {
+              entryDate: new Date(), // Update to current date
+              description: `${invoiceDescription}-IN${invoice.invoiceNumber} (Updated)`,
+              updatedBy: userId
+            });
+            
+            // Delete all existing journal entry lines to recreate with updated values
+            const existingLines = await storage.getJournalEntryLines(journalEntry.id, tenantId);
+            
+            for (const line of existingLines) {
+              await storage.deleteJournalEntryLine(line.id, tenantId);
+            }
+            
+            console.log(`Deleted ${existingLines.length} existing journal entry lines for entry ${journalEntry.id}`);
+          } else {
+            // Create a new journal entry
+            console.log(`Creating new journal entry for invoice ${invoice.invoiceNumber}`);
+            
+            journalEntry = await storage.createJournalEntry({
+              tenantId: tenantId,
+              entryDate: new Date(), // Current date as the approval date
+              reference: `IN${invoice.invoiceNumber}`,
+              entryType: "INVAP", // Invoice approval entry type
+              description: `${invoiceDescription}-IN${invoice.invoiceNumber}`,
+              isPosted: true,
+              createdBy: userId,
+              sourceDocument: "invoice",
+              sourceDocumentId: invoice.id
+            });
+          }
           
           let lineOrder = 1;
           
