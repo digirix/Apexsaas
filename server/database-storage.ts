@@ -1132,12 +1132,6 @@ export class DatabaseStorage implements IStorage {
       ));
     return lineItem;
   }
-  
-  async getInvoiceLineItemById(id: number): Promise<InvoiceLineItem | undefined> {
-    const [lineItem] = await db.select().from(invoiceLineItems)
-      .where(eq(invoiceLineItems.id, id));
-    return lineItem;
-  }
 
   async createInvoiceLineItem(lineItem: InsertInvoiceLineItem): Promise<InvoiceLineItem> {
     const [newLineItem] = await db.insert(invoiceLineItems).values(lineItem).returning();

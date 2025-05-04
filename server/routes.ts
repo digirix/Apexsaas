@@ -2943,28 +2943,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Get line items for a specific invoice
-  app.get("/api/v1/finance/invoices/:id/line-items", isAuthenticated, async (req, res) => {
-    try {
-      const tenantId = (req.user as any).tenantId;
-      const invoiceId = parseInt(req.params.id);
-      
-      // First check if the invoice exists and belongs to the tenant
-      const invoice = await storage.getInvoice(invoiceId, tenantId);
-      if (!invoice) {
-        return res.status(404).json({ message: "Invoice not found" });
-      }
-      
-      // Get the line items
-      const lineItems = await storage.getInvoiceLineItems(tenantId, invoiceId);
-      
-      return res.json(lineItems);
-    } catch (error) {
-      console.error("Error getting invoice line items:", error);
-      return res.status(500).json({ message: "Failed to get invoice line items" });
-    }
-  });
-  
   // GET invoice PDF by ID
   app.get("/api/v1/finance/invoices/:id/pdf", isAuthenticated, async (req, res) => {
     try {
@@ -4015,61 +3993,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(payments);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch payments" });
-    }
-  });
-  
-  // Update an invoice line item
-  app.put("/api/v1/finance/invoice-line-items/:id", isAuthenticated, async (req, res) => {
-    try {
-      const tenantId = (req.user as any).tenantId;
-      const id = parseInt(req.params.id);
-      const data = { ...req.body, tenantId };
-      
-      // Check if line item exists
-      const lineItem = await storage.getInvoiceLineItemById(id);
-      if (!lineItem) {
-        return res.status(404).json({ message: "Invoice line item not found" });
-      }
-      
-      // Validate the data
-      const validatedData = enhancedInvoiceLineItemSchema.parse(data);
-      
-      // Update the line item
-      const updatedLineItem = await storage.updateInvoiceLineItem(id, validatedData);
-      
-      return res.json(updatedLineItem);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Validation error", errors: error.errors });
-      }
-      console.error("Error updating invoice line item:", error);
-      return res.status(500).json({ message: "Failed to update invoice line item" });
-    }
-  });
-  
-  // Delete an invoice line item
-  app.delete("/api/v1/finance/invoice-line-items/:id", isAuthenticated, async (req, res) => {
-    try {
-      const tenantId = (req.user as any).tenantId;
-      const id = parseInt(req.params.id);
-      
-      // Check if line item exists
-      const lineItem = await storage.getInvoiceLineItemById(id);
-      if (!lineItem) {
-        return res.status(404).json({ message: "Invoice line item not found" });
-      }
-      
-      // Delete the line item
-      const success = await storage.deleteInvoiceLineItem(id, tenantId);
-      
-      if (success) {
-        return res.json({ message: "Invoice line item deleted successfully" });
-      } else {
-        return res.status(500).json({ message: "Failed to delete invoice line item" });
-      }
-    } catch (error) {
-      console.error("Error deleting invoice line item:", error);
-      return res.status(500).json({ message: "Failed to delete invoice line item" });
     }
   });
   
