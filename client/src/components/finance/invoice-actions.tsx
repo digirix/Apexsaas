@@ -314,6 +314,14 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
             <FileText className="mr-2 h-4 w-4" />
             <span>Download PDF</span>
           </DropdownMenuItem>
+          
+          {/* Edit Invoice */}
+          <DropdownMenuItem 
+            onClick={() => window.location.href = `/finance/invoices/${invoice.id}/edit`}
+          >
+            <FileText className="mr-2 h-4 w-4" />
+            <span>Edit Invoice</span>
+          </DropdownMenuItem>
 
           <DropdownMenuSeparator />
           
