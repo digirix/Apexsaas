@@ -80,12 +80,15 @@ export default function ChartOfAccountsManager() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [formData, setFormData] = useState<any>({
-    name: '',
-    code: '',
-    description: '',
+  // Define initial form data
+  const initialFormData = {
+    name: "",
+    code: "",
+    description: "",
     isActive: true
-  });
+  };
+  
+  const [formData, setFormData] = useState<any>(initialFormData);
 
   // Fetch Chart of Accounts data using real API endpoints
   const { data: mainGroups = [], isLoading: mainGroupsLoading } = useQuery<any[]>({
@@ -125,12 +128,7 @@ export default function ChartOfAccountsManager() {
         description: "Main group added successfully",
       });
       setIsAddDialogOpen(false);
-      setFormData({
-        name: '',
-        code: '',
-        description: '',
-        isActive: true
-      });
+      setFormData(initialFormData);
     },
     onError: (error) => {
       console.error("Error adding main group:", error);
@@ -155,6 +153,7 @@ export default function ChartOfAccountsManager() {
         description: "Main group updated successfully",
       });
       setIsEditDialogOpen(false);
+      setFormData(initialFormData);
     },
     onError: (error) => {
       console.error("Error updating main group:", error);
@@ -178,6 +177,7 @@ export default function ChartOfAccountsManager() {
         description: "Element group updated successfully",
       });
       setIsEditDialogOpen(false);
+      setFormData(initialFormData);
     },
     onError: (error) => {
       console.error("Error updating element group:", error);
@@ -201,6 +201,7 @@ export default function ChartOfAccountsManager() {
         description: "Sub-element group updated successfully",
       });
       setIsEditDialogOpen(false);
+      setFormData(initialFormData);
     },
     onError: (error) => {
       console.error("Error updating sub-element group:", error);
@@ -224,6 +225,7 @@ export default function ChartOfAccountsManager() {
         description: "Detailed group updated successfully",
       });
       setIsEditDialogOpen(false);
+      setFormData(initialFormData);
     },
     onError: (error) => {
       console.error("Error updating detailed group:", error);
@@ -247,6 +249,7 @@ export default function ChartOfAccountsManager() {
         description: "Account updated successfully",
       });
       setIsEditDialogOpen(false);
+      setFormData(initialFormData);
     },
     onError: (error) => {
       console.error("Error updating account:", error);
