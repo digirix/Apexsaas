@@ -5301,14 +5301,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Journal entry not found" });
       }
       
-      // Don't allow deleting already posted entries, but allow with a query param force=true
-      const forceDelete = req.query.force === 'true';
-      if (existingEntry.isPosted && !forceDelete) {
-        return res.status(400).json({ 
-          message: "Cannot delete a posted journal entry. Set it to draft first or use force=true parameter.",
-          canBeForced: true
-        });
-      }
+      // Allow deletion of any journal entry regardless of status
+      console.log(`Deleting journal entry ${entryId} (isPosted: ${existingEntry.isPosted}) without restrictions`);
       
       // Delete the journal entry (this will also delete associated lines)
       const success = await storage.deleteJournalEntry(entryId, tenantId);
