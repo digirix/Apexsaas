@@ -291,9 +291,15 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
         console.log("Invoice data for task:", { 
           taskId: task.id,
           invoiceId: task.invoiceId,
+          // Show raw values from the API response
+          rawInvoiceData: invoiceData,
+          // Show the values being used
           discountAmount,
           taxPercent,
-          taskCategory: task.taskCategoryId // Fixed field name
+          // Show task values
+          taskDiscountAmount: task.discountAmount,
+          taskTaxPercent: task.taxPercent,
+          taskCategory: task.taskCategoryId
         });
         
         revenueTaskForm.reset({
