@@ -606,12 +606,25 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
       
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Invalidate all relevant queries
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/tasks", taskId] });
+      
+      // Invalidate finance module queries
       queryClient.invalidateQueries({ queryKey: ["/api/v1/invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/invoices"] });
+      if (task?.invoiceId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/invoices", task.invoiceId] });
+      }
+      
       toast({
         title: "Success",
         description: "Invoice updated successfully",
       });
+      
+      // Close the editing mode
+      setIsEditing(false);
     },
     onError: (error: any) => {
       toast({
@@ -638,6 +651,9 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
             taxPercent: data.taxPercent || 0,
             currency: data.currency || "USD"
           });
+        } else {
+          // Ensure we close editing mode even if we don't create an invoice
+          setIsEditing(false);
         }
       }
     });
