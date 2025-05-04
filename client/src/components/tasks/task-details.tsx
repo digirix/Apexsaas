@@ -256,6 +256,20 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
     },
   });
   
+  // Fetch invoice details if task has an invoice
+  const { data: invoiceData } = useQuery({
+    queryKey: ["/api/v1/finance/invoices", task?.invoiceId],
+    queryFn: async () => {
+      if (!task?.invoiceId) return null;
+      const response = await fetch(`/api/v1/finance/invoices/${task.invoiceId}`);
+      if (!response.ok) {
+        return null;
+      }
+      return response.json();
+    },
+    enabled: !!task?.invoiceId && isOpen,
+  });
+
   // Update form values when task data is loaded
   useEffect(() => {
     if (task && isEditing) {
@@ -265,24 +279,28 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
           assigneeId: task.assigneeId?.toString(),
           statusId: task.statusId?.toString(),
           dueDate: new Date(task.dueDate),
-          categoryId: task.categoryId?.toString(),
+          categoryId: task.taskCategoryId?.toString(), // Fix: Use taskCategoryId instead of categoryId
           taskType: task.taskType,
           notes: task.notes || "",
         });
       } else {
+        // Get discount and tax values from the invoice if available
+        const discountAmount = invoiceData?.discountAmount || 0;
+        const taxPercent = invoiceData?.taxPercent || 0;
+        
         revenueTaskForm.reset({
           taskDetails: task.taskDetails,
           assigneeId: task.assigneeId?.toString(),
           statusId: task.statusId?.toString(),
           dueDate: new Date(task.dueDate),
-          categoryId: task.categoryId?.toString(),
+          categoryId: task.taskCategoryId?.toString(), // Fix: Use taskCategoryId instead of categoryId
           taskType: task.taskType,
           notes: task.notes || "",
           clientId: task.clientId?.toString(),
           entityId: task.entityId?.toString(),
           serviceRate: task.serviceRate || 0,
-          discountAmount: 0, // Default to 0 for existing tasks
-          taxPercent: 0, // Default to 0% for existing tasks
+          discountAmount: discountAmount, // Use invoice discount amount when available
+          taxPercent: taxPercent, // Use invoice tax percent when available
           currency: task.currency || "USD",
           complianceFrequency: task.complianceFrequency,
           complianceYear: task.complianceYear || "",
@@ -294,7 +312,7 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
         });
       }
     }
-  }, [task, isEditing, adminTaskForm, revenueTaskForm, activeTab]);
+  }, [task, invoiceData, isEditing, adminTaskForm, revenueTaskForm, activeTab]);
   
   // If the activeTab is "invoice" and isEditing is true, set createUpdateInvoice to true
   useEffect(() => {
