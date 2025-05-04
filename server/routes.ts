@@ -2414,6 +2414,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         delete taskUpdateData.categoryId;
       }
       
+      // Ensure dates are proper Date objects
+      if (taskUpdateData.dueDate && typeof taskUpdateData.dueDate === 'string') {
+        taskUpdateData.dueDate = new Date(taskUpdateData.dueDate);
+      }
+      
+      if (taskUpdateData.complianceStartDate && typeof taskUpdateData.complianceStartDate === 'string') {
+        taskUpdateData.complianceStartDate = new Date(taskUpdateData.complianceStartDate);
+      }
+      
+      if (taskUpdateData.complianceEndDate && typeof taskUpdateData.complianceEndDate === 'string') {
+        taskUpdateData.complianceEndDate = new Date(taskUpdateData.complianceEndDate);
+      }
+      
       // Update the task first
       const updatedTask = await storage.updateTask(id, taskUpdateData);
       
