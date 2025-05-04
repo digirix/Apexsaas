@@ -106,17 +106,45 @@ export default function EditInvoicePage() {
   // Initialize form with invoice data when loaded
   useEffect(() => {
     if (invoice && !invoiceLoading) {
-      // Format dates properly
-      const formattedIssueDate = new Date(invoice.issueDate);
-      const formattedDueDate = new Date(invoice.dueDate);
-      
-      form.reset({
-        ...invoice,
-        issueDate: formattedIssueDate,
-        dueDate: formattedDueDate,
-      });
-      
-      setIsLoading(false);
+      try {
+        // Format dates properly with validation
+        let formattedIssueDate;
+        let formattedDueDate;
+        
+        // Safely parse dates with validation
+        if (invoice.issueDate && typeof invoice.issueDate === 'string') {
+          const dateObj = new Date(invoice.issueDate);
+          if (!isNaN(dateObj.getTime())) {
+            formattedIssueDate = dateObj;
+          }
+        }
+        
+        if (invoice.dueDate && typeof invoice.dueDate === 'string') {
+          const dateObj = new Date(invoice.dueDate);
+          if (!isNaN(dateObj.getTime())) {
+            formattedDueDate = dateObj;
+          }
+        }
+        
+        form.reset({
+          ...invoice,
+          issueDate: formattedIssueDate || new Date(),
+          dueDate: formattedDueDate || new Date(),
+        });
+        
+        console.log("Form reset with dates:", formattedIssueDate, formattedDueDate);
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Error formatting dates:", error);
+        // Fallback to current date if there's an error
+        form.reset({
+          ...invoice,
+          issueDate: new Date(),
+          dueDate: new Date(),
+        });
+        setIsLoading(false);
+      }
     }
   }, [invoice, invoiceLoading, form]);
   
