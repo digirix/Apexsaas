@@ -1441,6 +1441,22 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
                         </TabsContent>
                         
                         <TabsContent value="invoice" className="space-y-4 pt-4">
+                          <div className="mb-4 flex items-center space-x-2">
+                            <Checkbox 
+                              id="createUpdateInvoice" 
+                              checked={revenueTaskForm.watch("createUpdateInvoice")}
+                              onCheckedChange={(checked) => 
+                                revenueTaskForm.setValue("createUpdateInvoice", checked === true)
+                              }
+                            />
+                            <label
+                              htmlFor="createUpdateInvoice"
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            >
+                              Create/Update Invoice with this Task
+                            </label>
+                          </div>
+                          
                           <FormField
                             control={revenueTaskForm.control}
                             name="currency"
@@ -1489,6 +1505,7 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
                                       step="0.01"
                                       placeholder="Enter service rate"
                                       {...field}
+                                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                                     />
                                   </FormControl>
                                   <FormDescription>
@@ -1511,6 +1528,7 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
                                       step="0.01"
                                       placeholder="0.00"
                                       {...field}
+                                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                                     />
                                   </FormControl>
                                   <FormDescription>
@@ -1534,6 +1552,7 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
                                     step="0.01"
                                     placeholder="0"
                                     {...field}
+                                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                                   />
                                 </FormControl>
                                 <FormDescription>
@@ -1543,6 +1562,38 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
                               </FormItem>
                             )}
                           />
+                          
+                          {/* Display totals calculation */}
+                          {revenueTaskForm.watch("createUpdateInvoice") && (
+                            <div className="mt-6 bg-slate-50 p-4 rounded-md space-y-2">
+                              <h4 className="font-medium mb-2">Invoice Summary</h4>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-slate-600">Subtotal:</span>
+                                <span className="font-medium">{revenueTaskForm.watch("serviceRate") || 0} {revenueTaskForm.watch("currency") || "USD"}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-slate-600">Discount:</span>
+                                <span className="font-medium">-{revenueTaskForm.watch("discountAmount") || 0} {revenueTaskForm.watch("currency") || "USD"}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-slate-600">Tax ({revenueTaskForm.watch("taxPercent") || 0}%):</span>
+                                <span className="font-medium">
+                                  {(((revenueTaskForm.watch("serviceRate") || 0) - (revenueTaskForm.watch("discountAmount") || 0)) * (revenueTaskForm.watch("taxPercent") || 0) / 100).toFixed(2)} {revenueTaskForm.watch("currency") || "USD"}
+                                </span>
+                              </div>
+                              <Separator className="my-2" />
+                              <div className="flex justify-between font-semibold">
+                                <span>Total:</span>
+                                <span>
+                                  {(
+                                    (revenueTaskForm.watch("serviceRate") || 0) - 
+                                    (revenueTaskForm.watch("discountAmount") || 0) + 
+                                    (((revenueTaskForm.watch("serviceRate") || 0) - (revenueTaskForm.watch("discountAmount") || 0)) * (revenueTaskForm.watch("taxPercent") || 0) / 100)
+                                  ).toFixed(2)} {revenueTaskForm.watch("currency") || "USD"}
+                                </span>
+                              </div>
+                            </div>
+                          )}
                         </TabsContent>
                       </Tabs>
                       
