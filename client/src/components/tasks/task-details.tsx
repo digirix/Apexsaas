@@ -669,12 +669,19 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
       // Invalidate finance module queries (both paths for compatibility)
       queryClient.invalidateQueries({ queryKey: ["/api/v1/invoices"] });
       queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/invoices"] });
+      
+      // Also invalidate specific invoice queries
       if (task?.invoiceId) {
         queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/invoices", task.invoiceId] });
       }
       if (data.id) {
         queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/invoices", data.id] });
       }
+      
+      // Invalidate finance module dashboard data and other potential invoice references
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/finance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/payments"] });
       
       toast({
         title: "Success",
@@ -1749,7 +1756,7 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
                           toast({
                             title: "Task Not Completed",
                             description: "Creating an invoice for a task that is not yet completed. You can still proceed.",
-                            variant: "warning"
+                            variant: "destructive"
                           });
                         }
                         
