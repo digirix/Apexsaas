@@ -3680,7 +3680,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Invoice not found" });
       }
       
-      // Check invoice number uniqueness if changed
+      // Check invoice number uniqueness ONLY if it's being changed
       if (req.body.invoiceNumber && req.body.invoiceNumber !== existingInvoice.invoiceNumber) {
         const duplicateInvoice = await storage.getInvoiceByNumber(req.body.invoiceNumber, tenantId);
         if (duplicateInvoice && duplicateInvoice.id !== id) {
@@ -3698,6 +3698,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get updated line items
       const lineItems = await storage.getInvoiceLineItems(tenantId, id);
+      
+      // Update journal entries if invoice is approved and amounts have changed
+      if (existingInvoice.status === 'approved' || (req.body.status === 'approved' && existingInvoice.status !== 'approved')) {
+        try {
+          // Check if journal entries already exist for this invoice
+          const journalEntries = await storage.getJournalEntriesBySourceDocument('invoice', id, tenantId);
+          
+          if (journalEntries && journalEntries.length > 0) {
+            // Journal entries exist, update them
+            const journalEntry = journalEntries[0]; // Get the first journal entry
+            
+            // Only update if amounts have changed
+            if (req.body.subtotal !== existingInvoice.subtotal || 
+                req.body.taxAmount !== existingInvoice.taxAmount || 
+                req.body.totalAmount !== existingInvoice.totalAmount) {
+              
+              console.log(`Updating journal entry for invoice ${existingInvoice.invoiceNumber} as amounts have changed`);
+              
+              // Update the journal entry description
+              await storage.updateJournalEntry(journalEntry.id, {
+                description: `Updated - ${existingInvoice.invoiceNumber}`,
+                updatedBy: userId
+              });
+              
+              // Get journal entry lines
+              const journalEntryLines = await storage.getJournalEntryLines(journalEntry.id, tenantId);
+              
+              // Update journal entry line amounts
+              for (const line of journalEntryLines) {
+                if (line.debitAmount && parseFloat(line.debitAmount) > 0) {
+                  // This is likely the AR entry - update with new total
+                  await storage.updateJournalEntryLine(line.id, {
+                    debitAmount: updatedInvoice.totalAmount,
+                    description: `Updated - ${existingInvoice.invoiceNumber}`
+                  });
+                } else if (line.creditAmount && parseFloat(line.creditAmount) > 0) {
+                  // Check if this is tax or revenue by description
+                  if (line.description?.toLowerCase().includes('tax')) {
+                    await storage.updateJournalEntryLine(line.id, {
+                      creditAmount: updatedInvoice.taxAmount,
+                      description: `Updated - ${existingInvoice.invoiceNumber}`
+                    });
+                  } else {
+                    // This is likely the revenue entry - update with subtotal
+                    const subtotal = parseFloat(updatedInvoice.subtotal);
+                    await storage.updateJournalEntryLine(line.id, {
+                      creditAmount: subtotal.toString(),
+                      description: `Updated - ${existingInvoice.invoiceNumber}`
+                    });
+                  }
+                }
+              }
+              
+              console.log(`Successfully updated journal entry for invoice ${existingInvoice.invoiceNumber}`);
+            }
+          } else if (req.body.status === 'approved' && existingInvoice.status !== 'approved') {
+            // No journal entries exist but status changed to approved, create new entries
+            console.log(`Creating new journal entries for invoice ${existingInvoice.invoiceNumber} as status changed to approved`);
+            
+            // Create new journal entries logic...
+            // (This part is already handled by the status transition code elsewhere)
+          }
+        } catch (journalError) {
+          // Log error but don't fail the invoice update
+          console.error(`Failed to update journal entries for invoice ${existingInvoice.invoiceNumber}:`, journalError);
+        }
+      }
       
       // Handle accounting entries when invoice status changes to "passed"
       if (req.body.status === "passed" && existingInvoice.status !== "passed" as any && updatedInvoice) {
