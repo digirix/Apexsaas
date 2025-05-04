@@ -3718,10 +3718,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         existingInvoice.status === 'partially_paid';
       
       // Check invoice number uniqueness ONLY if it's being changed
+      // If the invoice number is unchanged, skip this validation even if it matches other invoices
+      // This allows editing of existing invoices without number conflicts when the number hasn't changed
       if (req.body.invoiceNumber && req.body.invoiceNumber !== existingInvoice.invoiceNumber) {
         const duplicateInvoice = await storage.getInvoiceByNumber(req.body.invoiceNumber, tenantId);
         if (duplicateInvoice && duplicateInvoice.id !== id) {
           return res.status(400).json({ message: "An invoice with this invoice number already exists" });
+        }
+      } else {
+        // Preserve the existing invoice number if not explicitly changed
+        // This prevents issues when the frontend doesn't send the invoice number
+        if (!req.body.invoiceNumber) {
+          req.body.invoiceNumber = existingInvoice.invoiceNumber;
         }
       }
       
