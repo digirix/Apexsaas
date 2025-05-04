@@ -133,9 +133,62 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
     fetchEntities();
   }, [form.watch("clientId")]);
   
-  // Generate invoice number
+  // Fetch existing invoice or generate new invoice number
   useEffect(() => {
     if (isOpen && task) {
+      // If task has an invoiceId, fetch the existing invoice
+      if (task.invoiceId) {
+        console.log("Fetching existing invoice:", task.invoiceId);
+        
+        const fetchExistingInvoice = async () => {
+          try {
+            const response = await fetch(`/api/v1/finance/invoices/${task.invoiceId}`);
+            if (!response.ok) {
+              throw new Error("Failed to fetch invoice");
+            }
+            
+            const invoiceData = await response.json();
+            console.log("Fetched invoice data:", invoiceData);
+            setInvoice(invoiceData);
+            
+            // Populate form with existing invoice data
+            form.setValue("invoiceNumber", invoiceData.invoiceNumber);
+            form.setValue("clientId", invoiceData.clientId);
+            form.setValue("entityId", invoiceData.entityId);
+            form.setValue("status", invoiceData.status);
+            form.setValue("issueDate", format(new Date(invoiceData.issueDate), "yyyy-MM-dd"));
+            form.setValue("dueDate", format(new Date(invoiceData.dueDate), "yyyy-MM-dd"));
+            form.setValue("currencyCode", invoiceData.currencyCode);
+            form.setValue("subtotal", invoiceData.subtotal.toString());
+            form.setValue("taxPercent", invoiceData.taxPercent.toString());
+            form.setValue("taxAmount", invoiceData.taxAmount.toString());
+            form.setValue("discountAmount", invoiceData.discountAmount.toString());
+            form.setValue("totalAmount", invoiceData.totalAmount.toString());
+            form.setValue("amountDue", invoiceData.amountDue.toString());
+            form.setValue("notes", invoiceData.notes || "");
+            form.setValue("termsAndConditions", invoiceData.termsAndConditions || "");
+            form.setValue("serviceDescription", invoiceData.lineItems?.[0]?.description || task.taskDetails || "");
+          } catch (error) {
+            console.error("Error fetching invoice:", error);
+            toast({
+              title: "Error",
+              description: "Failed to load invoice data. Creating a new invoice.",
+              variant: "destructive"
+            });
+            
+            // Fall back to generating a new invoice
+            generateNewInvoice();
+          }
+        };
+        
+        fetchExistingInvoice();
+      } else {
+        // Generate new invoice if there's no existing one
+        generateNewInvoice();
+      }
+    }
+    
+    function generateNewInvoice() {
       // Generate invoice number: INV-{YYYYMMDD}-{TaskID}
       const today = new Date();
       const year = today.getFullYear();
@@ -158,7 +211,7 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
         form.setValue("serviceDescription", task.taskDetails);
       }
     }
-  }, [isOpen, task, form]);
+  }, [isOpen, task, form, toast]);
   
   // Update tax amount when tax percentage, subtotal, or discount changes
   useEffect(() => {

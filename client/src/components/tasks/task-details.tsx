@@ -285,8 +285,9 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
         });
       } else {
         // Get discount and tax values from the invoice if available
-        const discountAmount = invoiceData?.discountAmount ?? task.discountAmount ?? 0;
-        const taxPercent = invoiceData?.taxPercent ?? task.taxPercent ?? 0;
+        // Note: Tasks don't have discountAmount or taxPercent fields, only invoices do
+        const discountAmount = invoiceData?.discountAmount ?? 0;
+        const taxPercent = invoiceData?.taxPercent ?? 0;
         
         console.log("Invoice data for task:", { 
           taskId: task.id,
@@ -296,9 +297,6 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
           // Show the values being used
           discountAmount,
           taxPercent,
-          // Show task values
-          taskDiscountAmount: task.discountAmount,
-          taskTaxPercent: task.taxPercent,
           taskCategory: task.taskCategoryId
         });
         
@@ -599,6 +597,7 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
         discountAmount: data.discountAmount,
         taxPercent: data.taxPercent,
         subtotal: subtotal.toString(),
+        taxAmount: taxAmount.toString(),
         totalAmount: total.toString(),
         amountDue: total.toString(),
         status: "draft" // Always set to draft for created/updated invoices
