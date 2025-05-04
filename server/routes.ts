@@ -3515,12 +3515,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: userId
       };
       
-      // Validate invoice number uniqueness
-      if (data.invoiceNumber) {
+      // Generate a unique invoice number if not provided or if it already exists
+      if (!data.invoiceNumber) {
+        // Generate a default invoice number format: INV-YYYYMMDD-SEQ
+        const today = new Date();
+        const dateString = today.toISOString().slice(0, 10).replace(/-/g, '');
+        data.invoiceNumber = `INV-${dateString}-${Math.floor(Math.random() * 1000)}`;
+      }
+      
+      // Validate invoice number uniqueness and retry with a new number if needed
+      let uniqueNumberFound = false;
+      let maxAttempts = 10;
+      let attempts = 0;
+      
+      while (!uniqueNumberFound && attempts < maxAttempts) {
         const existingInvoice = await storage.getInvoiceByNumber(data.invoiceNumber, tenantId);
         if (existingInvoice) {
-          return res.status(400).json({ message: "An invoice with this invoice number already exists" });
+          // Generate a new invoice number with a random suffix
+          const basePart = data.invoiceNumber.split('-').slice(0, 2).join('-');
+          data.invoiceNumber = `${basePart}-${Math.floor(Math.random() * 10000)}`;
+          attempts++;
+        } else {
+          uniqueNumberFound = true;
         }
+      }
+      
+      if (!uniqueNumberFound) {
+        return res.status(400).json({ message: "Failed to generate a unique invoice number after multiple attempts" });
       }
       
       // Create the invoice
@@ -3549,9 +3570,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const taskId = parseInt(req.body.taskId);
           const task = await storage.getTask(taskId, tenantId);
           if (task) {
+            // Update the task with the invoice ID only
             await storage.updateTask(taskId, { 
-              invoiceId: invoice.id,
-              invoiceCreatedAt: new Date()
+              invoiceId: invoice.id
             });
           }
         } catch (error) {
@@ -3821,13 +3842,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
       
+      // First check if the invoice exists
+      const invoice = await storage.getInvoice(id, tenantId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      // Find and delete associated journal entries first
+      const journalEntries = await storage.getJournalEntriesBySourceDocument("invoice", id, tenantId);
+      if (journalEntries && journalEntries.length > 0) {
+        for (const entry of journalEntries) {
+          // Delete all journal entry lines first
+          const journalEntryLines = await storage.getJournalEntryLines(entry.id, tenantId);
+          for (const line of journalEntryLines) {
+            await storage.deleteJournalEntryLine(line.id);
+          }
+          
+          // Then delete the journal entry
+          await storage.deleteJournalEntry(entry.id, tenantId);
+        }
+      }
+      
+      // Now update any tasks that reference this invoice
+      const tasks = await storage.getTasks(tenantId);
+      for (const task of tasks) {
+        if (task.invoiceId === id) {
+          // Detach the invoice from the task
+          await storage.updateTask(task.id, { invoiceId: null });
+        }
+      }
+      
+      // Finally delete the invoice
       const success = await storage.deleteInvoice(id, tenantId);
       if (!success) {
-        return res.status(404).json({ message: "Invoice not found" });
+        return res.status(500).json({ message: "Failed to delete invoice" });
       }
       
       res.status(204).send();
     } catch (error) {
+      console.error("Error deleting invoice:", error);
       res.status(500).json({ message: "Failed to delete invoice" });
     }
   });
