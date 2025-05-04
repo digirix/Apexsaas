@@ -2964,8 +2964,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const detailedGroups = await storage.getChartOfAccountsDetailedGroups(tenantId);
               console.log(`DEBUG: Found ${detailedGroups.length} detailed groups for tenant ${tenantId}`);
               
+              // Find the Trade Debtors detailed group - ensure it's case-insensitive
               let tradeDebtorsGroup = detailedGroups.find(group => 
-                group.name === 'trade_debtors' || 
+                group.name?.toLowerCase() === 'trade_debtors' || 
+                group.customName?.toLowerCase() === 'trade_debtors' ||
                 (group.customName && (
                   group.customName.toLowerCase().includes('trade debtors') || 
                   group.customName.toLowerCase().includes('receivable')
@@ -2975,46 +2977,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (tradeDebtorsGroup) {
                 console.log(`DEBUG: Found Trade Debtors group: ${tradeDebtorsGroup.id} - ${tradeDebtorsGroup.customName || tradeDebtorsGroup.name}`);
               } else {
-                console.log(`DEBUG: No Trade Debtors group found, looking for current assets group...`);
+                console.log(`DEBUG: No Trade Debtors group found directly, looking for trade_debtors in current assets...`);
               }
               
-              // If no specific trade_debtors group found, try to find any detailed group in current_assets
+              // If no specific trade_debtors group found, get sub-element groups
               if (!tradeDebtorsGroup) {
                 const subElementGroups = await storage.getChartOfAccountsSubElementGroups(tenantId);
                 console.log(`DEBUG: Found ${subElementGroups.length} sub-element groups`);
                 
+                // Find current_assets sub-element group (case-insensitive)
                 const currentAssetsGroup = subElementGroups.find(group => 
-                  group.name === 'current_assets' || 
+                  group.name?.toLowerCase() === 'current_assets' || 
+                  group.customName?.toLowerCase() === 'current_assets' ||
                   (group.customName && group.customName.toLowerCase().includes('current asset'))
                 );
                 
                 if (currentAssetsGroup) {
                   console.log(`DEBUG: Found Current Assets group: ${currentAssetsGroup.id} - ${currentAssetsGroup.customName || currentAssetsGroup.name}`);
                   
+                  // Get all detailed groups in the current assets sub-element group
                   const currentAssetDetailGroups = detailedGroups.filter(group => 
                     group.subElementGroupId === currentAssetsGroup.id
                   );
                   
                   console.log(`DEBUG: Found ${currentAssetDetailGroups.length} detailed groups in Current Assets`);
                   
-                  if (currentAssetDetailGroups.length > 0) {
-                    // Use the first detailed group in current assets
+                  // First, look for trade_debtors within the current assets group
+                  tradeDebtorsGroup = currentAssetDetailGroups.find(group => 
+                    group.name?.toLowerCase() === 'trade_debtors' || 
+                    group.customName?.toLowerCase() === 'trade_debtors' ||
+                    (group.customName && (
+                      group.customName.toLowerCase().includes('trade debtors') || 
+                      group.customName.toLowerCase().includes('receivable')
+                    ))
+                  );
+                  
+                  if (tradeDebtorsGroup) {
+                    console.log(`DEBUG: Found Trade Debtors group within Current Assets: ${tradeDebtorsGroup.id} - ${tradeDebtorsGroup.customName || tradeDebtorsGroup.name}`);
+                  } else if (currentAssetDetailGroups.length > 0) {
+                    // If no specific trade_debtors group is found in current assets, use the first detailed group as fallback
                     tradeDebtorsGroup = currentAssetDetailGroups[0];
-                    console.log(`DEBUG: Using detailed group: ${tradeDebtorsGroup.id} - ${tradeDebtorsGroup.customName || tradeDebtorsGroup.name}`);
+                    console.log(`DEBUG: Using fallback detailed group from Current Assets: ${tradeDebtorsGroup.id} - ${tradeDebtorsGroup.customName || tradeDebtorsGroup.name}`);
                   }
                 } else {
                   console.log(`DEBUG: No Current Assets group found`);
                 }
               }
               
-              // Fallback: If we still can't find a suitable group, just use any asset-related detailed group
+              // Final fallback: If we still can't find a suitable group, try with asset-related groups
               if (!tradeDebtorsGroup) {
-                console.log(`DEBUG: No suitable group found, using any asset-related detailed group as fallback...`);
+                console.log(`DEBUG: No suitable group found, using any asset-related detailed group as last resort...`);
                 
                 // Get the elementGroups to find the Assets group
                 const elementGroups = await storage.getChartOfAccountsElementGroups(tenantId);
                 const assetsGroup = elementGroups.find(group => 
-                  group.name === 'assets' || 
+                  group.name?.toLowerCase() === 'assets' || 
+                  group.customName?.toLowerCase() === 'assets' ||
                   (group.customName && group.customName.toLowerCase().includes('asset'))
                 );
                 
@@ -3033,7 +3051,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   
                   if (assetDetailedGroups.length > 0) {
                     tradeDebtorsGroup = assetDetailedGroups[0];
-                    console.log(`DEBUG: Using fallback detailed group: ${tradeDebtorsGroup.id} - ${tradeDebtorsGroup.customName || tradeDebtorsGroup.name}`);
+                    console.log(`DEBUG: Using last resort fallback detailed group: ${tradeDebtorsGroup.id} - ${tradeDebtorsGroup.customName || tradeDebtorsGroup.name}`);
                   }
                 }
               }
@@ -3080,7 +3098,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // Check for "Discount Allowed" account - only needed if discount amount is not zero
-          const discountAmount = parseFloat(invoice.discountAmount || "0");
+          let discountAmount = parseFloat(invoice.discountAmount || "0");
           let discountAllowedAccount = null;
           
           if (discountAmount !== 0) {
@@ -3248,9 +3266,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             invoiceDescription = lineItems[0].description || "";
           }
           
-          // 2. Create journal entries (all accounts have been validated at this point)
+          // 2. Create journal entries according to auto-posting JV requirements
+          // Get the values we need
           const subtotalAmount = parseFloat(invoice.subtotal || "0");
           const totalAmount = parseFloat(invoice.totalAmount || "0");
+          // These variables are already declared above, so we just reuse them
+          const absDiscountAmount = Math.abs(discountAmount);
           
           // Create journal entry header
           const journalEntry = await storage.createJournalEntry({
@@ -3267,48 +3288,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           let lineOrder = 1;
           
-          // Debit Entity Account with the total invoice amount
+          // FOLLOWING THE REQUIREMENTS IN AutoPosting JV.txt:
+          // 1. Debit "Entity Name" account (entityAccount) with the "total amount" of Invoice
           await storage.createJournalEntryLine({
             tenantId: tenantId,
             journalEntryId: journalEntry.id,
             accountId: entityAccount.id,
             description: `${invoiceDescription}-IN${invoice.invoiceNumber}`,
-            debitAmount: totalAmount.toString(),
+            debitAmount: totalAmount.toString(), 
             creditAmount: "0",
             lineOrder: lineOrder++
           });
           
-          // Handle Discount Allowed account if discount amount is not zero
+          // 2. Debit the "Discount Allowed" account with the "amount of Discount" (only if amount is not zero)
           if (discountAmount !== 0 && discountAllowedAccount) {
-            const absDiscountAmount = Math.abs(discountAmount);
-            
-            // If discount is positive, DEBIT Discount Allowed
-            // If discount is negative, CREDIT Discount Allowed
+            // We always DEBIT Discount Allowed (as per requirement) - Note this is different from previous logic
             await storage.createJournalEntryLine({
               tenantId: tenantId,
               journalEntryId: journalEntry.id,
               accountId: discountAllowedAccount.id,
               description: `${invoiceDescription}-IN${invoice.invoiceNumber}`,
-              debitAmount: discountAmount > 0 ? absDiscountAmount.toString() : "0",
-              creditAmount: discountAmount < 0 ? absDiscountAmount.toString() : "0",
+              debitAmount: absDiscountAmount.toString(), // Always debit
+              creditAmount: "0",
               lineOrder: lineOrder++
             });
           }
           
-          // Credit Income account with the subtotal amount
-          if (incomeAccount) {
-            await storage.createJournalEntryLine({
-              tenantId: tenantId,
-              journalEntryId: journalEntry.id,
-              accountId: incomeAccount.id,
-              description: `${invoiceDescription}-IN${invoice.invoiceNumber}`,
-              debitAmount: "0",
-              creditAmount: subtotalAmount.toString(),
-              lineOrder: lineOrder++
-            });
-          }
-          
-          // Credit Tax Payable account if tax amount exists
+          // 3. Credit relevant "Tax Payable" account with Tax Amount (only if amount is greater than zero)
           if (taxAmount > 0 && taxPayableAccount) {
             await storage.createJournalEntryLine({
               tenantId: tenantId,
@@ -3321,19 +3327,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
           
-          // Handle Entity Account contra entry for discount amount if discount exists
-          if (discountAmount !== 0 && entityAccount) {
-            const absDiscountAmount = Math.abs(discountAmount);
-            
-            // If discount is positive, CREDIT Entity Account (contra)
-            // If discount is negative, DEBIT Entity Account (contra)
+          // 4. Credit relevant "Income" account with the sub total amount
+          if (incomeAccount) {
             await storage.createJournalEntryLine({
               tenantId: tenantId,
               journalEntryId: journalEntry.id,
-              accountId: entityAccount.id,
+              accountId: incomeAccount.id,
               description: `${invoiceDescription}-IN${invoice.invoiceNumber}`,
-              debitAmount: discountAmount < 0 ? absDiscountAmount.toString() : "0",
-              creditAmount: discountAmount > 0 ? absDiscountAmount.toString() : "0",
+              debitAmount: "0",
+              creditAmount: subtotalAmount.toString(),
+              lineOrder: lineOrder++
+            });
+          }
+          
+          // 5. Credit Entity Name with discount amount (balancing entry for the discount, as shown in example)
+          if (discountAmount !== 0 && entityAccount) {
+            await storage.createJournalEntryLine({
+              tenantId: tenantId,
+              journalEntryId: journalEntry.id,
+              accountId: entityAccount.id, 
+              description: `${invoiceDescription}-IN${invoice.invoiceNumber}`,
+              debitAmount: "0",
+              creditAmount: absDiscountAmount.toString(),
               lineOrder: lineOrder++
             });
           }
