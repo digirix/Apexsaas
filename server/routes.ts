@@ -3067,8 +3067,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Handle special status transitions with accounting effects
       const previousStatus = invoice.status;
       
+      // Handle when invoice status is changed to "draft" - cleanup or mark journal entries
+      if (status === 'draft' && previousStatus !== 'draft') {
+        try {
+          console.log(`Invoice ${invoice.invoiceNumber} status changed from ${previousStatus} to draft. Handling journal entries...`);
+          
+          // Check if journal entries exist for this invoice
+          const journalEntries = await storage.getJournalEntriesBySourceDocument('invoice', id, tenantId);
+          
+          if (journalEntries && journalEntries.length > 0) {
+            // Add a note to the journal entries that the invoice is back in draft
+            for (const entry of journalEntries) {
+              // Update the journal entry description to indicate draft status
+              await storage.updateJournalEntry(entry.id, {
+                description: `[INVOICE IN DRAFT] ${entry.description || `Invoice ${invoice.invoiceNumber}`}`,
+                updatedBy: userId
+              });
+              
+              console.log(`Updated journal entry ${entry.id} to indicate invoice is in draft status`);
+            }
+          }
+        } catch (error) {
+          console.error(`Error handling journal entries for invoice ${invoice.invoiceNumber} going to draft status:`, error);
+          // Don't fail the status change, just log the error
+        }
+      }
+      
       // When invoice is being approved - validate accounts and create accounting entries for double-entry bookkeeping
-      if (previousStatus === 'draft' && status === 'approved') {
+      // Note: We handle both new approvals (draft → approved) and re-approvals (after it was set back to draft)
+      if (status === 'approved') {
         try {
           const missingAccounts = [];
           
@@ -3682,6 +3709,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Invoice not found" });
       }
       
+      // Check if we're trying to edit an invoice that is already approved or has a higher status
+      // If so, we'll handle it by changing its status to draft to allow editing
+      const wasApproved = 
+        existingInvoice.status === 'approved' || 
+        existingInvoice.status === 'sent' || 
+        existingInvoice.status === 'paid' || 
+        existingInvoice.status === 'partially_paid';
+      
       // Check invoice number uniqueness ONLY if it's being changed
       if (req.body.invoiceNumber && req.body.invoiceNumber !== existingInvoice.invoiceNumber) {
         const duplicateInvoice = await storage.getInvoiceByNumber(req.body.invoiceNumber, tenantId);
@@ -3690,11 +3725,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Add updater info
-      const data = { 
-        ...req.body, 
+      // If the invoice was in any post-draft status, update it to draft status to allow editing
+      // This also handles the case where we're explicitly requested to change the status to draft
+      let data = {
+        ...req.body,
         updatedBy: userId
       };
+      
+      // Always set status to draft when editing a non-draft invoice
+      if (wasApproved && existingInvoice.status !== 'draft') {
+        console.log(`Setting invoice ${id} from status '${existingInvoice.status}' to 'draft' for editing`);
+        data.status = 'draft';
+      }
       
       const updatedInvoice = await storage.updateInvoice(id, data);
       
