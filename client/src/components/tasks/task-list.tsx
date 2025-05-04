@@ -58,6 +58,8 @@ export function TaskList() {
   const [taskTabFilter, setTaskTabFilter] = useState("all");
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   const [isTaskDetailsOpen, setIsTaskDetailsOpen] = useState(false);
+  const [taskDetailsActiveTab, setTaskDetailsActiveTab] = useState("details");
+  const [taskDetailsEditing, setTaskDetailsEditing] = useState(false);
   const [taskType, setTaskType] = useState<"admin" | "revenue">("admin");
   const [showFilters, setShowFilters] = useState(false);
   const [isCreateInvoiceModalOpen, setIsCreateInvoiceModalOpen] = useState(false);
@@ -240,8 +242,17 @@ export function TaskList() {
     // Find the task by ID
     const task = tasks.find(t => t.id === taskId);
     if (task && task.invoiceId) {
-      setSelectedTaskForInvoice(task);
-      setIsCreateInvoiceModalOpen(true);
+      // Open the task details dialog with the invoice tab active
+      setSelectedTaskId(taskId);
+      setTaskDetailsActiveTab("invoice"); // Set the active tab to "invoice"
+      setTaskDetailsEditing(true); // Set editing mode to true
+      setIsTaskDetailsOpen(true);
+      
+      // Display a toast message about editing the invoice
+      toast({
+        title: "Editing existing invoice",
+        description: "The invoice will be set to Draft status when updated."
+      });
     } else {
       toast({
         title: "Error",
@@ -594,8 +605,14 @@ export function TaskList() {
       
       <TaskDetails
         isOpen={isTaskDetailsOpen}
-        onClose={() => setIsTaskDetailsOpen(false)}
+        onClose={() => {
+          setIsTaskDetailsOpen(false);
+          setTaskDetailsActiveTab("details");
+          setTaskDetailsEditing(false);
+        }}
         taskId={selectedTaskId}
+        initialTab={taskDetailsActiveTab}
+        initialEditingState={taskDetailsEditing}
       />
       
       <InvoiceFromTaskModal
