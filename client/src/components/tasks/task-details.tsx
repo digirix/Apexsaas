@@ -1734,16 +1734,24 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
                 </div>
                 
                 <div className="flex gap-2">
-                  {/* Create/Update Invoice button - Only show for completed revenue tasks */}
-                  {!task.isAdmin && 
-                    task.statusId && 
-                    taskStatuses.find(s => s.id === task.statusId)?.rank === 3 && (
+                  {/* Create/Update Invoice button - Show for all revenue tasks */}
+                  {!task.isAdmin && task.statusId && (
                     <Button
                       variant="default"
                       onClick={() => {
                         // Open the Invoice tab directly
                         setIsEditing(true);
                         setActiveTab("invoice");
+                        
+                        // Show a warning if the task is not completed
+                        const currentStatus = taskStatuses.find(s => s.id === task.statusId);
+                        if (currentStatus?.rank !== 3) { // Not completed
+                          toast({
+                            title: "Task Not Completed",
+                            description: "Creating an invoice for a task that is not yet completed. You can still proceed.",
+                            variant: "warning"
+                          });
+                        }
                         
                         // Slight delay to ensure form is ready
                         setTimeout(() => {
