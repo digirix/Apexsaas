@@ -2500,8 +2500,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                           description: `Updated - ${invoice.invoiceNumber}`
                         });
                       } else if (line.creditAmount && parseFloat(line.creditAmount) > 0) {
-                        // If this is the tax entry
-                        if (line.accountName?.toLowerCase().includes('tax')) {
+                        // Look for tax accounts in journal entry lines
+                        if (line.description?.toLowerCase().includes('tax')) {
                           await storage.updateJournalEntryLine(line.id, {
                             creditAmount: invoiceUpdateData.taxAmount,
                             description: `Updated - ${invoice.invoiceNumber}`
