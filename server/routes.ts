@@ -5319,6 +5319,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Add a direct route to set journal entry to draft without validation
+  app.post("/api/v1/finance/journal-entries/:id/set-draft", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = (req.user as any).id;
+      const entryId = parseInt(req.params.id);
+      
+      // Check if entry exists and belongs to tenant
+      const existingEntry = await storage.getJournalEntry(entryId, tenantId);
+      if (!existingEntry) {
+        return res.status(404).json({ message: "Journal entry not found" });
+      }
+      
+      console.log(`Directly setting journal entry ${entryId} to draft status without validation`);
+      
+      // Force update to draft status without any validation
+      const updatedEntry = await storage.updateJournalEntry(entryId, {
+        isPosted: false,
+        postedAt: null,
+        updatedBy: userId,
+        updatedAt: new Date()
+      });
+      
+      res.json({
+        ...updatedEntry,
+        message: "Journal entry successfully set to draft status"
+      });
+    } catch (error) {
+      console.error("Error setting journal entry to draft:", error);
+      res.status(500).json({ 
+        message: "Failed to set journal entry to draft",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // Delete a journal entry
   app.delete("/api/v1/finance/journal-entries/:id", isAuthenticated, async (req, res) => {
     try {

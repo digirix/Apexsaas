@@ -169,6 +169,37 @@ export default function JournalEntryView() {
       });
     }
   };
+  
+  // Force set to draft status without validation
+  const setToDraftMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest('POST', `/api/v1/finance/journal-entries/${id}/set-draft`);
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/v1/finance/journal-entries/${entryId}`] });
+      toast({
+        title: "Status updated",
+        description: "Journal entry has been set to draft status.",
+      });
+      // Refresh the journal entry data
+      refetch();
+    },
+    onError: (error: any) => {
+      console.error('Error setting journal entry to draft:', error);
+      toast({
+        title: "Error updating status",
+        description: error.message || "An error occurred while updating the journal entry status.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Handle force setting to draft
+  const handleForceDraft = () => {
+    if (journalEntry && journalEntry.isPosted) {
+      setToDraftMutation.mutate(parseInt(entryId as string));
+    }
+  };
 
   // Handle edit
   const handleEdit = () => {
@@ -380,14 +411,36 @@ export default function JournalEntryView() {
                 </>
               )}
 
-              <Button 
-                variant={journalEntry.isPosted ? "outline" : "default"} 
-                size="sm"
-                onClick={handleToggleStatus}
-              >
-                <ArrowUpDown className="mr-2 h-4 w-4" />
-                {journalEntry.isPosted ? "Set to Draft" : "Post Entry"}
-              </Button>
+              {journalEntry.isPosted ? (
+                <>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleToggleStatus}
+                  >
+                    <ArrowUpDown className="mr-2 h-4 w-4" />
+                    Set to Draft
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={handleForceDraft}
+                    title="Force set to draft without validation (for troubleshooting)"
+                  >
+                    <AlertCircle className="mr-2 h-4 w-4" />
+                    Force Draft
+                  </Button>
+                </>
+              ) : (
+                <Button 
+                  variant="default" 
+                  size="sm"
+                  onClick={handleToggleStatus}
+                >
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  Post Entry
+                </Button>
+              )}
             </div>
           </div>
         </div>
