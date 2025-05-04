@@ -261,7 +261,7 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
     setIsSubmitting(true);
     
     try {
-      // Create invoice
+      // Prepare the invoice data
       const invoiceData = {
         ...data,
         tenantId: task.tenantId,
@@ -272,35 +272,70 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
         notes: data.serviceDescription || task?.taskDetails || ""
       };
       
-      const response = await apiRequest("POST", "/api/v1/finance/invoices", invoiceData);
-      const result = await response.json();
+      let response;
+      let result;
       
-      if (response.ok) {
-        setInvoice(result);
+      // Check if we're updating an existing invoice or creating a new one
+      if (task.invoiceId) {
+        console.log("Updating existing invoice:", task.invoiceId);
+        // Update existing invoice
+        response = await apiRequest("PUT", `/api/v1/finance/invoices/${task.invoiceId}`, invoiceData);
+        result = await response.json();
         
-        // Update task with invoice ID
-        await apiRequest("PUT", `/api/v1/tasks/${task.id}`, {
-          invoiceId: result.id
-        });
-        
-        queryClient.invalidateQueries({ queryKey: ["/api/v1/tasks"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/invoices"] });
-        
-        toast({
-          title: "Invoice Created",
-          description: "The invoice has been created successfully.",
-        });
+        if (response.ok) {
+          setInvoice(result);
+          
+          // Invalidate the cache to refresh the data
+          queryClient.invalidateQueries({ queryKey: ["/api/v1/tasks"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/invoices"] });
+          queryClient.invalidateQueries({ queryKey: [`/api/v1/finance/invoices/${task.invoiceId}`] });
+          
+          toast({
+            title: "Invoice Updated",
+            description: "The invoice has been updated successfully.",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: result.message || "Failed to update invoice. Please try again.",
+            variant: "destructive",
+          });
+        }
       } else {
-        toast({
-          title: "Error",
-          description: result.message || "Failed to create invoice. Please try again.",
-          variant: "destructive",
-        });
+        console.log("Creating new invoice for task:", task.id);
+        // Create new invoice
+        response = await apiRequest("POST", "/api/v1/finance/invoices", invoiceData);
+        result = await response.json();
+        
+        if (response.ok) {
+          setInvoice(result);
+          
+          // Update task with invoice ID
+          await apiRequest("PUT", `/api/v1/tasks/${task.id}`, {
+            invoiceId: result.id
+          });
+          
+          // Invalidate the cache to refresh the data
+          queryClient.invalidateQueries({ queryKey: ["/api/v1/tasks"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/invoices"] });
+          
+          toast({
+            title: "Invoice Created",
+            description: "The invoice has been created successfully.",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: result.message || "Failed to create invoice. Please try again.",
+            variant: "destructive",
+          });
+        }
       }
     } catch (error: any) {
+      console.error("Error processing invoice:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to create invoice. Please try again.",
+        description: error.message || "Failed to process invoice. Please try again.",
         variant: "destructive",
       });
     } finally {
