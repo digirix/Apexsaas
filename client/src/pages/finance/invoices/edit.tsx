@@ -469,14 +469,14 @@ export default function EditInvoicePage() {
                               className="w-full justify-start text-left font-normal"
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
-                              {field.value ? format(new Date(field.value), "PPP") : <span>Pick a date</span>}
+                              {field.value && !isNaN(new Date(field.value).getTime()) ? format(new Date(field.value), "PPP") : <span>Pick a date</span>}
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
                           <Calendar
                             mode="single"
-                            selected={new Date(field.value)}
+                            selected={field.value && !isNaN(new Date(field.value).getTime()) ? new Date(field.value) : undefined}
                             onSelect={(date) => date && field.onChange(date)}
                             initialFocus
                           />
@@ -501,14 +501,14 @@ export default function EditInvoicePage() {
                               className="w-full justify-start text-left font-normal"
                             >
                               <CalendarIcon className="mr-2 h-4 w-4" />
-                              {field.value ? format(new Date(field.value), "PPP") : <span>Pick a date</span>}
+                              {field.value && !isNaN(new Date(field.value).getTime()) ? format(new Date(field.value), "PPP") : <span>Pick a date</span>}
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0">
                           <Calendar
                             mode="single"
-                            selected={new Date(field.value)}
+                            selected={field.value && !isNaN(new Date(field.value).getTime()) ? new Date(field.value) : undefined}
                             onSelect={(date) => date && field.onChange(date)}
                             initialFocus
                           />
