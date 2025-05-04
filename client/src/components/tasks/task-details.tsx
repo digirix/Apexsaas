@@ -279,7 +279,7 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
           assigneeId: task.assigneeId?.toString(),
           statusId: task.statusId?.toString(),
           dueDate: new Date(task.dueDate),
-          categoryId: task.categoryId?.toString(), // Use the right field from the task
+          categoryId: task.taskCategoryId?.toString(), // Map taskCategoryId from database to categoryId for form
           taskType: task.taskType,
           notes: task.notes || "",
         });
@@ -293,7 +293,7 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
           invoiceId: task.invoiceId,
           discountAmount,
           taxPercent,
-          taskCategory: task.categoryId
+          taskCategory: task.taskCategoryId // Fixed field name
         });
         
         revenueTaskForm.reset({
@@ -301,7 +301,7 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
           assigneeId: task.assigneeId?.toString(),
           statusId: task.statusId?.toString(),
           dueDate: new Date(task.dueDate),
-          categoryId: task.categoryId?.toString(), // Use the right field from the task
+          categoryId: task.taskCategoryId?.toString(), // Map taskCategoryId from database to categoryId for form
           taskType: task.taskType,
           notes: task.notes || "",
           clientId: task.clientId?.toString(),
