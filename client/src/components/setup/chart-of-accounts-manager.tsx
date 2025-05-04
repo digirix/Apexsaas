@@ -166,6 +166,98 @@ export default function ChartOfAccountsManager() {
     },
   });
 
+  const editElementGroupMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("PATCH", `/api/v1/finance/chart-of-accounts/element-groups/${data.id}`, data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/chart-of-accounts/element-groups"] });
+      toast({
+        title: "Success",
+        description: "Element group updated successfully",
+      });
+      setIsEditDialogOpen(false);
+    },
+    onError: (error) => {
+      console.error("Error updating element group:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update element group",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const editSubElementGroupMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("PATCH", `/api/v1/finance/chart-of-accounts/sub-element-groups/${data.id}`, data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/chart-of-accounts/sub-element-groups"] });
+      toast({
+        title: "Success",
+        description: "Sub-element group updated successfully",
+      });
+      setIsEditDialogOpen(false);
+    },
+    onError: (error) => {
+      console.error("Error updating sub-element group:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update sub-element group",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const editDetailedGroupMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("PATCH", `/api/v1/finance/chart-of-accounts/detailed-groups/${data.id}`, data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/chart-of-accounts/detailed-groups"] });
+      toast({
+        title: "Success",
+        description: "Detailed group updated successfully",
+      });
+      setIsEditDialogOpen(false);
+    },
+    onError: (error) => {
+      console.error("Error updating detailed group:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update detailed group",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const editAccountMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("PATCH", `/api/v1/finance/chart-of-accounts/${data.id}`, data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/chart-of-accounts"] });
+      toast({
+        title: "Success",
+        description: "Account updated successfully",
+      });
+      setIsEditDialogOpen(false);
+    },
+    onError: (error) => {
+      console.error("Error updating account:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update account",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Delete mutations
   const deleteMainGroupMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -199,27 +291,280 @@ export default function ChartOfAccountsManager() {
     setFormData({ ...formData, [name]: value });
   };
 
+  // Add mutations for other account types
+  const addElementGroupMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/v1/finance/chart-of-accounts/element-groups", data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/chart-of-accounts/element-groups"] });
+      toast({
+        title: "Success",
+        description: "Element group added successfully",
+      });
+      setIsAddDialogOpen(false);
+      setFormData(initialFormData);
+    },
+    onError: (error) => {
+      console.error("Error adding element group:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add element group",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const addSubElementGroupMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/v1/finance/chart-of-accounts/sub-element-groups", data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/chart-of-accounts/sub-element-groups"] });
+      toast({
+        title: "Success",
+        description: "Sub-element group added successfully",
+      });
+      setIsAddDialogOpen(false);
+      setFormData(initialFormData);
+    },
+    onError: (error) => {
+      console.error("Error adding sub-element group:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add sub-element group",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const addDetailedGroupMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/v1/finance/chart-of-accounts/detailed-groups", data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/chart-of-accounts/detailed-groups"] });
+      toast({
+        title: "Success",
+        description: "Detailed group added successfully",
+      });
+      setIsAddDialogOpen(false);
+      setFormData(initialFormData);
+    },
+    onError: (error) => {
+      console.error("Error adding detailed group:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add detailed group",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const addAccountMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("POST", "/api/v1/finance/chart-of-accounts", data);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/chart-of-accounts"] });
+      toast({
+        title: "Success",
+        description: "Account added successfully",
+      });
+      setIsAddDialogOpen(false);
+      setFormData(initialFormData);
+    },
+    onError: (error) => {
+      console.error("Error adding account:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add account",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSubmitAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    if (activeTab === "main-groups") {
-      addMainGroupMutation.mutate(formData);
+    
+    switch (activeTab) {
+      case "main-groups":
+        addMainGroupMutation.mutate(formData);
+        break;
+      case "element-groups":
+        addElementGroupMutation.mutate(formData);
+        break;
+      case "sub-element-groups":
+        addSubElementGroupMutation.mutate(formData);
+        break;
+      case "detailed-groups":
+        addDetailedGroupMutation.mutate(formData);
+        break;
+      case "accounts":
+        addAccountMutation.mutate(formData);
+        break;
+      default:
+        console.error("Unknown tab for add operation:", activeTab);
+        toast({
+          title: "Error",
+          description: "Unknown section to add to",
+          variant: "destructive",
+        });
     }
-    // Add handlers for other tabs
   };
 
   const handleSubmitEdit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (activeTab === "main-groups") {
-      editMainGroupMutation.mutate({ ...formData, id: selectedItem.id });
+    
+    // Create a mutation payload with core fields and the ID
+    const payload = { ...formData, id: selectedItem.id };
+    
+    // Execute the appropriate mutation based on active tab
+    switch (activeTab) {
+      case "main-groups":
+        editMainGroupMutation.mutate(payload);
+        break;
+      case "element-groups":
+        editElementGroupMutation.mutate(payload);
+        break;
+      case "sub-element-groups":
+        editSubElementGroupMutation.mutate(payload);
+        break;
+      case "detailed-groups":
+        editDetailedGroupMutation.mutate(payload);
+        break;
+      case "accounts":
+        editAccountMutation.mutate(payload);
+        break;
+      default:
+        console.error("Unknown tab for edit operation:", activeTab);
+        toast({
+          title: "Error",
+          description: "Unknown section to edit",
+          variant: "destructive",
+        });
     }
-    // Add handlers for other tabs
   };
 
+  // Delete mutations for all account types
+  const deleteElementGroupMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest("DELETE", `/api/v1/finance/chart-of-accounts/element-groups/${id}`, {});
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/chart-of-accounts/element-groups"] });
+      toast({
+        title: "Success",
+        description: "Element group deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      console.error("Error deleting element group:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete element group",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteSubElementGroupMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest("DELETE", `/api/v1/finance/chart-of-accounts/sub-element-groups/${id}`, {});
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/chart-of-accounts/sub-element-groups"] });
+      toast({
+        title: "Success",
+        description: "Sub-element group deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      console.error("Error deleting sub-element group:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete sub-element group",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteDetailedGroupMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest("DELETE", `/api/v1/finance/chart-of-accounts/detailed-groups/${id}`, {});
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/chart-of-accounts/detailed-groups"] });
+      toast({
+        title: "Success",
+        description: "Detailed group deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      console.error("Error deleting detailed group:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete detailed group",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest("DELETE", `/api/v1/finance/chart-of-accounts/${id}`, {});
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/chart-of-accounts"] });
+      toast({
+        title: "Success",
+        description: "Account deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      const errorMsg = error.message || "Failed to delete account";
+      console.error("Error deleting account:", error);
+      toast({
+        title: "Error",
+        description: errorMsg,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleDelete = (id: number) => {
-    if (activeTab === "main-groups") {
-      deleteMainGroupMutation.mutate(id);
+    switch (activeTab) {
+      case "main-groups":
+        deleteMainGroupMutation.mutate(id);
+        break;
+      case "element-groups":
+        deleteElementGroupMutation.mutate(id);
+        break;
+      case "sub-element-groups":
+        deleteSubElementGroupMutation.mutate(id);
+        break;
+      case "detailed-groups":
+        deleteDetailedGroupMutation.mutate(id);
+        break;
+      case "accounts":
+        deleteAccountMutation.mutate(id);
+        break;
+      default:
+        console.error("Unknown tab for delete operation:", activeTab);
+        toast({
+          title: "Error",
+          description: "Unknown section to delete from",
+          variant: "destructive",
+        });
     }
-    // Add handlers for other tabs
   };
 
   const handleEdit = (item: any) => {
