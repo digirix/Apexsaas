@@ -3037,15 +3037,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if status change is allowed (implementation of business rules)
+      // Per user request: allow changing status to draft from any status for editing purposes
+      // Also allow all other transitions as before
       const allowedTransitions: Record<string, string[]> = {
         'draft': ['approved', 'sent', 'canceled', 'void'],
-        'sent': ['approved', 'paid', 'partially_paid', 'overdue', 'canceled', 'void'],
-        'approved': ['paid', 'partially_paid', 'overdue', 'canceled', 'void'],
-        'partially_paid': ['paid', 'overdue', 'void'],
-        'overdue': ['paid', 'partially_paid', 'void'],
-        'paid': ['void'],
+        'sent': ['draft', 'approved', 'paid', 'partially_paid', 'overdue', 'canceled', 'void'],
+        'approved': ['draft', 'paid', 'partially_paid', 'overdue', 'canceled', 'void'],
+        'partially_paid': ['draft', 'paid', 'overdue', 'void'],
+        'overdue': ['draft', 'paid', 'partially_paid', 'void'],
+        'paid': ['draft', 'void'],
         'canceled': ['draft'],
-        'void': [],
+        'void': ['draft'],
       };
       
       const isTransitionAllowed = allowedTransitions[invoice.status]?.includes(status);

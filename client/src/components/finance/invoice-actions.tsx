@@ -318,6 +318,16 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
           <DropdownMenuSeparator />
           
           {/* Status Change Options */}
+          {canChangeStatus(invoice.status, 'draft') && (
+            <DropdownMenuItem 
+              onClick={() => handleStatusChange('draft')}
+              disabled={updateInvoiceStatusMutation.isPending}
+            >
+              <FileText className="mr-2 h-4 w-4 text-gray-600" />
+              <span>Mark as Draft</span>
+            </DropdownMenuItem>
+          )}
+
           {canChangeStatus(invoice.status, 'approved') && (
             <DropdownMenuItem 
               onClick={() => handleStatusChange('approved')}
