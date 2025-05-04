@@ -46,7 +46,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AddTaskModal } from "./add-task-modal";
 import { TaskDetails } from "./task-details";
-import { InvoiceFromTaskModal } from "../finance/invoice-from-task-modal";
 
 export function TaskList() {
   const { toast } = useToast();
@@ -62,8 +61,6 @@ export function TaskList() {
   const [taskDetailsEditing, setTaskDetailsEditing] = useState(false);
   const [taskType, setTaskType] = useState<"admin" | "revenue">("admin");
   const [showFilters, setShowFilters] = useState(false);
-  const [isCreateInvoiceModalOpen, setIsCreateInvoiceModalOpen] = useState(false);
-  const [selectedTaskForInvoice, setSelectedTaskForInvoice] = useState<Task | null>(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -226,8 +223,17 @@ export function TaskList() {
     // Find the task by ID
     const task = tasks.find(t => t.id === taskId);
     if (task) {
-      setSelectedTaskForInvoice(task);
-      setIsCreateInvoiceModalOpen(true);
+      // Open the task details dialog with the invoice tab active
+      setSelectedTaskId(taskId);
+      setTaskDetailsActiveTab("invoice"); // Set the active tab to "invoice"
+      setTaskDetailsEditing(true); // Set editing mode to true
+      setIsTaskDetailsOpen(true);
+      
+      // Display a toast message about creating the invoice
+      toast({
+        title: "Creating new invoice",
+        description: "Enter invoice details and submit to create the invoice."
+      });
     } else {
       toast({
         title: "Error",
@@ -615,11 +621,7 @@ export function TaskList() {
         initialEditingState={taskDetailsEditing}
       />
       
-      <InvoiceFromTaskModal
-        isOpen={isCreateInvoiceModalOpen}
-        onClose={() => setIsCreateInvoiceModalOpen(false)}
-        task={selectedTaskForInvoice}
-      />
+      {/* We now use the TaskDetails component with invoice tab for all invoice operations */}
     </>
   );
 }

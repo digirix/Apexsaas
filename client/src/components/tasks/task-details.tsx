@@ -144,16 +144,18 @@ interface TaskDetailsProps {
   isOpen: boolean;
   onClose: () => void;
   taskId: number | null;
+  initialTab?: string;
+  initialEditingState?: boolean;
 }
 
 type AdminTaskFormValues = z.infer<typeof adminTaskSchema>;
 type RevenueTaskFormValues = z.infer<typeof revenueTaskSchema>;
 
-export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
+export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", initialEditingState = false }: TaskDetailsProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState("details");
+  const [isEditing, setIsEditing] = useState(initialEditingState);
+  const [activeTab, setActiveTab] = useState(initialTab);
   
   // Fetch task details if taskId is provided
   const { data: task, isLoading: isLoadingTask } = useQuery({
@@ -288,11 +290,18 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
           complianceStartDate: task.complianceStartDate ? new Date(task.complianceStartDate) : undefined,
           complianceEndDate: task.complianceEndDate ? new Date(task.complianceEndDate) : undefined,
           isRecurring: task.isRecurring || false,
-          createUpdateInvoice: false,
+          createUpdateInvoice: activeTab === "invoice", // Set to true if we're in the invoice tab
         });
       }
     }
-  }, [task, isEditing, adminTaskForm, revenueTaskForm]);
+  }, [task, isEditing, adminTaskForm, revenueTaskForm, activeTab]);
+  
+  // If the activeTab is "invoice" and isEditing is true, set createUpdateInvoice to true
+  useEffect(() => {
+    if (activeTab === "invoice" && isEditing && task && !task.isAdmin) {
+      revenueTaskForm.setValue("createUpdateInvoice", true);
+    }
+  }, [activeTab, isEditing, task, revenueTaskForm]);
   
   // Watch for client ID changes in revenue task form to reset entity selection
   useEffect(() => {
