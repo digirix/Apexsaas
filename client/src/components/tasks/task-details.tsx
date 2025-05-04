@@ -279,28 +279,36 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
           assigneeId: task.assigneeId?.toString(),
           statusId: task.statusId?.toString(),
           dueDate: new Date(task.dueDate),
-          categoryId: task.taskCategoryId?.toString(), // Fix: Use taskCategoryId instead of categoryId
+          categoryId: task.categoryId?.toString(), // Use the right field from the task
           taskType: task.taskType,
           notes: task.notes || "",
         });
       } else {
         // Get discount and tax values from the invoice if available
-        const discountAmount = invoiceData?.discountAmount || 0;
-        const taxPercent = invoiceData?.taxPercent || 0;
+        const discountAmount = invoiceData?.discountAmount ?? task.discountAmount ?? 0;
+        const taxPercent = invoiceData?.taxPercent ?? task.taxPercent ?? 0;
+        
+        console.log("Invoice data for task:", { 
+          taskId: task.id,
+          invoiceId: task.invoiceId,
+          discountAmount,
+          taxPercent,
+          taskCategory: task.categoryId
+        });
         
         revenueTaskForm.reset({
           taskDetails: task.taskDetails,
           assigneeId: task.assigneeId?.toString(),
           statusId: task.statusId?.toString(),
           dueDate: new Date(task.dueDate),
-          categoryId: task.taskCategoryId?.toString(), // Fix: Use taskCategoryId instead of categoryId
+          categoryId: task.categoryId?.toString(), // Use the right field from the task
           taskType: task.taskType,
           notes: task.notes || "",
           clientId: task.clientId?.toString(),
           entityId: task.entityId?.toString(),
           serviceRate: task.serviceRate || 0,
-          discountAmount: discountAmount, // Use invoice discount amount when available
-          taxPercent: taxPercent, // Use invoice tax percent when available
+          discountAmount: discountAmount,
+          taxPercent: taxPercent,
           currency: task.currency || "USD",
           complianceFrequency: task.complianceFrequency,
           complianceYear: task.complianceYear || "",
@@ -568,6 +576,13 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
       const taxAmount = ((subtotal - discount) * data.taxPercent) / 100;
       const total = subtotal - discount + taxAmount;
       
+      console.log("Creating/updating invoice with data:", {
+        ...data,
+        subtotal,
+        taxAmount,
+        total
+      });
+      
       // Build the payload for creating/updating an invoice
       const payload = {
         taskId: data.taskId,
@@ -584,38 +599,81 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
       };
       
       // Check if invoice exists for this task
-      const checkResponse = await fetch(`/api/v1/invoices?taskId=${data.taskId}`);
-      const existingInvoices = await checkResponse.json();
+      let existingInvoice = null;
+      
+      // First check if we already know the invoice ID from the task
+      if (task?.invoiceId) {
+        try {
+          const invoiceResponse = await fetch(`/api/v1/finance/invoices/${task.invoiceId}`);
+          if (invoiceResponse.ok) {
+            existingInvoice = await invoiceResponse.json();
+          }
+        } catch (err) {
+          console.error("Error fetching invoice by ID:", err);
+        }
+      }
+      
+      // If not found by ID, try finding by task ID
+      if (!existingInvoice) {
+        try {
+          const checkResponse = await fetch(`/api/v1/finance/invoices?taskId=${data.taskId}`);
+          const existingInvoices = await checkResponse.json();
+          if (existingInvoices.length > 0) {
+            existingInvoice = existingInvoices[0];
+          }
+        } catch (err) {
+          console.error("Error fetching invoice by task ID:", err);
+        }
+      }
       
       let response;
-      if (existingInvoices.length > 0) {
+      if (existingInvoice) {
+        console.log("Updating existing invoice:", existingInvoice.id);
         // Update existing invoice
         response = await apiRequest(
           "PUT", 
-          `/api/v1/invoices/${existingInvoices[0].id}`, 
+          `/api/v1/finance/invoices/${existingInvoice.id}`, 
           payload
         );
       } else {
+        console.log("Creating new invoice for task:", data.taskId);
         // Create new invoice
         response = await apiRequest(
           "POST", 
-          "/api/v1/invoices", 
+          "/api/v1/finance/invoices", 
           payload
         );
       }
       
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      // If this is a new invoice (task has no invoiceId yet)
+      if (task && !task.invoiceId && data.id) {
+        console.log("Updating task with new invoice ID:", data.id);
+        
+        // Update the task with the invoice ID
+        try {
+          await apiRequest("PUT", `/api/v1/tasks/${taskId}`, {
+            invoiceId: data.id
+          });
+        } catch (err) {
+          console.error("Error updating task with invoice ID:", err);
+        }
+      }
+      
       // Invalidate all relevant queries
       queryClient.invalidateQueries({ queryKey: ["/api/v1/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/v1/tasks", taskId] });
       
-      // Invalidate finance module queries
+      // Invalidate finance module queries (both paths for compatibility)
       queryClient.invalidateQueries({ queryKey: ["/api/v1/invoices"] });
       queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/invoices"] });
       if (task?.invoiceId) {
         queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/invoices", task.invoiceId] });
+      }
+      if (data.id) {
+        queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/invoices", data.id] });
       }
       
       toast({
