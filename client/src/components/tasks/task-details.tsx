@@ -100,6 +100,8 @@ const revenueTaskSchema = z.object({
   clientId: z.string().min(1, "Please select a client"),
   entityId: z.string().min(1, "Please select an entity"),
   serviceRate: z.coerce.number().min(0).optional(),
+  discountAmount: z.coerce.number().min(0).default(0),
+  taxPercent: z.coerce.number().min(0).max(100).default(0),
   currency: z.string().optional(),
   complianceFrequency: z.string().optional(),
   complianceYear: z.string()
@@ -135,6 +137,7 @@ const revenueTaskSchema = z.object({
   complianceStartDate: z.date().optional(),
   complianceEndDate: z.date().optional(),
   isRecurring: z.boolean().default(false),
+  createUpdateInvoice: z.boolean().default(false), // Used to track if we should create/update invoice
 });
 
 interface TaskDetailsProps {
@@ -238,6 +241,8 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
       clientId: "",
       entityId: "",
       serviceRate: 0,
+      discountAmount: 0,
+      taxPercent: 0,
       currency: "USD",
       complianceFrequency: undefined,
       complianceYear: "",
@@ -245,6 +250,7 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
       complianceStartDate: undefined,
       complianceEndDate: undefined,
       isRecurring: false,
+      createUpdateInvoice: false,
     },
   });
   
@@ -273,6 +279,8 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
           clientId: task.clientId?.toString(),
           entityId: task.entityId?.toString(),
           serviceRate: task.serviceRate || 0,
+          discountAmount: 0, // Default to 0 for existing tasks
+          taxPercent: 0, // Default to 0% for existing tasks
           currency: task.currency || "USD",
           complianceFrequency: task.complianceFrequency,
           complianceYear: task.complianceYear || "",
@@ -280,6 +288,7 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
           complianceStartDate: task.complianceStartDate ? new Date(task.complianceStartDate) : undefined,
           complianceEndDate: task.complianceEndDate ? new Date(task.complianceEndDate) : undefined,
           isRecurring: task.isRecurring || false,
+          createUpdateInvoice: false,
         });
       }
     }
@@ -515,9 +524,96 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
     updateAdminTaskMutation.mutate(data);
   }
   
+  // Create/update invoice mutation
+  const createUpdateInvoiceMutation = useMutation({
+    mutationFn: async (data: {
+      taskId: number;
+      clientId: number;
+      entityId: number;
+      serviceRate: number;
+      discountAmount: number;
+      taxPercent: number;
+      currency: string;
+    }) => {
+      // Calculate subtotal, discount, tax, and total
+      const subtotal = data.serviceRate;
+      const discount = data.discountAmount;
+      const taxAmount = ((subtotal - discount) * data.taxPercent) / 100;
+      const total = subtotal - discount + taxAmount;
+      
+      // Build the payload for creating/updating an invoice
+      const payload = {
+        taskId: data.taskId,
+        clientId: data.clientId,
+        entityId: data.entityId,
+        amount: data.serviceRate,
+        currency: data.currency,
+        discountAmount: data.discountAmount,
+        taxPercent: data.taxPercent,
+        subtotal: subtotal.toString(),
+        totalAmount: total.toString(),
+        amountDue: total.toString(),
+        status: "draft" // Always set to draft for created/updated invoices
+      };
+      
+      // Check if invoice exists for this task
+      const checkResponse = await fetch(`/api/v1/invoices?taskId=${data.taskId}`);
+      const existingInvoices = await checkResponse.json();
+      
+      let response;
+      if (existingInvoices.length > 0) {
+        // Update existing invoice
+        response = await apiRequest(
+          "PUT", 
+          `/api/v1/invoices/${existingInvoices[0].id}`, 
+          payload
+        );
+      } else {
+        // Create new invoice
+        response = await apiRequest(
+          "POST", 
+          "/api/v1/invoices", 
+          payload
+        );
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/invoices"] });
+      toast({
+        title: "Success",
+        description: "Invoice updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create/update invoice",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Handle revenue task form submission
   function onRevenueTaskSubmit(data: RevenueTaskFormValues) {
-    updateRevenueTaskMutation.mutate(data);
+    // First update the task
+    updateRevenueTaskMutation.mutate(data, {
+      onSuccess: (updatedTask) => {
+        // If createUpdateInvoice flag is set, create/update the invoice
+        if (data.createUpdateInvoice) {
+          createUpdateInvoiceMutation.mutate({
+            taskId: updatedTask.id,
+            clientId: parseInt(data.clientId),
+            entityId: parseInt(data.entityId),
+            serviceRate: data.serviceRate || 0,
+            discountAmount: data.discountAmount || 0,
+            taxPercent: data.taxPercent || 0,
+            currency: data.currency || "USD"
+          });
+        }
+      }
+    });
   }
   
   // Get current task status
