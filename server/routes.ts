@@ -2478,7 +2478,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               await storage.updateInvoice(invoice.id, invoiceUpdateData);
               
               // If invoice is approved and has a journal entry, update that too
-              if (invoice.statusId === 3) { // Assuming 3 is the "Approved" status
+              if (invoice.status === 'approved') { // Check for 'approved' status
                 const journalEntries = await storage.getJournalEntriesBySourceDocument("invoice", invoice.id, tenantId);
                 if (journalEntries && journalEntries.length > 0) {
                   const journalEntry = journalEntries[0];

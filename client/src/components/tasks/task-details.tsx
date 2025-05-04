@@ -370,6 +370,7 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
     mutationFn: async (data: AdminTaskFormValues) => {
       if (!taskId) throw new Error("Task ID is required");
       
+      // Ensure we map categoryId to taskCategoryId
       const payload = {
         taskDetails: data.taskDetails,
         assigneeId: parseInt(data.assigneeId),
@@ -407,6 +408,7 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
     mutationFn: async (data: RevenueTaskFormValues) => {
       if (!taskId) throw new Error("Task ID is required");
       
+      // Ensure we map categoryId to taskCategoryId for revenue tasks
       const payload = {
         taskDetails: data.taskDetails,
         assigneeId: parseInt(data.assigneeId),
