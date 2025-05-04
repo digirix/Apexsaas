@@ -769,7 +769,13 @@ export default function ChartOfAccountsManager() {
               <TabsTrigger value="detailed-groups">Detailed Groups</TabsTrigger>
               <TabsTrigger value="accounts">Accounts (AC Heads)</TabsTrigger>
             </TabsList>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+              setIsAddDialogOpen(open);
+              if (!open) {
+                // Reset form data when dialog is closed
+                setFormData(initialFormData);
+              }
+            }}>
               <DialogTrigger asChild>
                 <Button>
                   <PlusCircle className="mr-2 h-4 w-4" />
@@ -813,7 +819,13 @@ export default function ChartOfAccountsManager() {
         </Tabs>
 
         {/* Edit Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+          setIsEditDialogOpen(open);
+          if (!open) {
+            // Reset form data when dialog is closed
+            setFormData(initialFormData);
+          }
+        }}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>
