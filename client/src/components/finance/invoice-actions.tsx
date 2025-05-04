@@ -31,7 +31,8 @@ import {
   AlertTriangle, 
   Plus, 
   Users, 
-  CreditCard 
+  CreditCard,
+  Trash2
 } from 'lucide-react';
 import {
   Form,
@@ -90,6 +91,7 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
   const [validationError, setValidationError] = useState<ValidationError | null>(null);
   const [clientAccountDialogOpen, setClientAccountDialogOpen] = useState(false);
   const [incomeAccountDialogOpen, setIncomeAccountDialogOpen] = useState(false);
+  const [deleteConfirmDialogOpen, setDeleteConfirmDialogOpen] = useState(false);
   
   // Form for client account creation confirmation
   const clientAccountForm = useForm<z.infer<typeof clientAccountSchema>>({
@@ -256,6 +258,36 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
     });
   };
 
+  // Mutation for deleting invoice
+  const deleteInvoiceMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('DELETE', `/api/v1/finance/invoices/${invoice.id}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/invoices'] });
+      
+      toast({
+        title: 'Invoice deleted',
+        description: `Invoice ${invoice.invoiceNumber} has been permanently deleted.`,
+      });
+      
+      setDeleteConfirmDialogOpen(false);
+    },
+    onError: (error: any) => {
+      console.error('Error deleting invoice:', error);
+      toast({
+        title: 'Error deleting invoice',
+        description: error.data?.message || 'Failed to delete invoice. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Handle delete confirmation
+  const handleDeleteInvoice = () => {
+    deleteInvoiceMutation.mutate();
+  };
+
   // Navigate to Chart of Accounts page
   const handleGoToChartOfAccounts = () => {
     window.location.href = '/finance/chart-of-accounts';
@@ -325,8 +357,56 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
               <span>Cancel Invoice</span>
             </DropdownMenuItem>
           )}
+
+          <DropdownMenuSeparator />
+          
+          {/* Delete Invoice Option - Available for all statuses */}
+          <DropdownMenuItem 
+            onClick={() => setDeleteConfirmDialogOpen(true)}
+            disabled={deleteInvoiceMutation.isPending}
+            className="text-red-600"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            <span>Delete Invoice</span>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmDialogOpen} onOpenChange={setDeleteConfirmDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center text-red-600">
+              <Trash2 className="h-5 w-5 mr-2" />
+              Confirm Delete Invoice
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently delete invoice {invoice.invoiceNumber}?
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="mt-4 bg-red-50 p-3 rounded-md text-red-800 text-sm">
+            <p className="font-semibold mb-1">Warning:</p>
+            <p>This action cannot be undone. All invoice data, including any associated journal entries, will be permanently removed.</p>
+          </div>
+          
+          <DialogFooter className="flex justify-between mt-6">
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteConfirmDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleDeleteInvoice}
+              disabled={deleteInvoiceMutation.isPending}
+            >
+              {deleteInvoiceMutation.isPending ? 'Deleting...' : 'Delete Permanently'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Chart of Accounts Validation Error Dialog */}
       <Dialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
