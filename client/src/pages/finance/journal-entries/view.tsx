@@ -75,7 +75,7 @@ export default function JournalEntryView() {
   }
 
   // Fetch journal entry details
-  const { data: journalEntry, isLoading } = useQuery({
+  const { data: journalEntry, isLoading, refetch } = useQuery({
     queryKey: ['/api/v1/finance/journal-entries', entryId],
     queryFn: async () => {
       // Use direct fetch to ensure we get the latest data
@@ -176,7 +176,8 @@ export default function JournalEntryView() {
       return apiRequest('POST', `/api/v1/finance/journal-entries/${id}/set-draft`);
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/v1/finance/journal-entries/${entryId}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/journal-entries', entryId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/journal-entries'] });
       toast({
         title: "Status updated",
         description: "Journal entry has been set to draft status.",
