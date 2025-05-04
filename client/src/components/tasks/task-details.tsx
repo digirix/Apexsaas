@@ -587,20 +587,38 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
         total
       });
       
+      // Generate invoice number: INV-{YYYYMMDD}-{TaskID}
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const invoiceNumber = `INV-${year}${month}${day}-${data.taskId}`;
+      
+      // Set due date to 30 days from now
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 30);
+      
       // Build the payload for creating/updating an invoice
       const payload = {
         taskId: data.taskId,
         clientId: data.clientId,
         entityId: data.entityId,
+        invoiceNumber: invoiceNumber,
+        issueDate: today.toISOString().split('T')[0],
+        dueDate: dueDate.toISOString().split('T')[0],
         amount: data.serviceRate,
         currency: data.currency,
+        currencyCode: data.currency,
         discountAmount: data.discountAmount,
         taxPercent: data.taxPercent,
         subtotal: subtotal.toString(),
         taxAmount: taxAmount.toString(),
         totalAmount: total.toString(),
         amountDue: total.toString(),
-        status: "draft" // Always set to draft for created/updated invoices
+        amountPaid: "0.00",
+        status: "draft", // Always set to draft for created/updated invoices
+        notes: `Invoice for task #${data.taskId}`,
+        termsAndConditions: "Standard terms and conditions apply."
       };
       
       // Check if invoice exists for this task
