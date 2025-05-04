@@ -50,6 +50,7 @@ const invoiceFormSchema = z.object({
   currencyCode: z.string().min(1, "Currency code is required"),
   status: z.enum(invoiceStatusEnum.enumValues),
   subtotal: z.string(),
+  taxPercent: z.string(), // New field for tax percentage
   taxAmount: z.string(),
   discountAmount: z.string(),
   totalAmount: z.string(),
@@ -87,6 +88,7 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
       currencyCode: task?.currency || "USD",
       status: "draft",
       subtotal: task?.serviceRate?.toString() || "0.00",
+      taxPercent: "0",  // Default tax percentage (0%)
       taxAmount: "0.00",
       discountAmount: "0.00",
       totalAmount: task?.serviceRate?.toString() || "0.00",
@@ -158,11 +160,28 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
     }
   }, [isOpen, task, form]);
   
-  // Update total amount when subtotal, tax, or discount changes
+  // Update tax amount when tax percentage, subtotal, or discount changes
+  useEffect(() => {
+    const calculateTax = () => {
+      const subtotal = parseFloat(form.getValues("subtotal") || "0");
+      const discount = parseFloat(form.getValues("discountAmount") || "0");
+      const taxPercent = parseFloat(form.getValues("taxPercent") || "0");
+      
+      // Calculate tax amount using the formula: (Subtotal - Discount) * Tax Percent / 100
+      const taxableAmount = subtotal - discount;
+      const taxAmount = (taxableAmount * taxPercent / 100).toFixed(2);
+      
+      // Update tax amount field
+      form.setValue("taxAmount", taxAmount);
+    };
+    
+    calculateTax();
+  }, [form.watch("subtotal"), form.watch("discountAmount"), form.watch("taxPercent")]);
+  
+  // Update total amount when subtotal, tax amount, or discount changes
   useEffect(() => {
     const calculateTotal = () => {
       const subtotal = parseFloat(form.getValues("subtotal") || "0");
-      // Keep tax as manually entered - no automatic calculation
       const tax = parseFloat(form.getValues("taxAmount") || "0");
       const discount = parseFloat(form.getValues("discountAmount") || "0");
       
