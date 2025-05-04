@@ -1,10 +1,8 @@
-Lets work on the Invoices section in finance module.
-
 As now when the invoice is created it is correctly going to finance module Invoice section list as a draft. One Action Item is of Approval on these Invoice items. Here is what i want when the Invoice is approved. I want the system to auto post the Journal Entry Voucher in the Journal Entry Tab of the Finance Module.
 
-Debit “Entity Name” account name with the total amount of Invoice
-Debit the “Discount Allowed” account name with the amount of Discount (do this only if the amount is not zero)
-Credit Relevant “S.Tax Payable” Account Name with Tax Amount of the Invoice (do this only if the amount is not greater than zero.
+Debit “Entity Name” account name with the “total amount” of Invoice
+Debit the “Discount Allowed” account name with the “amount of Discount” (do this only if the amount is not zero)
+Credit Relevant “Tax Payable” Account Name with Tax Amount of the Invoice (do this only if the amount is not greater than zero.
 Credit relevant “Income” Account Name with the sub total amount of the Invoice
 
 The date of voucher shall be the date when Invoice is approved.
@@ -38,4 +36,4 @@ But if that Entity Name already exists in the Account Name then there is no need
 2. For account Name of Discount Allowed and Tax Payable ask the user to create it, if not already created.
 3. When user Approve the invoice, ask the user to select the account name under incomes, show him the account names opened under income to select which account name he wants to use for posting the above journal Entry.
 
-Please make a robust and streamed lined mechanism to make this Automation of Journal Entry Voucher. And when this is posted, show it in the list of Journal Entries for further processing.
+Please make a robust and streamed lined mechanism to make this Automation of Journal Entry Voucher. And when this is posted, show it in the list of Journal Entries for further processing. 

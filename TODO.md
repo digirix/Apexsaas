@@ -7,7 +7,7 @@ This document outlines the remaining tasks and future enhancements for the Accou
 - Clients Module: 100% complete
 - Tasks Module: 90% complete (task editing in progress)
 - Users Module: 100% complete  
-- Finance Module: 85% complete (chart of accounts and journal entries added, reporting features pending)
+- Finance Module: 90% complete (chart of accounts, journal entries, and general ledger reporting added; trial balance and P&L pending)
 
 ## Current Priority
 1. ✓ Fix the Journal Entry source document bug (currently causing 500 error)
@@ -18,11 +18,17 @@ This document outlines the remaining tasks and future enhancements for the Accou
 6. ✓ Add validation to prevent editing or deleting posted journal entries
 7. ✓ Add confirmation dialogs for safe deletion of journal entries
 8. ✓ Remove redundant Account Heads tab from Finance Module
-9. Implement TypeScript type definitions for all components in Chart of Accounts and Journal Entries related pages
-10. Implement automatic Account Code generation based on selected Chart of Accounts structure
-11. Implement financial reporting features (general ledger, trial balance, profit & loss)
-12. Complete the integration between Tasks and Invoices
-13. Fix remaining technical issues in the Finance Module
+9. ✓ Fix Account selection dropdown in General Ledger report
+10. ✓ Add date range filtering (From Date and To Date) to General Ledger report
+11. ✓ Fix back navigation in the Ledger report to return to Finance module
+12. ✓ Add proper display of account details and debit/credit amounts in Journal Entry view
+13. ✓ Fix 404 error when accessing General Ledger from Financial Reports section
+14. Implement TypeScript type definitions for all components in Chart of Accounts and Journal Entries related pages
+15. Implement automatic Account Code generation based on selected Chart of Accounts structure
+16. Complete the implementation of financial reporting features (trial balance, profit & loss)
+17. Complete the integration between Tasks and Invoices
+18. Implement single-page PDF invoice layout with professional design
+19. Implement auto-posting of journal entries when invoice status changes
 
 ## Priority 1: Critical System Improvements
 
@@ -117,18 +123,25 @@ This document outlines the remaining tasks and future enhancements for the Accou
 - [x] Implement full CRUD functionality for Journal Entries with edit and delete operations
 - [x] Add validation to prevent editing or deleting posted journal entries
 - [x] Remove redundant Account Heads tab as it duplicated Chart of Accounts functionality
+- [x] Implement General Ledger report with account transaction history and balances
+- [x] Implement date range filtering in General Ledger to allow custom reporting periods
+- [x] Fix account selection dropdown in General Ledger to properly display all available accounts
+- [x] Add proper back navigation to financial reports to improve overall UX flow
+- [x] Fix 404 error when accessing the General Ledger report from financial reports section
+- [x] Enhance Journal Entry view to properly display account details with debit/credit amounts
+- [x] Add standardized pagination (10 items per page) across all financial list views
 - [ ] Complete Account Heads Management page with CRUD operations
 - [ ] Implement automatic Account Code generation based on selected Chart of Accounts structure
 - [ ] Fix remaining Promise object rendering issues in invoice creation
 - [ ] Create revenue forecasting tools
 - [ ] Implement webhook handlers for payment gateway notifications
 - [ ] Add financial reporting dashboard with accounts receivable aging
-- [ ] Implement invoice PDF generation and email delivery
+- [ ] Implement invoice PDF generation and email delivery that fits on a single page
 - [ ] Create automated payment reminders for overdue invoices
 - [ ] Add link between completed tasks and invoice generation
 - [ ] Implement automatic invoice status updates based on due dates (for overdue detection)
-- [ ] Add General Ledger and Trial Balance reports
-- [ ] Create Profit & Loss statement generation
+- [ ] Add Trial Balance report with proper debit/credit balancing
+- [ ] Create Profit & Loss statement generation with period comparison capabilities
 
 ### Mobile Responsiveness
 - [x] Implement collapsible sidebar drawer for mobile devices
@@ -143,7 +156,7 @@ This document outlines the remaining tasks and future enhancements for the Accou
 ### Performance Improvements
 - [ ] Implement data caching for frequently accessed information
 - [ ] Optimize database queries for faster response times
-- [ ] Add pagination for large data sets
+- [x] Add pagination for large data sets (standardized to 10 items per page)
 - [ ] Implement lazy loading for components
 
 ### Security Enhancements
