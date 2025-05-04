@@ -724,7 +724,7 @@ function TaskCard({
                   onClick={onEditInvoice}
                 >
                   <FileText className="mr-2 h-4 w-4" />
-                  Edit Invoice
+                  Update Invoice
                 </Button>
               ) : (
                 <Button 
