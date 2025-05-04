@@ -62,20 +62,8 @@ export class TaskScheduler {
    * Process a single recurring task and create new instances if needed
    */
   private async processRecurringTask(task: Task, leadDays: number): Promise<void> {
-    // Skip processing if task doesn't have compliance frequency
-    if (!task.complianceFrequency) {
-      return;
-    }
-    
-    // Handle "One Time" tasks differently - they should not generate recurring instances
-    if (task.complianceFrequency.toLowerCase() === 'one time') {
-      console.log(`Skipping "One Time" task ${task.id} - not recurring`);
-      return;
-    }
-    
-    // For other frequencies, we need the duration
-    if (!task.complianceDuration) {
-      console.log(`Task ${task.id} is missing compliance duration`);
+    // Skip processing if task doesn't have compliance information
+    if (!task.complianceFrequency || !task.complianceDuration) {
       return;
     }
     
@@ -299,11 +287,6 @@ export class TaskScheduler {
       let startDate: Date, endDate: Date;
       
       switch (frequency.toLowerCase()) {
-        case 'one time':
-          // One-time tasks don't generate recurring instances
-          console.log(`Skipping recurring task generation for One Time frequency`);
-          return null;
-          
         case 'daily':
           // For daily, the next period is tomorrow
           const nextDay = addDays(referenceDate, 1);
