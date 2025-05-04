@@ -3928,10 +3928,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lineItems
       });
     } catch (error) {
+      console.error("Error updating invoice:", error);
+      
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
-      res.status(500).json({ message: "Failed to update invoice" });
+      
+      // Check if the invoice update was successful
+      if (!updatedInvoice) {
+        return res.status(404).json({ message: "Invoice not found or could not be updated" });
+      }
+      
+      res.status(500).json({ 
+        message: "Failed to update invoice", 
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
   
