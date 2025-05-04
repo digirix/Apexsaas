@@ -4390,17 +4390,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if the account has any journal entries
-      try {
-        const journalEntries = await storage.getJournalEntryLines(tenantId, undefined, id);
-        if (journalEntries && journalEntries.length > 0) {
-          return res.status(400).json({ 
-            message: "Cannot delete account that has journal entries. Consider deactivating it instead." 
-          });
-        }
-      } catch (journalError) {
-        console.warn("Error checking journal entries for account:", journalError);
-        // Continue with deletion even if there's an error checking journal entries
-        // This ensures accounts without journal entries can still be deleted
+      const journalEntries = await storage.getJournalEntryLines(tenantId, undefined, id);
+      if (journalEntries.length > 0) {
+        return res.status(400).json({ 
+          message: "Cannot delete account that has journal entries. Consider deactivating it instead." 
+        });
       }
       
       // Delete the account
@@ -4413,7 +4407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       console.error("Error deleting account:", error);
-      res.status(500).json({ message: "Failed to delete account" });
+      res.status(500).json({ message: "Failed to delete account", error: error.toString() });
     }
   });
   
