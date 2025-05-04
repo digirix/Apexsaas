@@ -132,78 +132,31 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
   }, [form.watch("clientId")]);
   
   // Generate invoice number
-  // Fetch existing invoice if task has one
   useEffect(() => {
-    if (isOpen && task && task.invoiceId) {
-      // Fetch the existing invoice
-      const fetchInvoice = async () => {
-        try {
-          const response = await fetch(`/api/v1/finance/invoices/${task.invoiceId}`);
-          if (response.ok) {
-            const existingInvoice = await response.json();
-            
-            // Set form values from existing invoice
-            form.setValue("clientId", existingInvoice.clientId);
-            form.setValue("entityId", existingInvoice.entityId);
-            form.setValue("invoiceNumber", existingInvoice.invoiceNumber);
-            form.setValue("issueDate", format(new Date(existingInvoice.issueDate), "yyyy-MM-dd"));
-            form.setValue("dueDate", format(new Date(existingInvoice.dueDate), "yyyy-MM-dd"));
-            form.setValue("currencyCode", existingInvoice.currencyCode);
-            form.setValue("status", "draft"); // Always set to draft when editing
-            form.setValue("subtotal", existingInvoice.subtotal);
-            form.setValue("taxAmount", existingInvoice.taxAmount);
-            form.setValue("discountAmount", existingInvoice.discountAmount);
-            form.setValue("totalAmount", existingInvoice.totalAmount);
-            form.setValue("amountDue", existingInvoice.amountDue);
-            form.setValue("notes", existingInvoice.notes || "");
-            form.setValue("termsAndConditions", existingInvoice.termsAndConditions || "");
-            form.setValue("serviceDescription", existingInvoice.notes || task.taskDetails || "");
-            
-            // Store the invoice for reference
-            setInvoice(existingInvoice);
-          } else {
-            // If invoice not found, create a new one
-            setDefaultInvoiceValues();
-          }
-        } catch (error) {
-          console.error("Error fetching invoice:", error);
-          setDefaultInvoiceValues();
-        }
-      };
+    if (isOpen && task) {
+      // Generate invoice number: INV-{YYYYMMDD}-{TaskID}
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      const invoiceNumber = `INV-${year}${month}${day}-${task.id}`;
       
-      fetchInvoice();
-    } else if (isOpen && task) {
-      // For new invoices, set default values
-      setDefaultInvoiceValues();
+      form.setValue("invoiceNumber", invoiceNumber);
+      
+      // Set up default values from task
+      if (task.clientId) form.setValue("clientId", task.clientId);
+      if (task.entityId) form.setValue("entityId", task.entityId);
+      if (task.serviceRate) {
+        const rate = task.serviceRate.toString();
+        form.setValue("subtotal", rate);
+        form.setValue("totalAmount", rate);
+        form.setValue("amountDue", rate);
+      }
+      if (task.taskDetails) {
+        form.setValue("serviceDescription", task.taskDetails);
+      }
     }
   }, [isOpen, task, form]);
-  
-  // Helper function to set default values for a new invoice
-  const setDefaultInvoiceValues = () => {
-    if (!task) return;
-    
-    // Generate invoice number: INV-{YYYYMMDD}-{TaskID}
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    const invoiceNumber = `INV-${year}${month}${day}-${task.id}`;
-    
-    form.setValue("invoiceNumber", invoiceNumber);
-    
-    // Set up default values from task
-    if (task.clientId) form.setValue("clientId", task.clientId);
-    if (task.entityId) form.setValue("entityId", task.entityId);
-    if (task.serviceRate) {
-      const rate = task.serviceRate.toString();
-      form.setValue("subtotal", rate);
-      form.setValue("totalAmount", rate);
-      form.setValue("amountDue", rate);
-    }
-    if (task.taskDetails) {
-      form.setValue("serviceDescription", task.taskDetails);
-    }
-  };
   
   // Update total amount when subtotal, tax, or discount changes
   useEffect(() => {
@@ -236,7 +189,7 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
     setIsSubmitting(true);
     
     try {
-      // Prepare invoice data (same for both create and update)
+      // Create invoice
       const invoiceData = {
         ...data,
         tenantId: task.tenantId,
@@ -247,51 +200,35 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
         notes: data.serviceDescription || task?.taskDetails || ""
       };
       
-      let response;
-      let successMessage;
-      
-      // Check if we're updating an existing invoice or creating a new one
-      if (task.invoiceId) {
-        // Update existing invoice
-        response = await apiRequest("PUT", `/api/v1/finance/invoices/${task.invoiceId}`, invoiceData);
-        successMessage = "Invoice Updated";
-      } else {
-        // Create new invoice
-        response = await apiRequest("POST", "/api/v1/finance/invoices", invoiceData);
-        successMessage = "Invoice Created";
-      }
-      
+      const response = await apiRequest("POST", "/api/v1/finance/invoices", invoiceData);
       const result = await response.json();
       
       if (response.ok) {
         setInvoice(result);
         
-        // If this is a new invoice, update task with invoice ID
-        if (!task.invoiceId) {
-          await apiRequest("PUT", `/api/v1/tasks/${task.id}`, {
-            invoiceId: result.id
-          });
-        }
+        // Update task with invoice ID
+        await apiRequest("PUT", `/api/v1/tasks/${task.id}`, {
+          invoiceId: result.id
+        });
         
-        // Invalidate queries to refresh data
         queryClient.invalidateQueries({ queryKey: ["/api/v1/tasks"] });
         queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/invoices"] });
         
         toast({
-          title: successMessage,
-          description: `The invoice has been ${task.invoiceId ? 'updated' : 'created'} successfully.`,
+          title: "Invoice Created",
+          description: "The invoice has been created successfully.",
         });
       } else {
         toast({
           title: "Error",
-          description: result.message || `Failed to ${task.invoiceId ? 'update' : 'create'} invoice. Please try again.`,
+          description: result.message || "Failed to create invoice. Please try again.",
           variant: "destructive",
         });
       }
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || `Failed to ${task.invoiceId ? 'update' : 'create'} invoice. Please try again.`,
+        description: error.message || "Failed to create invoice. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -401,9 +338,7 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {invoice 
-              ? `Invoice ${task?.invoiceId ? 'Updated' : 'Created'}` 
-              : `${task?.invoiceId ? 'Update' : 'Create'} Invoice from Task`}
+            {invoice ? "Invoice Created" : "Create Invoice from Task"}
           </DialogTitle>
         </DialogHeader>
         
@@ -413,10 +348,10 @@ export function InvoiceFromTaskModal({ isOpen, onClose, task }: InvoiceFromTaskM
               <div className="bg-green-50 p-4 rounded-md border border-green-200 text-green-800">
                 <div className="flex gap-2 items-center mb-2">
                   <FileText className="h-5 w-5" />
-                  <h3 className="font-medium">Invoice #{invoice.invoiceNumber} {task?.invoiceId ? 'Updated' : 'Created'}</h3>
+                  <h3 className="font-medium">Invoice #{invoice.invoiceNumber} Created</h3>
                 </div>
                 <p className="text-sm">
-                  The invoice has been {task?.invoiceId ? 'updated' : 'created'} successfully. You can now download it as a PDF or generate a shareable link.
+                  The invoice has been created successfully. You can now download it as a PDF or generate a shareable link.
                 </p>
               </div>
               

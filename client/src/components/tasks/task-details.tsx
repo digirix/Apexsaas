@@ -1440,20 +1440,20 @@ export function TaskDetails({ isOpen, onClose, taskId }: TaskDetailsProps) {
                 </div>
                 
                 <div className="flex gap-2">
-                  {/* Create/Update Invoice button - Show for completed revenue tasks or tasks with existing invoices */}
+                  {/* Create Invoice button - Only show for completed revenue tasks */}
                   {!task.isAdmin && 
                     task.statusId && 
-                    (taskStatuses.find(s => s.id === task.statusId)?.rank === 3 || task.invoiceId) && (
+                    taskStatuses.find(s => s.id === task.statusId)?.rank === 3 && (
                     <Button
                       variant="default"
                       onClick={() => {
                         onClose();
-                        // Navigate to create/update invoice from task page with taskId
+                        // Navigate to create invoice from task page with taskId
                         window.location.href = `/finance/invoices/from-task?taskId=${task.id}`;
                       }}
                     >
                       <Receipt className="h-4 w-4 mr-2" />
-                      {task.invoiceId ? "Update Invoice" : "Create Invoice"}
+                      Create Invoice
                     </Button>
                   )}
                   
