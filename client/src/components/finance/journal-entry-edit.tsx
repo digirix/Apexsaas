@@ -44,7 +44,8 @@ import {
   Trash2,
   Receipt,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  Edit
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -110,28 +111,43 @@ export default function JournalEntryEdit() {
       try {
         console.log(`Fetching journal entry with ID: ${entryId}`);
         
-        // Use the standard apiRequest that's already set up with auth
-        const data = await apiRequest('GET', `/api/v1/finance/journal-entries/${entryId}`);
-        console.log('Journal entry fetched:', data);
+        // Make a direct fetch call to get the raw response
+        const response = await fetch(`/api/v1/finance/journal-entries/${entryId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include', // Important for session cookies
+        });
         
-        if (!data || Object.keys(data).length === 0 || !data.id) {
-          console.error(`No data returned for journal entry ${entryId}`, data);
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        // Parse the JSON response
+        const data = await response.json();
+        console.log('Journal entry raw data:', data);
+        
+        if (!data || !data.id) {
+          console.error(`Invalid journal entry data for ID ${entryId}:`, data);
           throw new Error(`Could not load journal entry ${entryId}`);
         }
         
-        // Ensure line details are complete - just like in the view component
-        if (data.lines) {
-          data.lines = data.lines.map((line: any) => ({
+        // Process the journal entry data
+        const processedEntry = {
+          ...data,
+          // Ensure lines are properly processed
+          lines: data.lines ? data.lines.map((line: any) => ({
             ...line,
-            // Ensure account information is present
             accountName: line.accountName || 'Unknown Account',
             accountCode: line.accountCode || 'N/A',
             debitAmount: line.debitAmount || '0.00',
             creditAmount: line.creditAmount || '0.00',
-          }));
-        }
+          })) : [],
+        };
         
-        return data as JournalEntry;
+        console.log('Processed journal entry:', processedEntry);
+        return processedEntry as JournalEntry;
       } catch (error) {
         console.error('Error fetching journal entry:', error);
         throw error;
