@@ -74,8 +74,9 @@ export default function JournalEntriesList() {
     mutationFn: async (id: number) => {
       return apiRequest('DELETE', `/api/v1/finance/journal-entries/${id}`);
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/journal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/journal-entries', variables] });
       toast({
         title: "Journal entry deleted",
         description: "The journal entry has been successfully deleted.",
@@ -98,8 +99,9 @@ export default function JournalEntriesList() {
       const response = await apiRequest('PUT', `/api/v1/finance/journal-entries/${id}`, { isPosted });
       return response as unknown as { isPosted: boolean };
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/journal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/journal-entries', variables.id] });
       toast({
         title: data.isPosted ? "Journal entry posted" : "Journal entry set to draft",
         description: data.isPosted 
@@ -122,8 +124,9 @@ export default function JournalEntriesList() {
     mutationFn: async (id: number) => {
       return apiRequest('POST', `/api/v1/finance/journal-entries/${id}/set-draft`);
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/journal-entries'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/journal-entries', variables] });
       toast({
         title: "Status updated",
         description: "Journal entry has been set to draft status.",

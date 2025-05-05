@@ -103,8 +103,29 @@ export default function JournalEntryEdit() {
   // Update form with journal entry data when available
   useEffect(() => {
     if (journalEntry) {
+      // Safely format the date or use today if there's an issue
+      let formattedDate = '';
+      try {
+        // Check if entryDate exists and is valid
+        if (journalEntry.entryDate) {
+          const date = new Date(journalEntry.entryDate);
+          // Check if the date is valid
+          if (!isNaN(date.getTime())) {
+            formattedDate = format(date, 'yyyy-MM-dd');
+          } else {
+            formattedDate = format(new Date(), 'yyyy-MM-dd');
+            console.warn('Invalid entry date, using current date instead');
+          }
+        } else {
+          formattedDate = format(new Date(), 'yyyy-MM-dd');
+        }
+      } catch (error) {
+        console.error('Error formatting date:', error);
+        formattedDate = format(new Date(), 'yyyy-MM-dd');
+      }
+
       form.reset({
-        entryDate: format(new Date(journalEntry.entryDate), 'yyyy-MM-dd'),
+        entryDate: formattedDate,
         reference: journalEntry.reference || '',
         description: journalEntry.description || '',
         sourceDocument: journalEntry.sourceDocument || 'manual',
@@ -139,11 +160,13 @@ export default function JournalEntryEdit() {
       // Convert string amounts to numbers
       const formattedValues = {
         ...values,
+        sourceDocumentId: values.sourceDocumentId && values.sourceDocumentId.trim() !== '' 
+          ? parseInt(values.sourceDocumentId) 
+          : null,
         lines: values.lines.map(line => ({
           ...line,
           debitAmount: parseFloat(line.debitAmount || "0"),
           creditAmount: parseFloat(line.creditAmount || "0"),
-          sourceDocumentId: values.sourceDocumentId ? parseInt(values.sourceDocumentId) : null
         }))
       };
       
