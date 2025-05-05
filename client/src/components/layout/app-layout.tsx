@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { Sidebar } from "@/components/ui/sidebar";
 import { Header } from "@/components/ui/header";
+import { AIChatbot } from "@/components/ui/ai-chatbot";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -18,6 +19,9 @@ export function AppLayout({ children, title }: AppLayoutProps) {
         <main className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8 pt-24 md:pt-6">
           {children}
         </main>
+        
+        {/* AI Chatbot */}
+        <AIChatbot />
       </div>
     </div>
   );

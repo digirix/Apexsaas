@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { TaskScheduler } from "./task-scheduler";
+import { encrypt, decrypt } from "./utils/encryption";
+import { OpenRouterClient } from "./utils/openrouter-client";
 import { 
   insertCountrySchema, insertCurrencySchema, insertStateSchema, 
   insertEntityTypeSchema, insertTaskStatusSchema, insertTaskCategorySchema, insertServiceTypeSchema,
@@ -5636,6 +5638,215 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // =========== AI Integration Routes ===========
+  
+  // Get AI Configuration
+  app.get("/api/v1/setup/ai-configuration", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      // Check if API key is configured
+      const apiKeyConfig = await storage.getTenantSetting(tenantId, "openrouter_api_key");
+      const selectedModel = await storage.getTenantSetting(tenantId, "openrouter_selected_model");
+      
+      res.json({
+        apiKeyConfigured: !!apiKeyConfig,
+        selectedModel: selectedModel?.value
+      });
+    } catch (error) {
+      console.error("Error fetching AI configuration:", error);
+      res.status(500).json({ message: "Failed to fetch AI configuration" });
+    }
+  });
+  
+  // Set OpenRouter API Key
+  app.post("/api/v1/setup/ai-configuration/api-key", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const { apiKey } = req.body;
+      
+      if (!apiKey) {
+        return res.status(400).json({ message: "API key is required" });
+      }
+      
+      // Encrypt the API key before storing
+      const encryptedApiKey = await encrypt(apiKey);
+      
+      // Store the encrypted key
+      await storage.setTenantSetting(tenantId, "openrouter_api_key", encryptedApiKey);
+      
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("Error saving API key:", error);
+      res.status(500).json({ message: "Failed to save API key" });
+    }
+  });
+  
+  // Test OpenRouter API Connection
+  app.post("/api/v1/setup/ai-configuration/test-connection", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      // Get the encrypted API key
+      const apiKeyConfig = await storage.getTenantSetting(tenantId, "openrouter_api_key");
+      
+      if (!apiKeyConfig) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "API key not configured" 
+        });
+      }
+      
+      // Initialize the OpenRouter client with the encrypted key
+      // The client will handle decryption internally
+      const openRouterClient = new OpenRouterClient(apiKeyConfig.value);
+      
+      // Test the connection
+      const testResult = await openRouterClient.testConnection();
+      
+      res.json(testResult);
+    } catch (error) {
+      console.error("Error testing connection:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: error instanceof Error ? error.message : "Failed to test connection" 
+      });
+    }
+  });
+  
+  // Get Available Models
+  app.get("/api/v1/setup/ai-models", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      // Get the encrypted API key
+      const apiKeyConfig = await storage.getTenantSetting(tenantId, "openrouter_api_key");
+      
+      if (!apiKeyConfig) {
+        return res.status(400).json({ message: "API key not configured" });
+      }
+      
+      // Initialize the OpenRouter client
+      const openRouterClient = new OpenRouterClient(apiKeyConfig.value);
+      
+      // Get available models
+      const modelsData = await openRouterClient.getAvailableModels();
+      
+      // Transform the data to a simplified format for the frontend
+      const models = modelsData.data.map((model: any) => ({
+        id: model.id,
+        name: model.name,
+        provider: model.provider || 'Unknown'
+      }));
+      
+      res.json({ models });
+    } catch (error) {
+      console.error("Error fetching models:", error);
+      res.status(500).json({ message: "Failed to fetch models" });
+    }
+  });
+  
+  // Set Selected Model
+  app.post("/api/v1/setup/ai-configuration/selected-model", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const { selectedModel } = req.body;
+      
+      if (!selectedModel) {
+        return res.status(400).json({ message: "Selected model is required" });
+      }
+      
+      // Store the selected model
+      await storage.setTenantSetting(tenantId, "openrouter_selected_model", selectedModel);
+      
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("Error saving selected model:", error);
+      res.status(500).json({ message: "Failed to save selected model" });
+    }
+  });
+  
+  // AI Chat endpoint
+  app.post("/api/v1/ai/chat", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const { messages } = req.body;
+      
+      if (!messages || !Array.isArray(messages)) {
+        return res.status(400).json({ message: "Valid messages array is required" });
+      }
+      
+      // Get the encrypted API key and selected model
+      const apiKeyConfig = await storage.getTenantSetting(tenantId, "openrouter_api_key");
+      const selectedModelConfig = await storage.getTenantSetting(tenantId, "openrouter_selected_model");
+      
+      if (!apiKeyConfig) {
+        return res.status(400).json({ message: "AI not configured. Please set up OpenRouter API key first." });
+      }
+      
+      if (!selectedModelConfig) {
+        return res.status(400).json({ message: "No AI model selected. Please select a model in AI Configuration." });
+      }
+      
+      // Initialize the OpenRouter client
+      const openRouterClient = new OpenRouterClient(apiKeyConfig.value);
+      
+      // Get the chat completion
+      const completion = await openRouterClient.createChatCompletion(
+        selectedModelConfig.value,
+        messages
+      );
+      
+      res.json(completion);
+    } catch (error) {
+      console.error("Error in AI chat:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to generate AI response" 
+      });
+    }
+  });
+
+  // AI Financial Analysis endpoint
+  app.post("/api/v1/ai/analyze-finance", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const { data, query } = req.body;
+      
+      if (!data || !query) {
+        return res.status(400).json({ message: "Data and query are required" });
+      }
+      
+      // Get the encrypted API key and selected model
+      const apiKeyConfig = await storage.getTenantSetting(tenantId, "openrouter_api_key");
+      const selectedModelConfig = await storage.getTenantSetting(tenantId, "openrouter_selected_model");
+      
+      if (!apiKeyConfig) {
+        return res.status(400).json({ message: "AI not configured. Please set up OpenRouter API key first." });
+      }
+      
+      if (!selectedModelConfig) {
+        return res.status(400).json({ message: "No AI model selected. Please select a model in AI Configuration." });
+      }
+      
+      // Initialize the OpenRouter client
+      const openRouterClient = new OpenRouterClient(apiKeyConfig.value);
+      
+      // Analyze the data
+      const analysis = await openRouterClient.analyzeAccountingData(
+        selectedModelConfig.value,
+        data,
+        query
+      );
+      
+      res.json({ analysis });
+    } catch (error) {
+      console.error("Error in AI financial analysis:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to analyze financial data" 
+      });
+    }
+  });
+  
   // Create an HTTP server
   const httpServer = createServer(app);
 
