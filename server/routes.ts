@@ -3487,22 +3487,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             tenantId: tenantId,
             journalEntryId: journalEntry.id,
             accountId: entityAccount.id,
-            description: `${invoiceDescription}-IN${invoice.invoiceNumber}`,
-            debitAmount: totalAmount.toString(), 
+            description: `Inovice Booked on ${invoiceDescription}-IN${invoice.invoiceNumber}`,
+            debitAmount: (totalAmount + absDiscountAmount).toString(), // Add discount amount here to make total (since it was subtracted in invoice)
             creditAmount: "0",
             lineOrder: lineOrder++
           });
           
-          // 2. Debit the "Discount Allowed" account with the "amount of Discount" (only if amount is not zero)
-          if (discountAmount !== 0 && discountAllowedAccount) {
-            // We always DEBIT Discount Allowed (as per requirement) - Note this is different from previous logic
+          // 2. Credit relevant "Income" account with the sub total amount
+          if (incomeAccount) {
             await storage.createJournalEntryLine({
               tenantId: tenantId,
               journalEntryId: journalEntry.id,
-              accountId: discountAllowedAccount.id,
-              description: `${invoiceDescription}-IN${invoice.invoiceNumber}`,
-              debitAmount: absDiscountAmount.toString(), // Always debit
-              creditAmount: "0",
+              accountId: incomeAccount.id,
+              description: `Income booked on ${invoiceDescription}-IN${invoice.invoiceNumber}`,
+              debitAmount: "0",
+              creditAmount: subtotalAmount.toString(),
               lineOrder: lineOrder++
             });
           }
@@ -3513,33 +3512,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
               tenantId: tenantId,
               journalEntryId: journalEntry.id,
               accountId: taxPayableAccount.id,
-              description: `${invoiceDescription}-IN${invoice.invoiceNumber}`,
+              description: `Tax Payable on ${invoiceDescription}-IN${invoice.invoiceNumber}`,
               debitAmount: "0",
               creditAmount: taxAmount.toString(),
               lineOrder: lineOrder++
             });
           }
           
-          // 4. Credit relevant "Income" account with the sub total amount
-          if (incomeAccount) {
+          // 4. Debit the "Discount Allowed" account with the "amount of Discount" (only if amount is not zero)
+          if (discountAmount !== 0 && discountAllowedAccount) {
+            // Debit Discount Allowed account
             await storage.createJournalEntryLine({
               tenantId: tenantId,
               journalEntryId: journalEntry.id,
-              accountId: incomeAccount.id,
-              description: `${invoiceDescription}-IN${invoice.invoiceNumber}`,
-              debitAmount: "0",
-              creditAmount: subtotalAmount.toString(),
+              accountId: discountAllowedAccount.id,
+              description: `Dicount on ${invoiceDescription}-IN${invoice.invoiceNumber}`,
+              debitAmount: absDiscountAmount.toString(), // Always debit
+              creditAmount: "0",
               lineOrder: lineOrder++
             });
-          }
-          
-          // 5. Credit Entity Name with discount amount (balancing entry for the discount, as shown in example)
-          if (discountAmount !== 0 && entityAccount) {
+            
+            // Credit Entity Name account for the discount amount (balancing entry for the discount)
             await storage.createJournalEntryLine({
               tenantId: tenantId,
               journalEntryId: journalEntry.id,
               accountId: entityAccount.id, 
-              description: `${invoiceDescription}-IN${invoice.invoiceNumber}`,
+              description: `Dicount on ${invoiceDescription}-IN${invoice.invoiceNumber}`,
               debitAmount: "0",
               creditAmount: absDiscountAmount.toString(),
               lineOrder: lineOrder++
