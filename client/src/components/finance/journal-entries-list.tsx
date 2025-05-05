@@ -117,6 +117,28 @@ export default function JournalEntriesList() {
     },
   });
   
+  // Force set to draft status without validation
+  const setToDraftMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest('POST', `/api/v1/finance/journal-entries/${id}/set-draft`);
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/journal-entries'] });
+      toast({
+        title: "Status updated",
+        description: "Journal entry has been set to draft status.",
+      });
+    },
+    onError: (error: any) => {
+      console.error('Error setting journal entry to draft:', error);
+      toast({
+        title: "Error updating status",
+        description: error.message || "An error occurred while updating the journal entry status.",
+        variant: "destructive",
+      });
+    },
+  });
+  
   // Format currency values
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -149,6 +171,13 @@ export default function JournalEntriesList() {
       id: entry.id,
       isPosted: !entry.isPosted
     });
+  };
+  
+  // Handle force setting to draft
+  const handleForceDraft = (entry: any) => {
+    if (entry.isPosted) {
+      setToDraftMutation.mutate(entry.id);
+    }
   };
   
   // Handle view detail
@@ -372,6 +401,22 @@ export default function JournalEntriesList() {
                             <ArrowUpDown className="h-4 w-4 mr-2" />
                             {entry.isPosted ? "Set to Draft" : "Post Entry"}
                           </Button>
+                          
+                          {/* Force Draft button (only visible for posted entries) */}
+                          {entry.isPosted && (
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleForceDraft(entry);
+                              }}
+                              title="Force set to draft without validation (for troubleshooting)"
+                            >
+                              <AlertCircle className="h-4 w-4 mr-2" />
+                              Force Draft
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
