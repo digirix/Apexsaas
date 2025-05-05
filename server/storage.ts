@@ -273,6 +273,52 @@ export interface IStorage {
     openingBalance: string;
     closingBalance: string;
   }>;
+  
+  // Financial Reports
+  getProfitAndLoss(tenantId: number, startDate?: Date, endDate?: Date): Promise<{
+    revenues: any[];
+    expenses: any[];
+    netIncome: string;
+    totalRevenue: string;
+    totalExpense: string;
+    startDate: Date;
+    endDate: Date;
+  }>;
+  
+  getBalanceSheet(tenantId: number, asOfDate?: Date): Promise<{
+    assets: any[];
+    liabilities: any[];
+    equity: any[];
+    totalAssets: string;
+    totalLiabilities: string;
+    totalEquity: string;
+    asOfDate: Date;
+  }>;
+  
+  getCashFlow(tenantId: number, startDate?: Date, endDate?: Date): Promise<{
+    operatingActivities: any[];
+    investingActivities: any[];
+    financingActivities: any[];
+    netCashFlow: string;
+    startDate: Date;
+    endDate: Date;
+  }>;
+  
+  getExpenseReport(tenantId: number, startDate?: Date, endDate?: Date, categoryId?: number): Promise<{
+    expenses: any[];
+    categories: any[];
+    totalExpense: string;
+    startDate: Date;
+    endDate: Date;
+  }>;
+  
+  getTaxSummary(tenantId: number, startDate?: Date, endDate?: Date, taxJurisdictionId?: number): Promise<{
+    taxItems: any[];
+    jurisdictions: any[];
+    totalTax: string;
+    startDate: Date;
+    endDate: Date;
+  }>;
 }
 
 export class MemStorage implements IStorage {

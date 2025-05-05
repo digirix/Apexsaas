@@ -2491,4 +2491,491 @@ export class DatabaseStorage implements IStorage {
       closingBalance
     };
   }
+
+  // Helper function to get account balance for any account within a date range
+  private async getAccountBalance(tenantId: number, accountId: number, startDate?: Date, endDate?: Date): Promise<string> {
+    // Build the query with appropriate date filters
+    let query = db.select({
+      debitAmount: journalEntryLines.debitAmount,
+      creditAmount: journalEntryLines.creditAmount,
+      accountType: chartOfAccounts.accountType,
+    })
+    .from(journalEntryLines)
+    .leftJoin(chartOfAccounts, eq(journalEntryLines.accountId, chartOfAccounts.id))
+    .leftJoin(journalEntries, eq(journalEntryLines.journalEntryId, journalEntries.id))
+    .where(and(
+      eq(journalEntryLines.tenantId, tenantId),
+      eq(journalEntryLines.accountId, accountId),
+      eq(journalEntries.isPosted, true)
+    ));
+    
+    // Add date range filters if provided
+    if (startDate) {
+      query = query.where(gte(journalEntries.entryDate, startDate));
+    }
+    
+    if (endDate) {
+      query = query.where(lte(journalEntries.entryDate, endDate));
+    }
+    
+    const entries = await query;
+    
+    if (entries.length === 0) {
+      return "0.00";
+    }
+    
+    // Get the account type to determine how to calculate the balance
+    const accountType = entries[0]?.accountType;
+    
+    let balance = entries.reduce((sum, entry) => {
+      const debit = parseFloat(entry.debitAmount.toString() || "0");
+      const credit = parseFloat(entry.creditAmount.toString() || "0");
+      
+      // For asset and expense accounts, debits increase, credits decrease
+      if (accountType === 'asset' || accountType === 'expense') {
+        return sum + debit - credit;
+      }
+      // For liability, equity, and revenue accounts, credits increase, debits decrease
+      else {
+        return sum - debit + credit;
+      }
+    }, 0);
+    
+    return balance.toFixed(2);
+  }
+  
+  // Helper to get accounts by type with balances for a specific period
+  private async getAccountsByTypeWithBalances(tenantId: number, accountTypes: string[], startDate?: Date, endDate?: Date): Promise<any[]> {
+    const accounts = await db.select()
+      .from(chartOfAccounts)
+      .where(and(
+        eq(chartOfAccounts.tenantId, tenantId),
+        inArray(chartOfAccounts.accountType, accountTypes),
+        eq(chartOfAccounts.isActive, true)
+      ));
+      
+    // Get detailed info for each account including its balance
+    const accountsWithBalances = await Promise.all(
+      accounts.map(async (account) => {
+        const balance = await this.getAccountBalance(tenantId, account.id, startDate, endDate);
+        
+        // Fetch hierarchy information for better categorization
+        const detailedGroup = await db.select()
+          .from(chartOfAccountsDetailedGroups)
+          .where(eq(chartOfAccountsDetailedGroups.id, account.detailedGroupId))
+          .limit(1);
+          
+        const subElementGroup = detailedGroup.length > 0 ? await db.select()
+          .from(chartOfAccountsSubElementGroups)
+          .where(eq(chartOfAccountsSubElementGroups.id, detailedGroup[0].subElementGroupId))
+          .limit(1) : [];
+          
+        const elementGroup = subElementGroup.length > 0 ? await db.select()
+          .from(chartOfAccountsElementGroups)
+          .where(eq(chartOfAccountsElementGroups.id, subElementGroup[0].elementGroupId))
+          .limit(1) : [];
+          
+        return {
+          ...account,
+          balance,
+          detailedGroup: detailedGroup[0] || null,
+          subElementGroup: subElementGroup[0] || null,
+          elementGroup: elementGroup[0] || null
+        };
+      })
+    );
+    
+    return accountsWithBalances;
+  }
+  
+  // Profit and Loss Report
+  async getProfitAndLoss(tenantId: number, startDate?: Date, endDate?: Date): Promise<{
+    revenues: any[];
+    expenses: any[];
+    netIncome: string;
+    totalRevenue: string;
+    totalExpense: string;
+    startDate: Date;
+    endDate: Date;
+  }> {
+    console.log(`Generating P&L report for tenant ${tenantId} from ${startDate} to ${endDate}`);
+    
+    // Use default dates if not provided
+    const effectiveStartDate = startDate || new Date(new Date().getFullYear(), 0, 1); // Jan 1st of current year
+    const effectiveEndDate = endDate || new Date();
+    
+    // Get all revenue accounts with balances
+    const revenues = await this.getAccountsByTypeWithBalances(
+      tenantId, 
+      ['revenue'], 
+      effectiveStartDate, 
+      effectiveEndDate
+    );
+    
+    // Get all expense accounts with balances
+    const expenses = await this.getAccountsByTypeWithBalances(
+      tenantId, 
+      ['expense'], 
+      effectiveStartDate, 
+      effectiveEndDate
+    );
+    
+    // Calculate totals
+    const totalRevenue = revenues.reduce((sum, account) => {
+      return sum + parseFloat(account.balance);
+    }, 0).toFixed(2);
+    
+    const totalExpense = expenses.reduce((sum, account) => {
+      return sum + parseFloat(account.balance);
+    }, 0).toFixed(2);
+    
+    // Calculate net income (profit or loss)
+    const netIncome = (parseFloat(totalRevenue) - parseFloat(totalExpense)).toFixed(2);
+    
+    return {
+      revenues,
+      expenses,
+      netIncome,
+      totalRevenue,
+      totalExpense,
+      startDate: effectiveStartDate,
+      endDate: effectiveEndDate
+    };
+  }
+  
+  // Balance Sheet Report
+  async getBalanceSheet(tenantId: number, asOfDate?: Date): Promise<{
+    assets: any[];
+    liabilities: any[];
+    equity: any[];
+    totalAssets: string;
+    totalLiabilities: string;
+    totalEquity: string;
+    asOfDate: Date;
+  }> {
+    console.log(`Generating Balance Sheet report for tenant ${tenantId} as of ${asOfDate}`);
+    
+    // Use current date if not provided
+    const effectiveDate = asOfDate || new Date();
+    
+    // Get assets
+    const assets = await this.getAccountsByTypeWithBalances(
+      tenantId, 
+      ['asset'], 
+      undefined, // No start date - include all transactions up to asOfDate
+      effectiveDate
+    );
+    
+    // Get liabilities
+    const liabilities = await this.getAccountsByTypeWithBalances(
+      tenantId, 
+      ['liability'], 
+      undefined, 
+      effectiveDate
+    );
+    
+    // Get equity
+    const equity = await this.getAccountsByTypeWithBalances(
+      tenantId, 
+      ['equity'], 
+      undefined, 
+      effectiveDate
+    );
+    
+    // Calculate totals
+    const totalAssets = assets.reduce((sum, account) => {
+      return sum + parseFloat(account.balance);
+    }, 0).toFixed(2);
+    
+    const totalLiabilities = liabilities.reduce((sum, account) => {
+      return sum + parseFloat(account.balance);
+    }, 0).toFixed(2);
+    
+    const totalEquity = equity.reduce((sum, account) => {
+      return sum + parseFloat(account.balance);
+    }, 0).toFixed(2);
+    
+    return {
+      assets,
+      liabilities,
+      equity,
+      totalAssets,
+      totalLiabilities,
+      totalEquity,
+      asOfDate: effectiveDate
+    };
+  }
+  
+  // Cash Flow Report
+  async getCashFlow(tenantId: number, startDate?: Date, endDate?: Date): Promise<{
+    operatingActivities: any[];
+    investingActivities: any[];
+    financingActivities: any[];
+    netCashFlow: string;
+    startDate: Date;
+    endDate: Date;
+  }> {
+    console.log(`Generating Cash Flow report for tenant ${tenantId} from ${startDate} to ${endDate}`);
+    
+    // Use default dates if not provided
+    const effectiveStartDate = startDate || new Date(new Date().getFullYear(), 0, 1); // Jan 1st of current year
+    const effectiveEndDate = endDate || new Date();
+    
+    // Fetch all cash and bank accounts (assumption: detailed group with code containing 'CAS')
+    const cashDetailedGroups = await db.select()
+      .from(chartOfAccountsDetailedGroups)
+      .where(and(
+        eq(chartOfAccountsDetailedGroups.tenantId, tenantId),
+        like(chartOfAccountsDetailedGroups.code, '%CAS%') // Assuming cash accounts have 'CAS' in their code
+      ));
+      
+    const cashAccountIds = cashDetailedGroups.length > 0 
+      ? (await db.select()
+          .from(chartOfAccounts)
+          .where(and(
+            eq(chartOfAccounts.tenantId, tenantId),
+            inArray(chartOfAccounts.detailedGroupId, cashDetailedGroups.map(group => group.id)),
+            eq(chartOfAccounts.accountType, 'asset'),
+            eq(chartOfAccounts.isActive, true)
+          ))).map(account => account.id)
+      : [];
+      
+    // If no cash accounts found, return empty report
+    if (cashAccountIds.length === 0) {
+      return {
+        operatingActivities: [],
+        investingActivities: [],
+        financingActivities: [],
+        netCashFlow: "0.00",
+        startDate: effectiveStartDate,
+        endDate: effectiveEndDate
+      };
+    }
+    
+    // Get all journal entry lines affecting cash accounts in the date range
+    const cashFlowEntries = await db.select({
+      id: journalEntryLines.id,
+      journalEntryId: journalEntryLines.journalEntryId,
+      accountId: journalEntryLines.accountId,
+      accountName: chartOfAccounts.accountName,
+      debitAmount: journalEntryLines.debitAmount,
+      creditAmount: journalEntryLines.creditAmount,
+      description: journalEntryLines.description,
+      entryDate: journalEntries.entryDate,
+      entryType: journalEntries.entryType,
+      reference: journalEntries.reference,
+    })
+    .from(journalEntryLines)
+    .leftJoin(chartOfAccounts, eq(journalEntryLines.accountId, chartOfAccounts.id))
+    .leftJoin(journalEntries, eq(journalEntryLines.journalEntryId, journalEntries.id))
+    .where(and(
+      eq(journalEntryLines.tenantId, tenantId),
+      inArray(journalEntryLines.accountId, cashAccountIds),
+      gte(journalEntries.entryDate, effectiveStartDate),
+      lte(journalEntries.entryDate, effectiveEndDate),
+      eq(journalEntries.isPosted, true)
+    ))
+    .orderBy(asc(journalEntries.entryDate));
+    
+    // Categorize entries into operating, investing, and financing activities
+    // This is a simplified implementation - in a real system, you would use more 
+    // sophisticated logic to categorize cash flows
+    const operatingActivities = cashFlowEntries.filter(entry => 
+      ['SALES', 'PURCHASE', 'EXPENSE', 'GENERAL'].includes(entry.entryType));
+      
+    const investingActivities = cashFlowEntries.filter(entry => 
+      ['ASSET', 'INVESTMENT'].includes(entry.entryType));
+      
+    const financingActivities = cashFlowEntries.filter(entry => 
+      ['EQUITY', 'LOAN'].includes(entry.entryType));
+    
+    // Calculate net cash flow
+    const calculateNetFlow = (entries: typeof cashFlowEntries) => {
+      return entries.reduce((sum, entry) => {
+        const debit = parseFloat(entry.debitAmount.toString() || "0");
+        const credit = parseFloat(entry.creditAmount.toString() || "0");
+        // For cash accounts, debits increase, credits decrease
+        return sum + debit - credit;
+      }, 0).toFixed(2);
+    };
+    
+    const operatingCashFlow = calculateNetFlow(operatingActivities);
+    const investingCashFlow = calculateNetFlow(investingActivities);
+    const financingCashFlow = calculateNetFlow(financingActivities);
+    
+    const netCashFlow = (
+      parseFloat(operatingCashFlow) + 
+      parseFloat(investingCashFlow) + 
+      parseFloat(financingCashFlow)
+    ).toFixed(2);
+    
+    return {
+      operatingActivities,
+      investingActivities,
+      financingActivities,
+      netCashFlow,
+      startDate: effectiveStartDate,
+      endDate: effectiveEndDate
+    };
+  }
+  
+  // Expense Report
+  async getExpenseReport(tenantId: number, startDate?: Date, endDate?: Date, categoryId?: number): Promise<{
+    expenses: any[];
+    categories: any[];
+    totalExpense: string;
+    startDate: Date;
+    endDate: Date;
+  }> {
+    console.log(`Generating Expense report for tenant ${tenantId} from ${startDate} to ${endDate}`);
+    
+    // Use default dates if not provided
+    const effectiveStartDate = startDate || new Date(new Date().getFullYear(), 0, 1); // Jan 1st of current year
+    const effectiveEndDate = endDate || new Date();
+    
+    // Get expense element group
+    const expenseElementGroup = await db.select()
+      .from(chartOfAccountsElementGroups)
+      .where(and(
+        eq(chartOfAccountsElementGroups.tenantId, tenantId),
+        eq(chartOfAccountsElementGroups.name, 'expenses')
+      ))
+      .limit(1);
+    
+    if (expenseElementGroup.length === 0) {
+      return {
+        expenses: [],
+        categories: [],
+        totalExpense: "0.00",
+        startDate: effectiveStartDate,
+        endDate: effectiveEndDate
+      };
+    }
+    
+    // Get all sub-element groups for expenses (these are our categories)
+    const subElementGroups = await db.select()
+      .from(chartOfAccountsSubElementGroups)
+      .where(and(
+        eq(chartOfAccountsSubElementGroups.tenantId, tenantId),
+        eq(chartOfAccountsSubElementGroups.elementGroupId, expenseElementGroup[0].id)
+      ));
+    
+    // If a specific category (sub-element group) is requested, filter for it
+    const filteredSubElementGroups = categoryId
+      ? subElementGroups.filter(group => group.id === categoryId)
+      : subElementGroups;
+    
+    // Get all expense accounts with balances
+    const expenses = await this.getAccountsByTypeWithBalances(
+      tenantId, 
+      ['expense'], 
+      effectiveStartDate, 
+      effectiveEndDate
+    );
+    
+    // Filter expenses by category if needed
+    const filteredExpenses = categoryId
+      ? expenses.filter(account => {
+          return filteredSubElementGroups.some(group => 
+            account.subElementGroup && account.subElementGroup.id === group.id
+          );
+        })
+      : expenses;
+    
+    // Calculate total expense
+    const totalExpense = filteredExpenses.reduce((sum, account) => {
+      return sum + parseFloat(account.balance);
+    }, 0).toFixed(2);
+    
+    return {
+      expenses: filteredExpenses,
+      categories: filteredSubElementGroups,
+      totalExpense,
+      startDate: effectiveStartDate,
+      endDate: effectiveEndDate
+    };
+  }
+  
+  // Tax Summary Report
+  async getTaxSummary(tenantId: number, startDate?: Date, endDate?: Date, taxJurisdictionId?: number): Promise<{
+    taxItems: any[];
+    jurisdictions: any[];
+    totalTax: string;
+    startDate: Date;
+    endDate: Date;
+  }> {
+    console.log(`Generating Tax Summary report for tenant ${tenantId} from ${startDate} to ${endDate}`);
+    
+    // Use default dates if not provided
+    const effectiveStartDate = startDate || new Date(new Date().getFullYear(), 0, 1); // Jan 1st of current year
+    const effectiveEndDate = endDate || new Date();
+    
+    // Get all tax jurisdictions for this tenant
+    const jurisdictions = await db.select()
+      .from(taxJurisdictions)
+      .where(eq(taxJurisdictions.tenantId, tenantId));
+    
+    // Filter for specific jurisdiction if requested
+    const filteredJurisdictions = taxJurisdictionId
+      ? jurisdictions.filter(j => j.id === taxJurisdictionId)
+      : jurisdictions;
+    
+    // Find the tax liability accounts
+    // Assumption: Tax accounts contain "Tax" in their name and are liability accounts
+    const taxAccounts = await db.select()
+      .from(chartOfAccounts)
+      .where(and(
+        eq(chartOfAccounts.tenantId, tenantId),
+        eq(chartOfAccounts.accountType, 'liability'),
+        like(chartOfAccounts.accountName, '%Tax%'),
+        eq(chartOfAccounts.isActive, true)
+      ));
+    
+    // Get all journal entries affecting tax accounts in the date range
+    const taxEntries = [];
+    
+    for (const account of taxAccounts) {
+      const entries = await db.select({
+        id: journalEntryLines.id,
+        journalEntryId: journalEntryLines.journalEntryId,
+        accountId: journalEntryLines.accountId,
+        accountName: chartOfAccounts.accountName,
+        accountCode: chartOfAccounts.accountCode,
+        debitAmount: journalEntryLines.debitAmount,
+        creditAmount: journalEntryLines.creditAmount,
+        description: journalEntryLines.description,
+        entryDate: journalEntries.entryDate,
+        reference: journalEntries.reference,
+      })
+      .from(journalEntryLines)
+      .leftJoin(chartOfAccounts, eq(journalEntryLines.accountId, chartOfAccounts.id))
+      .leftJoin(journalEntries, eq(journalEntryLines.journalEntryId, journalEntries.id))
+      .where(and(
+        eq(journalEntryLines.tenantId, tenantId),
+        eq(journalEntryLines.accountId, account.id),
+        gte(journalEntries.entryDate, effectiveStartDate),
+        lte(journalEntries.entryDate, effectiveEndDate),
+        eq(journalEntries.isPosted, true)
+      ))
+      .orderBy(asc(journalEntries.entryDate));
+      
+      taxEntries.push(...entries);
+    }
+    
+    // Calculate total tax
+    const totalTax = taxEntries.reduce((sum, entry) => {
+      // For liability accounts like tax payable, credits increase, debits decrease
+      const debit = parseFloat(entry.debitAmount.toString() || "0");
+      const credit = parseFloat(entry.creditAmount.toString() || "0");
+      return sum - debit + credit;
+    }, 0).toFixed(2);
+    
+    return {
+      taxItems: taxEntries,
+      jurisdictions: filteredJurisdictions,
+      totalTax,
+      startDate: effectiveStartDate,
+      endDate: effectiveEndDate
+    };
+  }
 }

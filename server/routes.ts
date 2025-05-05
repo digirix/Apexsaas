@@ -5449,6 +5449,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Financial Reports Endpoints
+  
+  // Profit and Loss Report
+  app.get("/api/v1/finance/reports/profit-loss", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      // Parse date parameters if provided
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      
+      const report = await storage.getProfitAndLoss(tenantId, startDate, endDate);
+      res.status(200).json(report);
+    } catch (error) {
+      console.error("Error generating profit and loss report:", error);
+      res.status(500).json({ 
+        message: "An error occurred while generating the profit and loss report",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Balance Sheet Report
+  app.get("/api/v1/finance/reports/balance-sheet", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      // Parse date parameter if provided
+      const asOfDate = req.query.asOfDate ? new Date(req.query.asOfDate as string) : undefined;
+      
+      const report = await storage.getBalanceSheet(tenantId, asOfDate);
+      res.status(200).json(report);
+    } catch (error) {
+      console.error("Error generating balance sheet report:", error);
+      res.status(500).json({ 
+        message: "An error occurred while generating the balance sheet report",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Cash Flow Report
+  app.get("/api/v1/finance/reports/cash-flow", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      // Parse date parameters if provided
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      
+      const report = await storage.getCashFlow(tenantId, startDate, endDate);
+      res.status(200).json(report);
+    } catch (error) {
+      console.error("Error generating cash flow report:", error);
+      res.status(500).json({ 
+        message: "An error occurred while generating the cash flow report",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Expense Report
+  app.get("/api/v1/finance/reports/expenses", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      // Parse date parameters if provided
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      
+      // Parse category filter if provided
+      const categoryId = req.query.categoryId ? parseInt(req.query.categoryId as string) : undefined;
+      
+      const report = await storage.getExpenseReport(tenantId, startDate, endDate, categoryId);
+      res.status(200).json(report);
+    } catch (error) {
+      console.error("Error generating expense report:", error);
+      res.status(500).json({ 
+        message: "An error occurred while generating the expense report",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Tax Summary Report
+  app.get("/api/v1/finance/reports/tax-summary", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      // Parse date parameters if provided
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      
+      // Parse tax jurisdiction filter if provided
+      const taxJurisdictionId = req.query.taxJurisdictionId ? parseInt(req.query.taxJurisdictionId as string) : undefined;
+      
+      const report = await storage.getTaxSummary(tenantId, startDate, endDate, taxJurisdictionId);
+      res.status(200).json(report);
+    } catch (error) {
+      console.error("Error generating tax summary report:", error);
+      res.status(500).json({ 
+        message: "An error occurred while generating the tax summary report",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
   // 6. Payment Gateway Settings
   app.get("/api/v1/finance/payment-gateways", isAuthenticated, async (req, res) => {
     try {

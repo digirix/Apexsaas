@@ -1,435 +1,315 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { format } from 'date-fns';
-import { apiRequest } from '@/lib/queryClient';
-import { useToast } from '@/hooks/use-toast';
-import { AppLayout } from '@/components/layout/app-layout';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import { format } from "date-fns";
 import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle, 
-  CardDescription, 
-  CardFooter 
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
+  ArrowLeft, 
+  BarChart3, 
+  Download, 
+  Filter, 
+  Calendar,
+  DollarSign
+} from "lucide-react";
+
+import { AppLayout } from "@/components/app-layout";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { CalendarIcon, FileDown, Printer, Search } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+} from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// Search form schema
-const searchSchema = z.object({
-  startDate: z.date(),
-  endDate: z.date(),
-  comparisonPeriod: z.enum(['none', 'previous_year', 'previous_period']).default('none'),
-});
-
-export default function ProfitLossStatementPage() {
+export default function ProfitAndLossPage() {
   const { toast } = useToast();
-  const [isSearched, setIsSearched] = useState(false);
-  
-  // Form
-  const form = useForm<z.infer<typeof searchSchema>>({
-    resolver: zodResolver(searchSchema),
-    defaultValues: {
-      startDate: new Date(new Date().getFullYear(), 0, 1), // Jan 1st of current year
-      endDate: new Date(),
-      comparisonPeriod: 'none',
-    },
-  });
-  
-  // Get profit and loss data
-  const { data: profitLossData, isLoading } = useQuery({
+  const [, setLocation] = useLocation();
+  const [startDate, setStartDate] = useState<Date | undefined>(new Date(new Date().getFullYear(), 0, 1)); // Jan 1st of current year
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
+  const [startDateOpen, setStartDateOpen] = useState(false);
+  const [endDateOpen, setEndDateOpen] = useState(false);
+
+  // Fetch profit and loss report
+  const { data: report, isLoading } = useQuery({
     queryKey: [
       '/api/v1/finance/reports/profit-loss',
       {
-        startDate: form.watch('startDate'),
-        endDate: form.watch('endDate'),
-        comparisonPeriod: form.watch('comparisonPeriod'),
+        startDate: startDate ? startDate.toISOString() : undefined,
+        endDate: endDate ? endDate.toISOString() : undefined,
       },
     ],
-    enabled: isSearched,
     refetchOnWindowFocus: false,
   });
-  
-  // Handle form submission
-  const onSubmit = (values: z.infer<typeof searchSchema>) => {
-    setIsSearched(true);
+
+  // Handle date filter changes
+  const applyDateFilter = () => {
+    setStartDateOpen(false);
+    setEndDateOpen(false);
   };
-  
-  // Format amounts
-  const formatAmount = (amount: number | string) => {
-    const value = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return value.toLocaleString('en-US', {
+
+  // Helper function to format currency
+  const formatCurrency = (amount: string | number) => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-    });
+      minimumFractionDigits: 2,
+    }).format(numAmount);
   };
-  
-  // Calculate percentage change
-  const calculateChange = (current: number, previous: number | null) => {
-    if (previous === null || previous === 0) return null;
-    return ((current - previous) / previous) * 100;
+
+  // Group revenue accounts by sub-element group
+  const revenueGroups = report?.revenues ? 
+    report.revenues.reduce((groups: any, account: any) => {
+      const groupName = account.subElementGroup?.name || 'Other Income';
+      if (!groups[groupName]) {
+        groups[groupName] = [];
+      }
+      groups[groupName].push(account);
+      return groups;
+    }, {}) : {};
+
+  // Group expense accounts by sub-element group
+  const expenseGroups = report?.expenses ? 
+    report.expenses.reduce((groups: any, account: any) => {
+      const groupName = account.subElementGroup?.name || 'Other Expenses';
+      if (!groups[groupName]) {
+        groups[groupName] = [];
+      }
+      groups[groupName].push(account);
+      return groups;
+    }, {}) : {};
+
+  // Helper to calculate group totals
+  const calculateGroupTotal = (accounts: any[]) => {
+    return accounts.reduce((sum, account) => sum + parseFloat(account.balance), 0);
   };
-  
-  // Determine if we're showing comparison data
-  const showComparison = form.watch('comparisonPeriod') !== 'none';
-  
+
   return (
     <AppLayout title="Profit & Loss">
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Profit & Loss Statement</CardTitle>
-          <CardDescription>
-            View your company's income, expenses, and profitability for a specific period
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="startDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Start Date</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className="w-full pl-3 text-left font-normal"
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP")
-                              ) : (
-                                <span>Pick a date</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="endDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>End Date</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className="w-full pl-3 text-left font-normal"
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP")
-                              ) : (
-                                <span>Pick a date</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="comparisonPeriod"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Comparison</FormLabel>
-                      <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select comparison" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="none">No Comparison</SelectItem>
-                          <SelectItem value="previous_year">Previous Year</SelectItem>
-                          <SelectItem value="previous_period">Previous Period</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <div className="flex justify-end space-x-2">
-                <Button type="submit">
-                  <Search className="mr-2 h-4 w-4" />
-                  Generate Report
+      <div className="flex flex-col gap-6">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setLocation("/finance/reports")}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h1 className="text-2xl font-bold">Profit & Loss Statement</h1>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="flex gap-2">
+                  <Calendar className="h-4 w-4" />
+                  {startDate ? format(startDate, "PP") : "Start Date"}
                 </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <CalendarComponent
+                  mode="single"
+                  selected={startDate}
+                  onSelect={(date) => {
+                    setStartDate(date);
+                    applyDateFilter();
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+
+            <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="flex gap-2">
+                  <Calendar className="h-4 w-4" />
+                  {endDate ? format(endDate, "PP") : "End Date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <CalendarComponent
+                  mode="single"
+                  selected={endDate}
+                  onSelect={(date) => {
+                    setEndDate(date);
+                    applyDateFilter();
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem
+                  onClick={() => {
+                    toast({
+                      title: "Export to PDF",
+                      description: "The report will be exported as a PDF file.",
+                    });
+                  }}
+                >
+                  Export as PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    toast({
+                      title: "Export to Excel",
+                      description: "The report will be exported as an Excel file.",
+                    });
+                  }}
+                >
+                  Export as Excel
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xl">
+              Profit & Loss Statement
+            </CardTitle>
+            <CardDescription>
+              {startDate && endDate
+                ? `For the period ${format(startDate, "PP")} to ${format(endDate, "PP")}`
+                : "For the current period"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
               </div>
-            </form>
-          </Form>
-          
-          {isSearched && (
-            <div className="mt-8">
-              <div className="flex justify-between items-center mb-4">
+            ) : (
+              <div className="space-y-6">
+                {/* Revenue Section */}
                 <div>
-                  <h2 className="text-xl font-semibold">
-                    Profit & Loss Statement
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    {format(form.watch('startDate'), 'PPP')} to {format(form.watch('endDate'), 'PPP')}
-                  </p>
+                  <h3 className="text-lg font-semibold mb-2">Revenue</h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Account</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Object.entries(revenueGroups).map(([groupName, accounts]: [string, any]) => (
+                        <React.Fragment key={groupName}>
+                          <TableRow className="bg-muted/50">
+                            <TableCell className="font-medium">{groupName}</TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatCurrency(calculateGroupTotal(accounts))}
+                            </TableCell>
+                          </TableRow>
+                          {accounts.map((account: any) => (
+                            <TableRow key={account.id}>
+                              <TableCell className="pl-8">
+                                {account.accountName} ({account.accountCode})
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {formatCurrency(account.balance)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </React.Fragment>
+                      ))}
+                      <TableRow className="font-bold">
+                        <TableCell>Total Revenue</TableCell>
+                        <TableCell className="text-right">
+                          {report ? formatCurrency(report.totalRevenue) : formatCurrency(0)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
                 </div>
-                <div className="flex space-x-2">
-                  <Button variant="outline" size="sm">
-                    <Printer className="mr-2 h-4 w-4" />
-                    Print
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <FileDown className="mr-2 h-4 w-4" />
-                    Export
-                  </Button>
+
+                <Separator />
+
+                {/* Expenses Section */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Expenses</h3>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Account</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Object.entries(expenseGroups).map(([groupName, accounts]: [string, any]) => (
+                        <React.Fragment key={groupName}>
+                          <TableRow className="bg-muted/50">
+                            <TableCell className="font-medium">{groupName}</TableCell>
+                            <TableCell className="text-right font-medium">
+                              {formatCurrency(calculateGroupTotal(accounts))}
+                            </TableCell>
+                          </TableRow>
+                          {accounts.map((account: any) => (
+                            <TableRow key={account.id}>
+                              <TableCell className="pl-8">
+                                {account.accountName} ({account.accountCode})
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {formatCurrency(account.balance)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </React.Fragment>
+                      ))}
+                      <TableRow className="font-bold">
+                        <TableCell>Total Expenses</TableCell>
+                        <TableCell className="text-right">
+                          {report ? formatCurrency(report.totalExpense) : formatCurrency(0)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <Separator />
+
+                {/* Net Income */}
+                <div className="flex justify-between items-center bg-muted/30 p-4 rounded-md">
+                  <h3 className="text-xl font-bold">Net Income</h3>
+                  <div className={`text-xl font-bold ${parseFloat(report?.netIncome || "0") >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    {report ? formatCurrency(report.netIncome) : formatCurrency(0)}
+                  </div>
                 </div>
               </div>
-              
-              {isLoading ? (
-                <div className="flex justify-center p-8">
-                  <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {/* Revenue Section */}
-                  <Card>
-                    <CardHeader className="bg-muted py-2">
-                      <CardTitle>Revenue</CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-[50%]">Account</TableHead>
-                            <TableHead className="text-right">Current Period</TableHead>
-                            {showComparison && (
-                              <>
-                                <TableHead className="text-right">Previous Period</TableHead>
-                                <TableHead className="text-right">Change %</TableHead>
-                              </>
-                            )}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {profitLossData?.revenue?.accounts?.map((account: any) => (
-                            <TableRow key={account.id}>
-                              <TableCell>{account.name}</TableCell>
-                              <TableCell className="text-right">{formatAmount(account.amount)}</TableCell>
-                              {showComparison && (
-                                <>
-                                  <TableCell className="text-right">
-                                    {account.previousAmount !== null ? formatAmount(account.previousAmount) : '-'}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    {account.previousAmount !== null ? 
-                                      `${calculateChange(account.amount, account.previousAmount)?.toFixed(2)}%` : 
-                                      '-'}
-                                  </TableCell>
-                                </>
-                              )}
-                            </TableRow>
-                          ))}
-                          <TableRow className="font-medium">
-                            <TableCell>Total Revenue</TableCell>
-                            <TableCell className="text-right">{formatAmount(profitLossData?.revenue?.total || 0)}</TableCell>
-                            {showComparison && (
-                              <>
-                                <TableCell className="text-right">
-                                  {formatAmount(profitLossData?.revenue?.previousTotal || 0)}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  {`${calculateChange(
-                                    profitLossData?.revenue?.total || 0, 
-                                    profitLossData?.revenue?.previousTotal || 0
-                                  )?.toFixed(2)}%`}
-                                </TableCell>
-                              </>
-                            )}
-                          </TableRow>
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                  
-                  {/* Expenses Section */}
-                  <Card>
-                    <CardHeader className="bg-muted py-2">
-                      <CardTitle>Expenses</CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-[50%]">Account</TableHead>
-                            <TableHead className="text-right">Current Period</TableHead>
-                            {showComparison && (
-                              <>
-                                <TableHead className="text-right">Previous Period</TableHead>
-                                <TableHead className="text-right">Change %</TableHead>
-                              </>
-                            )}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {profitLossData?.expenses?.accounts?.map((account: any) => (
-                            <TableRow key={account.id}>
-                              <TableCell>{account.name}</TableCell>
-                              <TableCell className="text-right">{formatAmount(account.amount)}</TableCell>
-                              {showComparison && (
-                                <>
-                                  <TableCell className="text-right">
-                                    {account.previousAmount !== null ? formatAmount(account.previousAmount) : '-'}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    {account.previousAmount !== null ? 
-                                      `${calculateChange(account.amount, account.previousAmount)?.toFixed(2)}%` : 
-                                      '-'}
-                                  </TableCell>
-                                </>
-                              )}
-                            </TableRow>
-                          ))}
-                          <TableRow className="font-medium">
-                            <TableCell>Total Expenses</TableCell>
-                            <TableCell className="text-right">{formatAmount(profitLossData?.expenses?.total || 0)}</TableCell>
-                            {showComparison && (
-                              <>
-                                <TableCell className="text-right">
-                                  {formatAmount(profitLossData?.expenses?.previousTotal || 0)}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  {`${calculateChange(
-                                    profitLossData?.expenses?.total || 0, 
-                                    profitLossData?.expenses?.previousTotal || 0
-                                  )?.toFixed(2)}%`}
-                                </TableCell>
-                              </>
-                            )}
-                          </TableRow>
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                  
-                  {/* Summary Section */}
-                  <Card>
-                    <CardHeader className="bg-muted py-2">
-                      <CardTitle>Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                      <Table>
-                        <TableBody>
-                          <TableRow className="font-medium">
-                            <TableCell>Gross Profit</TableCell>
-                            <TableCell className="text-right">
-                              {formatAmount((profitLossData?.revenue?.total || 0) - (profitLossData?.expenses?.total || 0))}
-                            </TableCell>
-                            {showComparison && (
-                              <>
-                                <TableCell className="text-right">
-                                  {formatAmount(
-                                    (profitLossData?.revenue?.previousTotal || 0) - 
-                                    (profitLossData?.expenses?.previousTotal || 0)
-                                  )}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  {`${calculateChange(
-                                    (profitLossData?.revenue?.total || 0) - (profitLossData?.expenses?.total || 0), 
-                                    (profitLossData?.revenue?.previousTotal || 0) - (profitLossData?.expenses?.previousTotal || 0)
-                                  )?.toFixed(2)}%`}
-                                </TableCell>
-                              </>
-                            )}
-                          </TableRow>
-                          
-                          <TableRow className="font-medium">
-                            <TableCell>Profit Margin</TableCell>
-                            <TableCell className="text-right">
-                              {profitLossData?.revenue?.total ? 
-                                `${(((profitLossData?.revenue?.total - profitLossData?.expenses?.total) / 
-                                   profitLossData?.revenue?.total) * 100).toFixed(2)}%` : 
-                                'N/A'}
-                            </TableCell>
-                            {showComparison && (
-                              <>
-                                <TableCell className="text-right">
-                                  {profitLossData?.revenue?.previousTotal ? 
-                                    `${(((profitLossData?.revenue?.previousTotal - profitLossData?.expenses?.previousTotal) / 
-                                       profitLossData?.revenue?.previousTotal) * 100).toFixed(2)}%` : 
-                                    'N/A'}
-                                </TableCell>
-                                <TableCell className="text-right">-</TableCell>
-                              </>
-                            )}
-                          </TableRow>
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </AppLayout>
   );
 }
