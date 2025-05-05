@@ -243,9 +243,9 @@ export default function JournalEntryEdit() {
         variant: "destructive",
       });
       
-      // Give a short delay before redirecting back
+      // Give a short delay before redirecting back to finance with journal entries tab
       setTimeout(() => {
-        setLocation('/finance/journal-entries');
+        setLocation('/finance?tab=journalEntries');
       }, 1500);
     }
   }, [journalEntryError, toast, setLocation]);
@@ -274,7 +274,7 @@ export default function JournalEntryEdit() {
       });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/journal-entries'] });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/journal-entries', entryId] });
-      setLocation('/finance/journal-entries');
+      setLocation('/finance?tab=journalEntries');
     },
     onError: (error: any) => {
       toast({
@@ -411,7 +411,7 @@ export default function JournalEntryEdit() {
                   Edit Invoice #{journalEntry.sourceDocumentId}
                 </Button>
                 <Button
-                  onClick={() => setLocation('/finance/journal-entries')}
+                  onClick={() => setLocation('/finance?tab=journalEntries')}
                   variant="outline"
                 >
                   <ArrowLeft className="mr-2 h-4 w-4" />
@@ -457,7 +457,7 @@ export default function JournalEntryEdit() {
                 If you need to correct this entry, you'll need to create a new reversing entry.
               </p>
               <Button
-                onClick={() => setLocation('/finance/journal-entries')}
+                onClick={() => setLocation('/finance?tab=journalEntries')}
                 variant="outline"
                 className="mt-4"
               >
@@ -484,7 +484,7 @@ export default function JournalEntryEdit() {
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={() => setLocation('/finance/journal-entries')}
+            onClick={() => setLocation('/finance?tab=journalEntries')}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
