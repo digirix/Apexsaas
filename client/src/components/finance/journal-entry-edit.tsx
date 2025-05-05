@@ -56,6 +56,8 @@ const journalEntrySchema = z.object({
   sourceDocumentId: z.string().optional(),
   lines: z.array(z.object({
     accountId: z.number().min(1, "Account is required"),
+    accountName: z.string().optional(),
+    accountCode: z.string().optional(),
     description: z.string().min(1, "Description is required"),
     debitAmount: z.string().default("0"),
     creditAmount: z.string().default("0"),
@@ -170,8 +172,8 @@ export default function JournalEntryEdit() {
       sourceDocument: 'manual',
       sourceDocumentId: '',
       lines: [
-        { accountId: 0, description: '', debitAmount: "0", creditAmount: "0" },
-        { accountId: 0, description: '', debitAmount: "0", creditAmount: "0" },
+        { accountId: 0, accountName: '', accountCode: '', description: '', debitAmount: "0", creditAmount: "0" },
+        { accountId: 0, accountName: '', accountCode: '', description: '', debitAmount: "0", creditAmount: "0" },
       ],
     },
   });
@@ -213,12 +215,14 @@ export default function JournalEntryEdit() {
         sourceDocumentId: journalEntry.sourceDocumentId ? journalEntry.sourceDocumentId.toString() : '',
         lines: journalEntry.lines?.map((line: any) => ({
           accountId: line.accountId,
+          accountName: line.accountName || '',
+          accountCode: line.accountCode || '',
           description: line.description || '',
           debitAmount: line.debitAmount ? line.debitAmount.toString() : "0",
           creditAmount: line.creditAmount ? line.creditAmount.toString() : "0",
         })) || [
-          { accountId: 0, description: '', debitAmount: "0", creditAmount: "0" },
-          { accountId: 0, description: '', debitAmount: "0", creditAmount: "0" },
+          { accountId: 0, accountName: '', accountCode: '', description: '', debitAmount: "0", creditAmount: "0" },
+          { accountId: 0, accountName: '', accountCode: '', description: '', debitAmount: "0", creditAmount: "0" },
         ],
       };
       
@@ -279,7 +283,14 @@ export default function JournalEntryEdit() {
     const currentLines = form.getValues('lines');
     form.setValue('lines', [
       ...currentLines,
-      { accountId: 0, description: '', debitAmount: "0", creditAmount: "0" }
+      { 
+        accountId: 0, 
+        accountName: '', 
+        accountCode: '', 
+        description: '', 
+        debitAmount: "0", 
+        creditAmount: "0" 
+      }
     ]);
   };
   
