@@ -134,6 +134,18 @@ export default function JournalEntryEdit() {
           throw new Error('No journal entry found');
         }
         
+        // Ensure line details are complete - just like in the view component
+        if (data.lines) {
+          data.lines = data.lines.map((line: any) => ({
+            ...line,
+            // Ensure account information is present
+            accountName: line.accountName || 'Unknown Account',
+            accountCode: line.accountCode || 'N/A',
+            debitAmount: line.debitAmount || '0.00',
+            creditAmount: line.creditAmount || '0.00',
+          }));
+        }
+        
         return data as JournalEntry;
       } catch (error) {
         console.error('Error fetching journal entry:', error);
