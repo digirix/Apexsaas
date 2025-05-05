@@ -5070,7 +5070,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Fetch associated journal entry lines
-      const lines = await storage.getJournalEntryLines(tenantId, id);
+      const lines = await storage.getJournalEntryLines(id, tenantId);
       
       res.json({
         ...entry,

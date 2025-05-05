@@ -132,8 +132,8 @@ export default function JournalEntryEdit() {
         const data = await response.json();
         console.log('Journal entry fetched:', data);
         
-        if (!data) {
-          throw new Error('No journal entry found');
+        if (!data || Object.keys(data).length === 0 || !data.id) {
+          throw new Error(`No journal entry found with ID ${entryId}`);
         }
         
         // Ensure line details are complete - just like in the view component
@@ -234,9 +234,13 @@ export default function JournalEntryEdit() {
   // Handle errors with journal entry loading
   useEffect(() => {
     if (journalEntryError) {
+      const errorMessage = journalEntryError instanceof Error 
+        ? journalEntryError.message 
+        : "Could not load the journal entry. It may have been deleted or you don't have access.";
+      
       toast({
         title: "Error loading journal entry",
-        description: "Could not load the journal entry. It may have been deleted or you don't have access.",
+        description: errorMessage,
         variant: "destructive",
       });
       setLocation('/finance/journal-entries');
