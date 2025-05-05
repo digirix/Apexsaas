@@ -2771,8 +2771,8 @@ export class DatabaseStorage implements IStorage {
     .where(and(
       eq(journalEntryLines.tenantId, tenantId),
       inArray(journalEntryLines.accountId, cashAccountIds),
-      gte(journalEntries.entryDate, effectiveStartDate),
-      lte(journalEntries.entryDate, effectiveEndDate),
+      sql`${journalEntries.entryDate} >= ${effectiveStartDate}`,
+      sql`${journalEntries.entryDate} <= ${effectiveEndDate}`,
       eq(journalEntries.isPosted, true)
     ))
     .orderBy(asc(journalEntries.entryDate));
@@ -2953,8 +2953,8 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(journalEntryLines.tenantId, tenantId),
         eq(journalEntryLines.accountId, account.id),
-        gte(journalEntries.entryDate, effectiveStartDate),
-        lte(journalEntries.entryDate, effectiveEndDate),
+        sql`${journalEntries.entryDate} >= ${effectiveStartDate}`,
+        sql`${journalEntries.entryDate} <= ${effectiveEndDate}`,
         eq(journalEntries.isPosted, true)
       ))
       .orderBy(asc(journalEntries.entryDate));
