@@ -1,12 +1,30 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { format } from "date-fns";
 import { 
   ArrowLeft, 
   Download, 
-  Calendar
+  Calendar,
+  DollarSign,
+  CircleDollarSign,
+  Building2,
+  BarChart3,
+  PieChart
 } from "lucide-react";
+import { 
+  ResponsiveContainer, 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend,
+  PieChart as RechartPieChart,
+  Pie, 
+  Cell 
+} from "recharts";
 
 import { AppLayout } from "@/components/layout/app-layout";
 import { Button } from "@/components/ui/button";
@@ -34,6 +52,7 @@ import {
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function BalanceSheetPage() {
   const { toast } = useToast();
@@ -103,6 +122,47 @@ export default function BalanceSheetPage() {
   // Calculate total liabilities and equity combined
   const totalLiabilitiesAndEquity = report ? 
     (parseFloat(report.totalLiabilities) + parseFloat(report.totalEquity)).toFixed(2) : "0.00";
+    
+  // Prepare data for charts
+  const balanceSheetPieData = useMemo(() => {
+    if (!report) return [];
+    
+    return [
+      { name: 'Assets', value: parseFloat(report.totalAssets) },
+      { name: 'Liabilities', value: parseFloat(report.totalLiabilities) },
+      { name: 'Equity', value: parseFloat(report.totalEquity) }
+    ];
+  }, [report]);
+  
+  const assetsBarData = useMemo(() => {
+    if (!report?.assets) return [];
+    
+    return Object.entries(assetGroups).map(([name, accounts]: [string, any]) => ({
+      name,
+      value: calculateGroupTotal(accounts)
+    }));
+  }, [report, assetGroups]);
+  
+  const liabilitiesAndEquityData = useMemo(() => {
+    if (!report) return [];
+    
+    const liabilitiesData = Object.entries(liabilityGroups).map(([name, accounts]: [string, any]) => ({
+      name,
+      value: calculateGroupTotal(accounts),
+      category: 'Liabilities'
+    }));
+    
+    const equityData = Object.entries(equityGroups).map(([name, accounts]: [string, any]) => ({
+      name,
+      value: calculateGroupTotal(accounts),
+      category: 'Equity'
+    }));
+    
+    return [...liabilitiesData, ...equityData];
+  }, [report, liabilityGroups, equityGroups]);
+  
+  // Colors for charts
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
   return (
     <AppLayout title="Balance Sheet">
@@ -172,29 +232,87 @@ export default function BalanceSheetPage() {
             </DropdownMenu>
           </div>
         </div>
+        
+        {/* Key Metrics Cards */}
+        {!isLoading && report && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="bg-blue-50 dark:bg-blue-950">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Total Assets</p>
+                    <h3 className="text-2xl font-bold">{formatCurrency(report.totalAssets)}</h3>
+                  </div>
+                  <div className="bg-blue-100 dark:bg-blue-900 p-3 rounded-full">
+                    <Building2 className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-amber-50 dark:bg-amber-950">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Total Liabilities</p>
+                    <h3 className="text-2xl font-bold">{formatCurrency(report.totalLiabilities)}</h3>
+                  </div>
+                  <div className="bg-amber-100 dark:bg-amber-900 p-3 rounded-full">
+                    <CircleDollarSign className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-green-50 dark:bg-green-950">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-green-600 dark:text-green-400">Total Equity</p>
+                    <h3 className="text-2xl font-bold">{formatCurrency(report.totalEquity)}</h3>
+                  </div>
+                  <div className="bg-green-100 dark:bg-green-900 p-3 rounded-full">
+                    <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xl">
-              Balance Sheet
-            </CardTitle>
-            <CardDescription>
-              {asOfDate
-                ? `As of ${format(asOfDate, "PP")}`
-                : "As of today"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-8 w-full" />
-              </div>
-            ) : (
-              <div className="space-y-6">
+        <Tabs defaultValue="table">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="table" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" /> Tabular View
+            </TabsTrigger>
+            <TabsTrigger value="charts" className="flex items-center gap-2">
+              <PieChart className="h-4 w-4" /> Charts View
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="table">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl">
+                  Balance Sheet
+                </CardTitle>
+                <CardDescription>
+                  {asOfDate
+                    ? `As of ${format(asOfDate, "PP")}`
+                    : "As of today"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-full" />
+                  </div>
+                ) : (
+                  <div className="space-y-6">
                 {/* Assets Section */}
                 <div>
                   <h3 className="text-lg font-semibold mb-2">Assets</h3>
@@ -335,6 +453,87 @@ export default function BalanceSheetPage() {
             )}
           </CardContent>
         </Card>
+      </TabsContent>
+          
+      <TabsContent value="charts">
+        <div className="grid grid-cols-1 gap-6">
+          {/* Balance Sheet Composition Pie Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Balance Sheet Composition</CardTitle>
+              <CardDescription>Distribution of assets, liabilities, and equity</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartPieChart>
+                    <Pie
+                      data={balanceSheetPieData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={120}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {balanceSheetPieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => formatCurrency(value)} />
+                    <Legend />
+                  </RechartPieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Assets Breakdown Bar Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Assets Breakdown</CardTitle>
+              <CardDescription>Distribution of assets by category</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={assetsBarData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
+                    <YAxis type="category" dataKey="name" width={150} />
+                    <Tooltip formatter={(value) => formatCurrency(value)} />
+                    <Legend />
+                    <Bar dataKey="value" fill="#0088FE" name="Amount" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Liabilities and Equity Breakdown */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Liabilities & Equity Breakdown</CardTitle>
+              <CardDescription>Distribution by category</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={liabilitiesAndEquityData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
+                    <YAxis type="category" dataKey="name" width={150} />
+                    <Tooltip formatter={(value) => formatCurrency(value)} />
+                    <Legend />
+                    <Bar dataKey="value" fill="#FFBB28" name="Amount" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </TabsContent>
+      </Tabs>
       </div>
     </AppLayout>
   );

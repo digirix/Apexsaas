@@ -159,7 +159,13 @@ export default function ExpenseReportPage() {
               </PopoverContent>
             </Popover>
 
-            <Select value={categoryId?.toString()} onValueChange={(value) => setCategoryId(value ? parseInt(value) : undefined)}>
+            <Select 
+              value={categoryId?.toString() || "0"} 
+              onValueChange={(value) => {
+                const parsedValue = parseInt(value);
+                setCategoryId(parsedValue === 0 ? undefined : parsedValue);
+              }}
+            >
               <SelectTrigger className="w-[180px]">
                 <div className="flex items-center gap-2">
                   <Filter className="h-4 w-4" />
@@ -167,7 +173,7 @@ export default function ExpenseReportPage() {
                 </div>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Categories</SelectItem>
+                <SelectItem value="0">All Categories</SelectItem>
                 {categories?.map((category: any) => (
                   <SelectItem key={category.id} value={category.id.toString()}>
                     {category.name}
@@ -258,7 +264,7 @@ export default function ExpenseReportPage() {
                                 {expense.description}
                               </TableCell>
                               <TableCell>
-                                {format(new Date(expense.date), "PP")}
+                                {expense.date ? format(new Date(expense.date), "PP") : "N/A"}
                               </TableCell>
                               <TableCell>
                                 {expense.reference}
