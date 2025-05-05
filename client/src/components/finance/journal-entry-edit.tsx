@@ -69,13 +69,45 @@ export default function JournalEntryEdit() {
   const queryClient = useQueryClient();
   const entryId = parseInt(id);
   
+  // Type definition for journal entry
+  interface JournalEntryLine {
+    id?: number;
+    accountId: number;
+    accountName?: string;
+    accountCode?: string;
+    description: string;
+    debitAmount: string;
+    creditAmount: string;
+    lineOrder?: number;
+  }
+
+  interface JournalEntry {
+    id: number;
+    entryDate: string;
+    reference: string;
+    description: string;
+    isPosted: boolean;
+    sourceDocument: string;
+    sourceDocumentId?: number | null;
+    lines: JournalEntryLine[];
+    createdAt?: string;
+    updatedAt?: string;
+    postedAt?: string | null;
+    createdByName?: string;
+  }
+
   // Fetch journal entry data
   const { 
     data: journalEntry, 
     isLoading: journalEntryLoading,
     error: journalEntryError
-  } = useQuery({
+  } = useQuery<JournalEntry>({
     queryKey: ['/api/v1/finance/journal-entries', entryId],
+    queryFn: async () => {
+      if (!entryId) return null as any;
+      const response = await apiRequest('GET', `/api/v1/finance/journal-entries/${entryId}`);
+      return response as JournalEntry;
+    },
     enabled: !!entryId,
   });
   
@@ -610,7 +642,10 @@ export default function JournalEntryEdit() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setLocation('/finance/journal-entries')}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setLocation('/finance/journal-entries');
+                }}
               >
                 Cancel
               </Button>
