@@ -234,16 +234,26 @@ export default function JournalEntryEdit() {
   // Handle errors with journal entry loading
   useEffect(() => {
     if (journalEntryError) {
-      const errorMessage = journalEntryError instanceof Error 
-        ? journalEntryError.message 
-        : "Could not load the journal entry. It may have been deleted or you don't have access.";
+      // Check if it's an authentication error
+      const errorMessage = journalEntryError instanceof Error ? journalEntryError.message : String(journalEntryError);
+      const isAuthError = errorMessage.includes('not authenticated') || errorMessage.includes('Unauthorized');
       
-      toast({
-        title: "Error loading journal entry",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      setLocation('/finance/journal-entries');
+      if (isAuthError) {
+        toast({
+          title: "Authentication Error",
+          description: "You are not currently logged in or your session has expired. Please log in again.",
+          variant: "destructive",
+        });
+        // Redirect to login page for authentication errors
+        window.location.href = '/login';
+      } else {
+        toast({
+          title: "Error loading journal entry",
+          description: errorMessage || "Could not load the journal entry. It may have been deleted or you don't have access.",
+          variant: "destructive",
+        });
+        setLocation('/finance/journal-entries');
+      }
     }
   }, [journalEntryError, toast, setLocation]);
   
