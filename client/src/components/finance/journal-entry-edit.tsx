@@ -106,12 +106,35 @@ export default function JournalEntryEdit() {
     queryFn: async () => {
       if (!entryId) return null as any;
       try {
-        const response = await apiRequest('GET', `/api/v1/finance/journal-entries/${entryId}`);
-        console.log('Journal entry fetched:', response);
-        if (!response) {
+        console.log(`Fetching journal entry with ID: ${entryId}`);
+        
+        // Check authentication status
+        const auth = await apiRequest('GET', '/api/v1/auth/me');
+        if (!auth || !auth.user) {
+          throw new Error('User not authenticated');
+        }
+        
+        // Use fetch directly with credentials included
+        const response = await fetch(`/api/v1/finance/journal-entries/${entryId}`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch journal entry: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Journal entry fetched:', data);
+        
+        if (!data) {
           throw new Error('No journal entry found');
         }
-        return response as unknown as JournalEntry;
+        
+        return data as JournalEntry;
       } catch (error) {
         console.error('Error fetching journal entry:', error);
         throw error;
@@ -516,7 +539,38 @@ export default function JournalEntryEdit() {
                               render={({ field }) => (
                                 <FormItem className="space-y-0">
                                   <Select
-                                    onValueChange={(value) => field.onChange(parseInt(value))}
+                                    onValueChange={(value) => {
+                                      // Set the account ID
+                                      field.onChange(parseInt(value));
+                                      
+                                      // Find the selected account to get its name and code
+                                      const accountId = parseInt(value);
+                                      let selectedAccount = null;
+                                      
+                                      // Search for the account across all account types
+                                      Object.keys(groupedAccounts).forEach(type => {
+                                        const found = groupedAccounts[type].find(
+                                          (acct: any) => acct.id === accountId
+                                        );
+                                        if (found) {
+                                          selectedAccount = found;
+                                        }
+                                      });
+                                      
+                                      if (selectedAccount) {
+                                        console.log(`Selected account: ${accountId}, ${selectedAccount.accountName}`);
+                                        
+                                        // Update the current line with account details
+                                        const currentLines = form.getValues('lines');
+                                        currentLines[index] = {
+                                          ...currentLines[index],
+                                          accountId,
+                                          accountName: selectedAccount.accountName,
+                                          accountCode: selectedAccount.accountCode,
+                                        };
+                                        form.setValue('lines', currentLines);
+                                      }
+                                    }}
                                     value={field.value?.toString() || ""}
                                   >
                                     <FormControl>
