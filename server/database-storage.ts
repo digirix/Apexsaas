@@ -32,7 +32,7 @@ import type {
 } from "@shared/schema";
 import { IStorage } from "./storage";
 import { db } from "./db";
-import { eq, ne, and, isNull, asc, desc, inArray, sql } from "drizzle-orm";
+import { eq, ne, and, isNull, asc, desc, inArray, sql, gte, lte, like, gt, lt, or } from "drizzle-orm";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 import { scrypt, randomBytes } from "crypto";
@@ -2511,11 +2511,11 @@ export class DatabaseStorage implements IStorage {
     
     // Add date range filters if provided
     if (startDate) {
-      query = query.where(gte(journalEntries.entryDate, startDate));
+      query = query.where(sql`${journalEntries.entryDate} >= ${startDate}`);
     }
     
     if (endDate) {
-      query = query.where(lte(journalEntries.entryDate, endDate));
+      query = query.where(sql`${journalEntries.entryDate} <= ${endDate}`);
     }
     
     const entries = await query;
@@ -2726,7 +2726,7 @@ export class DatabaseStorage implements IStorage {
       .from(chartOfAccountsDetailedGroups)
       .where(and(
         eq(chartOfAccountsDetailedGroups.tenantId, tenantId),
-        like(chartOfAccountsDetailedGroups.code, '%CAS%') // Assuming cash accounts have 'CAS' in their code
+        sql`${chartOfAccountsDetailedGroups.code} LIKE '%CAS%'` // Assuming cash accounts have 'CAS' in their code
       ));
       
     const cashAccountIds = cashDetailedGroups.length > 0 
@@ -2927,7 +2927,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(chartOfAccounts.tenantId, tenantId),
         eq(chartOfAccounts.accountType, 'liability'),
-        like(chartOfAccounts.accountName, '%Tax%'),
+        sql`${chartOfAccounts.accountName} LIKE '%Tax%'`,
         eq(chartOfAccounts.isActive, true)
       ));
     
