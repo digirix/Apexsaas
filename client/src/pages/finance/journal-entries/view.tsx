@@ -140,7 +140,7 @@ export default function JournalEntryView() {
         title: "Journal entry deleted",
         description: "The journal entry has been successfully deleted.",
       });
-      setLocation('/finance/journal-entries');
+      setLocation('/finance?tab=journalEntries');
     },
     onError: (error: any) => {
       console.error('Error deleting journal entry:', error);
@@ -219,7 +219,7 @@ export default function JournalEntryView() {
 
   // Handle back
   const handleBack = () => {
-    setLocation('/finance/journal-entries');
+    setLocation('/finance?tab=journalEntries');
   };
   
   // Handle print functionality
