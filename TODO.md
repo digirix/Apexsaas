@@ -7,7 +7,7 @@ This document outlines the remaining tasks and future enhancements for the Accou
 - Clients Module: 100% complete
 - Tasks Module: 95% complete (invoice integration added, task assignment notifications pending)
 - Users Module: 100% complete  
-- Finance Module: 90% complete (invoice-task integration complete, auto-posting journal entries and financial reporting in progress)
+- Finance Module: 95% complete (invoice-task integration complete, auto-posting journal entries fixed, financial reporting in progress)
 
 ## Current Priority
 1. ✓ Fix the Journal Entry source document bug (currently causing 500 error)
@@ -26,11 +26,12 @@ This document outlines the remaining tasks and future enhancements for the Accou
 14. ✓ Update invoice functionality through task management (fixed form field mapping & data loading)
 15. ✓ Improve API paths and synchronization between Tasks and Finance modules for invoice updates
 16. ✓ Implement automated task-invoice linking for better traceability
-17. Implement auto-posting of journal entries when invoice status changes to "approved":
-   - Add interface for selecting income account during invoice approval
-   - Create entity accounts automatically in chart of accounts if not existing
-   - Generate proper journal entry with debits/credits as per accounting rules
-   - Handle discount and tax posting with appropriate accounts
+17. ✓ Fix navigation consistency in Journal Entry views (tab-based path handling)
+18. ✓ Implement auto-posting of journal entries when invoice status changes to "approved":
+   - ✓ Corrected voucher entries balancing for proper debit/credit totals
+   - ✓ Improved handling of discount amounts with proper accounting entries
+   - ✓ Enhanced transaction descriptions for better tracking
+   - ✓ Ensured proper journal entry creation for all invoice scenarios
 18. Implement TypeScript type definitions for all components in Chart of Accounts and Journal Entries related pages
 19. Implement automatic Account Code generation based on selected Chart of Accounts structure
 20. Complete the implementation of financial reporting features (trial balance, profit & loss)

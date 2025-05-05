@@ -3,9 +3,29 @@
 ## Overview
 This document provides a comprehensive overview of the progress made on the Accounting Firm Management Application, a multi-tenant system designed for accounting firms to manage clients, tasks, users, permissions, and system configuration across different countries and service types.
 
-## Latest Updates (May 4, 2025)
+## Latest Updates (May 5, 2025)
 
-### Invoice Update Workflow Enhancements
+### Navigation and Consistency Improvements
+- Fixed Journal Entry navigation consistency issues:
+  - Updated all navigation paths from "/finance/journal-entries" to "/finance?tab=journalEntries" for consistent tab-based navigation
+  - Enhanced Finance page tab management by adding URL parameter detection for tab selection, allowing proper state persistence when navigating between pages
+  - Fixed back-button navigation in the Journal Entry view to correctly redirect to the Journal Entries tab rather than defaulting to the Invoices tab
+  - Implemented automatic URL updates as tabs change to maintain consistent application state
+
+### Invoice Auto-Posting to Journal Entry Fix
+- Fixed the invoice to journal entry auto-posting system:
+  - Corrected the voucher balancing issue where sum of debits was not equal to sum of credits 
+  - Updated the handling of discount amounts in journal entries to follow proper accounting practices
+  - Implemented a clearer structure for journal entry transactions to match required format:
+    * Debit Entity Name account with totalAmount + discountAmount
+    * Credit Income account with subtotal amount
+    * Credit Tax Payable account with tax amount (if applicable)
+    * Debit Discount Allowed account with discount amount
+    * Credit Entity Name account with discount amount 
+  - Improved transaction descriptions for better readability and tracking
+  - Ensured proper balancing of debits and credits in all scenarios
+
+### Invoice Update Workflow Enhancements (May 4, 2025)
 - Implemented unified invoice update functionality through task management:
   - Fixed form field data loading issues (category, discount, tax values)
   - Corrected mapping between categoryId and taskCategoryId fields
