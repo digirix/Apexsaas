@@ -29,9 +29,24 @@ import {
 } from "lucide-react";
 
 export default function FinancePage() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("invoices");
+  
+  // Parse URL query parameters to get the tab value
+  const getTabFromUrl = () => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    
+    // If tab parameter is 'journalEntries', return 'journal-entries' for proper tab selection
+    if (tabParam === 'journalEntries') {
+      return 'journal-entries';
+    }
+    
+    // Default to invoices if no tab param or invalid value
+    return 'invoices';
+  };
+  
+  const [activeTab, setActiveTab] = useState(getTabFromUrl());
   const [invoiceTab, setInvoiceTab] = useState("active");
   
   // Pagination state
@@ -49,6 +64,22 @@ export default function FinancePage() {
     setCanceledCurrentPage(1);
     setAllCurrentPage(1);
   }, [invoiceTab]);
+  
+  // Update the URL when activeTab changes
+  useEffect(() => {
+    if (activeTab === 'journal-entries') {
+      const newUrl = '/finance?tab=journalEntries';
+      // Only update if URL is different to avoid unnecessary history entries
+      if (location !== newUrl) {
+        window.history.replaceState(null, '', newUrl);
+      }
+    } else {
+      // Remove tab parameter if on invoices tab (default)
+      if (window.location.search.includes('tab=')) {
+        window.history.replaceState(null, '', '/finance');
+      }
+    }
+  }, [activeTab, location]);
   
   // Fetch invoices
   const { data: invoices = [], isLoading: invoicesLoading } = useQuery({
@@ -254,7 +285,7 @@ export default function FinancePage() {
         
         <div className="mt-6">
           <Tabs 
-            defaultValue="invoices" 
+            defaultValue={getTabFromUrl()} 
             onValueChange={setActiveTab}
             value={activeTab}
           >
