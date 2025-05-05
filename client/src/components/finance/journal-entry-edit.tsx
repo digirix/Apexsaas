@@ -130,7 +130,7 @@ export default function JournalEntryEdit() {
         description: "Could not load the journal entry. It may have been deleted or you don't have access.",
         variant: "destructive",
       });
-      setLocation('/finance');
+      setLocation('/finance/journal-entries');
     }
   }, [journalEntryError, toast, setLocation]);
   
@@ -261,7 +261,7 @@ export default function JournalEntryEdit() {
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => setLocation('/finance')}
+              onClick={() => setLocation('/finance/journal-entries')}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
@@ -278,7 +278,7 @@ export default function JournalEntryEdit() {
                 If you need to correct this entry, you'll need to create a new reversing entry.
               </p>
               <Button
-                onClick={() => setLocation('/finance')}
+                onClick={() => setLocation('/finance/journal-entries')}
                 variant="outline"
                 className="mt-4"
               >
@@ -305,7 +305,7 @@ export default function JournalEntryEdit() {
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={() => setLocation('/finance')}
+            onClick={() => setLocation('/finance/journal-entries')}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
@@ -587,7 +587,7 @@ export default function JournalEntryEdit() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setLocation('/finance')}
+                onClick={() => setLocation('/finance/journal-entries')}
               >
                 Cancel
               </Button>
