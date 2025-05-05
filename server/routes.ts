@@ -5649,9 +5649,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const apiKeyConfig = await storage.getTenantSetting(tenantId, "openrouter_api_key");
       const selectedModel = await storage.getTenantSetting(tenantId, "openrouter_selected_model");
       
+      // If API key is configured but no model is selected, we return the default model
+      // This helps the frontend know which model we're using
+      const defaultModel = "openai/gpt-3.5-turbo";
+      const modelValue = selectedModel?.value || (apiKeyConfig ? defaultModel : null);
+      
       res.json({
         apiKeyConfigured: !!apiKeyConfig,
-        selectedModel: selectedModel?.value
+        selectedModel: modelValue
       });
     } catch (error) {
       console.error("Error fetching AI configuration:", error);
@@ -5674,6 +5679,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Store the encrypted key
       await storage.setTenantSetting(tenantId, "openrouter_api_key", encryptedApiKey);
+      
+      // Set a default model so user doesn't have to select one manually
+      // OpenAI's gpt-3.5-turbo is a good default for most use cases
+      await storage.setTenantSetting(tenantId, "openrouter_selected_model", "openai/gpt-3.5-turbo");
       
       res.status(200).json({ success: true });
     } catch (error) {

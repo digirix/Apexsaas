@@ -19,6 +19,10 @@ export class OpenRouterClient {
   private async initializeClient(encryptedApiKey: string): Promise<void> {
     try {
       this.apiKey = await decrypt(encryptedApiKey);
+      // Validate API key is not empty after decryption
+      if (!this.apiKey || this.apiKey.trim() === '') {
+        throw new Error('Empty API key after decryption');
+      }
     } catch (error) {
       console.error('Failed to initialize OpenRouter client:', error);
       throw new Error('Invalid API key format');

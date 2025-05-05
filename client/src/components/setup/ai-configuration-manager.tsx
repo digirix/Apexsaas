@@ -309,7 +309,20 @@ export function AIConfigurationManager() {
                   <Separator className="my-6" />
                   
                   <div>
-                    <h3 className="text-lg font-medium mb-4">Select AI Model</h3>
+                    <h3 className="text-lg font-medium mb-4">Select AI Model (Optional)</h3>
+                    
+                    <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-md mb-4">
+                      <div className="flex">
+                        <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
+                        <div>
+                          <h4 className="text-sm font-medium text-green-800 dark:text-green-300">AI Configuration Complete</h4>
+                          <p className="text-sm text-green-700 dark:text-green-400">
+                            Your API key is configured and a default model has been set. All AI features are ready to use.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
                     <Form {...modelSelectionForm}>
                       <form onSubmit={modelSelectionForm.handleSubmit(onSubmitModelSelection)} className="space-y-4">
                         <FormField
@@ -317,7 +330,7 @@ export function AIConfigurationManager() {
                           name="selectedModel"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Preferred AI Model</FormLabel>
+                              <FormLabel>Preferred AI Model (Optional)</FormLabel>
                               <Select
                                 onValueChange={field.onChange}
                                 defaultValue={field.value}
@@ -325,13 +338,17 @@ export function AIConfigurationManager() {
                               >
                                 <FormControl>
                                   <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Select a model" />
+                                    <SelectValue placeholder="Select a different model (optional)" />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
                                   {modelsQuery.isLoading ? (
                                     <SelectItem value="loading" disabled>
                                       Loading models...
+                                    </SelectItem>
+                                  ) : modelsQuery.isError ? (
+                                    <SelectItem value="error" disabled>
+                                      Error loading models - using default
                                     </SelectItem>
                                   ) : availableModels.length > 0 ? (
                                     availableModels.map((model: AIModel) => (
@@ -341,13 +358,13 @@ export function AIConfigurationManager() {
                                     ))
                                   ) : (
                                     <SelectItem value="none" disabled>
-                                      No models available
+                                      No models available - using default
                                     </SelectItem>
                                   )}
                                 </SelectContent>
                               </Select>
                               <FormDescription>
-                                Choose the model that will power AI features in the application.
+                                A default model (GPT-3.5 Turbo) has been automatically configured. You can optionally select another model.
                               </FormDescription>
                               <FormMessage />
                             </FormItem>
@@ -365,7 +382,7 @@ export function AIConfigurationManager() {
                                 Saving...
                               </>
                             ) : (
-                              "Save Model Preference"
+                              "Change Model"
                             )}
                           </Button>
                         </div>
