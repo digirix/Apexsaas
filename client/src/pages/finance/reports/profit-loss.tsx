@@ -322,6 +322,188 @@ export default function ProfitAndLossPage() {
                     {report ? formatCurrency(report.netIncome) : formatCurrency(0)}
                   </div>
                 </div>
+
+                <Separator />
+
+                {/* Visualizations */}
+                <div className="pt-4">
+                  <Tabs defaultValue="charts" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="charts">
+                        <BarChart3 className="h-4 w-4 mr-2" />
+                        Revenue vs Expenses
+                      </TabsTrigger>
+                      <TabsTrigger value="breakdown">
+                        <PieChart className="h-4 w-4 mr-2" />
+                        Detailed Breakdown
+                      </TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="charts" className="p-4">
+                      <h3 className="text-lg font-semibold mb-4">Revenue vs Expenses</h3>
+                      {report && (
+                        <ResponsiveContainer width="100%" height={300}>
+                          <BarChart
+                            data={[
+                              {
+                                name: 'Revenue',
+                                amount: parseFloat(report.totalRevenue),
+                                fill: '#22c55e'
+                              },
+                              {
+                                name: 'Expenses',
+                                amount: parseFloat(report.totalExpense),
+                                fill: '#ef4444'
+                              },
+                              {
+                                name: 'Net Income',
+                                amount: parseFloat(report.netIncome),
+                                fill: parseFloat(report.netIncome) >= 0 ? '#3b82f6' : '#f43f5e'
+                              }
+                            ]}
+                            margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="name" />
+                            <YAxis 
+                              tickFormatter={(value) => 
+                                new Intl.NumberFormat('en-US', {
+                                  notation: 'compact',
+                                  compactDisplay: 'short',
+                                  currency: 'USD',
+                                  style: 'currency',
+                                }).format(value)
+                              } 
+                            />
+                            <Tooltip 
+                              formatter={(value) => formatCurrency(value as number)}
+                              labelFormatter={(name) => `${name}`}
+                            />
+                            <Legend />
+                            <Bar dataKey="amount" name="Amount" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      )}
+                      
+                      <div className="mt-6">
+                        <h3 className="text-lg font-semibold mb-4">Key Metrics</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <Card>
+                            <CardContent className="pt-6">
+                              <div className="flex flex-col items-center">
+                                <DollarSign className="h-8 w-8 text-green-500 mb-2" />
+                                <p className="text-sm text-muted-foreground">Total Revenue</p>
+                                <p className="text-2xl font-bold">
+                                  {report ? formatCurrency(report.totalRevenue) : formatCurrency(0)}
+                                </p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                          
+                          <Card>
+                            <CardContent className="pt-6">
+                              <div className="flex flex-col items-center">
+                                <DollarSign className="h-8 w-8 text-red-500 mb-2" />
+                                <p className="text-sm text-muted-foreground">Total Expenses</p>
+                                <p className="text-2xl font-bold">
+                                  {report ? formatCurrency(report.totalExpense) : formatCurrency(0)}
+                                </p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                          
+                          <Card>
+                            <CardContent className="pt-6">
+                              <div className="flex flex-col items-center">
+                                {parseFloat(report?.netIncome || "0") >= 0 ? (
+                                  <TrendingUp className="h-8 w-8 text-blue-500 mb-2" />
+                                ) : (
+                                  <TrendingDown className="h-8 w-8 text-red-500 mb-2" />
+                                )}
+                                <p className="text-sm text-muted-foreground">Net Income</p>
+                                <p className={`text-2xl font-bold ${parseFloat(report?.netIncome || "0") >= 0 ? "text-green-600" : "text-red-600"}`}>
+                                  {report ? formatCurrency(report.netIncome) : formatCurrency(0)}
+                                </p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </div>
+                    </TabsContent>
+                    
+                    <TabsContent value="breakdown" className="p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Revenue Breakdown */}
+                        <div>
+                          <h3 className="text-lg font-semibold mb-4">Revenue Breakdown</h3>
+                          {report && report.revenues.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={300}>
+                              <RechartPieChart>
+                                <Pie
+                                  data={Object.entries(revenueGroups).map(([name, accounts]: [string, any], index) => ({
+                                    name,
+                                    value: calculateGroupTotal(accounts),
+                                    fill: `hsl(${index * 40}, 70%, 50%)`
+                                  }))}
+                                  cx="50%"
+                                  cy="50%"
+                                  labelLine={true}
+                                  outerRadius={80}
+                                  dataKey="value"
+                                  nameKey="name"
+                                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                >
+                                  {Object.entries(revenueGroups).map(([name, accounts]: [string, any], index) => (
+                                    <Cell key={`cell-${index}`} fill={`hsl(${index * 40}, 70%, 50%)`} />
+                                  ))}
+                                </Pie>
+                                <Tooltip formatter={(value) => formatCurrency(value as number)} />
+                              </RechartPieChart>
+                            </ResponsiveContainer>
+                          ) : (
+                            <div className="h-[300px] flex items-center justify-center bg-muted/20 rounded-md">
+                              <p className="text-muted-foreground">No revenue data available</p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Expense Breakdown */}
+                        <div>
+                          <h3 className="text-lg font-semibold mb-4">Expense Breakdown</h3>
+                          {report && report.expenses.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={300}>
+                              <RechartPieChart>
+                                <Pie
+                                  data={Object.entries(expenseGroups).map(([name, accounts]: [string, any], index) => ({
+                                    name,
+                                    value: calculateGroupTotal(accounts),
+                                    fill: `hsl(${index * 40}, 70%, 50%)`
+                                  }))}
+                                  cx="50%"
+                                  cy="50%"
+                                  labelLine={true}
+                                  outerRadius={80}
+                                  dataKey="value"
+                                  nameKey="name"
+                                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                >
+                                  {Object.entries(expenseGroups).map(([name, accounts]: [string, any], index) => (
+                                    <Cell key={`cell-${index}`} fill={`hsl(${index * 40}, 70%, 50%)`} />
+                                  ))}
+                                </Pie>
+                                <Tooltip formatter={(value) => formatCurrency(value as number)} />
+                              </RechartPieChart>
+                            </ResponsiveContainer>
+                          ) : (
+                            <div className="h-[300px] flex items-center justify-center bg-muted/20 rounded-md">
+                              <p className="text-muted-foreground">No expense data available</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </div>
               </div>
             )}
           </CardContent>
