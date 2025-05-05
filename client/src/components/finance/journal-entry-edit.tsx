@@ -110,30 +110,13 @@ export default function JournalEntryEdit() {
       try {
         console.log(`Fetching journal entry with ID: ${entryId}`);
         
-        // Check authentication status
-        const auth = await apiRequest('GET', '/api/v1/auth/me');
-        if (!auth || !auth.user) {
-          throw new Error('User not authenticated');
-        }
-        
-        // Use fetch directly with credentials included
-        const response = await fetch(`/api/v1/finance/journal-entries/${entryId}`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch journal entry: ${response.status} ${response.statusText}`);
-        }
-        
-        const data = await response.json();
+        // Use the standard apiRequest that's already set up with auth
+        const data = await apiRequest('GET', `/api/v1/finance/journal-entries/${entryId}`);
         console.log('Journal entry fetched:', data);
         
         if (!data || Object.keys(data).length === 0 || !data.id) {
-          throw new Error(`No journal entry found with ID ${entryId}`);
+          console.error(`No data returned for journal entry ${entryId}`, data);
+          throw new Error(`Could not load journal entry ${entryId}`);
         }
         
         // Ensure line details are complete - just like in the view component
@@ -234,26 +217,20 @@ export default function JournalEntryEdit() {
   // Handle errors with journal entry loading
   useEffect(() => {
     if (journalEntryError) {
-      // Check if it's an authentication error
-      const errorMessage = journalEntryError instanceof Error ? journalEntryError.message : String(journalEntryError);
-      const isAuthError = errorMessage.includes('not authenticated') || errorMessage.includes('Unauthorized');
+      const errorMessage = journalEntryError instanceof Error 
+        ? journalEntryError.message 
+        : "Could not load the journal entry. Please try again.";
       
-      if (isAuthError) {
-        toast({
-          title: "Authentication Error",
-          description: "You are not currently logged in or your session has expired. Please log in again.",
-          variant: "destructive",
-        });
-        // Redirect to login page for authentication errors
-        window.location.href = '/login';
-      } else {
-        toast({
-          title: "Error loading journal entry",
-          description: errorMessage || "Could not load the journal entry. It may have been deleted or you don't have access.",
-          variant: "destructive",
-        });
+      toast({
+        title: "Error loading journal entry",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      
+      // Give a short delay before redirecting back
+      setTimeout(() => {
         setLocation('/finance/journal-entries');
-      }
+      }, 1500);
     }
   }, [journalEntryError, toast, setLocation]);
   
