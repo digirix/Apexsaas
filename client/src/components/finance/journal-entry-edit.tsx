@@ -355,6 +355,60 @@ export default function JournalEntryEdit() {
     );
   }
   
+  // Check if this is an invoice-created journal entry
+  if (journalEntry && journalEntry.sourceDocument === 'invoice' && journalEntry.sourceDocumentId) {
+    return (
+      <Card className="w-full">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Invoice-Generated Journal Entry</CardTitle>
+              <CardDescription>
+                This journal entry was created from an invoice and must be updated through the invoice.
+              </CardDescription>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setLocation('/finance/journal-entries')}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8 text-center">
+            <div>
+              <AlertCircle className="h-16 w-16 text-amber-500 mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">Cannot Directly Edit Invoice Journal Entries</h3>
+              <p className="text-muted-foreground">
+                This journal entry was automatically created from invoice #{journalEntry.sourceDocumentId}.
+                To make changes, please update the original invoice instead of editing this journal entry directly.
+              </p>
+              <div className="flex justify-center gap-4 mt-6">
+                <Button
+                  onClick={() => setLocation(`/finance/invoices/edit/${journalEntry.sourceDocumentId}`)}
+                  variant="default"
+                >
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit Invoice #{journalEntry.sourceDocumentId}
+                </Button>
+                <Button
+                  onClick={() => setLocation('/finance/journal-entries')}
+                  variant="outline"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Return to Journal Entries
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // Show error if the journal entry is posted
   if (journalEntry && journalEntry.isPosted) {
     return (
