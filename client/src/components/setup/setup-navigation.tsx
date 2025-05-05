@@ -15,7 +15,9 @@ import {
   GitBranch,
   CreditCard,
   BookOpen,
-  BarChart2
+  BarChart2,
+  Cpu,
+  Bot
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SetupSection } from "@/types/setup";
@@ -172,6 +174,27 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
                 Chart of Accounts
               </Button>
             </Link>
+          </div>
+        </div>
+        
+        {/* AI Configuration */}
+        <div>
+          <h3 className="text-sm font-medium text-slate-500 mb-2 px-2">AI Configuration</h3>
+          <div className="space-y-1">
+            <Button
+              variant="ghost"
+              className={cn(
+                "w-full justify-start",
+                activeSection === 'ai-configuration' ? "bg-blue-50 text-blue-700" : "text-slate-600"
+              )}
+              onClick={() => onSectionChange('ai-configuration')}
+            >
+              <Cpu className={cn(
+                "h-5 w-5 mr-2",
+                activeSection === 'ai-configuration' ? "text-blue-700" : "text-slate-500"
+              )} />
+              AI Integration
+            </Button>
           </div>
         </div>
         
