@@ -413,25 +413,15 @@ export default function JournalEntryView() {
               )}
 
               {journalEntry.isPosted ? (
-                <>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={handleToggleStatus}
-                  >
-                    <ArrowUpDown className="mr-2 h-4 w-4" />
-                    Set to Draft
-                  </Button>
-                  <Button 
-                    variant="destructive" 
-                    size="sm"
-                    onClick={handleForceDraft}
-                    title="Force set to draft without validation (for troubleshooting)"
-                  >
-                    <AlertCircle className="mr-2 h-4 w-4" />
-                    Force Draft
-                  </Button>
-                </>
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={handleForceDraft}
+                  title="Set to draft without validation (for troubleshooting)"
+                >
+                  <AlertCircle className="mr-2 h-4 w-4" />
+                  Set to Draft
+                </Button>
               ) : (
                 <Button 
                   variant="default" 

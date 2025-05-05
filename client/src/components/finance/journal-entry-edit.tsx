@@ -75,7 +75,7 @@ export default function JournalEntryEdit() {
     isLoading: journalEntryLoading,
     error: journalEntryError
   } = useQuery({
-    queryKey: [`/api/v1/finance/journal-entries/${entryId}`],
+    queryKey: ['/api/v1/finance/journal-entries', entryId],
     enabled: !!entryId,
   });
   
@@ -155,8 +155,8 @@ export default function JournalEntryEdit() {
         description: "The journal entry has been updated successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/journal-entries'] });
-      queryClient.invalidateQueries({ queryKey: [`/api/v1/finance/journal-entries/${entryId}`] });
-      setLocation('/finance');
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/journal-entries', entryId] });
+      setLocation('/finance/journal-entries');
     },
     onError: (error: any) => {
       toast({

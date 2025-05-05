@@ -389,18 +389,20 @@ export default function JournalEntriesList() {
                             </>
                           )}
                           
-                          {/* Toggle Status button */}
-                          <Button
-                            variant={entry.isPosted ? "outline" : "default"}
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleStatus(entry);
-                            }}
-                          >
-                            <ArrowUpDown className="h-4 w-4 mr-2" />
-                            {entry.isPosted ? "Set to Draft" : "Post Entry"}
-                          </Button>
+                          {/* Post Entry button (only for draft entries) */}
+                          {!entry.isPosted && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleStatus(entry);
+                              }}
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-2" />
+                              Post Entry
+                            </Button>
+                          )}
                           
                           {/* Force Draft button (only visible for posted entries) */}
                           {entry.isPosted && (
@@ -411,10 +413,10 @@ export default function JournalEntriesList() {
                                 e.stopPropagation();
                                 handleForceDraft(entry);
                               }}
-                              title="Force set to draft without validation (for troubleshooting)"
+                              title="Set to draft without validation (for troubleshooting)"
                             >
                               <AlertCircle className="h-4 w-4 mr-2" />
-                              Force Draft
+                              Set to Draft
                             </Button>
                           )}
                         </div>
