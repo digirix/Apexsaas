@@ -15,7 +15,9 @@ import {
   BookOpen, 
   FileText, 
   LineChart, 
-  PieChart
+  PieChart,
+  Lightbulb,
+  Cpu
 } from 'lucide-react';
 
 interface ReportCardProps {
@@ -105,6 +107,13 @@ export default function FinancialReportsPage() {
             description="Overview of tax liabilities and payments"
             icon={<FileText className="h-5 w-5" />}
             href="/finance/reports/tax-summary"
+          />
+          
+          <ReportCard
+            title="AI Financial Analysis"
+            description="AI-powered financial data insights"
+            icon={<Cpu className="h-5 w-5" />}
+            href="/finance/analysis"
           />
         </div>
       </div>

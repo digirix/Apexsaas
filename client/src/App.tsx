@@ -31,6 +31,7 @@ import BalanceSheetPage from "@/pages/finance/reports/balance-sheet";
 import CashFlowPage from "@/pages/finance/reports/cash-flow";
 import ExpenseReportPage from "@/pages/finance/reports/expenses";
 import TaxSummaryPage from "@/pages/finance/reports/tax-summary";
+import FinancialAnalysisPage from "@/pages/finance/financial-analysis-page";
 
 function Router() {
   return (
@@ -60,6 +61,7 @@ function Router() {
       <ProtectedRoute path="/finance/reports/cash-flow" component={CashFlowPage} />
       <ProtectedRoute path="/finance/reports/expenses" component={ExpenseReportPage} />
       <ProtectedRoute path="/finance/reports/tax-summary" component={TaxSummaryPage} />
+      <ProtectedRoute path="/finance/analysis" component={FinancialAnalysisPage} />
       <ProtectedRoute path="/users" component={UsersPage} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />

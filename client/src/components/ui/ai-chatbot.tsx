@@ -27,7 +27,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { APIConnectionStatus } from "./api-connection-status";
 
 type Message = {
   role: "system" | "user" | "assistant";
