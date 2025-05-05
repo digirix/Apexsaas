@@ -301,18 +301,7 @@ export default function FinancePage() {
                 </TabsTrigger>
               </TabsList>
               
-              {activeTab === "invoices" && (
-                <div className="flex space-x-2">
-                  <Button 
-                    variant="default" 
-                    size="sm"
-                    onClick={() => setLocation("/finance/invoices/create")}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Invoice
-                  </Button>
-                </div>
-              )}
+              {/* Removed "New Invoice" button as invoices are now created only from tasks */}
               
 
 
