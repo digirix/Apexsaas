@@ -386,7 +386,7 @@ export default function JournalEntryEdit() {
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => setLocation('/finance/journal-entries')}
+              onClick={() => setLocation('/finance?tab=journalEntries')}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
@@ -440,7 +440,7 @@ export default function JournalEntryEdit() {
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => setLocation('/finance/journal-entries')}
+              onClick={() => setLocation('/finance?tab=journalEntries')}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
@@ -799,7 +799,7 @@ export default function JournalEntryEdit() {
                 variant="outline"
                 onClick={(e) => {
                   e.preventDefault();
-                  setLocation('/finance/journal-entries');
+                  setLocation('/finance?tab=journalEntries');
                 }}
               >
                 Cancel
