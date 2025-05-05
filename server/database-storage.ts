@@ -2494,15 +2494,35 @@ export class DatabaseStorage implements IStorage {
 
   // Helper function to get account balance for any account within a date range
   private async getAccountBalance(tenantId: number, accountId: number, startDate?: Date, endDate?: Date): Promise<string> {
+    console.log(`Calculating balance for account ${accountId} in tenant ${tenantId}`);
+    
+    // First get the account type - we need this regardless of entries
+    const accountResult = await db.select({
+      accountType: chartOfAccounts.accountType,
+      accountName: chartOfAccounts.accountName
+    })
+    .from(chartOfAccounts)
+    .where(and(
+      eq(chartOfAccounts.id, accountId),
+      eq(chartOfAccounts.tenantId, tenantId)
+    ))
+    .limit(1);
+    
+    if (accountResult.length === 0) {
+      console.error(`Account ${accountId} not found for tenant ${tenantId}`);
+      return "0.00";
+    }
+    
+    const accountType = accountResult[0].accountType;
+    console.log(`Account ${accountId} (${accountResult[0].accountName}) is type: ${accountType}`);
+    
     // Build the query with appropriate date filters
     let query = db.select({
       debitAmount: journalEntryLines.debitAmount,
       creditAmount: journalEntryLines.creditAmount,
-      accountType: chartOfAccounts.accountType,
     })
     .from(journalEntryLines)
-    .leftJoin(chartOfAccounts, eq(journalEntryLines.accountId, chartOfAccounts.id))
-    .leftJoin(journalEntries, eq(journalEntryLines.journalEntryId, journalEntries.id))
+    .innerJoin(journalEntries, eq(journalEntryLines.journalEntryId, journalEntries.id))
     .where(and(
       eq(journalEntryLines.tenantId, tenantId),
       eq(journalEntryLines.accountId, accountId),
@@ -2511,36 +2531,46 @@ export class DatabaseStorage implements IStorage {
     
     // Add date range filters if provided
     if (startDate) {
-      query = query.where(sql`${journalEntries.entryDate} >= ${startDate}`);
+      query = query.where(gte(journalEntries.entryDate, startDate));
     }
     
     if (endDate) {
-      query = query.where(sql`${journalEntries.entryDate} <= ${endDate}`);
+      query = query.where(lte(journalEntries.entryDate, endDate));
     }
     
     const entries = await query;
+    console.log(`Found ${entries.length} journal entry lines for account ${accountId}`);
     
     if (entries.length === 0) {
       return "0.00";
     }
     
-    // Get the account type to determine how to calculate the balance
-    const accountType = entries[0]?.accountType;
-    
-    let balance = entries.reduce((sum, entry) => {
+    // Calculate total debits and credits
+    const totalDebits = entries.reduce((sum, entry) => {
       const debit = parseFloat(entry.debitAmount.toString() || "0");
-      const credit = parseFloat(entry.creditAmount.toString() || "0");
-      
-      // For asset and expense accounts, debits increase, credits decrease
-      if (accountType === 'asset' || accountType === 'expense') {
-        return sum + debit - credit;
-      }
-      // For liability, equity, and revenue accounts, credits increase, debits decrease
-      else {
-        return sum - debit + credit;
-      }
+      return sum + debit;
     }, 0);
     
+    const totalCredits = entries.reduce((sum, entry) => {
+      const credit = parseFloat(entry.creditAmount.toString() || "0");
+      return sum + credit;
+    }, 0);
+    
+    console.log(`Account ${accountId}: Total debits=${totalDebits}, Total credits=${totalCredits}`);
+    
+    // Calculate balance based on account type
+    let balance = 0;
+    
+    // For asset and expense accounts, Debit increases (DR-CR)
+    if (accountType === 'asset' || accountType === 'expense') {
+      balance = totalDebits - totalCredits;
+    } 
+    // For liability, equity, and revenue accounts, Credit increases (CR-DR)
+    else if (accountType === 'liability' || accountType === 'equity' || accountType === 'revenue') {
+      balance = totalCredits - totalDebits;
+    }
+    
+    console.log(`Final balance for account ${accountId}: ${balance.toFixed(2)}`);
     return balance.toFixed(2);
   }
   
