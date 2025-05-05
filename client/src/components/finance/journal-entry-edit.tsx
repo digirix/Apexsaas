@@ -105,8 +105,17 @@ export default function JournalEntryEdit() {
     queryKey: ['/api/v1/finance/journal-entries', entryId],
     queryFn: async () => {
       if (!entryId) return null as any;
-      const response = await apiRequest('GET', `/api/v1/finance/journal-entries/${entryId}`);
-      return response as JournalEntry;
+      try {
+        const response = await apiRequest('GET', `/api/v1/finance/journal-entries/${entryId}`);
+        console.log('Journal entry fetched:', response);
+        if (!response) {
+          throw new Error('No journal entry found');
+        }
+        return response as unknown as JournalEntry;
+      } catch (error) {
+        console.error('Error fetching journal entry:', error);
+        throw error;
+      }
     },
     enabled: !!entryId,
   });
@@ -135,6 +144,8 @@ export default function JournalEntryEdit() {
   // Update form with journal entry data when available
   useEffect(() => {
     if (journalEntry) {
+      console.log('Setting up form with journal entry:', journalEntry);
+      
       // Safely format the date or use today if there's an issue
       let formattedDate = '';
       try {
@@ -156,7 +167,10 @@ export default function JournalEntryEdit() {
         formattedDate = format(new Date(), 'yyyy-MM-dd');
       }
 
-      form.reset({
+      // Log lines data before processing
+      console.log('Journal entry lines:', journalEntry.lines);
+      
+      const formData = {
         entryDate: formattedDate,
         reference: journalEntry.reference || '',
         description: journalEntry.description || '',
@@ -171,7 +185,10 @@ export default function JournalEntryEdit() {
           { accountId: 0, description: '', debitAmount: "0", creditAmount: "0" },
           { accountId: 0, description: '', debitAmount: "0", creditAmount: "0" },
         ],
-      });
+      };
+      
+      console.log('Form data being set:', formData);
+      form.reset(formData);
     }
   }, [journalEntry, form]);
   
