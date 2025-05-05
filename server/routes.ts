@@ -5211,7 +5211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // For security, prevent changing a posted entry without lines to draft
         if (existingEntry.isPosted && req.body.isPosted === false) {
           // Verify the entry has at least one line
-          const existingLines = await storage.getJournalEntryLines(tenantId, entryId);
+          const existingLines = await storage.getJournalEntryLines(entryId, tenantId);
           if (!existingLines || existingLines.length === 0) {
             return res.status(400).json({ message: "Journal entry must have at least one line" });
           }
@@ -5230,7 +5230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const updatedEntry = await storage.updateJournalEntry(entryId, statusUpdate);
         return res.json({
           ...updatedEntry,
-          lines: await storage.getJournalEntryLines(tenantId, entryId)
+          lines: await storage.getJournalEntryLines(entryId, tenantId)
         });
       }
       
@@ -5274,7 +5274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedEntry = await storage.updateJournalEntry(entryId, entryData);
       
       // Delete existing lines
-      const existingLines = await storage.getJournalEntryLines(tenantId, entryId);
+      const existingLines = await storage.getJournalEntryLines(entryId, tenantId);
       for (const line of existingLines) {
         await storage.deleteJournalEntryLine(line.id, tenantId);
       }
