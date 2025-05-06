@@ -1019,7 +1019,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(sanitizedConfigs);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch AI configurations" });
+      console.error("Error fetching AI configurations:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch AI configurations",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
@@ -1067,7 +1071,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
-      res.status(500).json({ message: "Failed to create AI configuration" });
+      console.error("Error creating AI configuration:", error);
+      res.status(500).json({ 
+        message: "Failed to create AI configuration",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
