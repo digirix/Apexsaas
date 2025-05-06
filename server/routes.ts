@@ -5893,7 +5893,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Get Available Models
+  // Get Available Models by Provider
+  app.get("/api/v1/setup/ai-models/:provider", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const provider = req.params.provider;
+      
+      // Validate the provider
+      const validProviders = ["openrouter", "openai", "anthropic", "google", "deepseek"];
+      if (!validProviders.includes(provider)) {
+        return res.status(400).json({ message: "Invalid provider" });
+      }
+      
+      // Get the encrypted API key for the specified provider
+      const apiKeyConfig = await storage.getTenantSetting(tenantId, `${provider}_api_key`);
+      
+      if (!apiKeyConfig) {
+        return res.status(400).json({ message: `API key not configured for ${provider}` });
+      }
+      
+      // Create the appropriate AI client
+      const aiClient = await createAIClient(provider, apiKeyConfig.value);
+      
+      // Check if client has getModels method
+      if (aiClient.getModels) {
+        try {
+          // Get available models from the provider API
+          const modelsData = await aiClient.getModels();
+          
+          // Transform the data to a simplified format for the frontend
+          const models = modelsData.data.map((model: any) => ({
+            id: model.id,
+            name: model.name || model.id,
+            provider: model.provider || provider
+          }));
+          
+          return res.json({ models, source: 'api' });
+        } catch (error) {
+          console.warn(`Error fetching models from ${provider} API:`, error);
+          // Fall back to hardcoded models from AI providers config
+        }
+      }
+      
+      // Fall back to predefined models from configuration
+      // Import list of available models for each provider from a shared configuration
+      const { AI_PROVIDERS } = require('../client/src/lib/ai-providers');
+      
+      if (AI_PROVIDERS[provider]?.models) {
+        const predefinedModels = AI_PROVIDERS[provider].models.map((model: any) => ({
+          id: model.id,
+          name: model.name,
+          provider: provider,
+          description: model.description
+        }));
+        
+        return res.json({ models: predefinedModels, source: 'predefined' });
+      }
+      
+      // If no models are available, return an empty array
+      res.json({ models: [], source: 'empty' });
+    } catch (error) {
+      console.error(`Error fetching models for ${req.params.provider}:`, error);
+      res.status(500).json({ message: `Failed to fetch models for ${req.params.provider}` });
+    }
+  });
+  
+  // For backward compatibility with old code
   app.get("/api/v1/setup/ai-models", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
