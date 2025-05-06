@@ -552,18 +552,21 @@ export default function AiConfigurationsManager() {
                       variant="outline" 
                       onClick={() => {
                         if (editingConfig) {
-                          testConfigMutation.mutate(editingConfig.id);
+                          handleTestConnection(editingConfig.id);
                         }
                       }}
-                      disabled={testConfigMutation.isPending}
+                      disabled={testConnectionMutation.isPending}
                     >
-                      {testConfigMutation.isPending ? (
+                      {testConnectionMutation.isPending ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Testing...
                         </>
                       ) : (
-                        "Test Connection"
+                        <>
+                          <TestTube className="h-4 w-4 mr-2" />
+                          Test Connection
+                        </>
                       )}
                     </Button>
                   )}
