@@ -5766,6 +5766,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Delete Provider API Key
+  app.delete("/api/v1/setup/ai-configuration/:provider/api-key", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const provider = req.params.provider;
+      
+      // Validate the provider
+      const validProviders = ["openrouter", "openai", "anthropic", "google", "deepseek"];
+      if (!validProviders.includes(provider)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid provider" 
+        });
+      }
+      
+      // Delete the API key setting
+      await storage.deleteTenantSetting(tenantId, `${provider}_api_key`);
+      
+      // If this was the selected provider, update the selected provider
+      const selectedProviderSetting = await storage.getTenantSetting(tenantId, "ai_selected_provider");
+      if (selectedProviderSetting && selectedProviderSetting.value === provider) {
+        // Find another provider with a configured API key
+        let newSelectedProvider = null;
+        for (const p of validProviders) {
+          if (p !== provider) {
+            const apiKeySetting = await storage.getTenantSetting(tenantId, `${p}_api_key`);
+            if (apiKeySetting) {
+              newSelectedProvider = p;
+              break;
+            }
+          }
+        }
+        
+        if (newSelectedProvider) {
+          await storage.setTenantSetting(tenantId, "ai_selected_provider", newSelectedProvider);
+        } else {
+          // If no other provider has an API key, remove the selected provider setting
+          await storage.deleteTenantSetting(tenantId, "ai_selected_provider");
+        }
+      }
+      
+      res.status(200).json({ 
+        success: true,
+        message: `API key for ${provider} deleted successfully`
+      });
+    } catch (error) {
+      console.error("Error deleting API key:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to delete API key" 
+      });
+    }
+  });
+  
   // Test Provider API Connection
   app.post("/api/v1/setup/ai-configuration/:provider/test-connection", isAuthenticated, async (req, res) => {
     try {

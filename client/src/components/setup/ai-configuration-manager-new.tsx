@@ -123,6 +123,56 @@ export function MultiProviderAIConfigurationManager() {
     enabled: !!user,
   });
   
+  // Delete API key mutation
+  const deleteApiKeyMutation = useMutation({
+    mutationFn: async (provider: string) => {
+      const response = await fetch(`/api/v1/setup/ai-configuration/${provider}/api-key`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || `Failed to delete ${provider} API key`);
+      }
+      
+      return await response.json();
+    },
+    onSuccess: (data, provider) => {
+      toast({
+        title: "API Key Deleted",
+        description: `API key for ${provider} has been deleted successfully.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/setup/ai-configuration"] });
+      
+      // Update providers config
+      setProvidersConfig(prev => ({
+        ...prev,
+        [provider]: {
+          ...prev[provider],
+          apiKeyConfigured: false,
+        }
+      }));
+      
+      // Close the delete confirmation dialog
+      setDeleteDialogOpen(false);
+      setProviderToDelete(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "An error occurred while deleting the API key",
+        variant: "destructive",
+      });
+      
+      // Close the delete confirmation dialog
+      setDeleteDialogOpen(false);
+      setProviderToDelete(null);
+    },
+  });
+  
   // Update API key mutation
   const updateApiKeyMutation = useMutation({
     mutationFn: async (values: ApiKeyFormValues) => {
