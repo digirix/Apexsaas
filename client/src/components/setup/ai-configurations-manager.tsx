@@ -42,8 +42,9 @@ import {
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 
 const aiProviderOptions = [
-  { value: 'OpenAI', label: 'OpenRouter.ai' },
+  { value: 'OpenAI', label: 'OpenRouter.ai (OpenAI)' },
   { value: 'Google', label: 'Google AI (Gemini)' },
+  { value: 'Anthropic', label: 'Anthropic (Claude)' },
 ];
 
 // Common models for OpenRouter.ai
@@ -62,6 +63,13 @@ const googleaiModels = [
   { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
   { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
   { value: 'gemini-1.0-pro', label: 'Gemini 1.0 Pro' },
+];
+
+// Common models for Anthropic Claude
+const anthropicModels = [
+  { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus' },
+  { value: 'claude-3-sonnet-20240229', label: 'Claude 3 Sonnet' },
+  { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku' },
 ];
 
 const aiConfigurationSchema = z.object({
@@ -84,7 +92,16 @@ export default function AiConfigurationsManager() {
 
   // Get suggested models based on provider
   const getSuggestedModels = (provider: string) => {
-    return provider === 'OpenAI' ? openrouterModels : googleaiModels;
+    switch(provider) {
+      case 'OpenAI':
+        return openrouterModels;
+      case 'Google':
+        return googleaiModels;
+      case 'Anthropic':
+        return anthropicModels;
+      default:
+        return openrouterModels;
+    }
   };
 
   // Queries
@@ -489,9 +506,11 @@ export default function AiConfigurationsManager() {
                         />
                       </FormControl>
                       <FormDescription>
-                        {provider === 'openrouter' 
+                        {provider === 'OpenAI' 
                           ? 'Your OpenRouter.ai API key from https://openrouter.ai/keys' 
-                          : 'Your Google AI (Gemini) API key'}
+                          : provider === 'Google'
+                            ? 'Your Google AI (Gemini) API key'
+                            : 'Your Anthropic API key for Claude models'}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -522,9 +541,9 @@ export default function AiConfigurationsManager() {
                         </SelectContent>
                       </Select>
                       <FormDescription>
-                        {provider === 'openrouter' && field.value === 'google/gemini-flash-1.5-8b-exp' 
+                        {provider === 'OpenAI' && field.value === 'google/gemini-flash-1.5-8b-exp' 
                           ? 'Using Google Gemini Flash 1.5 8B model via OpenRouter.ai for optimal performance'
-                          : 'Select the default AI model to use'}
+                          : 'Select the default AI model to use with this provider'}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
