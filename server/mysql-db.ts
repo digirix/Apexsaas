@@ -6,22 +6,40 @@ import dotenv from 'dotenv';
 // Load environment variables from .env file
 dotenv.config();
 
+// Type definition for MySQL connection parameters
+export type MySQLConnectionParams = {
+  host: string;
+  port?: string;
+  user: string;
+  password?: string;
+  database: string;
+};
+
 // Function to create and return MySQL connection
-export async function createMySQLConnection() {
+export async function createMySQLConnection(connectionParams?: MySQLConnectionParams) {
   try {
-    // Check if we have MySQL connection details
-    if (!process.env.MYSQL_HOST || !process.env.MYSQL_USER || !process.env.MYSQL_DATABASE) {
-      console.error('MySQL connection details not found in environment variables');
+    // Use provided connection parameters or fall back to environment variables
+    const params = connectionParams || {
+      host: process.env.MYSQL_HOST,
+      port: process.env.MYSQL_PORT,
+      user: process.env.MYSQL_USER,
+      password: process.env.MYSQL_PASSWORD,
+      database: process.env.MYSQL_DATABASE
+    };
+    
+    // Check if we have the required connection details
+    if (!params.host || !params.user || !params.database) {
+      console.error('MySQL connection details not found in environment variables or parameters');
       return null;
     }
 
     // Create MySQL connection pool
     const poolConnection = mysql.createPool({
-      host: process.env.MYSQL_HOST,
-      port: parseInt(process.env.MYSQL_PORT || '3306'),
-      user: process.env.MYSQL_USER,
-      password: process.env.MYSQL_PASSWORD || '',
-      database: process.env.MYSQL_DATABASE,
+      host: params.host,
+      port: parseInt(params.port || '3306'),
+      user: params.user,
+      password: params.password || '',
+      database: params.database,
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0
@@ -47,9 +65,19 @@ export async function createMySQLConnection() {
 }
 
 // Function to check MySQL connection status
-export async function checkMySQLConnection() {
+export async function checkMySQLConnection(connectionParams?: MySQLConnectionParams) {
   try {
-    if (!process.env.MYSQL_HOST || !process.env.MYSQL_USER || !process.env.MYSQL_DATABASE) {
+    // Use provided connection parameters or fall back to environment variables
+    const params = connectionParams || {
+      host: process.env.MYSQL_HOST,
+      port: process.env.MYSQL_PORT,
+      user: process.env.MYSQL_USER,
+      password: process.env.MYSQL_PASSWORD,
+      database: process.env.MYSQL_DATABASE
+    };
+    
+    // Check if we have the required connection details
+    if (!params.host || !params.user || !params.database) {
       return {
         connected: false,
         message: 'MySQL connection details not configured'
@@ -57,11 +85,11 @@ export async function checkMySQLConnection() {
     }
 
     const connection = await mysql.createConnection({
-      host: process.env.MYSQL_HOST,
-      port: parseInt(process.env.MYSQL_PORT || '3306'),
-      user: process.env.MYSQL_USER,
-      password: process.env.MYSQL_PASSWORD || '',
-      database: process.env.MYSQL_DATABASE
+      host: params.host,
+      port: parseInt(params.port || '3306'),
+      user: params.user,
+      password: params.password || '',
+      database: params.database
     });
 
     await connection.execute('SELECT 1');

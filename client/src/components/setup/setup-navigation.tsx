@@ -16,7 +16,8 @@ import {
   CreditCard,
   BookOpen,
   BarChart2,
-  Sparkles
+  Sparkles,
+  Database
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SetupSection } from "@/types/setup";
@@ -176,10 +177,19 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
           </div>
         </div>
         
-        {/* AI Configuration */}
+        {/* System Configuration */}
         <div>
-          <h3 className="text-sm font-medium text-slate-500 mb-2 px-2">AI Configuration</h3>
+          <h3 className="text-sm font-medium text-slate-500 mb-2 px-2">System Configuration</h3>
           <div className="space-y-1">
+            <Link href="/database-settings">
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-slate-600"
+              >
+                <Database className="h-5 w-5 mr-2 text-slate-500" />
+                Database Settings
+              </Button>
+            </Link>
             <Link href="/ai-settings">
               <Button
                 variant="ghost"
