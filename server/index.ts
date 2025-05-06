@@ -4,6 +4,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
 import { TaskScheduler } from "./task-scheduler";
 import { createMySQLConnection } from "./mysql-db";
+import { DatabaseFactory } from "./db-factory";
 import dotenv from 'dotenv';
 
 const app = express();
@@ -47,16 +48,17 @@ app.use((req, res, next) => {
   dotenv.config();
   
   try {
-    // Try to establish MySQL connection if configured
-    console.log("Checking MySQL connection...");
-    const mysqlDb = await createMySQLConnection();
-    if (mysqlDb) {
-      console.log("MySQL connection established successfully");
-      // Store MySQL connection for later use if needed
-      (global as any).mysqlDb = mysqlDb;
-    } else {
-      console.log("No MySQL connection established - continuing with PostgreSQL only");
-    }
+    // Initialize storage based on environment configuration
+    console.log("Initializing database connection from environment settings...");
+    const dbStorage = await DatabaseFactory.createStorageFromEnv();
+    
+    // Store the storage in the global scope for potential use outside standard areas
+    (global as any).dbStorage = dbStorage;
+    
+    // Replace the default storage with our dynamically created one
+    // This is a bit of a hack since storage is imported as a singleton
+    // but it allows us to switch databases without changing imports
+    Object.assign(storage, dbStorage);
     
     console.log("Registering routes...");
     const server = await registerRoutes(app);
