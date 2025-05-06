@@ -5645,18 +5645,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const tenantId = (req.user as any).tenantId;
       
-      // Check if API key is configured
-      const apiKeyConfig = await storage.getTenantSetting(tenantId, "openrouter_api_key");
-      const selectedModel = await storage.getTenantSetting(tenantId, "openrouter_selected_model");
+      // Get the selected provider
+      const selectedProviderSetting = await storage.getTenantSetting(tenantId, "ai_selected_provider");
+      const selectedProvider = selectedProviderSetting?.value || "openrouter";
       
-      // If API key is configured but no model is selected, we return the default model
-      // This helps the frontend know which model we're using
-      const defaultModel = "openai/gpt-3.5-turbo";
-      const modelValue = selectedModel?.value || (apiKeyConfig ? defaultModel : null);
+      // Get the selected model
+      const selectedModelSetting = await storage.getTenantSetting(tenantId, "ai_selected_model");
+      const selectedModel = selectedModelSetting?.value;
+      
+      // Build provider configs
+      const providers: Record<string, any> = {};
+      
+      // List of supported providers
+      const providerList = ["openrouter", "openai", "anthropic", "google", "deepseek"];
+      
+      // Get API key status for each provider
+      for (const provider of providerList) {
+        const apiKeyConfig = await storage.getTenantSetting(tenantId, `${provider}_api_key`);
+        providers[provider] = {
+          apiKeyConfigured: !!apiKeyConfig
+        };
+      }
+      
+      // For backward compatibility, check if we have openrouter API key but no selected provider
+      if (!selectedProviderSetting) {
+        const openrouterApiKey = await storage.getTenantSetting(tenantId, "openrouter_api_key");
+        if (openrouterApiKey) {
+          await storage.setTenantSetting(tenantId, "ai_selected_provider", "openrouter");
+        }
+      }
+      
+      // For backward compatibility, if we have an old-style model selection but no new one
+      if (!selectedModelSetting) {
+        const oldStyleModel = await storage.getTenantSetting(tenantId, "openrouter_selected_model");
+        if (oldStyleModel) {
+          await storage.setTenantSetting(tenantId, "ai_selected_model", oldStyleModel.value);
+        }
+      }
       
       res.json({
-        apiKeyConfigured: !!apiKeyConfig,
-        selectedModel: modelValue
+        selectedProvider,
+        providers,
+        selectedModel
       });
     } catch (error) {
       console.error("Error fetching AI configuration:", error);
