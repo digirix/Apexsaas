@@ -3175,8 +3175,8 @@ export class DatabaseStorage implements IStorage {
       }
       
       // Test the API key by making a basic request to the provider
-      if (config.provider === 'openrouter') {
-        // For OpenRouter, we can use their models endpoint which doesn't consume tokens
+      if (config.provider === 'OpenAI') {
+        // For OpenRouter.ai (OpenAI provider), we can use their models endpoint which doesn't consume tokens
         const response = await fetch('https://openrouter.ai/api/v1/models', {
           method: 'GET',
           headers: {
@@ -3186,32 +3186,58 @@ export class DatabaseStorage implements IStorage {
         });
         
         if (response.ok) {
-          // Update the updatedAt timestamp instead of lastTested
+          // Update the updatedAt timestamp
           await this.updateAiConfiguration(id, { updatedAt: new Date() });
-          return { success: true, message: "OpenRouter API key is valid" };
+          return { success: true, message: "OpenRouter.ai API key is valid" };
         } else {
           const errorData = await response.json();
           return { 
             success: false, 
-            message: `OpenRouter API key test failed: ${errorData.error?.message || response.statusText}`
+            message: `OpenRouter.ai API key test failed: ${errorData.error?.message || response.statusText}`
           };
         }
-      } else if (config.provider === 'googleai') {
-        // For Google AI, we'd need to use their API to validate
-        // This is simplified and would need actual Google AI API implementation
+      } else if (config.provider === 'Google') {
+        // For Google AI (Gemini), we use their API to validate
         const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + config.apiKey, {
           method: 'GET'
         });
         
         if (response.ok) {
-          // Update the updatedAt timestamp instead of lastTested
+          // Update the updatedAt timestamp
           await this.updateAiConfiguration(id, { updatedAt: new Date() });
-          return { success: true, message: "Google AI API key is valid" };
+          return { success: true, message: "Google AI (Gemini) API key is valid" };
         } else {
           const errorData = await response.json();
           return { 
             success: false, 
             message: `Google AI API key test failed: ${errorData.error?.message || response.statusText}`
+          };
+        }
+      } else if (config.provider === 'Anthropic') {
+        // For Anthropic (Claude), we use their models endpoint to validate
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'x-api-key': config.apiKey,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: "claude-3-haiku-20240307",
+            max_tokens: 1,
+            messages: [{ role: "user", content: "Hello" }]
+          })
+        });
+        
+        if (response.ok) {
+          // Update the updatedAt timestamp
+          await this.updateAiConfiguration(id, { updatedAt: new Date() });
+          return { success: true, message: "Anthropic (Claude) API key is valid" };
+        } else {
+          const errorData = await response.json();
+          return { 
+            success: false, 
+            message: `Anthropic API key test failed: ${errorData.error?.message || response.statusText}`
           };
         }
       }
