@@ -11,7 +11,8 @@ import {
   Check, 
   X,
   TestTube,
-  Power
+  Power,
+  Loader2
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -543,17 +544,42 @@ export default function AiConfigurationsManager() {
                 />
               </div>
 
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  {editingConfig ? "Update Configuration" : "Save Configuration"}
-                </Button>
+              <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                <div className="flex-1 flex justify-start">
+                  {editingConfig && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => {
+                        if (editingConfig) {
+                          testConfigMutation.mutate(editingConfig.id);
+                        }
+                      }}
+                      disabled={testConfigMutation.isPending}
+                    >
+                      {testConfigMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Testing...
+                        </>
+                      ) : (
+                        "Test Connection"
+                      )}
+                    </Button>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit">
+                    {editingConfig ? "Update Configuration" : "Save Configuration"}
+                  </Button>
+                </div>
               </DialogFooter>
             </form>
           </Form>
