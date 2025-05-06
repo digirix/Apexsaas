@@ -3,7 +3,6 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { TaskScheduler } from "./task-scheduler";
-import { checkMySQLConnection } from "./mysql-db";
 import { AiService } from "./utils/ai-service";
 import { 
   insertCountrySchema, insertCurrencySchema, insertStateSchema, 
@@ -59,105 +58,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Health check
   app.get("/api/v1/ping", (req, res) => {
     res.json({ status: "ok" });
-  });
-  
-  // MySQL database connection test
-  app.get("/api/v1/mysql/status", isAuthenticated, async (req, res) => {
-    try {
-      const result = await checkMySQLConnection();
-      res.json(result);
-    } catch (error) {
-      res.status(500).json({ connected: false, message: "Failed to check MySQL connection", error: error.message });
-    }
-  });
-  
-  // Test MySQL connection with provided credentials
-  app.post("/api/v1/mysql/test", isAuthenticated, async (req, res) => {
-    try {
-      const { host, port, user, password, database } = req.body;
-      
-      // Validate required fields
-      if (!host || !user || !database) {
-        return res.status(400).json({ 
-          connected: false, 
-          message: "Missing required MySQL connection parameters" 
-        });
-      }
-      
-      // Test connection with provided credentials
-      const result = await checkMySQLConnection({
-        host,
-        port: port || '3306',
-        user,
-        password: password || '',
-        database
-      });
-      
-      res.json(result);
-    } catch (error) {
-      res.status(500).json({ 
-        connected: false, 
-        message: "Failed to test MySQL connection", 
-        error: error.message 
-      });
-    }
-  });
-  
-  // Get current database configuration
-  app.get("/api/v1/database/config", isAuthenticated, async (req, res) => {
-    try {
-      // Read configuration from environment variables
-      const config = {
-        databaseType: process.env.DATABASE_TYPE || 'postgres',
-        mysqlHost: process.env.MYSQL_HOST || '',
-        mysqlPort: process.env.MYSQL_PORT || '3306',
-        mysqlUser: process.env.MYSQL_USER || '',
-        mysqlDatabase: process.env.MYSQL_DATABASE || '',
-        // Don't return password for security reasons
-      };
-      
-      res.json(config);
-    } catch (error) {
-      res.status(500).json({ 
-        message: "Failed to fetch database configuration", 
-        error: error.message 
-      });
-    }
-  });
-  
-  // Update database configuration
-  app.post("/api/v1/database/config", isAuthenticated, async (req, res) => {
-    try {
-      const { databaseType, mysqlHost, mysqlPort, mysqlUser, mysqlPassword, mysqlDatabase } = req.body;
-      
-      // In a production environment, you would update the .env file or environment variables
-      // For this implementation, we'll store the values in memory and inform the user
-      // that a restart is required for changes to take effect
-      
-      // Update global configuration
-      process.env.DATABASE_TYPE = databaseType || 'postgres';
-      
-      if (databaseType === 'mysql') {
-        process.env.MYSQL_HOST = mysqlHost || 'localhost';
-        process.env.MYSQL_PORT = mysqlPort || '3306';
-        process.env.MYSQL_USER = mysqlUser || '';
-        if (mysqlPassword) {
-          process.env.MYSQL_PASSWORD = mysqlPassword;
-        }
-        process.env.MYSQL_DATABASE = mysqlDatabase || '';
-      }
-      
-      res.json({ 
-        success: true, 
-        message: "Database configuration updated. Server restart required for changes to take effect." 
-      });
-    } catch (error) {
-      res.status(500).json({ 
-        success: false, 
-        message: "Failed to update database configuration", 
-        error: error.message 
-      });
-    }
   });
 
   // Setup Module Routes

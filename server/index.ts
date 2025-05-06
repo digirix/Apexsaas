@@ -3,9 +3,6 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
 import { TaskScheduler } from "./task-scheduler";
-import { createMySQLConnection } from "./mysql-db";
-import { DatabaseFactory } from "./db-factory";
-import dotenv from 'dotenv';
 
 const app = express();
 app.use(express.json());
@@ -43,23 +40,7 @@ app.use((req, res, next) => {
 
 (async () => {
   console.log("Starting server...");
-  
-  // Load environment variables
-  dotenv.config();
-  
   try {
-    // Initialize storage based on environment configuration
-    console.log("Initializing database connection from environment settings...");
-    const dbStorage = await DatabaseFactory.createStorageFromEnv();
-    
-    // Store the storage in the global scope for potential use outside standard areas
-    (global as any).dbStorage = dbStorage;
-    
-    // Replace the default storage with our dynamically created one
-    // This is a bit of a hack since storage is imported as a singleton
-    // but it allows us to switch databases without changing imports
-    Object.assign(storage, dbStorage);
-    
     console.log("Registering routes...");
     const server = await registerRoutes(app);
     console.log("Routes registered successfully");
