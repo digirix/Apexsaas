@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { TaskScheduler } from "./task-scheduler";
+import { checkMySQLConnection } from "./mysql-db";
 import { AiService } from "./utils/ai-service";
 import { 
   insertCountrySchema, insertCurrencySchema, insertStateSchema, 
@@ -58,6 +59,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Health check
   app.get("/api/v1/ping", (req, res) => {
     res.json({ status: "ok" });
+  });
+  
+  // MySQL database connection test
+  app.get("/api/v1/mysql/status", isAuthenticated, async (req, res) => {
+    try {
+      const result = await checkMySQLConnection();
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ connected: false, message: "Failed to check MySQL connection", error: error.message });
+    }
   });
 
   // Setup Module Routes
