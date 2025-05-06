@@ -66,20 +66,21 @@ export function AiChat({
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: (messageData: { message: string; conversationId?: string }) => 
-      apiRequest("/api/v1/ai/chat", messageData, "POST"),
-    onSuccess: (data) => {
+      apiRequest("POST", "/api/v1/ai/chat", messageData),
+    onSuccess: async (data) => {
+      const responseData = await data.json();
       // Add the assistant's response to messages
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,
         role: "assistant",
-        content: data.response,
+        content: responseData.response,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, assistantMessage]);
       
       // Set or update conversation ID
-      if (data.conversationId && !conversationId) {
-        setConversationId(data.conversationId);
+      if (responseData.conversationId && !conversationId) {
+        setConversationId(responseData.conversationId);
       }
     },
     onError: (error: any) => {
