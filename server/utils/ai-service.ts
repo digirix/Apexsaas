@@ -27,7 +27,8 @@ class GoogleAiProvider implements AiProvider {
   }
 
   async generateText(prompt: string, options: any = {}): Promise<string> {
-    const url = `${this.apiEndpoint}/v1/models/${this.model}:generateContent?key=${this.apiKey}`;
+    // Correct format for Google Gemini API
+    const url = `${this.apiEndpoint}/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
     
     const requestBody = {
       contents: [
@@ -70,7 +71,8 @@ class GoogleAiProvider implements AiProvider {
   }
 
   async analyzeImage(imageBase64: string, prompt: string): Promise<string> {
-    const url = `${this.apiEndpoint}/v1/models/gemini-pro-vision:generateContent?key=${this.apiKey}`;
+    // Correct format for Google Gemini Vision API
+    const url = `${this.apiEndpoint}/v1beta/models/gemini-pro-vision:generateContent?key=${this.apiKey}`;
     
     const requestBody = {
       contents: [
