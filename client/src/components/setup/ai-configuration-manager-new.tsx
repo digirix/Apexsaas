@@ -45,6 +45,16 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   AlertCircle,
   Bot,
   Brain,
@@ -58,7 +68,9 @@ import {
   Settings,
   Waypoints,
   Braces,
-  CircleDashed
+  CircleDashed,
+  Trash2,
+  Shield
 } from "lucide-react";
 
 const apiKeySchema = z.object({
@@ -84,6 +96,8 @@ export function MultiProviderAIConfigurationManager() {
   const [providersConfig, setProvidersConfig] = useState<Record<string, ProviderConfig>>(
     JSON.parse(JSON.stringify(AI_PROVIDERS))
   );
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [providerToDelete, setProviderToDelete] = useState<string | null>(null);
   
   // API key form
   const apiKeyForm = useForm<ApiKeyFormValues>({
