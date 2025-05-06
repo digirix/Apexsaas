@@ -12,7 +12,42 @@ export const AI_PROVIDERS: Record<string, ProviderConfig> = {
     apiKeyPrefix: "sk-or-",
     apiKeyMinLength: 20,
     models: [
-      // These models are fetched dynamically from OpenRouter API
+      {
+        id: "openai/gpt-4o",
+        name: "GPT-4o (via OpenRouter)",
+        provider: "openrouter",
+        requiresApiKey: true,
+        description: "OpenAI's most advanced model via OpenRouter",
+        contextWindow: 128000,
+        supportsVision: true
+      },
+      {
+        id: "anthropic/claude-3-opus-20240229",
+        name: "Claude 3 Opus (via OpenRouter)",
+        provider: "openrouter",
+        requiresApiKey: true,
+        description: "Anthropic's most powerful model via OpenRouter",
+        contextWindow: 200000,
+        supportsVision: true
+      },
+      {
+        id: "meta-llama/llama-3-70b-instruct",
+        name: "Llama 3 70B (via OpenRouter)",
+        provider: "openrouter",
+        requiresApiKey: true,
+        description: "Meta's open Llama 3 model via OpenRouter",
+        contextWindow: 8192,
+        supportsVision: false
+      },
+      {
+        id: "anthropic/claude-3-sonnet-20240229",
+        name: "Claude 3 Sonnet (via OpenRouter)",
+        provider: "openrouter",
+        requiresApiKey: true,
+        description: "Balanced Claude model via OpenRouter",
+        contextWindow: 200000,
+        supportsVision: true
+      }
     ]
   },
   openai: {

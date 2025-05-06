@@ -6041,10 +6041,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create the appropriate AI client
       const aiClient = await createAIClient(provider, apiKeyConfig.value);
       
-      // Get model ID (remove provider prefix if present)
-      const modelId = selectedModel.includes(`${provider}/`) 
-        ? selectedModel.substring(provider.length + 1) 
-        : selectedModel;
+      // Get model ID
+      let modelId = selectedModel;
+      
+      // For OpenRouter, keep the full model ID (e.g. "openai/gpt-4o")
+      // For direct providers, remove provider prefix if present
+      if (provider !== 'openrouter' && selectedModel.includes('/')) {
+        modelId = selectedModel.includes(`${provider}/`) 
+          ? selectedModel.substring(provider.length + 1) 
+          : selectedModel;
+      }
         
       // Get the chat completion
       const completion = await aiClient.createChatCompletion(
@@ -6118,10 +6124,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create the appropriate AI client
       const aiClient = await createAIClient(provider, apiKeyConfig.value);
       
-      // Get model ID (remove provider prefix if present)
-      const modelId = selectedModel.includes(`${provider}/`) 
-        ? selectedModel.substring(provider.length + 1) 
-        : selectedModel;
+      // Get model ID
+      let modelId = selectedModel;
+      
+      // For OpenRouter, keep the full model ID (e.g. "openai/gpt-4o")
+      // For direct providers, remove provider prefix if present
+      if (provider !== 'openrouter' && selectedModel.includes('/')) {
+        modelId = selectedModel.includes(`${provider}/`) 
+          ? selectedModel.substring(provider.length + 1) 
+          : selectedModel;
+      }
       
       let analysis;
       
