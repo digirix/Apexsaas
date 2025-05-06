@@ -5825,19 +5825,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!provider || !apiKey) {
         return res.status(400).json({
-          message: "Provider and API key are required"
+          success: false,
+          message: "Provider and API key are required",
+          details: {
+            missingFields: !provider ? ['provider'] : (!apiKey ? ['apiKey'] : ['provider', 'apiKey'])
+          }
         });
       }
       
-      // Use AiService to test the connection
+      console.log(`Testing connection to ${provider}...`);
       
+      // Use AiService to test the connection with improved error handling
       const result = await AiService.testConnection(provider, apiKey);
-      res.json(result);
+      
+      // Log result for debugging (ensure no sensitive data is logged)
+      if (result.success) {
+        console.log(`Connection to ${provider} was successful`);
+        console.log(`Found ${result.models?.length || 0} available models`);
+      } else {
+        console.error(`Connection to ${provider} failed: ${result.message}`);
+        if (result.error) {
+          console.error('Error details:', JSON.stringify({
+            message: result.error.message,
+            name: result.error.name,
+            // Don't log the full stack trace in production
+            ...(process.env.NODE_ENV !== 'production' && { stack: result.error.stack }),
+          }));
+        }
+      }
+      
+      // Return a detailed response to the client
+      res.json({
+        ...result,
+        // Strip sensitive information from error details
+        ...(result.error && {
+          error: {
+            name: result.error.name,
+            message: result.error.message,
+            // Don't include the full error object with potentially sensitive stack traces
+            type: typeof result.error
+          }
+        })
+      });
     } catch (error) {
-      console.error("Error testing AI connection:", error);
+      console.error("Unexpected error testing AI connection:", error);
       res.status(500).json({
         success: false,
-        message: error.message || "Failed to test AI connection"
+        message: error instanceof Error 
+          ? `Failed to test AI connection: ${error.message}` 
+          : "An unexpected error occurred while testing the AI connection",
+        details: {
+          type: error instanceof Error ? error.name : typeof error
+        }
       });
     }
   });
