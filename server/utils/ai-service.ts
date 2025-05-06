@@ -17,8 +17,8 @@ interface AiProvider {
 
 // Google AI Provider
 class GoogleAiProvider implements AiProvider {
-  private apiKey: string;
-  private model: string;
+  private apiKey: string = '';
+  private model: string = 'gemini-1.5-pro';
   private apiEndpoint = 'https://generativelanguage.googleapis.com';
   private apiVersion = 'v1beta';
   private availableModels: any[] = [];
@@ -217,8 +217,8 @@ class GoogleAiProvider implements AiProvider {
 
 // OpenAI Provider
 class OpenAiProvider implements AiProvider {
-  private client: OpenAI;
-  private model: string;
+  private client!: OpenAI; // Using definite assignment assertion
+  private model: string = 'gpt-4o';
 
   initialize(apiKey: string, model: string): void {
     this.client = new OpenAI({ apiKey });
@@ -277,8 +277,8 @@ class OpenAiProvider implements AiProvider {
 
 // Anthropic Provider
 class AnthropicProvider implements AiProvider {
-  private apiKey: string;
-  private model: string;
+  private apiKey: string = '';
+  private model: string = 'claude-3-opus-20240229';
   private apiEndpoint = 'https://api.anthropic.com/v1/messages';
 
   initialize(apiKey: string, model: string): void {
@@ -415,8 +415,13 @@ export class AiService {
       }
     }
 
+    // At this point this.provider should not be null, but let's double-check
+    if (!this.provider) {
+      throw new Error('Failed to initialize AI provider');
+    }
+
     try {
-      return await this.provider!.generateText(prompt, options);
+      return await this.provider.generateText(prompt, options);
     } catch (error) {
       console.error('Error generating AI response:', error);
       throw error;
@@ -432,12 +437,19 @@ export class AiService {
       }
     }
 
-    if (!this.provider.analyzeImage) {
+    // At this point this.provider should not be null, but let's double-check
+    if (!this.provider) {
+      throw new Error('Failed to initialize AI provider');
+    }
+    
+    // Check if the current provider supports image analysis
+    if (!('analyzeImage' in this.provider)) {
       throw new Error('Current AI provider does not support image analysis');
     }
 
     try {
-      return await this.provider.analyzeImage(imageBase64, prompt, options);
+      // Now TypeScript should know this.provider has an analyzeImage method
+      return await (this.provider as Required<AiProvider>).analyzeImage(imageBase64, prompt, options);
     } catch (error) {
       console.error('Error analyzing image with AI:', error);
       throw error;
@@ -445,14 +457,34 @@ export class AiService {
   }
 
   // Test a provider connection with the given API key
-  static async testConnection(provider: string, apiKey: string): Promise<{ success: boolean; message: string; models?: any[] }> {
+  static async testConnection(provider: string, apiKey: string): Promise<{ success: boolean; message: string; error?: string; details?: any; models?: any[] }> {
     try {
+      // Basic validation
+      if (!apiKey || apiKey.trim() === '') {
+        return {
+          success: false,
+          message: 'API key cannot be empty',
+          error: 'EMPTY_API_KEY'
+        };
+      }
+      
+      // Check if the provider is supported
+      if (!['Google', 'OpenAI', 'Anthropic'].includes(provider)) {
+        return {
+          success: false,
+          message: `Unsupported AI provider: ${provider}`,
+          error: 'UNSUPPORTED_PROVIDER'
+        };
+      }
+      
+      console.log(`Testing connection for provider: ${provider}`);
       const aiProvider = createProvider(provider);
       aiProvider.initialize(apiKey, '');
 
       // For Google AI, we'll try to list models first to validate API key and connection
       if (provider === 'Google' && aiProvider instanceof GoogleAiProvider) {
         try {
+          console.log('Listing Google AI models to validate API key...');
           // Try to list available models first
           const availableModels = await aiProvider.listModels();
           
@@ -472,6 +504,7 @@ export class AiService {
             });
           
           if (formattedModels.length > 0) {
+            console.log(`Found ${formattedModels.length} compatible Google AI models`);
             return {
               success: true,
               message: 'Connection successful. Found ' + formattedModels.length + ' available models.',
@@ -482,8 +515,37 @@ export class AiService {
           // If no models found, fall back to default model list
           console.log('No compatible models found, using default model list');
         } catch (listError) {
-          console.warn('Error listing models, falling back to testing with text generation', listError);
-          // Continue to text generation test below
+          console.warn('Error listing models from Google AI API:', listError);
+          
+          // Provide more detailed error information
+          const errorMessage = listError instanceof Error ? listError.message : 'Unknown error';
+          
+          // Check for common error patterns in Google AI API
+          if (errorMessage.includes('API key')) {
+            return {
+              success: false,
+              message: 'Invalid Google AI API key. Please check your credentials.',
+              error: 'INVALID_API_KEY',
+              details: errorMessage
+            };
+          } else if (errorMessage.includes('permission') || errorMessage.includes('unauthorized')) {
+            return {
+              success: false,
+              message: 'Your Google AI API key does not have permission to access this service.',
+              error: 'PERMISSION_DENIED',
+              details: errorMessage
+            };
+          } else if (errorMessage.includes('quota') || errorMessage.includes('rate limit')) {
+            return {
+              success: false,
+              message: 'You have exceeded your Google AI API quota or rate limit.',
+              error: 'QUOTA_EXCEEDED',
+              details: errorMessage
+            };
+          }
+          
+          // If we can't specifically identify the error, try text generation anyway
+          console.log('Falling back to testing with text generation');
         }
       }
 
@@ -526,9 +588,65 @@ export class AiService {
       };
     } catch (error) {
       console.error(`Error testing ${provider} connection:`, error);
+      
+      // Get the error message
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Detailed error message:', errorMessage);
+      
+      // Extract more detailed error information based on provider
+      let userFriendlyMessage = 'Connection failed';
+      let errorCode = 'UNKNOWN_ERROR';
+      
+      // Provider-specific error handling
+      switch (provider) {
+        case 'Google':
+          if (errorMessage.includes('API key')) {
+            userFriendlyMessage = 'Invalid Google AI API key. Please check your credentials.';
+            errorCode = 'INVALID_API_KEY';
+          } else if (errorMessage.includes('permission') || errorMessage.includes('forbidden')) {
+            userFriendlyMessage = 'Your Google AI API key does not have permission to access this service.';
+            errorCode = 'PERMISSION_DENIED';
+          } else if (errorMessage.includes('quota') || errorMessage.includes('rate limit')) {
+            userFriendlyMessage = 'You have exceeded your Google AI API quota or rate limit.';
+            errorCode = 'QUOTA_EXCEEDED';
+          } else if (errorMessage.includes('network') || errorMessage.includes('timeout')) {
+            userFriendlyMessage = 'Network error connecting to Google AI. Please check your internet connection.';
+            errorCode = 'NETWORK_ERROR';
+          }
+          break;
+          
+        case 'OpenAI':
+          if (errorMessage.includes('API key')) {
+            userFriendlyMessage = 'Invalid OpenAI API key. Please check your credentials.';
+            errorCode = 'INVALID_API_KEY';
+          } else if (errorMessage.includes('organization') || errorMessage.includes('access')) {
+            userFriendlyMessage = 'Your OpenAI API key does not have access to this model or organization.';
+            errorCode = 'ACCESS_DENIED';
+          } else if (errorMessage.includes('rate limit') || errorMessage.includes('requests per min')) {
+            userFriendlyMessage = 'Rate limit exceeded for OpenAI API. Please try again later.';
+            errorCode = 'RATE_LIMIT_EXCEEDED';
+          } else if (errorMessage.includes('insufficient_quota')) {
+            userFriendlyMessage = 'Your OpenAI account has insufficient quota. Please check your billing.';
+            errorCode = 'INSUFFICIENT_QUOTA';
+          }
+          break;
+          
+        case 'Anthropic':
+          if (errorMessage.includes('key') || errorMessage.includes('auth')) {
+            userFriendlyMessage = 'Invalid Anthropic API key. Please check your credentials.';
+            errorCode = 'INVALID_API_KEY';
+          } else if (errorMessage.includes('rate limit') || errorMessage.includes('too many requests')) {
+            userFriendlyMessage = 'Rate limit exceeded for Anthropic API. Please try again later.';
+            errorCode = 'RATE_LIMIT_EXCEEDED';
+          }
+          break;
+      }
+      
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'Unknown error occurred'
+        message: userFriendlyMessage,
+        error: errorCode,
+        details: errorMessage
       };
     }
   }

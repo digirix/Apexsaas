@@ -67,20 +67,45 @@ export default function AiSettingsPage() {
           setModel(data.models[0].id);
         }
       } else {
+        // Enhanced error display with more details
+        let errorDescription = data.message;
+        
+        // Add details if available
+        if (data.details && data.details !== data.message) {
+          errorDescription += `\n\nDetails: ${data.details}`;
+        }
+        
+        // Display error code if available
+        if (data.error) {
+          errorDescription += `\n\nError code: ${data.error}`;
+        }
+        
         toast({
           title: "Connection failed",
-          description: data.message,
+          description: errorDescription,
           variant: "destructive",
+        });
+        
+        // Log the detailed error for troubleshooting
+        console.error("AI connection test failed:", {
+          message: data.message,
+          error: data.error,
+          details: data.details
         });
       }
       setTestingConnection(false);
     },
     onError: (error: any) => {
+      // Handle network/request errors
+      const errorMessage = error.message || "There was an error testing the connection.";
+      
       toast({
         title: "Connection test failed",
-        description: error.message || "There was an error testing the connection.",
+        description: errorMessage,
         variant: "destructive",
       });
+      
+      console.error("AI connection test request failed:", error);
       setTestingConnection(false);
     },
   });
