@@ -2,9 +2,6 @@ import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, va
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Export AI schema
-export * from './ai-schema';
-
 // Module permissions access level enum
 export const accessLevelEnum = pgEnum('access_level', ['full', 'partial', 'restricted']);
 

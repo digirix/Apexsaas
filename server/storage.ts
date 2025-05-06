@@ -3,9 +3,7 @@ import {
   entityTypes, taskStatuses, taskStatusWorkflowRules, taxJurisdictions, serviceTypes, 
   clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions, 
   userPermissions, invoices, invoiceLineItems, payments, paymentGatewaySettings, chartOfAccounts,
-  journalEntries, journalEntryLines, journalEntryTypes,
-  // AI related schema
-  aiConfigurations, aiChatHistory, aiReportHistory
+  journalEntries, journalEntryLines, journalEntryTypes
 } from "@shared/schema";
 import type { 
   Tenant, User, InsertUser, InsertTenant, 
@@ -23,11 +21,7 @@ import type {
   ChartOfAccount, InsertChartOfAccount,
   // Journal entry types
   JournalEntry, InsertJournalEntry, JournalEntryLine, InsertJournalEntryLine,
-  JournalEntryType, InsertJournalEntryType,
-  // AI types
-  SelectAiConfiguration, InsertAiConfiguration,
-  SelectAiChatHistory, InsertAiChatHistory,
-  SelectAiReportHistory, InsertAiReportHistory
+  JournalEntryType, InsertJournalEntryType
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -325,23 +319,6 @@ export interface IStorage {
     startDate: Date;
     endDate: Date;
   }>;
-  
-  // AI Configuration Operations
-  getAiConfigurations(tenantId: number): Promise<SelectAiConfiguration[]>;
-  getAiConfiguration(id: number, tenantId: number): Promise<SelectAiConfiguration | undefined>;
-  getAiConfigurationByProvider(tenantId: number, provider: string): Promise<SelectAiConfiguration | undefined>;
-  createAiConfiguration(configuration: InsertAiConfiguration): Promise<SelectAiConfiguration>;
-  updateAiConfiguration(id: number, configuration: Partial<InsertAiConfiguration>): Promise<SelectAiConfiguration | undefined>;
-  deleteAiConfiguration(id: number, tenantId: number): Promise<boolean>;
-  
-  // AI Chat History Operations
-  getAiChatHistory(tenantId: number, userId?: number, limit?: number): Promise<SelectAiChatHistory[]>;
-  createAiChatHistory(chatHistory: InsertAiChatHistory): Promise<SelectAiChatHistory>;
-  
-  // AI Report History Operations
-  getAiReportHistory(tenantId: number, userId?: number, limit?: number): Promise<SelectAiReportHistory[]>;
-  getAiReport(id: number, tenantId: number): Promise<SelectAiReportHistory | undefined>;
-  createAiReportHistory(reportHistory: InsertAiReportHistory): Promise<SelectAiReportHistory>;
 }
 
 export class MemStorage implements IStorage {

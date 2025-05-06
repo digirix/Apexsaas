@@ -15,8 +15,7 @@ import {
   GitBranch,
   CreditCard,
   BookOpen,
-  BarChart2,
-  Sparkles
+  BarChart2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SetupSection } from "@/types/setup";
@@ -171,22 +170,6 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
               >
                 <BarChart2 className="h-5 w-5 mr-2 text-slate-500" />
                 Chart of Accounts
-              </Button>
-            </Link>
-          </div>
-        </div>
-        
-        {/* AI Configuration */}
-        <div>
-          <h3 className="text-sm font-medium text-slate-500 mb-2 px-2">AI Configuration</h3>
-          <div className="space-y-1">
-            <Link href="/ai-settings">
-              <Button
-                variant="ghost"
-                className="w-full justify-start text-slate-600"
-              >
-                <Sparkles className="h-5 w-5 mr-2 text-slate-500" />
-                AI Provider Settings
               </Button>
             </Link>
           </div>
