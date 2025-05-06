@@ -9,9 +9,11 @@ const OPENROUTER_API_BASE = 'https://openrouter.ai/api/v1';
 export class OpenRouterClient implements AIClient {
   private apiKey: string;
   
+  private initialized: Promise<void>;
+
   constructor(encryptedApiKey: string) {
     this.apiKey = ''; // Will be set after decryption
-    this.initializeClient(encryptedApiKey);
+    this.initialized = this.initializeClient(encryptedApiKey);
   }
   
   /**
@@ -36,6 +38,9 @@ export class OpenRouterClient implements AIClient {
    */
   public async testConnection(): Promise<{ success: boolean; message: string }> {
     try {
+      // Wait for initialization to complete
+      await this.initialized;
+      
       if (!this.apiKey) {
         throw new Error('API key not initialized');
       }
@@ -71,6 +76,9 @@ export class OpenRouterClient implements AIClient {
    */
   public async getModels(): Promise<any> {
     try {
+      // Wait for initialization to complete
+      await this.initialized;
+      
       if (!this.apiKey) {
         throw new Error('API key not initialized');
       }
@@ -103,6 +111,9 @@ export class OpenRouterClient implements AIClient {
    */
   public async createChatCompletion(model: string, messages: any[], temperature: number = 0.7): Promise<any> {
     try {
+      // Wait for initialization to complete
+      await this.initialized;
+      
       if (!this.apiKey) {
         throw new Error('API key not initialized');
       }
