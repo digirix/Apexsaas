@@ -214,10 +214,20 @@ export function UnifiedAIConfiguration() {
   // Mutation to update provider API key
   const updateApiKeyMutation = useMutation({
     mutationFn: async (values: ApiKeyFormValues) => {
-      return await apiRequest<any>(`/api/v1/setup/ai-configuration/${selectedProvider}/api-key`, {
+      const response = await fetch(`/api/v1/setup/ai-configuration/${selectedProvider}/api-key`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({ apiKey: values.apiKey }),
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to save API key");
+      }
+      
+      return await response.json();
     },
     onSuccess: () => {
       toast({
@@ -242,9 +252,19 @@ export function UnifiedAIConfiguration() {
   // Mutation to delete provider API key
   const deleteApiKeyMutation = useMutation({
     mutationFn: async (provider: AIProvider) => {
-      return await apiRequest<any>(`/api/v1/setup/ai-configuration/${provider}/api-key`, {
-        method: "DELETE"
+      const response = await fetch(`/api/v1/setup/ai-configuration/${provider}/api-key`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json"
+        }
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete API key");
+      }
+      
+      return await response.json();
     },
     onSuccess: () => {
       toast({
@@ -267,10 +287,20 @@ export function UnifiedAIConfiguration() {
   // Mutation to update model selection
   const updateModelMutation = useMutation({
     mutationFn: async (values: ModelSelectionFormValues) => {
-      return await apiRequest<any>(`/api/v1/setup/ai-configuration/${selectedProvider}/selected-model`, {
+      const response = await fetch(`/api/v1/setup/ai-configuration/${selectedProvider}/selected-model`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({ selectedModel: values.selectedModel }),
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to save model preference");
+      }
+      
+      return await response.json();
     },
     onSuccess: () => {
       toast({
@@ -298,10 +328,20 @@ export function UnifiedAIConfiguration() {
     setTestResult(null);
     
     try {
-      const result = await apiRequest<AIConnectionTestResult>(`/api/v1/setup/ai-configuration/${selectedProvider}/test-connection`, {
-        method: "POST"
+      // Fix API call to use fetch directly with full URL
+      const response = await fetch(`/api/v1/setup/ai-configuration/${selectedProvider}/test-connection`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        }
       });
       
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Connection test failed");
+      }
+      
+      const result = await response.json();
       setTestResult(result);
       
       if (result.success) {
@@ -346,7 +386,15 @@ export function UnifiedAIConfiguration() {
         source: 'api' | 'predefined' | 'empty';
       }
       
-      const result = await apiRequest<ModelsResponse>(`/api/v1/setup/ai-models/${selectedProvider}`);
+      // Fix API call to use fetch directly
+      const response = await fetch(`/api/v1/setup/ai-models/${selectedProvider}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to fetch models");
+      }
+      
+      const result: ModelsResponse = await response.json();
       
       setAvailableModels(result.models || []);
       setModelSource(result.source || 'predefined');
