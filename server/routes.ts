@@ -6108,14 +6108,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get model ID
       let modelId = selectedModel;
-      
-      // For OpenRouter, keep the full model ID (e.g. "openai/gpt-4o")
-      // For direct providers, remove provider prefix if present
-      if (provider !== 'openrouter' && selectedModel.includes('/')) {
-        modelId = selectedModel.includes(`${provider}/`) 
-          ? selectedModel.substring(provider.length + 1) 
-          : selectedModel;
+
+      console.log(`Original model selection: provider=${provider}, model=${selectedModel}`);
+
+      // Handle model ID formats based on provider
+      if (provider === "openrouter") {
+        // For OpenRouter, models need special handling
+
+        if (!selectedModel.includes("/")) {
+          // If no provider is specified, default to openai/ prefix for OpenRouter
+          modelId = `openai/${selectedModel}`;
+          console.log(`OpenRouter model ID adjusted: ${selectedModel} -> ${modelId}`);
+        } else {
+          // Model has provider prefix, check if its valid for OpenRouter
+          const providerPrefix = selectedModel.split("/")[0];
+
+          // Validate the provider is supported by OpenRouter
+          if (!["openai", "anthropic", "google", "meta", "mistral", "cohere"].includes(providerPrefix)) {
+            // Invalid provider, use a default model
+            modelId = "openai/gpt-3.5-turbo";
+            console.log(`Invalid OpenRouter model (${selectedModel}), using default: ${modelId}`);
+          } else if (providerPrefix === "google") {
+            // Special handling for Google models through OpenRouter - use a safer model
+            modelId = "anthropic/claude-3-haiku-20240307";
+            console.log(`OpenRouter model substitution: ${selectedModel} -> ${modelId}`);
+          }
+        }
+      } else {
+        // For direct providers, remove provider prefix if present
+        if (selectedModel.includes("/")) {
+          if (selectedModel.startsWith(`${provider}/`)) {
+            // Remove provider prefix
+            modelId = selectedModel.substring(provider.length + 1);
+          } else {
+            // Different provider in prefix, take just the model part
+            modelId = selectedModel.split("/").pop() || selectedModel;
+          }
+          console.log(`Direct provider model ID adjusted: ${selectedModel} -> ${modelId}`);
+        }
       }
+
+      console.log(`Using model ID: ${modelId} for provider: ${provider}`);
         
       // Get the chat completion
       const completion = await aiClient.createChatCompletion(
