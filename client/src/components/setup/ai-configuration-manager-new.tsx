@@ -93,11 +93,11 @@ export function MultiProviderAIConfigurationManager() {
   const queryClient = useQueryClient();
   const [testResults, setTestResults] = useState<Record<string, AIConnectionTestResult | null>>({});
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>('openrouter');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [providerToDelete, setProviderToDelete] = useState<AIProvider | null>(null);
   const [providersConfig, setProvidersConfig] = useState<Record<string, ProviderConfig>>(
     JSON.parse(JSON.stringify(AI_PROVIDERS))
   );
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [providerToDelete, setProviderToDelete] = useState<string | null>(null);
   
   // API key form
   const apiKeyForm = useForm<ApiKeyFormValues>({
@@ -373,6 +373,19 @@ export function MultiProviderAIConfigurationManager() {
   const isApiKeyConfigured = currentProvider?.apiKeyConfigured;
   const testResult = testResults[selectedProvider];
   
+  // Function to handle deleting API key
+  const handleDeleteApiKey = (provider: AIProvider) => {
+    setProviderToDelete(provider);
+    setDeleteDialogOpen(true);
+  };
+  
+  // Function to confirm API key deletion
+  const confirmDeleteApiKey = () => {
+    if (providerToDelete) {
+      deleteApiKeyMutation.mutate(providerToDelete);
+    }
+  };
+  
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -383,6 +396,28 @@ export function MultiProviderAIConfigurationManager() {
           </p>
         </div>
       </div>
+      
+      {/* Delete API Key Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete API Key</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the API key for {providerToDelete ? providersConfig[providerToDelete]?.displayName : "this provider"}?
+              This will disable AI features that rely on this provider.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteApiKey}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       
       <Tabs defaultValue="providers" className="space-y-4">
         <TabsList>
@@ -688,9 +723,18 @@ export function MultiProviderAIConfigurationManager() {
                                 type="button" 
                                 variant="outline" 
                                 onClick={() => apiKeyForm.reset({ provider: provider.name, apiKey: "" })}
-                                className="border-red-200 text-red-700 hover:bg-red-50 whitespace-nowrap"
+                                className="border-amber-200 text-amber-700 hover:bg-amber-50 whitespace-nowrap"
                               >
                                 Update Key
+                              </Button>
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                onClick={() => handleDeleteApiKey(provider.name as AIProvider)}
+                                className="border-red-200 text-red-700 hover:bg-red-50 whitespace-nowrap"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Key
                               </Button>
                             </div>
                             
