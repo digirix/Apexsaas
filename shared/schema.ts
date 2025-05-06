@@ -1090,3 +1090,35 @@ export type LoginData = z.infer<typeof loginSchema>;
 export type RegisterData = z.infer<typeof registerSchema>;
 
 // These types are already defined above
+
+// AI Feature module
+export const aiProviderEnum = pgEnum('ai_provider', ['openrouter', 'googleai']);
+
+// AI Configuration table
+export const aiConfigurations = pgTable("ai_configurations", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  provider: aiProviderEnum("provider").notNull(),
+  apiKey: text("api_key").notNull(),
+  modelId: text("model_id").notNull(), // The selected/detected model to use
+  isActive: boolean("is_active").default(true).notNull(),
+  lastTested: timestamp("last_tested").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantProviderUnique: unique().on(table.tenantId, table.provider),
+  };
+});
+
+export const insertAiConfigurationSchema = createInsertSchema(aiConfigurations).pick({
+  tenantId: true,
+  provider: true,
+  apiKey: true,
+  modelId: true,
+  isActive: true,
+  lastTested: true
+});
+
+export type AiConfiguration = typeof aiConfigurations.$inferSelect;
+export type InsertAiConfiguration = z.infer<typeof insertAiConfigurationSchema>;
