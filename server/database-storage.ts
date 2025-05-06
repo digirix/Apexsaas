@@ -3171,13 +3171,13 @@ export class DatabaseStorage implements IStorage {
   }
   
   // AI Chat History Operations
-  async getAiChatHistory(tenantId: number, userId?: number, limit?: number): Promise<SelectAiChatHistory[]> {
-    let query = db.select().from(aiChatHistory)
-      .where(eq(aiChatHistory.tenantId, tenantId))
-      .orderBy(desc(aiChatHistory.createdAt));
+  async getAiChatConversations(tenantId: number, userId?: number, limit?: number): Promise<SelectAiChatConversation[]> {
+    let query = db.select().from(aiChatConversations)
+      .where(eq(aiChatConversations.tenantId, tenantId))
+      .orderBy(desc(aiChatConversations.createdAt));
     
     if (userId) {
-      query = query.where(eq(aiChatHistory.userId, userId));
+      query = query.where(eq(aiChatConversations.userId, userId));
     }
     
     if (limit) {
@@ -3187,24 +3187,81 @@ export class DatabaseStorage implements IStorage {
     return await query;
   }
 
-  async createAiChatHistory(chatHistory: InsertAiChatHistory): Promise<SelectAiChatHistory> {
-    const [newChatHistory] = await db.insert(aiChatHistory)
-      .values({
-        ...chatHistory,
-        createdAt: new Date()
-      })
-      .returning();
-    return newChatHistory;
+  async getAiChatConversation(id: number, tenantId: number): Promise<SelectAiChatConversation | undefined> {
+    const [conversation] = await db.select().from(aiChatConversations)
+      .where(and(
+        eq(aiChatConversations.id, id),
+        eq(aiChatConversations.tenantId, tenantId)
+      ));
+    return conversation;
+  }
+
+  async createAiChatConversation(conversation: InsertAiChatConversation): Promise<SelectAiChatConversation> {
+    const [newConversation] = await db.insert(aiChatConversations).values(conversation).returning();
+    return newConversation;
+  }
+
+  async getAiChatMessages(conversationId: number, limit?: number): Promise<SelectAiChatMessage[]> {
+    let query = db.select().from(aiChatMessages)
+      .where(eq(aiChatMessages.conversationId, conversationId))
+      .orderBy(asc(aiChatMessages.createdAt));
+    
+    if (limit) {
+      query = query.limit(limit);
+    }
+    
+    return await query;
+  }
+
+  async createAiChatMessage(message: InsertAiChatMessage): Promise<SelectAiChatMessage> {
+    const [newMessage] = await db.insert(aiChatMessages).values(message).returning();
+    return newMessage;
   }
   
-  // AI Report History Operations
-  async getAiReportHistory(tenantId: number, userId?: number, limit?: number): Promise<SelectAiReportHistory[]> {
-    let query = db.select().from(aiReportHistory)
-      .where(eq(aiReportHistory.tenantId, tenantId))
-      .orderBy(desc(aiReportHistory.createdAt));
+  // AI Task Suggestions Operations
+  async getAiTaskSuggestions(tenantId: number, entityId: number): Promise<SelectAiTaskSuggestion | undefined> {
+    const [suggestions] = await db.select().from(aiTaskSuggestions)
+      .where(and(
+        eq(aiTaskSuggestions.tenantId, tenantId),
+        eq(aiTaskSuggestions.entityId, entityId)
+      ))
+      .orderBy(desc(aiTaskSuggestions.createdAt))
+      .limit(1);
+    
+    return suggestions;
+  }
+
+  async createAiTaskSuggestion(suggestion: InsertAiTaskSuggestion): Promise<SelectAiTaskSuggestion> {
+    const [newSuggestion] = await db.insert(aiTaskSuggestions).values(suggestion).returning();
+    return newSuggestion;
+  }
+
+  // AI Compliance Analysis Operations
+  async getAiComplianceAnalysis(tenantId: number, entityId: number): Promise<SelectAiComplianceAnalysis | undefined> {
+    const [analysis] = await db.select().from(aiComplianceAnalyses)
+      .where(and(
+        eq(aiComplianceAnalyses.tenantId, tenantId),
+        eq(aiComplianceAnalyses.entityId, entityId)
+      ))
+      .orderBy(desc(aiComplianceAnalyses.createdAt))
+      .limit(1);
+    
+    return analysis;
+  }
+
+  async createAiComplianceAnalysis(analysis: InsertAiComplianceAnalysis): Promise<SelectAiComplianceAnalysis> {
+    const [newAnalysis] = await db.insert(aiComplianceAnalyses).values(analysis).returning();
+    return newAnalysis;
+  }
+
+  // AI Document Analysis Operations
+  async getAiDocumentAnalyses(tenantId: number, userId?: number, limit?: number): Promise<SelectAiDocumentAnalysis[]> {
+    let query = db.select().from(aiDocumentAnalyses)
+      .where(eq(aiDocumentAnalyses.tenantId, tenantId))
+      .orderBy(desc(aiDocumentAnalyses.createdAt));
     
     if (userId) {
-      query = query.where(eq(aiReportHistory.userId, userId));
+      query = query.where(eq(aiDocumentAnalyses.userId, userId));
     }
     
     if (limit) {
@@ -3214,22 +3271,62 @@ export class DatabaseStorage implements IStorage {
     return await query;
   }
 
-  async getAiReport(id: number, tenantId: number): Promise<SelectAiReportHistory | undefined> {
-    const [report] = await db.select().from(aiReportHistory)
+  async getAiDocumentAnalysis(id: number, tenantId: number): Promise<SelectAiDocumentAnalysis | undefined> {
+    const [analysis] = await db.select().from(aiDocumentAnalyses)
       .where(and(
-        eq(aiReportHistory.id, id),
-        eq(aiReportHistory.tenantId, tenantId)
+        eq(aiDocumentAnalyses.id, id),
+        eq(aiDocumentAnalyses.tenantId, tenantId)
       ));
-    return report;
+    return analysis;
   }
 
-  async createAiReportHistory(reportHistory: InsertAiReportHistory): Promise<SelectAiReportHistory> {
-    const [newReportHistory] = await db.insert(aiReportHistory)
-      .values({
-        ...reportHistory,
-        createdAt: new Date()
-      })
-      .returning();
-    return newReportHistory;
+  async getAiDocumentAnalysisByHash(tenantId: number, documentHash: string): Promise<SelectAiDocumentAnalysis | undefined> {
+    const [analysis] = await db.select().from(aiDocumentAnalyses)
+      .where(and(
+        eq(aiDocumentAnalyses.tenantId, tenantId),
+        eq(aiDocumentAnalyses.documentHash, documentHash)
+      ))
+      .orderBy(desc(aiDocumentAnalyses.createdAt))
+      .limit(1);
+    
+    return analysis;
+  }
+
+  async createAiDocumentAnalysis(analysis: InsertAiDocumentAnalysis): Promise<SelectAiDocumentAnalysis> {
+    const [newAnalysis] = await db.insert(aiDocumentAnalyses).values(analysis).returning();
+    return newAnalysis;
+  }
+
+  // AI Learning Data Operations
+  async getAiLearningData(tenantId: number, processed: boolean = false, limit?: number): Promise<SelectAiLearningData[]> {
+    let query = db.select().from(aiLearningData)
+      .where(and(
+        eq(aiLearningData.tenantId, tenantId),
+        eq(aiLearningData.processed, processed)
+      ))
+      .orderBy(desc(aiLearningData.createdAt));
+    
+    if (limit) {
+      query = query.limit(limit);
+    }
+    
+    return await query;
+  }
+
+  async markAiLearningDataAsProcessed(id: number, tenantId: number): Promise<boolean> {
+    const [updated] = await db.update(aiLearningData)
+      .set({ processed: true })
+      .where(and(
+        eq(aiLearningData.id, id),
+        eq(aiLearningData.tenantId, tenantId)
+      ))
+      .returning({ id: aiLearningData.id });
+    
+    return !!updated;
+  }
+
+  async createAiLearningData(data: InsertAiLearningData): Promise<SelectAiLearningData> {
+    const [newData] = await db.insert(aiLearningData).values(data).returning();
+    return newData;
   }
 }
