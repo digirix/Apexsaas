@@ -3,7 +3,9 @@ import {
   entityTypes, taskStatuses, taskStatusWorkflowRules, taxJurisdictions, serviceTypes, 
   clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions, 
   userPermissions, invoices, invoiceLineItems, payments, paymentGatewaySettings, chartOfAccounts,
-  journalEntries, journalEntryLines, journalEntryTypes
+  journalEntries, journalEntryLines, journalEntryTypes,
+  // AI related schema
+  aiConfigurations, aiChatHistory, aiReportHistory
 } from "@shared/schema";
 import type { 
   Tenant, User, InsertUser, InsertTenant, 
@@ -21,7 +23,11 @@ import type {
   ChartOfAccount, InsertChartOfAccount,
   // Journal entry types
   JournalEntry, InsertJournalEntry, JournalEntryLine, InsertJournalEntryLine,
-  JournalEntryType, InsertJournalEntryType
+  JournalEntryType, InsertJournalEntryType,
+  // AI types
+  SelectAiConfiguration, InsertAiConfiguration,
+  SelectAiChatHistory, InsertAiChatHistory,
+  SelectAiReportHistory, InsertAiReportHistory
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";

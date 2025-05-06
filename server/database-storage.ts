@@ -5,7 +5,9 @@ import {
   userPermissions, invoices, invoiceLineItems, payments, paymentGatewaySettings, chartOfAccounts,
   journalEntries, journalEntryLines, journalEntryTypes,
   // Chart of Accounts hierarchical structure
-  chartOfAccountsMainGroups, chartOfAccountsElementGroups, chartOfAccountsSubElementGroups, chartOfAccountsDetailedGroups
+  chartOfAccountsMainGroups, chartOfAccountsElementGroups, chartOfAccountsSubElementGroups, chartOfAccountsDetailedGroups,
+  // AI related schema
+  aiConfigurations, aiChatHistory, aiReportHistory
 } from "@shared/schema";
 import type { 
   Tenant, User, InsertUser, InsertTenant, 
@@ -28,6 +30,10 @@ import type {
   ChartOfAccountsDetailedGroup, InsertChartOfAccountsDetailedGroup, 
   // Journal entry types
   JournalEntry, InsertJournalEntry, JournalEntryLine, InsertJournalEntryLine,
+  // AI types
+  SelectAiConfiguration, InsertAiConfiguration,
+  SelectAiChatHistory, InsertAiChatHistory,
+  SelectAiReportHistory, InsertAiReportHistory,
   JournalEntryType, InsertJournalEntryType
 } from "@shared/schema";
 import { IStorage } from "./storage";
