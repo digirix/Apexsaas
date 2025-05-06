@@ -42,8 +42,8 @@ import {
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 
 const aiProviderOptions = [
-  { value: 'openrouter', label: 'OpenRouter.ai' },
-  { value: 'googleai', label: 'Google AI (Gemini)' },
+  { value: 'OpenAI', label: 'OpenRouter.ai' },
+  { value: 'Google', label: 'Google AI (Gemini)' },
 ];
 
 // Common models for OpenRouter.ai
@@ -66,7 +66,7 @@ const googleaiModels = [
 
 const aiConfigurationSchema = z.object({
   id: z.number().optional(),
-  provider: z.enum(['openrouter', 'googleai']),
+  provider: z.enum(['OpenAI', 'Google', 'Anthropic']),
   apiKey: z.string().min(1, "API key is required"),
   modelId: z.string().min(1, "Model ID is required"),
   isActive: z.boolean().default(true),
@@ -84,7 +84,7 @@ export default function AiConfigurationsManager() {
 
   // Get suggested models based on provider
   const getSuggestedModels = (provider: string) => {
-    return provider === 'openrouter' ? openrouterModels : googleaiModels;
+    return provider === 'OpenAI' ? openrouterModels : googleaiModels;
   };
 
   // Queries
@@ -103,7 +103,7 @@ export default function AiConfigurationsManager() {
   const form = useForm<AiConfiguration>({
     resolver: zodResolver(aiConfigurationSchema),
     defaultValues: {
-      provider: 'openrouter',
+      provider: 'OpenAI',
       apiKey: '',
       modelId: 'openai/gpt-4-turbo',
       isActive: true,
@@ -118,7 +118,7 @@ export default function AiConfigurationsManager() {
       });
     } else {
       form.reset({
-        provider: 'openrouter',
+        provider: 'OpenAI',
         apiKey: '',
         modelId: 'google/gemini-flash-1.5-8b-exp',
         isActive: true,
@@ -308,7 +308,7 @@ export default function AiConfigurationsManager() {
     setEditingConfig(null);
     // Set default to use the Google Gemini model via OpenRouter as requested
     form.reset({
-      provider: 'openrouter',
+      provider: 'OpenAI',
       apiKey: '',
       modelId: 'google/gemini-flash-1.5-8b-exp',
       isActive: true,
@@ -317,24 +317,28 @@ export default function AiConfigurationsManager() {
   };
 
   const handleProviderChange = (value: string) => {
-    form.setValue("provider", value as 'openrouter' | 'googleai');
+    form.setValue("provider", value as 'OpenAI' | 'Google' | 'Anthropic');
     
     // Set default model based on provider
-    if (value === 'openrouter') {
+    if (value === 'OpenAI') {
       form.setValue("modelId", "google/gemini-flash-1.5-8b-exp");
-    } else {
+    } else if (value === 'Google') {
       form.setValue("modelId", "gemini-1.5-pro");
+    } else {
+      form.setValue("modelId", "anthropic/claude-3-haiku-20240307");
     }
   };
 
   const formatProviderName = (type: string) => {
     switch(type) {
-      case 'openrouter':
-        return 'OpenRouter.ai';
-      case 'googleai':
+      case 'OpenAI':
+        return 'OpenRouter.ai (OpenAI)';
+      case 'Google':
         return 'Google AI (Gemini)';
+      case 'Anthropic':
+        return 'Anthropic (Claude)';
       default:
-        return type.charAt(0).toUpperCase() + type.slice(1);
+        return type;
     }
   };
 
