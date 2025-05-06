@@ -3,6 +3,8 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
 import { TaskScheduler } from "./task-scheduler";
+import { createMySQLConnection } from "./mysql-db";
+import dotenv from 'dotenv';
 
 const app = express();
 app.use(express.json());
@@ -40,7 +42,22 @@ app.use((req, res, next) => {
 
 (async () => {
   console.log("Starting server...");
+  
+  // Load environment variables
+  dotenv.config();
+  
   try {
+    // Try to establish MySQL connection if configured
+    console.log("Checking MySQL connection...");
+    const mysqlDb = await createMySQLConnection();
+    if (mysqlDb) {
+      console.log("MySQL connection established successfully");
+      // Store MySQL connection for later use if needed
+      (global as any).mysqlDb = mysqlDb;
+    } else {
+      console.log("No MySQL connection established - continuing with PostgreSQL only");
+    }
+    
     console.log("Registering routes...");
     const server = await registerRoutes(app);
     console.log("Routes registered successfully");
