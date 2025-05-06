@@ -325,6 +325,23 @@ export interface IStorage {
     startDate: Date;
     endDate: Date;
   }>;
+  
+  // AI Configuration Operations
+  getAiConfigurations(tenantId: number): Promise<SelectAiConfiguration[]>;
+  getAiConfiguration(id: number, tenantId: number): Promise<SelectAiConfiguration | undefined>;
+  getAiConfigurationByProvider(tenantId: number, provider: string): Promise<SelectAiConfiguration | undefined>;
+  createAiConfiguration(configuration: InsertAiConfiguration): Promise<SelectAiConfiguration>;
+  updateAiConfiguration(id: number, configuration: Partial<InsertAiConfiguration>): Promise<SelectAiConfiguration | undefined>;
+  deleteAiConfiguration(id: number, tenantId: number): Promise<boolean>;
+  
+  // AI Chat History Operations
+  getAiChatHistory(tenantId: number, userId?: number, limit?: number): Promise<SelectAiChatHistory[]>;
+  createAiChatHistory(chatHistory: InsertAiChatHistory): Promise<SelectAiChatHistory>;
+  
+  // AI Report History Operations
+  getAiReportHistory(tenantId: number, userId?: number, limit?: number): Promise<SelectAiReportHistory[]>;
+  getAiReport(id: number, tenantId: number): Promise<SelectAiReportHistory | undefined>;
+  createAiReportHistory(reportHistory: InsertAiReportHistory): Promise<SelectAiReportHistory>;
 }
 
 export class MemStorage implements IStorage {

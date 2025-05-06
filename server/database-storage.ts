@@ -3109,4 +3109,123 @@ export class DatabaseStorage implements IStorage {
       endDate: effectiveEndDate
     };
   }
+
+  // AI Configuration Operations
+  async getAiConfigurations(tenantId: number): Promise<SelectAiConfiguration[]> {
+    return await db.select().from(aiConfigurations)
+      .where(eq(aiConfigurations.tenantId, tenantId));
+  }
+
+  async getAiConfiguration(id: number, tenantId: number): Promise<SelectAiConfiguration | undefined> {
+    const [config] = await db.select().from(aiConfigurations)
+      .where(and(
+        eq(aiConfigurations.id, id),
+        eq(aiConfigurations.tenantId, tenantId)
+      ));
+    return config;
+  }
+
+  async getAiConfigurationByProvider(tenantId: number, provider: string): Promise<SelectAiConfiguration | undefined> {
+    const [config] = await db.select().from(aiConfigurations)
+      .where(and(
+        eq(aiConfigurations.tenantId, tenantId),
+        eq(aiConfigurations.provider, provider)
+      ));
+    return config;
+  }
+
+  async createAiConfiguration(configuration: InsertAiConfiguration): Promise<SelectAiConfiguration> {
+    const [newConfig] = await db.insert(aiConfigurations)
+      .values({
+        ...configuration,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+    return newConfig;
+  }
+
+  async updateAiConfiguration(id: number, configuration: Partial<InsertAiConfiguration>): Promise<SelectAiConfiguration | undefined> {
+    const [updatedConfig] = await db.update(aiConfigurations)
+      .set({
+        ...configuration,
+        updatedAt: new Date()
+      })
+      .where(eq(aiConfigurations.id, id))
+      .returning();
+    return updatedConfig;
+  }
+
+  async deleteAiConfiguration(id: number, tenantId: number): Promise<boolean> {
+    const [deletedConfig] = await db.delete(aiConfigurations)
+      .where(and(
+        eq(aiConfigurations.id, id),
+        eq(aiConfigurations.tenantId, tenantId)
+      ))
+      .returning();
+    return !!deletedConfig;
+  }
+  
+  // AI Chat History Operations
+  async getAiChatHistory(tenantId: number, userId?: number, limit?: number): Promise<SelectAiChatHistory[]> {
+    let query = db.select().from(aiChatHistory)
+      .where(eq(aiChatHistory.tenantId, tenantId))
+      .orderBy(desc(aiChatHistory.createdAt));
+    
+    if (userId) {
+      query = query.where(eq(aiChatHistory.userId, userId));
+    }
+    
+    if (limit) {
+      query = query.limit(limit);
+    }
+    
+    return await query;
+  }
+
+  async createAiChatHistory(chatHistory: InsertAiChatHistory): Promise<SelectAiChatHistory> {
+    const [newChatHistory] = await db.insert(aiChatHistory)
+      .values({
+        ...chatHistory,
+        createdAt: new Date()
+      })
+      .returning();
+    return newChatHistory;
+  }
+  
+  // AI Report History Operations
+  async getAiReportHistory(tenantId: number, userId?: number, limit?: number): Promise<SelectAiReportHistory[]> {
+    let query = db.select().from(aiReportHistory)
+      .where(eq(aiReportHistory.tenantId, tenantId))
+      .orderBy(desc(aiReportHistory.createdAt));
+    
+    if (userId) {
+      query = query.where(eq(aiReportHistory.userId, userId));
+    }
+    
+    if (limit) {
+      query = query.limit(limit);
+    }
+    
+    return await query;
+  }
+
+  async getAiReport(id: number, tenantId: number): Promise<SelectAiReportHistory | undefined> {
+    const [report] = await db.select().from(aiReportHistory)
+      .where(and(
+        eq(aiReportHistory.id, id),
+        eq(aiReportHistory.tenantId, tenantId)
+      ));
+    return report;
+  }
+
+  async createAiReportHistory(reportHistory: InsertAiReportHistory): Promise<SelectAiReportHistory> {
+    const [newReportHistory] = await db.insert(aiReportHistory)
+      .values({
+        ...reportHistory,
+        createdAt: new Date()
+      })
+      .returning();
+    return newReportHistory;
+  }
 }
