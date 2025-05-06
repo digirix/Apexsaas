@@ -1102,7 +1102,6 @@ export const aiConfigurations = pgTable("ai_configurations", {
   apiKey: text("api_key").notNull(),
   modelId: text("model").notNull(), // The selected/detected model to use
   isActive: boolean("is_active").default(true).notNull(),
-  lastTested: timestamp("last_tested").defaultNow().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => {
@@ -1117,7 +1116,6 @@ export const insertAiConfigurationSchema = createInsertSchema(aiConfigurations).
   apiKey: true,
   modelId: true,
   isActive: true,
-  lastTested: true
 });
 
 export type AiConfiguration = typeof aiConfigurations.$inferSelect;

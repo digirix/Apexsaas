@@ -3186,8 +3186,8 @@ export class DatabaseStorage implements IStorage {
         });
         
         if (response.ok) {
-          // Update the lastTested timestamp
-          await this.updateAiConfiguration(id, { lastTested: new Date() });
+          // Update the updatedAt timestamp instead of lastTested
+          await this.updateAiConfiguration(id, { updatedAt: new Date() });
           return { success: true, message: "OpenRouter API key is valid" };
         } else {
           const errorData = await response.json();
@@ -3204,8 +3204,8 @@ export class DatabaseStorage implements IStorage {
         });
         
         if (response.ok) {
-          // Update the lastTested timestamp
-          await this.updateAiConfiguration(id, { lastTested: new Date() });
+          // Update the updatedAt timestamp instead of lastTested
+          await this.updateAiConfiguration(id, { updatedAt: new Date() });
           return { success: true, message: "Google AI API key is valid" };
         } else {
           const errorData = await response.json();
