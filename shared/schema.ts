@@ -1100,7 +1100,7 @@ export const aiConfigurations = pgTable("ai_configurations", {
   tenantId: integer("tenant_id").notNull(),
   provider: aiProviderEnum("provider").notNull(),
   apiKey: text("api_key").notNull(),
-  modelId: text("model_id").notNull(), // The selected/detected model to use
+  modelId: text("model").notNull(), // The selected/detected model to use
   isActive: boolean("is_active").default(true).notNull(),
   lastTested: timestamp("last_tested").defaultNow().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

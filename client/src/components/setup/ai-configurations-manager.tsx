@@ -433,22 +433,24 @@ export default function AiConfigurationsManager() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>AI Provider</FormLabel>
-                      <div className="space-y-2">
-                        <Tabs
-                          value={field.value}
-                          onValueChange={handleProviderChange}
-                          className="w-full"
-                          disabled={!!editingConfig}
-                        >
-                          <TabsList className="w-full grid grid-cols-2">
-                            {aiProviderOptions.map((option) => (
-                              <TabsTrigger key={option.value} value={option.value}>
-                                {option.label}
-                              </TabsTrigger>
-                            ))}
-                          </TabsList>
-                        </Tabs>
-                      </div>
+                      <Select
+                        value={field.value}
+                        onValueChange={(value) => handleProviderChange(value)}
+                        disabled={!!editingConfig}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select AI Provider" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {aiProviderOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormDescription>
                         Select the AI provider service
                       </FormDescription>
@@ -490,19 +492,23 @@ export default function AiConfigurationsManager() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Default Model</FormLabel>
-                      <FormControl>
-                        <select 
-                          className="w-full p-2 border rounded"
-                          value={field.value}
-                          onChange={(e) => field.onChange(e.target.value)}
-                        >
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select AI Model" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
                           {getSuggestedModels(provider).map(model => (
-                            <option key={model.value} value={model.value}>
+                            <SelectItem key={model.value} value={model.value}>
                               {model.label}
-                            </option>
+                            </SelectItem>
                           ))}
-                        </select>
-                      </FormControl>
+                        </SelectContent>
+                      </Select>
                       <FormDescription>
                         {provider === 'openrouter' && field.value === 'google/gemini-flash-1.5-8b-exp' 
                           ? 'Using Google Gemini Flash 1.5 8B model via OpenRouter.ai for optimal performance'
