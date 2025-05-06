@@ -149,7 +149,15 @@ export function AIFinancialAnalysis() {
   };
   
   // Determine if AI is configured properly
-  const isAIConfigured = aiConfigQuery.data?.apiKeyConfigured && aiConfigQuery.data?.selectedModel;
+  const isAIConfigured = 
+    // New format
+    (aiConfigQuery.data?.selectedProvider && 
+     aiConfigQuery.data?.providers && 
+     aiConfigQuery.data?.providers[aiConfigQuery.data.selectedProvider]?.apiKeyConfigured && 
+     aiConfigQuery.data?.selectedModel) 
+    || 
+    // Legacy format
+    (aiConfigQuery.data?.apiKeyConfigured && aiConfigQuery.data?.selectedModel);
   const dataLoading = journalsQuery.isLoading || accountsQuery.isLoading || aiConfigQuery.isLoading;
   
   // Generate query examples based on available data

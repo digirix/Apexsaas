@@ -131,7 +131,15 @@ export function AIChatbot({ initialSystemPrompt = initialSystemPromptDefault }: 
   };
   
   // Determine if AI is configured properly
-  const isAIConfigured = aiConfigQuery.data?.apiKeyConfigured && aiConfigQuery.data?.selectedModel;
+  const isAIConfigured = 
+    // New format
+    (aiConfigQuery.data?.selectedProvider && 
+     aiConfigQuery.data?.providers && 
+     aiConfigQuery.data?.providers[aiConfigQuery.data.selectedProvider]?.apiKeyConfigured && 
+     aiConfigQuery.data?.selectedModel) 
+    || 
+    // Legacy format
+    (aiConfigQuery.data?.apiKeyConfigured && aiConfigQuery.data?.selectedModel);
   const isLoading = aiConfigQuery.isLoading || chatMutation.isPending;
   
   return (

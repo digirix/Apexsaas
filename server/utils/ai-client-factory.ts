@@ -31,7 +31,12 @@ export class OpenAIClient implements AIClient {
 
   async testConnection(): Promise<{ success: boolean; message: string }> {
     try {
-      const models = await this.client.models.list();
+      // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+      await this.client.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: "test" }],
+        max_tokens: 1
+      });
       return { success: true, message: "Successfully connected to OpenAI API" };
     } catch (error: any) {
       return { 
