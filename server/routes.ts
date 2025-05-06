@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { TaskScheduler } from "./task-scheduler";
 import { encrypt, decrypt } from "./utils/encryption";
 import { OpenRouterClient } from "./utils/openrouter-client";
+import { createAIClient } from "./utils/ai-client-factory";
 import { 
   insertCountrySchema, insertCurrencySchema, insertStateSchema, 
   insertEntityTypeSchema, insertTaskStatusSchema, insertTaskCategorySchema, insertServiceTypeSchema,
@@ -5694,7 +5695,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Set OpenRouter API Key
+  // Set Provider API Key
+  app.post("/api/v1/setup/ai-configuration/:provider/api-key", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const provider = req.params.provider;
+      const { apiKey } = req.body;
+      
+      // Validate the provider
+      const validProviders = ["openrouter", "openai", "anthropic", "google", "deepseek"];
+      if (!validProviders.includes(provider)) {
+        return res.status(400).json({ message: "Invalid provider" });
+      }
+      
+      if (!apiKey) {
+        return res.status(400).json({ message: "API key is required" });
+      }
+      
+      // Encrypt the API key before storing
+      const encryptedApiKey = await encrypt(apiKey);
+      
+      // Store the encrypted key
+      await storage.setTenantSetting(tenantId, `${provider}_api_key`, encryptedApiKey);
+      
+      // Set this as the selected provider if not already set
+      const selectedProviderSetting = await storage.getTenantSetting(tenantId, "ai_selected_provider");
+      if (!selectedProviderSetting) {
+        await storage.setTenantSetting(tenantId, "ai_selected_provider", provider);
+      }
+      
+      // Set a default model for this provider (for backward compatibility with old APIs)
+      if (provider === "openrouter") {
+        await storage.setTenantSetting(tenantId, "openrouter_selected_model", "openai/gpt-3.5-turbo");
+      }
+      
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("Error saving API key:", error);
+      res.status(500).json({ message: "Failed to save API key" });
+    }
+  });
+  
+  // For backward compatibility
   app.post("/api/v1/setup/ai-configuration/api-key", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
@@ -5711,8 +5753,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.setTenantSetting(tenantId, "openrouter_api_key", encryptedApiKey);
       
       // Set a default model so user doesn't have to select one manually
-      // OpenAI's gpt-3.5-turbo is a good default for most use cases
       await storage.setTenantSetting(tenantId, "openrouter_selected_model", "openai/gpt-3.5-turbo");
+      
+      // Also store in new format
+      await storage.setTenantSetting(tenantId, "ai_selected_provider", "openrouter");
+      await storage.setTenantSetting(tenantId, "ai_selected_model", "openrouter/openai/gpt-3.5-turbo");
       
       res.status(200).json({ success: true });
     } catch (error) {
@@ -5721,7 +5766,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Test OpenRouter API Connection
+  // Test Provider API Connection
+  app.post("/api/v1/setup/ai-configuration/:provider/test-connection", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const provider = req.params.provider;
+      
+      // Validate the provider
+      const validProviders = ["openrouter", "openai", "anthropic", "google", "deepseek"];
+      if (!validProviders.includes(provider)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid provider" 
+        });
+      }
+      
+      // Get the encrypted API key
+      const apiKeyConfig = await storage.getTenantSetting(tenantId, `${provider}_api_key`);
+      
+      if (!apiKeyConfig) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "API key not configured" 
+        });
+      }
+      
+      // Create appropriate AI client
+      const aiClient = await createAIClient(provider, apiKeyConfig.value);
+      
+      // Test the connection
+      const testResult = await aiClient.testConnection();
+      
+      res.json(testResult);
+    } catch (error) {
+      console.error("Error testing connection:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: error instanceof Error ? error.message : "Failed to test connection" 
+      });
+    }
+  });
+  
+  // For backward compatibility
   app.post("/api/v1/setup/ai-configuration/test-connection", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
@@ -5785,7 +5871,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Set Selected Model
+  // Set Selected Model for a Provider
+  app.post("/api/v1/setup/ai-configuration/:provider/selected-model", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const provider = req.params.provider;
+      const { selectedModel } = req.body;
+      
+      // Validate the provider
+      const validProviders = ["openrouter", "openai", "anthropic", "google", "deepseek"];
+      if (!validProviders.includes(provider)) {
+        return res.status(400).json({ message: "Invalid provider" });
+      }
+      
+      if (!selectedModel) {
+        return res.status(400).json({ message: "Selected model is required" });
+      }
+      
+      // Store the selected model in the new format
+      await storage.setTenantSetting(tenantId, "ai_selected_model", selectedModel);
+      
+      // Update the selected provider
+      await storage.setTenantSetting(tenantId, "ai_selected_provider", provider);
+      
+      // For backward compatibility with OpenRouter
+      if (provider === "openrouter" && selectedModel.includes("/")) {
+        // Extract just the model part (after provider/)
+        const modelPart = selectedModel.split('/').slice(1).join('/');
+        await storage.setTenantSetting(tenantId, "openrouter_selected_model", modelPart);
+      }
+      
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("Error saving selected model:", error);
+      res.status(500).json({ message: "Failed to save selected model" });
+    }
+  });
+  
+  // For backward compatibility
   app.post("/api/v1/setup/ai-configuration/selected-model", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
@@ -5795,8 +5918,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Selected model is required" });
       }
       
-      // Store the selected model
+      // Store the selected model in old format
       await storage.setTenantSetting(tenantId, "openrouter_selected_model", selectedModel);
+      
+      // Also store in new format
+      await storage.setTenantSetting(tenantId, "ai_selected_model", `openrouter/${selectedModel}`);
       
       res.status(200).json({ success: true });
     } catch (error) {
@@ -5815,24 +5941,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Valid messages array is required" });
       }
       
-      // Get the encrypted API key and selected model
-      const apiKeyConfig = await storage.getTenantSetting(tenantId, "openrouter_api_key");
-      const selectedModelConfig = await storage.getTenantSetting(tenantId, "openrouter_selected_model");
+      // Get the selected provider and model in the new format
+      const selectedProviderSetting = await storage.getTenantSetting(tenantId, "ai_selected_provider");
+      const selectedModelSetting = await storage.getTenantSetting(tenantId, "ai_selected_model");
+      
+      // For backward compatibility
+      if (!selectedProviderSetting || !selectedModelSetting) {
+        // Try the old format (OpenRouter only)
+        const apiKeyConfig = await storage.getTenantSetting(tenantId, "openrouter_api_key");
+        const selectedModelConfig = await storage.getTenantSetting(tenantId, "openrouter_selected_model");
+        
+        if (!apiKeyConfig) {
+          return res.status(400).json({ message: "AI not configured. Please set up an AI provider in the Configuration." });
+        }
+        
+        if (!selectedModelConfig) {
+          return res.status(400).json({ message: "No AI model selected. Please select a model in AI Configuration." });
+        }
+        
+        // Initialize the OpenRouter client
+        const openRouterClient = new OpenRouterClient(apiKeyConfig.value);
+        
+        // Get the chat completion
+        const completion = await openRouterClient.createChatCompletion(
+          selectedModelConfig.value,
+          messages
+        );
+        
+        return res.json(completion);
+      }
+      
+      // New multi-provider format
+      const provider = selectedProviderSetting.value;
+      const selectedModel = selectedModelSetting.value;
+      
+      // Get the API key for the selected provider
+      const apiKeyConfig = await storage.getTenantSetting(tenantId, `${provider}_api_key`);
       
       if (!apiKeyConfig) {
-        return res.status(400).json({ message: "AI not configured. Please set up OpenRouter API key first." });
+        return res.status(400).json({ 
+          message: `No API key configured for ${provider}. Please set up the API key in AI Configuration.` 
+        });
       }
       
-      if (!selectedModelConfig) {
-        return res.status(400).json({ message: "No AI model selected. Please select a model in AI Configuration." });
-      }
+      // Create the appropriate AI client
+      const aiClient = await createAIClient(provider, apiKeyConfig.value);
       
-      // Initialize the OpenRouter client
-      const openRouterClient = new OpenRouterClient(apiKeyConfig.value);
-      
+      // Get model ID (remove provider prefix if present)
+      const modelId = selectedModel.includes(`${provider}/`) 
+        ? selectedModel.substring(provider.length + 1) 
+        : selectedModel;
+        
       // Get the chat completion
-      const completion = await openRouterClient.createChatCompletion(
-        selectedModelConfig.value,
+      const completion = await aiClient.createChatCompletion(
+        modelId,
         messages
       );
       
@@ -5855,27 +6017,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Data and query are required" });
       }
       
-      // Get the encrypted API key and selected model
-      const apiKeyConfig = await storage.getTenantSetting(tenantId, "openrouter_api_key");
-      const selectedModelConfig = await storage.getTenantSetting(tenantId, "openrouter_selected_model");
+      // Get the selected provider and model in the new format
+      const selectedProviderSetting = await storage.getTenantSetting(tenantId, "ai_selected_provider");
+      const selectedModelSetting = await storage.getTenantSetting(tenantId, "ai_selected_model");
+      
+      // For backward compatibility
+      if (!selectedProviderSetting || !selectedModelSetting) {
+        // Try the old format (OpenRouter only)
+        const apiKeyConfig = await storage.getTenantSetting(tenantId, "openrouter_api_key");
+        const selectedModelConfig = await storage.getTenantSetting(tenantId, "openrouter_selected_model");
+        
+        if (!apiKeyConfig) {
+          return res.status(400).json({ message: "AI not configured. Please set up an AI provider in the Configuration." });
+        }
+        
+        if (!selectedModelConfig) {
+          return res.status(400).json({ message: "No AI model selected. Please select a model in AI Configuration." });
+        }
+        
+        // Initialize the OpenRouter client
+        const openRouterClient = new OpenRouterClient(apiKeyConfig.value);
+        
+        // Analyze the data
+        const analysis = await openRouterClient.analyzeAccountingData(
+          selectedModelConfig.value,
+          data,
+          query
+        );
+        
+        return res.json({ analysis });
+      }
+      
+      // New multi-provider format
+      const provider = selectedProviderSetting.value;
+      const selectedModel = selectedModelSetting.value;
+      
+      // Get the API key for the selected provider
+      const apiKeyConfig = await storage.getTenantSetting(tenantId, `${provider}_api_key`);
       
       if (!apiKeyConfig) {
-        return res.status(400).json({ message: "AI not configured. Please set up OpenRouter API key first." });
+        return res.status(400).json({ 
+          message: `No API key configured for ${provider}. Please set up the API key in AI Configuration.` 
+        });
       }
       
-      if (!selectedModelConfig) {
-        return res.status(400).json({ message: "No AI model selected. Please select a model in AI Configuration." });
+      // Create the appropriate AI client
+      const aiClient = await createAIClient(provider, apiKeyConfig.value);
+      
+      // Get model ID (remove provider prefix if present)
+      const modelId = selectedModel.includes(`${provider}/`) 
+        ? selectedModel.substring(provider.length + 1) 
+        : selectedModel;
+      
+      let analysis;
+      
+      // Check if client has specific analyzeData method
+      if (aiClient.analyzeData) {
+        analysis = await aiClient.analyzeData(modelId, data, query);
+      } else {
+        // Fall back to chat completion with formatted prompt
+        const systemPrompt = `You are an expert accounting and financial analysis AI assistant. 
+        Analyze the provided accounting data and respond to the user's query with insights, patterns, and recommendations.
+        Focus on accuracy, clarity, and actionable insights. Use accounting terminology appropriately.`;
+        
+        const userPrompt = `Here is the accounting data to analyze:
+        ${JSON.stringify(data, null, 2)}
+        
+        My question/request is: ${query}`;
+        
+        const messages = [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ];
+        
+        const completion = await aiClient.createChatCompletion(modelId, messages);
+        analysis = completion.choices[0].message.content;
       }
-      
-      // Initialize the OpenRouter client
-      const openRouterClient = new OpenRouterClient(apiKeyConfig.value);
-      
-      // Analyze the data
-      const analysis = await openRouterClient.analyzeAccountingData(
-        selectedModelConfig.value,
-        data,
-        query
-      );
       
       res.json({ analysis });
     } catch (error) {

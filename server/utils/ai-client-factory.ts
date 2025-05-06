@@ -96,8 +96,9 @@ export class AnthropicClient implements AIClient {
   async testConnection(): Promise<{ success: boolean; message: string }> {
     try {
       // Anthropic doesn't have a simple test endpoint, so we'll make a minimal request
+      // the newest Anthropic model is "claude-3-7-sonnet-20250219" which was released February 24, 2025
       await this.client.messages.create({
-        model: "claude-3-haiku-20240307",
+        model: "claude-3-7-sonnet-20250219",
         max_tokens: 1,
         messages: [{ role: "user", content: "test" }]
       });
