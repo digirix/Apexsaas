@@ -5855,7 +5855,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const openRouterClient = new OpenRouterClient(apiKeyConfig.value);
       
       // Get available models
-      const modelsData = await openRouterClient.getAvailableModels();
+      const modelsData = await openRouterClient.getModels();
       
       // Transform the data to a simplified format for the frontend
       const models = modelsData.data.map((model: any) => ({
@@ -6039,7 +6039,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const openRouterClient = new OpenRouterClient(apiKeyConfig.value);
         
         // Analyze the data
-        const analysis = await openRouterClient.analyzeAccountingData(
+        const analysis = await openRouterClient.analyzeData(
           selectedModelConfig.value,
           data,
           query

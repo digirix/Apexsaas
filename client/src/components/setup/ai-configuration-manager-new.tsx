@@ -326,6 +326,10 @@ export function MultiProviderAIConfigurationManager() {
             <Key className="h-4 w-4 mr-2" />
             AI Providers
           </TabsTrigger>
+          <TabsTrigger value="api-keys">
+            <Key className="h-4 w-4 mr-2" />
+            API Keys
+          </TabsTrigger>
           <TabsTrigger value="models">
             <Cpu className="h-4 w-4 mr-2" />
             Models
@@ -551,6 +555,196 @@ export function MultiProviderAIConfigurationManager() {
               </CardFooter>
             </Card>
           )}
+        </TabsContent>
+        
+        <TabsContent value="api-keys" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>API Key Management</CardTitle>
+              <CardDescription>
+                Manage API keys for all AI providers in one place
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {aiConfigQuery.isLoading ? (
+                  <div className="flex items-center justify-center p-6">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    <span className="ml-2">Loading configuration...</span>
+                  </div>
+                ) : (
+                  <div className="space-y-8">
+                    {Object.values(providersConfig).map((provider) => (
+                      <div key={provider.name} className="border rounded-md p-4 space-y-4">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center space-x-2">
+                            <div className="p-2 rounded-md bg-primary/10 text-primary">
+                              {getIconComponent(provider.icon)}
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-medium">{provider.displayName}</h3>
+                              <p className="text-sm text-muted-foreground">{provider.apiKeyConfigured ? "API key configured" : "API key not configured"}</p>
+                            </div>
+                          </div>
+                          {provider.apiKeyConfigured && (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              <Check className="h-3 w-3 mr-1" /> Configured
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        {provider.apiKeyConfigured ? (
+                          <div className="space-y-4">
+                            <div className="flex items-center space-x-2">
+                              <div className="flex-grow">
+                                <Input
+                                  type="password"
+                                  value="••••••••••••••••••••••••••••••"
+                                  disabled
+                                  className="font-mono bg-gray-50"
+                                />
+                              </div>
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                onClick={() => testConnectionMutation.mutate(provider.name)}
+                                disabled={testConnectionMutation.isPending}
+                                className="whitespace-nowrap"
+                              >
+                                {testConnectionMutation.isPending && testConnectionMutation.variables === provider.name ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Testing...
+                                  </>
+                                ) : (
+                                  "Test Connection"
+                                )}
+                              </Button>
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                onClick={() => apiKeyForm.reset({ provider: provider.name, apiKey: "" })}
+                                className="border-red-200 text-red-700 hover:bg-red-50 whitespace-nowrap"
+                              >
+                                Update Key
+                              </Button>
+                            </div>
+                            
+                            {testResults[provider.name] && (
+                              <Alert 
+                                variant={testResults[provider.name]?.success ? "default" : "destructive"}
+                                className={testResults[provider.name]?.success ? "bg-green-50 border-green-200" : ""}
+                              >
+                                <AlertCircle className="h-4 w-4" />
+                                <AlertTitle>Connection Test</AlertTitle>
+                                <AlertDescription>
+                                  {testResults[provider.name]?.message}
+                                </AlertDescription>
+                              </Alert>
+                            )}
+                          </div>
+                        ) : (
+                          <Form {...apiKeyForm}>
+                            <form onSubmit={(e) => {
+                              e.preventDefault();
+                              apiKeyForm.setValue("provider", provider.name);
+                              apiKeyForm.handleSubmit(onSubmitApiKey)(e);
+                            }} className="space-y-4">
+                              <FormField
+                                control={apiKeyForm.control}
+                                name="apiKey"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>{provider.apiKeyName}</FormLabel>
+                                    <div className="flex space-x-2">
+                                      <FormControl>
+                                        <Input
+                                          placeholder={provider.apiKeyPlaceholder}
+                                          type="password"
+                                          {...field}
+                                          className="font-mono"
+                                        />
+                                      </FormControl>
+                                      <Button 
+                                        type="submit" 
+                                        disabled={updateApiKeyMutation.isPending || !field.value || field.value.length < 10} 
+                                      >
+                                        {updateApiKeyMutation.isPending && apiKeyForm.getValues("provider") === provider.name ? (
+                                          <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Saving...
+                                          </>
+                                        ) : (
+                                          "Save Key"
+                                        )}
+                                      </Button>
+                                    </div>
+                                    <FormDescription>
+                                      {provider.name === 'openrouter' && (
+                                        <a 
+                                          href="https://openrouter.ai/keys" 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className="text-blue-600 hover:underline"
+                                        >
+                                          Get your API key from OpenRouter.ai
+                                        </a>
+                                      )}
+                                      {provider.name === 'openai' && (
+                                        <a 
+                                          href="https://platform.openai.com/api-keys" 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className="text-blue-600 hover:underline"
+                                        >
+                                          Get your API key from OpenAI
+                                        </a>
+                                      )}
+                                      {provider.name === 'anthropic' && (
+                                        <a 
+                                          href="https://console.anthropic.com/settings/keys" 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className="text-blue-600 hover:underline"
+                                        >
+                                          Get your API key from Anthropic
+                                        </a>
+                                      )}
+                                      {provider.name === 'google' && (
+                                        <a 
+                                          href="https://makersuite.google.com/app/apikey" 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className="text-blue-600 hover:underline"
+                                        >
+                                          Get your API key from Google AI Studio
+                                        </a>
+                                      )}
+                                      {provider.name === 'deepseek' && (
+                                        <a 
+                                          href="https://platform.deepseek.com/" 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className="text-blue-600 hover:underline"
+                                        >
+                                          Get your API key from DeepSeek Platform
+                                        </a>
+                                      )}
+                                    </FormDescription>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </form>
+                          </Form>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
         
         <TabsContent value="models" className="space-y-4">
