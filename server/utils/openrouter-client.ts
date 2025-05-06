@@ -1,11 +1,12 @@
 import { decrypt } from './encryption';
+import { AIClient } from './ai-client-factory';
 
 const OPENROUTER_API_BASE = 'https://openrouter.ai/api/v1';
 
 /**
  * OpenRouterClient - Handles API communication with OpenRouter.ai
  */
-export class OpenRouterClient {
+export class OpenRouterClient implements AIClient {
   private apiKey: string;
   
   constructor(encryptedApiKey: string) {
@@ -68,7 +69,7 @@ export class OpenRouterClient {
    * Get available models from OpenRouter
    * @returns List of available models
    */
-  public async getAvailableModels(): Promise<any> {
+  public async getModels(): Promise<any> {
     try {
       if (!this.apiKey) {
         throw new Error('API key not initialized');
@@ -141,7 +142,7 @@ export class OpenRouterClient {
    * @param query User's specific question or request
    * @returns AI-generated analysis
    */
-  public async analyzeAccountingData(model: string, data: any, query: string): Promise<string> {
+  public async analyzeData(model: string, data: any, query: string): Promise<string> {
     try {
       const systemPrompt = `You are an expert accounting and financial analysis AI assistant. 
       Analyze the provided accounting data and respond to the user's query with insights, patterns, and recommendations.

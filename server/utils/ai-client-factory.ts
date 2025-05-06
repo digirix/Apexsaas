@@ -9,7 +9,9 @@ import { OpenRouterClient } from './openrouter-client';
 import { decrypt } from './encryption';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
-// import { GoogleGenerativeAI } from '@google/generative-ai'; - Not importing for now
+// Uncomment these when we have the packages installed
+// import { GoogleGenerativeAI } from '@google/generative-ai';
+// import { DeepSeekAI } from 'deepseek-ai';
 
 // Base interface for all AI clients
 export interface AIClient {
@@ -131,12 +133,21 @@ export class AnthropicClient implements AIClient {
       temperature: options.temperature || 0.7
     });
     
+    // Safely extract the content
+    let content = "";
+    if (response.content && response.content.length > 0) {
+      const contentBlock = response.content[0];
+      if ('type' in contentBlock && contentBlock.type === 'text' && 'text' in contentBlock) {
+        content = contentBlock.text;
+      }
+    }
+    
     return {
       choices: [
         {
           message: {
             role: 'assistant',
-            content: response.content[0].text
+            content: content
           }
         }
       ]
@@ -185,6 +196,12 @@ export async function createAIClient(
       return new OpenAIClient(apiKey);
     case 'anthropic':
       return new AnthropicClient(apiKey);
+    case 'google':
+      // We will need to add GoogleAI client implementation
+      throw new Error('Google AI integration not implemented yet, try OpenAI or Anthropic');
+    case 'deepseek':
+      // We will need to add DeepSeek client implementation
+      throw new Error('DeepSeek AI integration not implemented yet, try OpenAI or Anthropic');
     // Add more providers as needed
     default:
       throw new Error(`Unsupported AI provider: ${provider}`);
