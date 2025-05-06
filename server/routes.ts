@@ -14,7 +14,9 @@ import {
   // Basic finance module schemas from schema.ts
   insertInvoiceSchema, insertInvoiceLineItemSchema, insertPaymentSchema, 
   insertPaymentGatewaySettingSchema, insertChartOfAccountSchema,
-  insertJournalEntryTypeSchema
+  insertJournalEntryTypeSchema,
+  // AI module schemas
+  insertAiConfigurationSchema
 } from "@shared/schema";
 
 // Import enhanced schemas for finance module with proper type handling
@@ -1000,6 +1002,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete tax jurisdiction" });
+    }
+  });
+
+  // 9. AI Configurations
+  app.get("/api/v1/setup/ai-configurations", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const configurations = await storage.getAiConfigurations(tenantId);
+      
+      // Don't expose the actual API keys in the response
+      const sanitizedConfigs = configurations.map(config => ({
+        ...config,
+        apiKey: config.apiKey ? "••••••••" + config.apiKey.slice(-4) : null // Only show last 4 characters
+      }));
+      
+      res.json(sanitizedConfigs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch AI configurations" });
+    }
+  });
+
+  app.get("/api/v1/setup/ai-configurations/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const config = await storage.getAiConfiguration(id, tenantId);
+      if (!config) {
+        return res.status(404).json({ message: "AI configuration not found" });
+      }
+      
+      // Don't expose the actual API key in the response
+      const sanitizedConfig = {
+        ...config,
+        apiKey: config.apiKey ? "••••••••" + config.apiKey.slice(-4) : null // Only show last 4 characters
+      };
+      
+      res.json(sanitizedConfig);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch AI configuration" });
+    }
+  });
+
+  app.post("/api/v1/setup/ai-configurations", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const data = { ...req.body, tenantId };
+      
+      // Validate input
+      const validatedData = insertAiConfigurationSchema.parse(data);
+      
+      // Create the AI configuration
+      const config = await storage.createAiConfiguration(validatedData);
+      
+      // Don't expose the actual API key in the response
+      const sanitizedConfig = {
+        ...config,
+        apiKey: config.apiKey ? "••••••••" + config.apiKey.slice(-4) : null // Only show last 4 characters
+      };
+      
+      res.status(201).json(sanitizedConfig);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create AI configuration" });
+    }
+  });
+
+  app.put("/api/v1/setup/ai-configurations/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if configuration belongs to tenant
+      const existingConfig = await storage.getAiConfiguration(id, tenantId);
+      if (!existingConfig) {
+        return res.status(404).json({ message: "AI configuration not found" });
+      }
+      
+      // Update the configuration
+      const updatedConfig = await storage.updateAiConfiguration(id, req.body);
+      
+      // Don't expose the actual API key in the response
+      const sanitizedConfig = {
+        ...updatedConfig,
+        apiKey: updatedConfig?.apiKey ? "••••••••" + updatedConfig.apiKey.slice(-4) : null // Only show last 4 characters
+      };
+      
+      res.json(sanitizedConfig);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update AI configuration" });
+    }
+  });
+
+  app.delete("/api/v1/setup/ai-configurations/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      const success = await storage.deleteAiConfiguration(id, tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "AI configuration not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete AI configuration" });
+    }
+  });
+
+  app.post("/api/v1/setup/ai-configurations/:id/test", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if configuration belongs to tenant
+      const existingConfig = await storage.getAiConfiguration(id, tenantId);
+      if (!existingConfig) {
+        return res.status(404).json({ message: "AI configuration not found" });
+      }
+      
+      // Test the API key
+      const testResult = await storage.testAiConfiguration(id, tenantId);
+      res.json(testResult);
+    } catch (error) {
+      res.status(500).json({ 
+        message: "Failed to test AI configuration", 
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 
