@@ -1,948 +1,573 @@
 import crypto from 'crypto';
-import { AI_PROVIDERS, TestAiConnectionResponse, SelectAiConfiguration } from '@shared/ai-schema';
-import { storage } from '../storage';
-import { Client, Entity, Task, ServiceType, TaxJurisdiction } from '@shared/schema';
+import { db } from '../db';
+import { eq, and } from 'drizzle-orm';
+import { aiConfigurations } from '@shared/ai-schema';
+import OpenAI from 'openai';
 
-// Environment variable for encryption key (should be set in production)
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'default-dev-encryption-key-change-in-production';
-const ENCRYPTION_IV = crypto.randomBytes(16);
-
-/**
- * Encrypts an API key for secure storage in the database
- */
-export function encryptApiKey(apiKey: string): string {
-  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), ENCRYPTION_IV);
-  let encrypted = cipher.update(apiKey, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  // Store IV with the encrypted data so we can decrypt later
-  return ENCRYPTION_IV.toString('hex') + ':' + encrypted;
+interface AiServiceOptions {
+  tenantId: number;
 }
 
-/**
- * Decrypts an API key from the database
- */
-export function decryptApiKey(encryptedApiKey: string): string {
-  const parts = encryptedApiKey.split(':');
-  const iv = Buffer.from(parts[0], 'hex');
-  const encryptedText = parts[1];
-  const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
-  let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
-  return decrypted;
+// Define AI Provider interfaces
+interface AiProvider {
+  initialize(apiKey: string, model: string): void;
+  generateText(prompt: string, options?: any): Promise<string>;
+  analyzeImage?(imageBase64: string, prompt: string): Promise<string>;
 }
 
-/**
- * Tests a connection to an AI provider and returns available models
- */
-export async function testAiConnection(provider: string, apiKey: string): Promise<TestAiConnectionResponse> {
-  try {
-    switch (provider) {
-      case 'OpenRouter.ai':
-        return await testOpenRouterConnection(apiKey);
-      case 'OpenAI':
-        return await testOpenAIConnection(apiKey);
-      case 'Google AI':
-        return await testGoogleAIConnection(apiKey);
-      case 'DeepSeek':
-        return await testDeepSeekConnection(apiKey);
-      case 'Anthropic (Claude)':
-        return await testAnthropicConnection(apiKey);
-      default:
-        return {
-          success: false,
-          message: `Unknown provider: ${provider}`
-        };
-    }
-  } catch (error) {
-    console.error(`Error testing connection to ${provider}:`, error);
-    return {
-      success: false,
-      message: `Connection error: ${error instanceof Error ? error.message : String(error)}`
-    };
+// Google AI Provider
+class GoogleAiProvider implements AiProvider {
+  private apiKey: string;
+  private model: string;
+  private apiEndpoint = 'https://generativelanguage.googleapis.com';
+
+  initialize(apiKey: string, model: string): void {
+    this.apiKey = apiKey;
+    this.model = model || 'gemini-pro';
   }
-}
 
-/**
- * Validates a connection to OpenRouter.ai and retrieves available models
- */
-async function testOpenRouterConnection(apiKey: string): Promise<TestAiConnectionResponse> {
-  try {
-    const response = await fetch('https://openrouter.ai/api/v1/models', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`OpenRouter API error (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
+  async generateText(prompt: string, options: any = {}): Promise<string> {
+    const url = `${this.apiEndpoint}/v1/models/${this.model}:generateContent?key=${this.apiKey}`;
     
-    // Format the models data
-    const models = data.data.map((model: any) => ({
-      id: model.id,
-      name: model.name || model.id
-    }));
-
-    return {
-      success: true,
-      message: `Successfully connected to OpenRouter.ai. Found ${models.length} models.`,
-      models
-    };
-  } catch (error) {
-    console.error('OpenRouter connection error:', error);
-    return {
-      success: false,
-      message: `Failed to connect to OpenRouter.ai: ${error instanceof Error ? error.message : String(error)}`
-    };
-  }
-}
-
-/**
- * Validates a connection to OpenAI and retrieves available models
- */
-async function testOpenAIConnection(apiKey: string): Promise<TestAiConnectionResponse> {
-  try {
-    const response = await fetch('https://api.openai.com/v1/models', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`OpenAI API error (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
-    
-    // Filter to include only the relevant models (GPT models)
-    const models = data.data
-      .filter((model: any) => model.id.includes('gpt'))
-      .map((model: any) => ({
-        id: model.id,
-        name: model.id
-      }));
-
-    return {
-      success: true,
-      message: `Successfully connected to OpenAI. Found ${models.length} GPT models.`,
-      models
-    };
-  } catch (error) {
-    console.error('OpenAI connection error:', error);
-    return {
-      success: false,
-      message: `Failed to connect to OpenAI: ${error instanceof Error ? error.message : String(error)}`
-    };
-  }
-}
-
-/**
- * Validates a connection to Google AI and retrieves available models
- */
-async function testGoogleAIConnection(apiKey: string): Promise<TestAiConnectionResponse> {
-  try {
-    // Google AI API requires project ID which is typically part of the API key context
-    // This is a simplified example - actual implementation depends on Google AI API structure
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + apiKey, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Google AI API error (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
-    
-    // Format the models data based on Google's response structure
-    const models = data.models?.map((model: any) => ({
-      id: model.name,
-      name: model.displayName || model.name
-    })) || [];
-
-    return {
-      success: true,
-      message: `Successfully connected to Google AI. Found ${models.length} models.`,
-      models
-    };
-  } catch (error) {
-    console.error('Google AI connection error:', error);
-    return {
-      success: false,
-      message: `Failed to connect to Google AI: ${error instanceof Error ? error.message : String(error)}`
-    };
-  }
-}
-
-/**
- * Validates a connection to DeepSeek and retrieves available models
- */
-async function testDeepSeekConnection(apiKey: string): Promise<TestAiConnectionResponse> {
-  try {
-    const response = await fetch('https://api.deepseek.com/v1/models', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`DeepSeek API error (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
-    
-    // Format the models data based on DeepSeek's response structure
-    const models = data.data?.map((model: any) => ({
-      id: model.id,
-      name: model.name || model.id
-    })) || [];
-
-    return {
-      success: true,
-      message: `Successfully connected to DeepSeek. Found ${models.length} models.`,
-      models
-    };
-  } catch (error) {
-    console.error('DeepSeek connection error:', error);
-    return {
-      success: false,
-      message: `Failed to connect to DeepSeek: ${error instanceof Error ? error.message : String(error)}`
-    };
-  }
-}
-
-/**
- * Validates a connection to Anthropic (Claude) and retrieves available models
- */
-async function testAnthropicConnection(apiKey: string): Promise<TestAiConnectionResponse> {
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/models', {
-      method: 'GET',
-      headers: {
-        'x-api-key': apiKey,
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01'
-      }
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Anthropic API error (${response.status}): ${errorText}`);
-    }
-
-    const data = await response.json();
-    
-    // Format the models data based on Anthropic's response structure
-    const models = data.models?.map((model: any) => ({
-      id: model.id,
-      name: model.name || model.id
-    })) || [];
-
-    return {
-      success: true,
-      message: `Successfully connected to Anthropic (Claude). Found ${models.length} models.`,
-      models
-    };
-  } catch (error) {
-    console.error('Anthropic connection error:', error);
-    return {
-      success: false,
-      message: `Failed to connect to Anthropic (Claude): ${error instanceof Error ? error.message : String(error)}`
-    };
-  }
-}
-
-/**
- * Interface for AI request parameters
- */
-interface AiRequestParams {
-  provider: string;
-  model: string;
-  messages: Array<{role: string; content: string}>;
-  temperature?: number;
-  maxTokens?: number;
-}
-
-/**
- * Fetches the AI configuration for a tenant
- */
-export async function getAiConfigForTenant(tenantId: number, provider?: string): Promise<SelectAiConfiguration | undefined> {
-  try {
-    if (provider) {
-      return await storage.getAiConfigurationByProvider(tenantId, provider);
-    }
-    
-    // If no specific provider is requested, get all configurations and return the first active one
-    const configurations = await storage.getAiConfigurations(tenantId);
-    return configurations.find(config => config.isActive);
-  } catch (error) {
-    console.error('Error fetching AI configuration:', error);
-    return undefined;
-  }
-}
-
-/**
- * Makes a request to the selected AI provider
- */
-async function makeAiRequest(params: AiRequestParams): Promise<{success: boolean; data?: any; error?: string}> {
-  try {
-    let response;
-    let result;
-    
-    switch (params.provider) {
-      case 'Google AI':
-        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${params.model}:generateContent?key=${params.messages[0]}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            contents: params.messages.slice(1).map(msg => ({
-              role: msg.role === 'user' ? 'USER' : 'MODEL',
-              parts: [{ text: msg.content }]
-            })),
-            generationConfig: {
-              temperature: params.temperature || 0.7,
-              maxOutputTokens: params.maxTokens || 2048
+    const requestBody = {
+      contents: [
+        {
+          parts: [
+            {
+              text: prompt
             }
-          })
-        });
-        break;
-        
-      case 'OpenAI':
-        response = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${params.messages[0]}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            model: params.model,
-            messages: params.messages.slice(1),
-            temperature: params.temperature || 0.7,
-            max_tokens: params.maxTokens || 2048
-          })
-        });
-        break;
-        
-      case 'OpenRouter.ai':
-        response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${params.messages[0]}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://accountingfirm.com', // Replace with actual domain in production
-            'X-Title': 'Accounting Firm Management'
-          },
-          body: JSON.stringify({
-            model: params.model,
-            messages: params.messages.slice(1),
-            temperature: params.temperature || 0.7,
-            max_tokens: params.maxTokens || 2048
-          })
-        });
-        break;
-        
-      case 'Anthropic (Claude)':
-        response = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'x-api-key': params.messages[0],
-            'Content-Type': 'application/json',
-            'anthropic-version': '2023-06-01'
-          },
-          body: JSON.stringify({
-            model: params.model,
-            messages: params.messages.slice(1).map(msg => ({
-              role: msg.role === 'user' ? 'user' : 'assistant',
-              content: msg.content
-            })),
-            max_tokens: params.maxTokens || 2048
-          })
-        });
-        break;
-        
-      case 'DeepSeek':
-        response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${params.messages[0]}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            model: params.model,
-            messages: params.messages.slice(1),
-            temperature: params.temperature || 0.7,
-            max_tokens: params.maxTokens || 2048
-          })
-        });
-        break;
-        
-      default:
-        return {
-          success: false,
-          error: `Unknown AI provider: ${params.provider}`
-        };
-    }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API error (${response.status}): ${errorText}`);
-    }
-
-    result = await response.json();
-    
-    // Extract the response text based on the provider's response format
-    let responseText = '';
-    
-    switch (params.provider) {
-      case 'Google AI':
-        responseText = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        break;
-      case 'OpenAI':
-      case 'OpenRouter.ai':
-      case 'DeepSeek':
-        responseText = result.choices?.[0]?.message?.content || '';
-        break;
-      case 'Anthropic (Claude)':
-        responseText = result.content?.[0]?.text || '';
-        break;
-    }
-
-    return {
-      success: true,
-      data: responseText
+          ]
+        }
+      ],
+      generationConfig: {
+        temperature: options.temperature || 0.7,
+        topK: options.topK || 40,
+        topP: options.topP || 0.95,
+        maxOutputTokens: options.maxTokens || 1024,
+      }
     };
-  } catch (error) {
-    console.error(`Error making AI request to ${params.provider}:`, error);
-    return {
-      success: false,
-      error: `Error: ${error instanceof Error ? error.message : String(error)}`
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Failed to generate text with Google AI');
+      }
+
+      return data.candidates[0].content.parts[0].text;
+    } catch (error) {
+      console.error('Google AI API error:', error);
+      throw error;
+    }
+  }
+
+  async analyzeImage(imageBase64: string, prompt: string): Promise<string> {
+    const url = `${this.apiEndpoint}/v1/models/gemini-pro-vision:generateContent?key=${this.apiKey}`;
+    
+    const requestBody = {
+      contents: [
+        {
+          parts: [
+            {
+              text: prompt
+            },
+            {
+              inline_data: {
+                mime_type: "image/jpeg",
+                data: imageBase64
+              }
+            }
+          ]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.4,
+        maxOutputTokens: 1024,
+      }
     };
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Failed to analyze image with Google AI');
+      }
+
+      return data.candidates[0].content.parts[0].text;
+    } catch (error) {
+      console.error('Google AI Vision API error:', error);
+      throw error;
+    }
   }
 }
 
-/**
- * Generates task suggestions based on entity information
- */
-export async function generateTaskSuggestions(
-  tenantId: number, 
-  entityId: number,
-  includeContext: boolean = true
-): Promise<{success: boolean; suggestions?: any[]; error?: string}> {
-  try {
-    // Get AI configuration
-    const aiConfig = await getAiConfigForTenant(tenantId);
-    if (!aiConfig) {
-      return {
-        success: false,
-        error: "No AI configuration found for this tenant"
-      };
+// OpenAI Provider
+class OpenAiProvider implements AiProvider {
+  private client: OpenAI;
+  private model: string;
+
+  initialize(apiKey: string, model: string): void {
+    this.client = new OpenAI({ apiKey });
+    // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+    this.model = model || 'gpt-4o';
+  }
+
+  async generateText(prompt: string, options: any = {}): Promise<string> {
+    try {
+      const response = await this.client.chat.completions.create({
+        model: this.model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: options.temperature || 0.7,
+        max_tokens: options.maxTokens || 1024,
+      });
+
+      return response.choices[0].message.content || '';
+    } catch (error) {
+      console.error('OpenAI API error:', error);
+      throw error;
     }
-    
-    // Get entity details
-    const entity = await storage.getEntity(entityId, tenantId);
-    if (!entity) {
-      return {
-        success: false,
-        error: "Entity not found"
-      };
+  }
+
+  async analyzeImage(imageBase64: string, prompt: string): Promise<string> {
+    try {
+      const response = await this.client.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: prompt
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:image/jpeg;base64,${imageBase64}`
+                }
+              }
+            ]
+          }
+        ],
+        max_tokens: 1024
+      });
+
+      return response.choices[0].message.content || '';
+    } catch (error) {
+      console.error('OpenAI Vision API error:', error);
+      throw error;
     }
-    
-    // Get client details
-    const client = await storage.getClient(entity.clientId, tenantId);
-    if (!client) {
-      return {
-        success: false,
-        error: "Client not found"
-      };
+  }
+}
+
+// Anthropic Provider
+class AnthropicProvider implements AiProvider {
+  private apiKey: string;
+  private model: string;
+  private apiEndpoint = 'https://api.anthropic.com/v1/messages';
+
+  initialize(apiKey: string, model: string): void {
+    this.apiKey = apiKey;
+    this.model = model || 'claude-3-opus-20240229';
+  }
+
+  async generateText(prompt: string, options: any = {}): Promise<string> {
+    try {
+      const response = await fetch(this.apiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': this.apiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: this.model,
+          messages: [
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          max_tokens: options.maxTokens || 1024,
+          temperature: options.temperature || 0.7
+        })
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Failed to generate text with Anthropic');
+      }
+
+      return data.content[0].text;
+    } catch (error) {
+      console.error('Anthropic API error:', error);
+      throw error;
     }
-    
-    // Get entity type
-    const entityType = await storage.getEntityType(entity.entityTypeId, tenantId);
-    
-    // Get tax jurisdictions
-    const taxJurisdictions = await storage.getTaxJurisdictionsForEntity(tenantId, entityId);
-    
-    // Get service subscriptions
-    const serviceSubscriptions = await storage.getEntityServiceSubscriptions(tenantId, entityId);
-    
-    // Get service details for subscribed services
-    const services = [];
-    for (const subscription of serviceSubscriptions) {
-      const service = await storage.getServiceType(subscription.serviceTypeId, tenantId);
-      if (service) {
-        services.push({
-          ...service,
-          isRequired: subscription.isRequired,
-          isSubscribed: subscription.isSubscribed
-        });
+  }
+}
+
+// Factory function to create provider instances
+function createProvider(providerName: string): AiProvider {
+  switch (providerName) {
+    case 'Google':
+      return new GoogleAiProvider();
+    case 'OpenAI':
+      return new OpenAiProvider();
+    case 'Anthropic':
+      return new AnthropicProvider();
+    default:
+      throw new Error(`Unknown AI provider: ${providerName}`);
+  }
+}
+
+// Helper function to encrypt sensitive data
+function encrypt(text: string, key: string): string {
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(key, 'hex'), iv);
+  let encrypted = cipher.update(text);
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
+  return `${iv.toString('hex')}:${encrypted.toString('hex')}`;
+}
+
+// Helper function to decrypt sensitive data
+function decrypt(text: string, key: string): string {
+  const parts = text.split(':');
+  const iv = Buffer.from(parts[0], 'hex');
+  const encryptedText = Buffer.from(parts[1], 'hex');
+  const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(key, 'hex'), iv);
+  let decrypted = decipher.update(encryptedText);
+  decrypted = Buffer.concat([decrypted, decipher.final()]);
+  return decrypted.toString();
+}
+
+// Generate a secure key for encrypting API keys
+// In a production environment, this should be stored securely and not generated on the fly
+const getEncryptionKey = (): string => {
+  // This is a simplified approach - in production, use a proper key management system
+  const baseKey = process.env.AI_ENCRYPTION_KEY || 'default-encryption-key-for-development';
+  return crypto.createHash('sha256').update(baseKey).digest('hex');
+};
+
+// Main AI Service class
+export class AiService {
+  private tenantId: number;
+  private provider: AiProvider | null = null;
+  private encryptionKey: string;
+
+  constructor(options: AiServiceOptions) {
+    this.tenantId = options.tenantId;
+    this.encryptionKey = getEncryptionKey();
+  }
+
+  // Initialize the AI provider with the active configuration
+  async initialize(): Promise<boolean> {
+    try {
+      // Get the active configuration for the tenant
+      const config = await db.query.aiConfigurations.findFirst({
+        where: and(
+          eq(aiConfigurations.tenantId, this.tenantId),
+          eq(aiConfigurations.isActive, true)
+        )
+      });
+
+      if (!config) {
+        console.warn(`No active AI configuration found for tenant ${this.tenantId}`);
+        return false;
+      }
+
+      // Create and initialize the provider
+      this.provider = createProvider(config.provider);
+      
+      // Decrypt the API key
+      const decryptedApiKey = decrypt(config.apiKey, this.encryptionKey);
+      
+      this.provider.initialize(decryptedApiKey, config.model);
+      return true;
+    } catch (error) {
+      console.error('Error initializing AI service:', error);
+      this.provider = null;
+      return false;
+    }
+  }
+
+  // Generate text response
+  async generateResponse(prompt: string, options: any = {}): Promise<string> {
+    if (!this.provider) {
+      const initialized = await this.initialize();
+      if (!initialized) {
+        throw new Error('AI provider is not initialized');
       }
     }
-    
-    // Generate task categories dynamically based on entity type and services
-    const taskCategories = await storage.getTaskCategories(tenantId);
-    
-    // Build context object
-    const context = {
-      entityName: entity.name,
-      entityType: entityType?.name || 'Unknown',
-      entityRegistrationNumber: entity.registrationNumber,
-      entityIncorporationDate: entity.incorporationDate,
-      entityFiscalYearEnd: entity.fiscalYearEnd,
-      clientName: client.name,
-      taxJurisdictions: taxJurisdictions.map(tj => tj.name),
-      services: services.map(s => ({
-        name: s.name,
-        description: s.description,
-        frequency: s.frequency,
-        isRequired: s.isRequired,
-        isSubscribed: s.isSubscribed
-      })),
-      taskCategories: taskCategories.map(tc => tc.name)
-    };
-    
-    // Prepare the prompt for the AI
-    const systemPrompt = `
-You are an AI assistant for an accounting firm management system. Your task is to suggest relevant tasks 
-for the entity based on its type, tax jurisdictions, and subscribed services. For each suggested task, provide:
-1. A clear task name
-2. A detailed description of what needs to be done
-3. An appropriate category from the available categories
-4. A suggested due date (relative to current date or fiscal year end)
-5. Estimated effort in hours
-6. Priority level (Low, Medium, High)
 
-Only suggest tasks that are directly relevant to accounting, tax, compliance, or financial services.
-Format your response as a JSON array of task objects with these properties:
-name, description, category, dueDate, estimatedHours, priority
-`;
+    try {
+      return await this.provider!.generateText(prompt, options);
+    } catch (error) {
+      console.error('Error generating AI response:', error);
+      throw error;
+    }
+  }
 
-    const userPrompt = `
-Please suggest appropriate tasks for the following entity:
-${JSON.stringify(context, null, 2)}
-
-Return ONLY a valid JSON array of task objects.
-`;
-
-    // Make the AI request
-    const decryptedApiKey = decryptApiKey(aiConfig.apiKey);
-    const response = await makeAiRequest({
-      provider: aiConfig.provider,
-      model: aiConfig.model,
-      messages: [
-        decryptedApiKey, // First message is the API key
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.3 // Lower temperature for more consistent outputs
-    });
-
-    if (!response.success) {
-      return {
-        success: false,
-        error: response.error
-      };
+  // Analyze image if the provider supports it
+  async analyzeImage(imageBase64: string, prompt: string): Promise<string> {
+    if (!this.provider) {
+      const initialized = await this.initialize();
+      if (!initialized) {
+        throw new Error('AI provider is not initialized');
+      }
     }
 
-    // Parse the JSON response
+    if (!this.provider.analyzeImage) {
+      throw new Error('Current AI provider does not support image analysis');
+    }
+
     try {
-      // Clean up the response to ensure it's valid JSON
-      const cleanedResponse = response.data.trim()
-        .replace(/```json/g, '')
-        .replace(/```/g, '')
-        .trim();
+      return await this.provider.analyzeImage(imageBase64, prompt);
+    } catch (error) {
+      console.error('Error analyzing image with AI:', error);
+      throw error;
+    }
+  }
+
+  // Test a provider connection with the given API key
+  static async testConnection(provider: string, apiKey: string): Promise<{ success: boolean; message: string; models?: any[] }> {
+    try {
+      const aiProvider = createProvider(provider);
+      aiProvider.initialize(apiKey, '');
+
+      // Simple test prompt
+      const testResponse = await aiProvider.generateText('Respond with "Connection successful"');
       
-      const suggestions = JSON.parse(cleanedResponse);
-      
-      // Log the result
-      await storage.createAiReportHistory({
-        tenantId,
-        userId: 1, // Default system user
-        entityId,
-        reportType: 'task_suggestions',
-        prompt: includeContext ? JSON.stringify({systemPrompt, userPrompt}) : 'Task suggestions request',
-        response: JSON.stringify(suggestions),
-        metadata: JSON.stringify(context)
-      });
-      
+      // Get available models based on provider
+      let models: any[] = [];
+      switch (provider) {
+        case 'Google':
+          models = [
+            { id: 'gemini-pro', name: 'Gemini Pro' },
+            { id: 'gemini-pro-vision', name: 'Gemini Pro Vision' },
+            { id: 'gemini-flash', name: 'Gemini Flash' }
+          ];
+          break;
+        case 'OpenAI':
+          models = [
+            { id: 'gpt-4o', name: 'GPT-4o' },
+            { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
+            { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' }
+          ];
+          break;
+        case 'Anthropic':
+          models = [
+            { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus' },
+            { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet' },
+            { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku' }
+          ];
+          break;
+      }
+
       return {
         success: true,
-        suggestions
+        message: 'Connection successful',
+        models
       };
     } catch (error) {
-      console.error('Error parsing AI response:', error);
+      console.error(`Error testing ${provider} connection:`, error);
       return {
         success: false,
-        error: `Failed to parse AI response: ${error instanceof Error ? error.message : String(error)}`
+        message: error instanceof Error ? error.message : 'Unknown error occurred'
       };
     }
-  } catch (error) {
-    console.error('Error generating task suggestions:', error);
-    return {
-      success: false,
-      error: `Error: ${error instanceof Error ? error.message : String(error)}`
-    };
   }
-}
 
-/**
- * Processes chat message with AI and returns response
- */
-export async function processChatMessage(
-  tenantId: number,
-  userId: number,
-  message: string,
-  conversationId?: string,
-  previousMessages: Array<{role: string; content: string}> = []
-): Promise<{success: boolean; response?: string; conversationId?: string; error?: string}> {
-  try {
-    // Get AI configuration
-    const aiConfig = await getAiConfigForTenant(tenantId);
-    if (!aiConfig) {
-      return {
-        success: false,
-        error: "No AI configuration found for this tenant"
-      };
-    }
-    
-    // Generate or use existing conversation ID
-    const newConversationId = conversationId || `conv_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-    
-    // Build context
-    const systemPrompt = `
-You are an AI assistant for an accounting firm management system. You help users with questions about:
-- Accounting and financial reporting tasks
-- Tax compliance and filing requirements
-- Entity management and corporate governance
-- Financial analysis and planning
-
-Provide concise, accurate information based on accounting best practices and regulations.
-Avoid giving specific legal advice but you can explain general regulatory requirements.
-If you're unsure about specific jurisdictional details, acknowledge the limitations.
-
-Always be professional, courteous, and focus on actionable information.
-`;
-
-    // Create messages array with history
-    const messages = [
-      decryptApiKey(aiConfig.apiKey), // First message is the API key
-      { role: 'system', content: systemPrompt },
-      ...previousMessages,
-      { role: 'user', content: message }
-    ];
-    
-    // Make the AI request
-    const response = await makeAiRequest({
-      provider: aiConfig.provider,
-      model: aiConfig.model,
-      messages,
-      temperature: 0.7
-    });
-
-    if (!response.success) {
-      return {
-        success: false,
-        error: response.error
-      };
-    }
-    
-    // Log the chat history
-    await storage.createAiChatHistory({
-      tenantId,
-      userId,
-      conversationId: newConversationId,
-      message,
-      response: response.data,
-      metadata: JSON.stringify({
-        provider: aiConfig.provider,
-        model: aiConfig.model
-      })
-    });
-    
-    return {
-      success: true,
-      response: response.data,
-      conversationId: newConversationId
-    };
-  } catch (error) {
-    console.error('Error processing chat message:', error);
-    return {
-      success: false,
-      error: `Error: ${error instanceof Error ? error.message : String(error)}`
-    };
+  // Helper method to encrypt an API key
+  static encryptApiKey(apiKey: string): string {
+    const encryptionKey = getEncryptionKey();
+    return encrypt(apiKey, encryptionKey);
   }
-}
 
-/**
- * Analyzes entity compliance status across jurisdictions and services
- */
-export async function analyzeEntityCompliance(
-  tenantId: number,
-  entityId: number
-): Promise<{success: boolean; analysis?: any; error?: string}> {
-  try {
-    // Get AI configuration
-    const aiConfig = await getAiConfigForTenant(tenantId);
-    if (!aiConfig) {
-      return {
-        success: false,
-        error: "No AI configuration found for this tenant"
-      };
+  // Task-specific AI methods
+
+  // Generate task suggestions for an entity
+  async generateTaskSuggestions(entityData: any): Promise<any[]> {
+    const prompt = `
+    Based on the following entity information, generate a list of accounting and compliance tasks that need to be completed.
+    
+    Entity Information:
+    - Name: ${entityData.name}
+    - Type: ${entityData.type}
+    - Jurisdictions: ${entityData.jurisdictions.join(', ')}
+    - Services: ${entityData.services.join(', ')}
+    - Fiscal Year End: ${entityData.fiscalYearEnd}
+    - Tax IDs: ${entityData.taxIds ? Object.entries(entityData.taxIds).map(([k, v]) => `${k}: ${v}`).join(', ') : 'None'}
+    
+    Generate at least 5 appropriate tasks with the following information for each:
+    1. Task name
+    2. Description
+    3. Category (e.g., Tax, Compliance, Accounting, Audit)
+    4. Due date
+    5. Estimated hours
+    6. Priority (Low, Medium, or High)
+    
+    Format the response as a JSON array of task objects.
+    `;
+
+    try {
+      const response = await this.generateResponse(prompt, { temperature: 0.5 });
+      
+      // Parse JSON from the response
+      // Extract JSON from the response text (in case there's extra text around it)
+      const jsonMatch = response.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        throw new Error('Could not extract valid JSON from AI response');
+      }
+      
+      const tasks = JSON.parse(jsonMatch[0]);
+      return tasks;
+    } catch (error) {
+      console.error('Error generating task suggestions:', error);
+      throw error;
     }
-    
-    // Get entity details
-    const entity = await storage.getEntity(entityId, tenantId);
-    if (!entity) {
-      return {
-        success: false,
-        error: "Entity not found"
-      };
-    }
-    
-    // Get tax jurisdictions
-    const taxJurisdictions = await storage.getTaxJurisdictionsForEntity(tenantId, entityId);
-    
-    // Get service subscriptions
-    const serviceSubscriptions = await storage.getEntityServiceSubscriptions(tenantId, entityId);
-    
-    // Get existing tasks
-    const tasks = await storage.getTasks(tenantId, undefined, entityId);
-    
-    // Build context
-    const context = {
-      entity,
-      taxJurisdictions,
-      serviceSubscriptions,
-      tasks: tasks.map(t => ({
-        id: t.id,
-        name: t.name,
-        description: t.description,
-        dueDate: t.dueDate,
-        status: t.status,
-        priority: t.priority
-      }))
-    };
-    
-    // Prepare the prompt
-    const systemPrompt = `
-You are an AI assistant for an accounting firm management system specializing in compliance analysis.
-Based on the entity information, tax jurisdictions, services, and current tasks, provide a comprehensive
-compliance analysis that identifies:
-
-1. Current compliance status (Compliant, At Risk, Non-Compliant) for each jurisdiction
-2. Missing or overdue compliance tasks
-3. Upcoming deadlines in the next 30/60/90 days
-4. Strategic recommendations to improve compliance
-
-Format your response as a structured analysis with clear sections and actionable insights.
-`;
-
-    const userPrompt = `
-Please analyze the compliance status for the following entity:
-${JSON.stringify(context, null, 2)}
-
-Provide a comprehensive compliance analysis.
-`;
-
-    // Make the AI request
-    const decryptedApiKey = decryptApiKey(aiConfig.apiKey);
-    const response = await makeAiRequest({
-      provider: aiConfig.provider,
-      model: aiConfig.model,
-      messages: [
-        decryptedApiKey, // First message is the API key
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.3
-    });
-
-    if (!response.success) {
-      return {
-        success: false,
-        error: response.error
-      };
-    }
-    
-    // Log the analysis
-    await storage.createAiReportHistory({
-      tenantId,
-      userId: 1, // Default system user
-      entityId,
-      reportType: 'compliance_analysis',
-      prompt: systemPrompt + '\n' + userPrompt,
-      response: response.data,
-      metadata: JSON.stringify(context)
-    });
-    
-    return {
-      success: true,
-      analysis: response.data
-    };
-  } catch (error) {
-    console.error('Error analyzing entity compliance:', error);
-    return {
-      success: false,
-      error: `Error: ${error instanceof Error ? error.message : String(error)}`
-    };
   }
-}
 
-/**
- * Extracts key information from uploaded documents
- */
-export async function extractDocumentInfo(
-  tenantId: number,
-  documentType: string,
-  documentContent: string
-): Promise<{success: boolean; extractedInfo?: any; error?: string}> {
-  try {
-    // Get AI configuration
-    const aiConfig = await getAiConfigForTenant(tenantId);
-    if (!aiConfig) {
-      return {
-        success: false,
-        error: "No AI configuration found for this tenant"
-      };
+  // Analyze entity compliance
+  async analyzeEntityCompliance(entityData: any): Promise<string> {
+    const prompt = `
+    Perform a comprehensive compliance analysis for the following entity:
+    
+    Entity Information:
+    - Name: ${entityData.name}
+    - Type: ${entityData.type}
+    - Jurisdictions: ${entityData.jurisdictions.join(', ')}
+    - Services: ${entityData.services.join(', ')}
+    - Fiscal Year End: ${entityData.fiscalYearEnd}
+    - Tax IDs: ${entityData.taxIds ? Object.entries(entityData.taxIds).map(([k, v]) => `${k}: ${v}`).join(', ') : 'None'}
+    
+    Include the following in your analysis:
+    1. Current compliance status across all jurisdictions
+    2. Upcoming filing deadlines
+    3. Potential compliance risks
+    4. Recommended actions to ensure ongoing compliance
+    
+    Format the analysis in a structured way with clear sections and bullet points where appropriate.
+    `;
+
+    try {
+      return await this.generateResponse(prompt, { temperature: 0.3 });
+    } catch (error) {
+      console.error('Error analyzing entity compliance:', error);
+      throw error;
     }
+  }
+
+  // Extract information from documents
+  async extractDocumentInfo(documentType: string, documentContent: string): Promise<any> {
+    let prompt = `
+    Extract key information from the following ${documentType} document content.
+    Document content:
+    ${documentContent.substring(0, 4000)} ${documentContent.length > 4000 ? '... (content truncated)' : ''}
     
-    // Prepare prompts based on document type
-    let systemPrompt = '';
-    
+    Analyze the content and extract structured data in JSON format based on the document type.
+    `;
+
+    // Customize prompt based on document type
     switch (documentType) {
       case 'invoice':
-        systemPrompt = `
-You are an AI assistant that extracts key information from invoices.
-Extract the following fields:
-- Invoice number
-- Invoice date
-- Due date
-- Vendor/supplier name
-- Total amount
-- Tax amount
-- Line items (with descriptions, quantities, and prices)
-
-Format your response as a JSON object with these fields.
-`;
+        prompt += `
+        For invoices, extract:
+        - Invoice number
+        - Date
+        - Due date
+        - Vendor/customer information
+        - Line items with descriptions, quantities, and amounts
+        - Subtotal, tax amounts, and total
+        - Payment terms
+        `;
         break;
-        
       case 'tax_form':
-        systemPrompt = `
-You are an AI assistant that extracts key information from tax forms.
-Extract the following fields:
-- Form type/number
-- Tax year
-- Entity name
-- Entity tax ID
-- Relevant amounts and figures
-- Filing deadlines
-
-Format your response as a JSON object with these fields.
-`;
+        prompt += `
+        For tax forms, extract:
+        - Form type/number
+        - Tax year
+        - Entity information
+        - Key financial figures
+        - Filing deadlines
+        - Payment or refund amounts
+        `;
         break;
-        
       case 'financial_statement':
-        systemPrompt = `
-You are an AI assistant that extracts key information from financial statements.
-Extract the following fields:
-- Statement type (Income Statement, Balance Sheet, Cash Flow)
-- Period (year/quarter)
-- Company name
-- Key financial figures (revenue, expenses, profits, assets, liabilities)
-- Important ratios or metrics
-
-Format your response as a JSON object with these fields.
-`;
+        prompt += `
+        For financial statements, extract:
+        - Statement type (Income Statement, Balance Sheet, etc.)
+        - Time period
+        - Key financial metrics
+        - Assets, liabilities, and equity (if balance sheet)
+        - Revenue, expenses, and profit/loss (if income statement)
+        - Cash flow information (if cash flow statement)
+        `;
         break;
-        
       default:
-        systemPrompt = `
-You are an AI assistant that extracts key information from accounting and financial documents.
-Extract all relevant fields and data from the document.
-Format your response as a structured JSON object with appropriate fields.
-`;
+        prompt += `
+        Extract all relevant financial and accounting information from this document.
+        `;
     }
 
-    const userPrompt = `
-Extract information from the following ${documentType}:
+    prompt += `
+    Return only the extracted information as valid JSON with no additional text.
+    `;
 
-${documentContent}
-
-Return ONLY a valid JSON object with the extracted information.
-`;
-
-    // Make the AI request
-    const decryptedApiKey = decryptApiKey(aiConfig.apiKey);
-    const response = await makeAiRequest({
-      provider: aiConfig.provider,
-      model: aiConfig.model,
-      messages: [
-        decryptedApiKey, // First message is the API key
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.2 // Low temperature for consistent extraction
-    });
-
-    if (!response.success) {
-      return {
-        success: false,
-        error: response.error
-      };
-    }
-
-    // Parse the JSON response
     try {
-      // Clean up the response to ensure it's valid JSON
-      const cleanedResponse = response.data.trim()
-        .replace(/```json/g, '')
-        .replace(/```/g, '')
-        .trim();
+      const response = await this.generateResponse(prompt, { temperature: 0.2 });
       
-      const extractedInfo = JSON.parse(cleanedResponse);
+      // Parse JSON from the response
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('Could not extract valid JSON from AI response');
+      }
       
-      // Log the extraction
-      await storage.createAiReportHistory({
-        tenantId,
-        userId: 1, // Default system user
-        entityId: null,
-        reportType: `document_extraction_${documentType}`,
-        prompt: systemPrompt + '\n' + userPrompt,
-        response: JSON.stringify(extractedInfo),
-        metadata: JSON.stringify({documentType})
-      });
-      
-      return {
-        success: true,
-        extractedInfo
-      };
+      return JSON.parse(jsonMatch[0]);
     } catch (error) {
-      console.error('Error parsing AI response:', error);
-      return {
-        success: false,
-        error: `Failed to parse AI response: ${error instanceof Error ? error.message : String(error)}`
-      };
+      console.error('Error extracting document information:', error);
+      throw error;
     }
-  } catch (error) {
-    console.error('Error extracting document info:', error);
-    return {
-      success: false,
-      error: `Error: ${error instanceof Error ? error.message : String(error)}`
-    };
+  }
+
+  // Process chat messages
+  async processChatMessage(message: string, conversationHistory: any[] = []): Promise<string> {
+    // Format conversation history for the prompt
+    const formattedHistory = conversationHistory.map(msg => 
+      `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.role === 'user' ? msg.message : msg.response}`
+    ).join('\n\n');
+
+    const prompt = `
+    ${formattedHistory ? `Conversation history:\n${formattedHistory}\n\n` : ''}
+    
+    User: ${message}
+    
+    You are an accounting and finance AI assistant for an accounting firm management system. Provide helpful, accurate information about accounting, taxation, compliance, financial reporting, and related topics. If you don't know the answer, admit it rather than making up information.
+    
+    Assistant:
+    `;
+
+    try {
+      return await this.generateResponse(prompt, { temperature: 0.7 });
+    } catch (error) {
+      console.error('Error processing chat message:', error);
+      throw error;
+    }
   }
 }

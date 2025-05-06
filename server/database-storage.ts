@@ -7,7 +7,7 @@ import {
   // Chart of Accounts hierarchical structure
   chartOfAccountsMainGroups, chartOfAccountsElementGroups, chartOfAccountsSubElementGroups, chartOfAccountsDetailedGroups,
   // AI related schema
-  aiConfigurations, aiChatHistory, aiReportHistory
+  aiConfigurations, aiChatConversations, aiChatMessages, aiTaskSuggestions, aiComplianceAnalyses, aiDocumentAnalyses, aiLearningData
 } from "@shared/schema";
 import type { 
   Tenant, User, InsertUser, InsertTenant, 
@@ -32,8 +32,12 @@ import type {
   JournalEntry, InsertJournalEntry, JournalEntryLine, InsertJournalEntryLine,
   // AI types
   SelectAiConfiguration, InsertAiConfiguration,
-  SelectAiChatHistory, InsertAiChatHistory,
-  SelectAiReportHistory, InsertAiReportHistory,
+  SelectAiChatConversation, InsertAiChatConversation,
+  SelectAiChatMessage, InsertAiChatMessage,
+  SelectAiTaskSuggestion, InsertAiTaskSuggestion,
+  SelectAiComplianceAnalysis, InsertAiComplianceAnalysis,
+  SelectAiDocumentAnalysis, InsertAiDocumentAnalysis,
+  SelectAiLearningData, InsertAiLearningData,
   JournalEntryType, InsertJournalEntryType
 } from "@shared/schema";
 import { IStorage } from "./storage";

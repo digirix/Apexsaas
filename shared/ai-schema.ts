@@ -1,110 +1,136 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json, varchar, unique } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, serial, text, boolean, timestamp, integer, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// AI Provider Enum (as a string in the database for flexibility)
-export const AI_PROVIDERS = ["OpenRouter.ai", "OpenAI", "Google AI", "DeepSeek", "Anthropic (Claude)"] as const;
+// AI Provider enum
+export const AI_PROVIDERS = ["Google", "OpenAI", "Anthropic"] as const;
+export const aiProviderEnum = pgEnum("ai_provider", AI_PROVIDERS);
+export type AiProvider = typeof AI_PROVIDERS[number];
 
-// AI Configuration table for tenant-specific AI settings
+// AI Configuration table
 export const aiConfigurations = pgTable("ai_configurations", {
   id: serial("id").primaryKey(),
   tenantId: integer("tenant_id").notNull(),
-  provider: text("provider").notNull(), // One of AI_PROVIDERS
-  apiKey: text("api_key").notNull(), // Encrypted API key
-  modelId: text("model_id"), // The selected model ID
-  isActive: boolean("is_active").default(true).notNull(),
+  provider: aiProviderEnum("provider").notNull(),
+  model: text("model").notNull(),
+  apiKey: text("api_key").notNull(),
+  isActive: boolean("is_active").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (table) => {
-  return {
-    tenantProviderUnique: unique().on(table.tenantId, table.provider),
-  };
 });
 
-// Schema for inserting a new AI configuration
-export const insertAiConfigurationSchema = createInsertSchema(aiConfigurations).pick({
-  tenantId: true,
-  provider: true,
-  apiKey: true,
-  modelId: true,
-  isActive: true,
+// AI Chat Conversation table
+export const aiChatConversations = pgTable("ai_chat_conversations", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  userId: integer("user_id").notNull(),
+  title: text("title"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Type for AI configuration insert
+// AI Chat Message table
+export const aiChatMessages = pgTable("ai_chat_messages", {
+  id: serial("id").primaryKey(),
+  conversationId: integer("conversation_id").notNull(),
+  userId: integer("user_id").notNull(),
+  role: text("role").notNull(), // 'user' or 'assistant'
+  message: text("message"), // user's message
+  response: text("response"), // AI's response
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// AI Task Suggestions table
+export const aiTaskSuggestions = pgTable("ai_task_suggestions", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  entityId: integer("entity_id").notNull(),
+  suggestions: jsonb("suggestions").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// AI Compliance Analysis table
+export const aiComplianceAnalyses = pgTable("ai_compliance_analyses", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  entityId: integer("entity_id").notNull(),
+  analysis: text("analysis").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// AI Document Analysis table
+export const aiDocumentAnalyses = pgTable("ai_document_analyses", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  userId: integer("user_id").notNull(),
+  documentType: text("document_type").notNull(), // 'invoice', 'tax_form', etc.
+  documentHash: text("document_hash").notNull(), // Used to avoid re-analyzing the same document
+  extractedInfo: jsonb("extracted_info").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// AI Learning Data table - stores data for continual learning
+export const aiLearningData = pgTable("ai_learning_data", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  dataType: text("data_type").notNull(), // 'user_feedback', 'task_completion', etc.
+  data: jsonb("data").notNull(),
+  processed: boolean("processed").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Insert schemas for each table
+export const insertAiConfigurationSchema = createInsertSchema(aiConfigurations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAiChatConversationSchema = createInsertSchema(aiChatConversations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAiChatMessageSchema = createInsertSchema(aiChatMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAiTaskSuggestionSchema = createInsertSchema(aiTaskSuggestions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAiComplianceAnalysisSchema = createInsertSchema(aiComplianceAnalyses).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAiDocumentAnalysisSchema = createInsertSchema(aiDocumentAnalyses).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAiLearningDataSchema = createInsertSchema(aiLearningData).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Types for each insert schema
 export type InsertAiConfiguration = z.infer<typeof insertAiConfigurationSchema>;
-// Type for AI configuration select
+export type InsertAiChatConversation = z.infer<typeof insertAiChatConversationSchema>;
+export type InsertAiChatMessage = z.infer<typeof insertAiChatMessageSchema>;
+export type InsertAiTaskSuggestion = z.infer<typeof insertAiTaskSuggestionSchema>;
+export type InsertAiComplianceAnalysis = z.infer<typeof insertAiComplianceAnalysisSchema>;
+export type InsertAiDocumentAnalysis = z.infer<typeof insertAiDocumentAnalysisSchema>;
+export type InsertAiLearningData = z.infer<typeof insertAiLearningDataSchema>;
+
+// Types for select operations
 export type SelectAiConfiguration = typeof aiConfigurations.$inferSelect;
-
-// AI Chat History table to store chat interactions
-export const aiChatHistory = pgTable("ai_chat_history", {
-  id: serial("id").primaryKey(),
-  tenantId: integer("tenant_id").notNull(),
-  userId: integer("user_id").notNull(),
-  message: text("message").notNull(),
-  response: text("response").notNull(),
-  metadata: json("metadata"), // Additional metadata about the interaction
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-// Schema for inserting a new chat history entry
-export const insertAiChatHistorySchema = createInsertSchema(aiChatHistory).pick({
-  tenantId: true,
-  userId: true,
-  message: true,
-  response: true,
-  metadata: true,
-});
-
-// Type for AI chat history insert
-export type InsertAiChatHistory = z.infer<typeof insertAiChatHistorySchema>;
-// Type for AI chat history select
-export type SelectAiChatHistory = typeof aiChatHistory.$inferSelect;
-
-// AI Report History table to store generated reports
-export const aiReportHistory = pgTable("ai_report_history", {
-  id: serial("id").primaryKey(),
-  tenantId: integer("tenant_id").notNull(),
-  userId: integer("user_id").notNull(),
-  query: text("query").notNull(), // The natural language query
-  generatedSql: text("generated_sql"), // The SQL query generated (if applicable)
-  results: json("results"), // The query results
-  reportText: text("report_text").notNull(), // The generated report text
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-// Schema for inserting a new AI report history entry
-export const insertAiReportHistorySchema = createInsertSchema(aiReportHistory).pick({
-  tenantId: true,
-  userId: true,
-  query: true,
-  generatedSql: true,
-  results: true,
-  reportText: true,
-});
-
-// Type for AI report history insert
-export type InsertAiReportHistory = z.infer<typeof insertAiReportHistorySchema>;
-// Type for AI report history select
-export type SelectAiReportHistory = typeof aiReportHistory.$inferSelect;
-
-// Zod schema for validating client-side API key testing
-export const testAiConnectionSchema = z.object({
-  provider: z.enum(AI_PROVIDERS),
-  apiKey: z.string().min(1, "API key is required")
-});
-
-// Type for AI connection test
-export type TestAiConnection = z.infer<typeof testAiConnectionSchema>;
-
-// Response type for the test connection API
-export const testAiConnectionResponseSchema = z.object({
-  success: z.boolean(),
-  message: z.string(),
-  models: z.array(z.object({
-    id: z.string(),
-    name: z.string().optional(),
-  })).optional(),
-});
-
-// Type for test connection response
-export type TestAiConnectionResponse = z.infer<typeof testAiConnectionResponseSchema>;
+export type SelectAiChatConversation = typeof aiChatConversations.$inferSelect;
+export type SelectAiChatMessage = typeof aiChatMessages.$inferSelect;
+export type SelectAiTaskSuggestion = typeof aiTaskSuggestions.$inferSelect;
+export type SelectAiComplianceAnalysis = typeof aiComplianceAnalyses.$inferSelect;
+export type SelectAiDocumentAnalysis = typeof aiDocumentAnalyses.$inferSelect;
+export type SelectAiLearningData = typeof aiLearningData.$inferSelect;
