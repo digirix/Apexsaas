@@ -12,7 +12,7 @@ interface AiServiceOptions {
 interface AiProvider {
   initialize(apiKey: string, model: string): void;
   generateText(prompt: string, options?: any): Promise<string>;
-  analyzeImage?(imageBase64: string, prompt: string): Promise<string>;
+  analyzeImage?(imageBase64: string, prompt: string, options?: any): Promise<string>;
 }
 
 // Google AI Provider
@@ -20,35 +20,116 @@ class GoogleAiProvider implements AiProvider {
   private apiKey: string;
   private model: string;
   private apiEndpoint = 'https://generativelanguage.googleapis.com';
+  private apiVersion = 'v1beta';
+  private availableModels: any[] = [];
 
   initialize(apiKey: string, model: string): void {
     this.apiKey = apiKey;
-    this.model = model || 'gemini-pro';
+    this.model = model || 'gemini-1.5-pro';
   }
 
-  async generateText(prompt: string, options: any = {}): Promise<string> {
-    // Correct format for Google Gemini API
-    const url = `${this.apiEndpoint}/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
-    
-    const requestBody = {
-      contents: [
-        {
-          parts: [
-            {
-              text: prompt
-            }
-          ]
-        }
-      ],
-      generationConfig: {
-        temperature: options.temperature || 0.7,
-        topK: options.topK || 40,
-        topP: options.topP || 0.95,
-        maxOutputTokens: options.maxTokens || 1024,
-      }
-    };
-
+  /**
+   * List available models to verify API key and find correct model names
+   */
+  async listModels(): Promise<any[]> {
     try {
+      const url = `${this.apiEndpoint}/${this.apiVersion}/models?key=${this.apiKey}`;
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error?.message || `Failed to list models: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      this.availableModels = data.models || [];
+      return this.availableModels;
+    } catch (error) {
+      console.error('Error listing Google AI models:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Find the best available model that matches the requested capabilities
+   */
+  async findBestModel(capability: 'text' | 'vision' = 'text'): Promise<string | null> {
+    if (this.availableModels.length === 0) {
+      try {
+        await this.listModels();
+      } catch (error) {
+        console.error('Error fetching available models:', error);
+        // If we can't get models, fall back to common model names
+        return capability === 'vision' ? 'gemini-1.5-pro-vision' : 'gemini-1.5-pro';
+      }
+    }
+
+    // First try exact model match
+    const exactMatch = this.availableModels.find(m => m.name.endsWith(`/${this.model}`));
+    if (exactMatch) {
+      return this.model;
+    }
+
+    // Find preferred models based on capability
+    const preferredModels = capability === 'vision' 
+      ? ['gemini-1.5-pro-vision', 'gemini-pro-vision', 'gemini-1.0-pro-vision'] 
+      : ['gemini-1.5-pro', 'gemini-pro', 'gemini-1.0-pro', 'gemini-1.5-flash', 'gemini-flash'];
+
+    // Look for available preferred models
+    for (const modelName of preferredModels) {
+      const match = this.availableModels.find(m => m.name.endsWith(`/${modelName}`));
+      if (match) {
+        // Extract just the model name from the full path
+        const parts = match.name.split('/');
+        return parts[parts.length - 1];
+      }
+    }
+
+    // If no preferred model is found, just return any model that supports generateContent
+    const anyModel = this.availableModels.find(m => 
+      m.supportedGenerationMethods && 
+      m.supportedGenerationMethods.includes('generateContent')
+    );
+
+    if (anyModel) {
+      const parts = anyModel.name.split('/');
+      return parts[parts.length - 1];
+    }
+
+    // If we couldn't find any suitable model
+    throw new Error('No suitable Google AI model found for the requested capability');
+  }
+
+  /**
+   * Generate text using the most appropriate model 
+   */
+  async generateText(prompt: string, options: any = {}): Promise<string> {
+    try {
+      // Find the best model for text generation
+      const modelToUse = await this.findBestModel('text');
+      
+      const url = `${this.apiEndpoint}/${this.apiVersion}/models/${modelToUse}:generateContent?key=${this.apiKey}`;
+      
+      console.log(`Using model: ${modelToUse} for text generation`);
+      
+      const requestBody = {
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: options.temperature || 0.7,
+          topK: options.topK || 40,
+          topP: options.topP || 0.95,
+          maxOutputTokens: options.maxTokens || 1024,
+        }
+      };
+
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -60,7 +141,11 @@ class GoogleAiProvider implements AiProvider {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.error?.message || 'Failed to generate text with Google AI');
+        throw new Error(data.error?.message || `Failed to generate text with Google AI: ${response.statusText}`);
+      }
+
+      if (!data.candidates || data.candidates.length === 0) {
+        throw new Error('No content generated from the model');
       }
 
       return data.candidates[0].content.parts[0].text;
@@ -70,33 +155,40 @@ class GoogleAiProvider implements AiProvider {
     }
   }
 
-  async analyzeImage(imageBase64: string, prompt: string): Promise<string> {
-    // Correct format for Google Gemini Vision API
-    const url = `${this.apiEndpoint}/v1beta/models/gemini-pro-vision:generateContent?key=${this.apiKey}`;
-    
-    const requestBody = {
-      contents: [
-        {
-          parts: [
-            {
-              text: prompt
-            },
-            {
-              inline_data: {
-                mime_type: "image/jpeg",
-                data: imageBase64
-              }
-            }
-          ]
-        }
-      ],
-      generationConfig: {
-        temperature: 0.4,
-        maxOutputTokens: 1024,
-      }
-    };
-
+  /**
+   * Analyze image using the most appropriate vision model
+   */
+  async analyzeImage(imageBase64: string, prompt: string, options: any = {}): Promise<string> {
     try {
+      // Find the best model for image analysis
+      const modelToUse = await this.findBestModel('vision');
+      
+      const url = `${this.apiEndpoint}/${this.apiVersion}/models/${modelToUse}:generateContent?key=${this.apiKey}`;
+      
+      console.log(`Using model: ${modelToUse} for image analysis`);
+      
+      const requestBody = {
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt
+              },
+              {
+                inline_data: {
+                  mime_type: "image/jpeg",
+                  data: imageBase64
+                }
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: options.temperature || 0.4,
+          maxOutputTokens: options.maxTokens || 1024,
+        }
+      };
+
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -108,7 +200,11 @@ class GoogleAiProvider implements AiProvider {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.error?.message || 'Failed to analyze image with Google AI');
+        throw new Error(data.error?.message || `Failed to analyze image with Google AI: ${response.statusText}`);
+      }
+
+      if (!data.candidates || data.candidates.length === 0) {
+        throw new Error('No analysis generated from the model');
       }
 
       return data.candidates[0].content.parts[0].text;
@@ -146,7 +242,7 @@ class OpenAiProvider implements AiProvider {
     }
   }
 
-  async analyzeImage(imageBase64: string, prompt: string): Promise<string> {
+  async analyzeImage(imageBase64: string, prompt: string, options: any = {}): Promise<string> {
     try {
       const response = await this.client.chat.completions.create({
         model: "gpt-4o",
@@ -167,7 +263,8 @@ class OpenAiProvider implements AiProvider {
             ]
           }
         ],
-        max_tokens: 1024
+        max_tokens: options.maxTokens || 1024,
+        temperature: options.temperature || 0.4
       });
 
       return response.choices[0].message.content || '';
@@ -327,7 +424,7 @@ export class AiService {
   }
 
   // Analyze image if the provider supports it
-  async analyzeImage(imageBase64: string, prompt: string): Promise<string> {
+  async analyzeImage(imageBase64: string, prompt: string, options: any = {}): Promise<string> {
     if (!this.provider) {
       const initialized = await this.initialize();
       if (!initialized) {
@@ -340,7 +437,7 @@ export class AiService {
     }
 
     try {
-      return await this.provider.analyzeImage(imageBase64, prompt);
+      return await this.provider.analyzeImage(imageBase64, prompt, options);
     } catch (error) {
       console.error('Error analyzing image with AI:', error);
       throw error;
@@ -353,17 +450,57 @@ export class AiService {
       const aiProvider = createProvider(provider);
       aiProvider.initialize(apiKey, '');
 
-      // Simple test prompt
+      // For Google AI, we'll try to list models first to validate API key and connection
+      if (provider === 'Google' && aiProvider instanceof GoogleAiProvider) {
+        try {
+          // Try to list available models first
+          const availableModels = await aiProvider.listModels();
+          
+          // Format the models for the UI
+          const formattedModels = availableModels
+            .filter(model => model.supportedGenerationMethods?.includes('generateContent'))
+            .map(model => {
+              const nameParts = model.name.split('/');
+              const modelName = nameParts[nameParts.length - 1];
+              // Format display name
+              let displayName = modelName.replace(/[-_]/g, ' ');
+              displayName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+              return { 
+                id: modelName, 
+                name: displayName
+              };
+            });
+          
+          if (formattedModels.length > 0) {
+            return {
+              success: true,
+              message: 'Connection successful. Found ' + formattedModels.length + ' available models.',
+              models: formattedModels
+            };
+          }
+          
+          // If no models found, fall back to default model list
+          console.log('No compatible models found, using default model list');
+        } catch (listError) {
+          console.warn('Error listing models, falling back to testing with text generation', listError);
+          // Continue to text generation test below
+        }
+      }
+
+      // Simple test prompt for all providers
+      console.log(`Testing ${provider} with a simple text generation request`);
       const testResponse = await aiProvider.generateText('Respond with "Connection successful"');
+      console.log('Test response received:', testResponse?.substring(0, 100));
       
-      // Get available models based on provider
+      // Get default models based on provider if we couldn't fetch them
       let models: any[] = [];
       switch (provider) {
         case 'Google':
           models = [
+            { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
+            { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
             { id: 'gemini-pro', name: 'Gemini Pro' },
-            { id: 'gemini-pro-vision', name: 'Gemini Pro Vision' },
-            { id: 'gemini-flash', name: 'Gemini Flash' }
+            { id: 'gemini-pro-vision', name: 'Gemini Pro Vision' }
           ];
           break;
         case 'OpenAI':
