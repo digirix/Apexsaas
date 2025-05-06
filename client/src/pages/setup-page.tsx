@@ -13,6 +13,7 @@ import { TaxJurisdictionsManager } from "@/components/setup/tax-jurisdictions-ma
 import DesignationsManager from "@/components/setup/designations-manager";
 import DepartmentsManager from "@/components/setup/departments-manager";
 import PaymentGatewaysManager from "@/components/setup/payment-gateways-manager";
+import AiConfigurationsManager from "@/components/setup/ai-configurations-manager";
 import { SetupSection } from "@/types/setup";
 
 export default function SetupPage() {
@@ -39,6 +40,7 @@ export default function SetupPage() {
           {activeSection === 'service-types' && <ServiceTypesManager />}
           {activeSection === 'tax-jurisdictions' && <TaxJurisdictionsManager />}
           {activeSection === 'payment-gateways' && <PaymentGatewaysManager />}
+          {activeSection === 'ai-configurations' && <AiConfigurationsManager />}
           {activeSection === 'designations' && <DesignationsManager />}
           {activeSection === 'departments' && <DepartmentsManager />}
         </div>
