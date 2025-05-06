@@ -17,6 +17,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,11 @@ const adminModules: NavItem[] = [
     title: "Users",
     href: "/users",
     icon: <Users className="h-5 w-5 mr-3 text-slate-500" />,
+  },
+  {
+    title: "AI Settings",
+    href: "/ai-settings",
+    icon: <Sparkles className="h-5 w-5 mr-3 text-slate-500" />,
   },
   {
     title: "Workflow",
