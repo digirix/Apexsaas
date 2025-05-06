@@ -67,65 +67,20 @@ export default function AiSettingsPage() {
           setModel(data.models[0].id);
         }
       } else {
-        // More detailed error feedback with guidance
-        let errorDescription = data.message;
-        
-        // Add provider-specific help text
-        if (provider === 'Google') {
-          if (data.message?.includes('invalid') || data.message?.includes('API key')) {
-            errorDescription = `${data.message} Please check that your Google AI API key is correct and has the Generative Language API enabled.`;
-          } else if (data.message?.includes('permission')) {
-            errorDescription = `${data.message} Visit the Google AI Studio and ensure your API key has the proper permissions.`;
-          }
-        } else if (provider === 'OpenAI') {
-          if (data.message?.includes('invalid') || data.message?.includes('API key')) {
-            errorDescription = `${data.message} Please verify your API key in the OpenAI dashboard.`;
-          } else if (data.message?.includes('rate limit')) {
-            errorDescription = `${data.message} Consider upgrading your OpenAI plan or waiting until your usage resets.`;
-          }
-        } else if (provider === 'Anthropic') {
-          if (data.message?.includes('invalid') || data.message?.includes('API key')) {
-            errorDescription = `${data.message} Please verify your API key in the Anthropic dashboard.`;
-          }
-        }
-        
         toast({
           title: "Connection failed",
-          description: errorDescription,
+          description: data.message,
           variant: "destructive",
         });
-        
-        // Show additional error details if available
-        if (data.error && process.env.NODE_ENV === 'development') {
-          console.error('Detailed connection error:', data.error);
-        }
       }
       setTestingConnection(false);
     },
     onError: (error: any) => {
-      // Handle unexpected errors from the API request itself
-      console.error('Connection test error:', error);
-      
-      let errorMessage = "There was an unexpected error testing the connection.";
-      
-      if (error.message) {
-        if (error.message.includes('Network Error')) {
-          errorMessage = "Network error. Please check your internet connection and try again.";
-        } else if (error.status === 401) {
-          errorMessage = "Authentication error. Please log in again.";
-        } else if (error.status === 429) {
-          errorMessage = "Too many requests. Please wait a moment and try again.";
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
       toast({
         title: "Connection test failed",
-        description: errorMessage,
+        description: error.message || "There was an error testing the connection.",
         variant: "destructive",
       });
-      
       setTestingConnection(false);
     },
   });

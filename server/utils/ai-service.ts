@@ -445,55 +445,16 @@ export class AiService {
   }
 
   // Test a provider connection with the given API key
-  static async testConnection(provider: string, apiKey: string): Promise<{ success: boolean; message: string; error?: any; models?: any[] }> {
+  static async testConnection(provider: string, apiKey: string): Promise<{ success: boolean; message: string; models?: any[] }> {
     try {
-      // Validate API key format first
-      if (!apiKey || apiKey.trim() === '') {
-        return {
-          success: false,
-          message: 'API key cannot be empty'
-        };
-      }
-
-      // Perform basic API key format validation based on provider
-      if (provider === 'Google') {
-        // Google API keys are typically alphanumeric and may start with 'AI'
-        if (apiKey.length < 20) {
-          return {
-            success: false,
-            message: 'Invalid Google API key format. Google API keys are typically longer than 20 characters.'
-          };
-        }
-      } else if (provider === 'OpenAI') {
-        // OpenAI keys typically start with 'sk-' and are quite long
-        if (!apiKey.startsWith('sk-') || apiKey.length < 30) {
-          return {
-            success: false,
-            message: 'Invalid OpenAI API key format. OpenAI API keys typically start with "sk-" and are longer than 30 characters.'
-          };
-        }
-      } else if (provider === 'Anthropic') {
-        // Anthropic keys have specific formats
-        if (!apiKey.startsWith('sk-ant-') && !apiKey.startsWith('sk-')) {
-          return {
-            success: false,
-            message: 'Invalid Anthropic API key format. Anthropic API keys typically start with "sk-ant-" or "sk-".'
-          };
-        }
-      }
-
-      console.log(`Creating provider for ${provider}...`);
       const aiProvider = createProvider(provider);
-      console.log(`Initializing provider with API key...`);
       aiProvider.initialize(apiKey, '');
 
       // For Google AI, we'll try to list models first to validate API key and connection
       if (provider === 'Google' && aiProvider instanceof GoogleAiProvider) {
         try {
-          console.log('Listing Google AI models...');
           // Try to list available models first
           const availableModels = await aiProvider.listModels();
-          console.log(`Found ${availableModels.length} Google AI models`);
           
           // Format the models for the UI
           const formattedModels = availableModels
@@ -516,170 +477,58 @@ export class AiService {
               message: 'Connection successful. Found ' + formattedModels.length + ' available models.',
               models: formattedModels
             };
-          } else {
-            console.log('No compatible models found, will try a test generation instead');
-          }
-        } catch (listError: any) {
-          console.warn('Error listing Google AI models:', listError);
-          
-          // Provide specific error message based on error type
-          const errorMessage = listError.message || '';
-          
-          if (errorMessage.includes('API key not valid')) {
-            return {
-              success: false,
-              message: 'Invalid Google AI API key. Please check your key and try again.',
-              error: listError
-            };
-          } else if (errorMessage.includes('PERMISSION_DENIED')) {
-            return {
-              success: false,
-              message: 'Permission denied. Your Google AI API key does not have permission to access the models API.',
-              error: listError
-            };
-          } else if (errorMessage.includes('RESOURCE_EXHAUSTED')) {
-            return {
-              success: false,
-              message: 'API quota exceeded. Your Google AI account has reached its usage limit.',
-              error: listError
-            };
-          } else if (errorMessage.includes('timeout') || errorMessage.includes('DEADLINE_EXCEEDED')) {
-            return {
-              success: false,
-              message: 'Connection to Google AI timed out. Please check your network and try again.',
-              error: listError
-            };
           }
           
-          // If error is not one of the above, continue to text generation test
-          console.log('Falling back to testing with text generation');
+          // If no models found, fall back to default model list
+          console.log('No compatible models found, using default model list');
+        } catch (listError) {
+          console.warn('Error listing models, falling back to testing with text generation', listError);
+          // Continue to text generation test below
         }
       }
 
       // Simple test prompt for all providers
       console.log(`Testing ${provider} with a simple text generation request`);
-      try {
-        const testResponse = await aiProvider.generateText('Respond with "Connection successful"');
-        console.log('Test response received:', testResponse?.substring(0, 100));
-        
-        // Get default models based on provider since we couldn't fetch them dynamically
-        let models: any[] = [];
-        switch (provider) {
-          case 'Google':
-            models = [
-              { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
-              { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
-              { id: 'gemini-pro', name: 'Gemini Pro' },
-              { id: 'gemini-pro-vision', name: 'Gemini Pro Vision' }
-            ];
-            break;
-          case 'OpenAI':
-            models = [
-              { id: 'gpt-4o', name: 'GPT-4o' },
-              { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
-              { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' }
-            ];
-            break;
-          case 'Anthropic':
-            models = [
-              { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus' },
-              { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet' },
-              { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku' }
-            ];
-            break;
-        }
-
-        return {
-          success: true,
-          message: `Connection to ${provider} successful`,
-          models
-        };
-      } catch (textGenError: any) {
-        console.error(`Error in text generation test for ${provider}:`, textGenError);
-        
-        // Format specific error messages based on provider and error type
-        if (provider === 'OpenAI') {
-          if (textGenError.message?.includes('401')) {
-            return {
-              success: false,
-              message: 'Invalid API key. Please check your OpenAI API key and try again.',
-              error: textGenError
-            };
-          } else if (textGenError.message?.includes('429')) {
-            return {
-              success: false,
-              message: 'OpenAI rate limit exceeded. Your account has reached its usage limit.',
-              error: textGenError
-            };
-          } else if (textGenError.message?.includes('timeout')) {
-            return {
-              success: false,
-              message: 'Connection to OpenAI timed out. Please check your network and try again.',
-              error: textGenError
-            };
-          }
-        } else if (provider === 'Anthropic') {
-          if (textGenError.message?.includes('401')) {
-            return {
-              success: false,
-              message: 'Invalid API key. Please check your Anthropic API key and try again.',
-              error: textGenError
-            };
-          } else if (textGenError.message?.includes('429')) {
-            return {
-              success: false,
-              message: 'Anthropic rate limit exceeded. Your account has reached its usage limit.',
-              error: textGenError
-            };
-          } else if (textGenError.message?.includes('timeout')) {
-            return {
-              success: false,
-              message: 'Connection to Anthropic timed out. Please check your network and try again.',
-              error: textGenError
-            };
-          }
-        } else if (provider === 'Google') {
-          if (textGenError.message?.includes('API key not valid')) {
-            return {
-              success: false,
-              message: 'Invalid API key. Please check your Google AI API key and try again.',
-              error: textGenError
-            };
-          } else if (textGenError.message?.includes('PERMISSION_DENIED')) {
-            return {
-              success: false,
-              message: 'Permission denied. Your Google AI API key does not have necessary permissions.',
-              error: textGenError
-            };
-          } else if (textGenError.message?.includes('RESOURCE_EXHAUSTED')) {
-            return {
-              success: false,
-              message: 'API quota exceeded. Your Google AI account has reached its usage limit.',
-              error: textGenError
-            };
-          }
-        }
-        
-        // Generic error message if we couldn't determine a specific cause
-        return {
-          success: false,
-          message: `Failed to connect to ${provider}: ${textGenError.message || 'Unknown error'}`,
-          error: textGenError
-        };
-      }
-    } catch (error: any) {
-      console.error(`Error testing ${provider} connection:`, error);
+      const testResponse = await aiProvider.generateText('Respond with "Connection successful"');
+      console.log('Test response received:', testResponse?.substring(0, 100));
       
-      // Detailed error response with debugging information
+      // Get default models based on provider if we couldn't fetch them
+      let models: any[] = [];
+      switch (provider) {
+        case 'Google':
+          models = [
+            { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
+            { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
+            { id: 'gemini-pro', name: 'Gemini Pro' },
+            { id: 'gemini-pro-vision', name: 'Gemini Pro Vision' }
+          ];
+          break;
+        case 'OpenAI':
+          models = [
+            { id: 'gpt-4o', name: 'GPT-4o' },
+            { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
+            { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' }
+          ];
+          break;
+        case 'Anthropic':
+          models = [
+            { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus' },
+            { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet' },
+            { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku' }
+          ];
+          break;
+      }
+
+      return {
+        success: true,
+        message: 'Connection successful',
+        models
+      };
+    } catch (error) {
+      console.error(`Error testing ${provider} connection:`, error);
       return {
         success: false,
-        message: `Connection to ${provider} failed: ${error.message || 'Unknown error'}`,
-        error: {
-          message: error.message,
-          name: error.name,
-          stack: error.stack,
-          details: error.details || error.response?.data || error.response || null
-        }
+        message: error instanceof Error ? error.message : 'Unknown error occurred'
       };
     }
   }
