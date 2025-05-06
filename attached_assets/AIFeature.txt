@@ -1,0 +1,82 @@
+Your task is to integrate sophisticated, multi-tenant AI capabilities into my application. Please follow these detailed specifications:
+Overall Goal:
+Empower each tenant of the application with their own configurable AI, powered by LLMs of their choice, for in-app assistance and data reporting.
+I. AI Integration & Configuration (Within the "Setup Module" - Per Tenant)
+This section must be designed for individual tenants to configure their AI preferences securely and independently.
+Unified AI Configuration UI (Sequential & User-Friendly):
+Make the configuration of the LLM model in a sequential configuration flow.
+Step 1: AI Provider Selection:
+Present a dropdown menu for the tenant to select their AI Provider.
+Options: "OpenRouter.ai", "OpenAI", "Google AI", "DeepSeek", "Anthropic (Claude)".
+
+
+Step 2: API Key Input:
+A text field for the tenant to enter their API key corresponding to the selected provider.
+
+
+Step 3: Test Connection & Model Configuration:
+Provide a "Test Connection & Configure" button.
+On Click:
+The system will use the provided API key and selected provider to attempt a connection.
+If Connection Successful:
+The system must then attempt to auto-detect and Provide the List of appropriate/default Model ID(s) available under that API key for the selected provider. (For example, if OpenAI API key is provided, it might detect gpt-4o, gpt-4-turbo, etc. and could Provide a primary one or allow selection if multiple are equally viable and detectable, then the user will select the Model from those provided Models).
+Securely store the API key (encrypted) and the detected Model ID(s) associated with the tenant's account.
+Display a clear success message: "AI Integration Successful! Connected to [Provider Name] using model [Detected Model ID]. Your AI features are now active."
+
+
+If Connection Fails (or Model Detection Fails):
+Display a specific, user-friendly error message. Examples:
+"Invalid API Key for [Provider Name]."
+"Connection to [Provider Name] timed out. Please check your network and the provider's status."
+"Could not automatically determine a model for this API key. Please ensure the key has access to usable models from [Provider Name]."
+"API Error from [Provider Name]: [Specific error message from provider if available]."
+
+
+Provide actionable advice on how the tenant can resolve the issue (e.g., "Verify your API key and permissions on the [Provider Name] dashboard.").
+
+
+
+
+
+
+Important: Ensure the direct integrations for Google AI and DeepSeek are fully implemented and functional, not just placeholders.
+
+
+API Key Management Section:
+Within the AI configuration area, provide a section where tenants can manage their configured API keys.
+This section should:
+List all currently active AI provider integrations for the tenant (e.g., "OpenAI - gpt-4o", "OpenRouter.ai - deepseek/coder"). Show the provider and the model being used. Mask the API key for security (e.g., show only last 4 characters).
+Allow tenants to delete an existing API key configuration. This should securely remove the key and deactivate AI features reliant on it for that tenant.
+Allow tenants to add a new provider configuration, which would initiate the sequential flow described in point I.1.
+
+
+
+
+Multi-Tenancy & Security:
+All API keys and AI configurations must be stored and managed strictly on a per-tenant basis. There should be no cross-tenant data leakage.
+API keys must be stored securely (e.g., encrypted at rest).
+
+
+II. Core AI-Powered Features (To be activated once a tenant successfully configures their AI)
+These features will use the tenant's specific, configured LLM via their API key.
+AI Chatbot for Application Assistance:
+Integrate an AI-powered chatbot accessible within the application.
+This chatbot will use the tenant's chosen and configured LLM.
+Purpose: To provide contextual help, answer questions about using the application, guide users through features, and troubleshoot common issues related to this application.
+The chatbot should be designed to be helpful and relevant to the application's functionality.
+
+AI Reporting (New Sidebar Item):
+Add a new, distinct item in the application's sidebar named "AI Reporting."
+Functionality: This feature will allow tenants to generate reports from their own database data using natural language queries, processed by their configured LLM.
+Mechanism:
+The LLM must have read-only access strictly limited to the current tenant's database partition/schema. Ensure robust data isolation.
+Provide a user interface where the tenant can type natural language queries (e.g., "What were my top 5 sales items last month?", "Show user activity trends for the past week").
+The system should:
+Pass the natural language query and relevant (anonymized, if necessary) schema information to the tenant's LLM.
+The LLM's role is to understand the query and either:
+Generate a structured database query (e.g., SQL) to retrieve the necessary data. (The application backend would then execute this query securely).
+OR, if using a more direct RAG approach, guide the retrieval of relevant data chunks.
+Once data is retrieved, use the LLM to synthesize this data into a human-readable report/answer.
+Display the generated report/answer to the tenant.
+Implement robust error handling for invalid queries, data access issues, or LLM processing failures.
+Consider aspects like query complexity, potential for long-running queries, and result presentation.
