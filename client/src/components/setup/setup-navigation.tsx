@@ -15,7 +15,9 @@ import {
   GitBranch,
   CreditCard,
   BookOpen,
-  BarChart2
+  BarChart2,
+  Bot,
+  Brain
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SetupSection } from "@/types/setup";
@@ -82,6 +84,11 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
       label: 'Task Categories',
       icon: <FileText className="h-5 w-5" />
     },
+    {
+      id: 'ai-configurations',
+      label: 'AI Configurations',
+      icon: <Brain className="h-5 w-5" />
+    },
     
     // HR Configuration
     {
@@ -98,8 +105,8 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
 
   // Group items by category
   const locationItems = setupItems.slice(0, 3);
-  const businessItems = setupItems.slice(3, 9);
-  const hrItems = setupItems.slice(9, 11);
+  const businessItems = setupItems.slice(3, 10);
+  const hrItems = setupItems.slice(10, 12);
 
   return (
     <Card className="p-4">
