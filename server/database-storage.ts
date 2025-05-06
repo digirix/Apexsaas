@@ -3107,4 +3107,121 @@ export class DatabaseStorage implements IStorage {
       endDate: effectiveEndDate
     };
   }
+
+  // AI Configuration operations
+  async getAiConfigurations(tenantId: number): Promise<AiConfiguration[]> {
+    return await db.select().from(aiConfigurations)
+      .where(eq(aiConfigurations.tenantId, tenantId));
+  }
+
+  async getAiConfiguration(id: number, tenantId: number): Promise<AiConfiguration | undefined> {
+    const [config] = await db.select().from(aiConfigurations)
+      .where(and(
+        eq(aiConfigurations.id, id),
+        eq(aiConfigurations.tenantId, tenantId)
+      ));
+    return config;
+  }
+
+  async getAiConfigurationByProvider(tenantId: number, provider: string): Promise<AiConfiguration | undefined> {
+    const [config] = await db.select().from(aiConfigurations)
+      .where(and(
+        eq(aiConfigurations.provider, provider),
+        eq(aiConfigurations.tenantId, tenantId)
+      ));
+    return config;
+  }
+
+  async createAiConfiguration(config: InsertAiConfiguration): Promise<AiConfiguration> {
+    // Check if configuration for this provider already exists for this tenant
+    const existingConfig = await this.getAiConfigurationByProvider(config.tenantId, config.provider);
+    
+    if (existingConfig) {
+      // Update the existing configuration instead of creating a duplicate
+      return await this.updateAiConfiguration(existingConfig.id, config) as AiConfiguration;
+    }
+    
+    // Create a new configuration
+    const [newConfig] = await db.insert(aiConfigurations).values(config).returning();
+    return newConfig;
+  }
+
+  async updateAiConfiguration(id: number, config: Partial<InsertAiConfiguration>): Promise<AiConfiguration | undefined> {
+    const [updatedConfig] = await db.update(aiConfigurations)
+      .set({
+        ...config,
+        updatedAt: new Date()
+      })
+      .where(eq(aiConfigurations.id, id))
+      .returning();
+    return updatedConfig;
+  }
+
+  async deleteAiConfiguration(id: number, tenantId: number): Promise<boolean> {
+    const [deletedConfig] = await db.delete(aiConfigurations)
+      .where(and(
+        eq(aiConfigurations.id, id),
+        eq(aiConfigurations.tenantId, tenantId)
+      ))
+      .returning({ id: aiConfigurations.id });
+    return !!deletedConfig;
+  }
+
+  async testAiConfiguration(id: number, tenantId: number): Promise<{success: boolean, message: string}> {
+    try {
+      const config = await this.getAiConfiguration(id, tenantId);
+      if (!config) {
+        return { success: false, message: "AI configuration not found" };
+      }
+      
+      // Test the API key by making a basic request to the provider
+      if (config.provider === 'openrouter') {
+        // For OpenRouter, we can use their models endpoint which doesn't consume tokens
+        const response = await fetch('https://openrouter.ai/api/v1/models', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${config.apiKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          // Update the lastTested timestamp
+          await this.updateAiConfiguration(id, { lastTested: new Date() });
+          return { success: true, message: "OpenRouter API key is valid" };
+        } else {
+          const errorData = await response.json();
+          return { 
+            success: false, 
+            message: `OpenRouter API key test failed: ${errorData.error?.message || response.statusText}`
+          };
+        }
+      } else if (config.provider === 'googleai') {
+        // For Google AI, we'd need to use their API to validate
+        // This is simplified and would need actual Google AI API implementation
+        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + config.apiKey, {
+          method: 'GET'
+        });
+        
+        if (response.ok) {
+          // Update the lastTested timestamp
+          await this.updateAiConfiguration(id, { lastTested: new Date() });
+          return { success: true, message: "Google AI API key is valid" };
+        } else {
+          const errorData = await response.json();
+          return { 
+            success: false, 
+            message: `Google AI API key test failed: ${errorData.error?.message || response.statusText}`
+          };
+        }
+      }
+      
+      return { success: false, message: `Unsupported AI provider: ${config.provider}` };
+    } catch (error: any) {
+      return { 
+        success: false, 
+        message: `Error testing AI configuration: ${error.message || 'Unknown error'}`
+      };
+    }
+  }
 }
