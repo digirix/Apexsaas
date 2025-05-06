@@ -73,11 +73,6 @@ const adminModules: NavItem[] = [
     icon: <Users className="h-5 w-5 mr-3 text-slate-500" />,
   },
   {
-    title: "AI Settings",
-    href: "/ai-settings",
-    icon: <Sparkles className="h-5 w-5 mr-3 text-slate-500" />,
-  },
-  {
     title: "Workflow",
     href: "/workflow",
     icon: <Zap className="h-5 w-5 mr-3 text-slate-500" />,

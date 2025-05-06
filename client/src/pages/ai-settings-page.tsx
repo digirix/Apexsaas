@@ -34,7 +34,7 @@ export default function AiSettingsPage() {
 
   // Create or update AI configuration
   const saveConfigMutation = useMutation({
-    mutationFn: (config: any) => apiRequest("/api/v1/ai/configurations", config, "POST"),
+    mutationFn: (config: any) => apiRequest("POST", "/api/v1/ai/configurations", config),
     onSuccess: () => {
       toast({
         title: "Configuration saved",
@@ -55,7 +55,7 @@ export default function AiSettingsPage() {
   // Test AI connection
   const testConnectionMutation = useMutation({
     mutationFn: (data: { provider: string; apiKey: string }) => 
-      apiRequest("/api/v1/ai/test-connection", data, "POST"),
+      apiRequest("POST", "/api/v1/ai/test-connection", data),
     onSuccess: (data) => {
       if (data.success) {
         toast({
