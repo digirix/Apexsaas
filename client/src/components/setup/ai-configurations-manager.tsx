@@ -46,6 +46,7 @@ const openrouterModels = [
   { value: 'anthropic/claude-3-haiku-20240307', label: 'Claude 3 Haiku' },
   { value: 'openai/gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
   { value: 'meta-llama/llama-3-70b-instruct', label: 'Llama 3 70B' },
+  { value: 'google/gemini-flash-1.5-8b-exp', label: 'Google Gemini Flash 1.5 8B (via OpenRouter)' },
 ];
 
 // Common models for Google AI (Gemini)
@@ -111,7 +112,7 @@ export default function AiConfigurationsManager() {
       form.reset({
         provider: 'openrouter',
         apiKey: '',
-        modelId: 'openai/gpt-4-turbo',
+        modelId: 'google/gemini-flash-1.5-8b-exp',
         isActive: true,
       });
     }
@@ -297,10 +298,11 @@ export default function AiConfigurationsManager() {
 
   const handleAddNew = () => {
     setEditingConfig(null);
+    // Set default to use the Google Gemini model via OpenRouter as requested
     form.reset({
       provider: 'openrouter',
       apiKey: '',
-      modelId: 'openai/gpt-4-turbo',
+      modelId: 'google/gemini-flash-1.5-8b-exp',
       isActive: true,
     });
     setIsOpen(true);
@@ -311,7 +313,7 @@ export default function AiConfigurationsManager() {
     
     // Set default model based on provider
     if (value === 'openrouter') {
-      form.setValue("modelId", "openai/gpt-4-turbo");
+      form.setValue("modelId", "google/gemini-flash-1.5-8b-exp");
     } else {
       form.setValue("modelId", "gemini-1.5-pro");
     }
@@ -502,7 +504,9 @@ export default function AiConfigurationsManager() {
                         </select>
                       </FormControl>
                       <FormDescription>
-                        Select the default AI model to use
+                        {provider === 'openrouter' && field.value === 'google/gemini-flash-1.5-8b-exp' 
+                          ? 'Using Google Gemini Flash 1.5 8B model via OpenRouter.ai for optimal performance'
+                          : 'Select the default AI model to use'}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
