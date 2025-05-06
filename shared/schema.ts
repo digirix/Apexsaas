@@ -1092,7 +1092,7 @@ export type RegisterData = z.infer<typeof registerSchema>;
 // These types are already defined above
 
 // AI Feature module
-export const aiProviderEnum = pgEnum('ai_provider', ['openrouter', 'googleai']);
+export const aiProviderEnum = pgEnum('ai_provider', ['Google', 'OpenAI', 'Anthropic']);
 
 // AI Configuration table
 export const aiConfigurations = pgTable("ai_configurations", {
