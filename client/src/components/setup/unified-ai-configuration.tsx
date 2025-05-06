@@ -164,6 +164,15 @@ export function UnifiedAIConfiguration() {
     }
   });
   
+  // When navigating from complete back to models, we need to ensure models are loaded
+  useEffect(() => {
+    // If we're moving to the models step and we have a configured API key but no models loaded
+    if (currentStep === 'models' && providersConfig[selectedProvider]?.apiKeyConfigured && availableModels.length === 0) {
+      // Refetch models
+      fetchAvailableModels();
+    }
+  }, [currentStep, selectedProvider]);
+  
   // Reset API key form when provider changes
   useEffect(() => {
     apiKeyForm.reset({
@@ -790,7 +799,12 @@ export function UnifiedAIConfiguration() {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => setCurrentStep('apikey')}
+                          onClick={() => {
+                            // When going back to the API key step
+                            setCurrentStep('apikey');
+                            // Clear any previous test results
+                            setTestResult(null);
+                          }}
                         >
                           Back
                         </Button>
@@ -951,6 +965,11 @@ export function UnifiedAIConfiguration() {
                             variant="outline" 
                             size="sm" 
                             onClick={() => {
+                              // When going from complete to the models step, 
+                              // make sure we fetch the models
+                              if (availableModels.length === 0) {
+                                setIsFetchingModels(true);
+                              }
                               setCurrentStep('models');
                               fetchAvailableModels();
                             }}

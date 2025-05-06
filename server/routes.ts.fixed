@@ -1,33 +1,18 @@
 import express, { Express, Request, Response, NextFunction } from "express";
-import { createServer, type Server } from "http";
+import { createServer } from "http";
 import { setupAuth } from "./auth";
 import { IStorage } from "./storage";
 import { DatabaseStorage } from "./database-storage";
 import { createAIClient } from "./utils/ai-client-factory";
 import { OpenRouterClient } from "./utils/openrouter-client";
+import { createWebSocketServer } from "./ws-server";
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export function createRouter(app: Express, storage: IStorage) {
   // Set up authentication
   setupAuth(app);
 
   // Register routes
   console.log("Starting to register routes...");
-  
-  // Import storage on-demand
-  const { storage } = await import("./storage");
-  
-  // Create router with all routes
-  createRouter(app, storage);
-  
-  // Create HTTP server
-  const httpServer = createServer(app);
-  
-  return httpServer;
-}
-
-function createRouter(app: Express, storage: IStorage) {
-  // Register routes
-  console.log("Setting up API routes...");
 
   // API routes
   app.get("/api/v1/users", async (req, res) => {
@@ -54,7 +39,7 @@ function createRouter(app: Express, storage: IStorage) {
       const selectedModelSetting = await storage.getTenantSetting(tenantId, "ai_selected_model");
       
       // Build provider status map
-      const providers: Record<string, { apiKeyConfigured: boolean }> = {
+      const providers = {
         openrouter: { apiKeyConfigured: false },
         openai: { apiKeyConfigured: false }, 
         anthropic: { apiKeyConfigured: false },
