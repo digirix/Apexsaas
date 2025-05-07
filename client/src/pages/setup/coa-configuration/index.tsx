@@ -767,7 +767,7 @@ export default function COAConfigurationPage() {
                                 </TableCell>
                                 <TableCell>{account.accountCode}</TableCell>
                                 <TableCell>{account.accountName}</TableCell>
-                                <TableCell>{elementGroup ? (elementGroup.name.charAt(0).toUpperCase() + elementGroup.name.slice(1)) : '-'}</TableCell>
+                                <TableCell>{elementGroup ? (elementGroup.customName || elementGroup.name.charAt(0).toUpperCase() + elementGroup.name.slice(1)) : '-'}</TableCell>
                                 <TableCell>{subElementGroup ? (subElementGroup.customName || subElementGroup.name) : '-'}</TableCell>
                                 <TableCell>{detailedGroup ? (detailedGroup.customName || detailedGroup.name) : '-'}</TableCell>
                                 <TableCell>
@@ -1233,7 +1233,7 @@ export default function COAConfigurationPage() {
                         <SelectContent>
                           {elementGroups.map((group) => (
                             <SelectItem key={group.id} value={group.id.toString()}>
-                              {group.name.charAt(0).toUpperCase() + group.name.slice(1)}
+                              {group.customName || group.name.charAt(0).toUpperCase() + group.name.slice(1)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1400,7 +1400,7 @@ export default function COAConfigurationPage() {
                         <SelectContent>
                           {elementGroups.map((group) => (
                             <SelectItem key={group.id} value={group.id.toString()}>
-                              {group.name.charAt(0).toUpperCase() + group.name.slice(1)}
+                              {group.customName || group.name.charAt(0).toUpperCase() + group.name.slice(1)}
                             </SelectItem>
                           ))}
                         </SelectContent>
