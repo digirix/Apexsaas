@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, varchar, unique, pgEnum, decimal } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, varchar, unique, pgEnum, decimal, foreignKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -1110,6 +1110,26 @@ export const aiConfigurations = pgTable("ai_configurations", {
   };
 });
 
+// AI Interactions table for logging and analytics
+export const aiInteractions = pgTable("ai_interactions", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  userId: integer("user_id").notNull(),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  userQuery: text("user_query").notNull(),
+  aiResponse: text("ai_response").notNull(),
+  provider: text("provider").notNull(),
+  modelId: text("model_id").notNull(),
+  processingTimeMs: integer("processing_time_ms"),
+  feedbackRating: integer("feedback_rating"),
+  feedbackComment: text("feedback_comment"),
+}, (table) => {
+  return {
+    tenantFk: foreignKey({ columns: [table.tenantId], foreignColumns: [tenants.id] }),
+    userFk: foreignKey({ columns: [table.userId], foreignColumns: [users.id] })
+  };
+});
+
 export const insertAiConfigurationSchema = createInsertSchema(aiConfigurations).pick({
   tenantId: true,
   provider: true,
@@ -1118,5 +1138,21 @@ export const insertAiConfigurationSchema = createInsertSchema(aiConfigurations).
   isActive: true,
 });
 
+export const insertAiInteractionSchema = createInsertSchema(aiInteractions).pick({
+  tenantId: true,
+  userId: true,
+  timestamp: true,
+  userQuery: true,
+  aiResponse: true,
+  provider: true,
+  modelId: true,
+  processingTimeMs: true,
+  feedbackRating: true,
+  feedbackComment: true,
+});
+
 export type AiConfiguration = typeof aiConfigurations.$inferSelect;
 export type InsertAiConfiguration = z.infer<typeof insertAiConfigurationSchema>;
+
+export type AiInteraction = typeof aiInteractions.$inferSelect;
+export type InsertAiInteraction = z.infer<typeof insertAiInteractionSchema>;

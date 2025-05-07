@@ -330,6 +330,9 @@ export interface IStorage {
   updateAiConfiguration(id: number, config: Partial<InsertAiConfiguration>): Promise<AiConfiguration | undefined>;
   deleteAiConfiguration(id: number, tenantId: number): Promise<boolean>;
   testAiConfiguration(id: number, tenantId: number): Promise<{success: boolean, message: string}>;
+  
+  // AI Interaction logging
+  logAiInteraction(interaction: InsertAiInteraction): Promise<AiInteraction>;
 }
 
 export class MemStorage implements IStorage {
