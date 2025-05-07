@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { useAuth } from '@/hooks/use-auth';
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -24,17 +25,26 @@ export function useChat() {
   });
   const [conversationId, setConversationId] = useState<string>(`chat-${Date.now()}`);
   const { toast } = useToast();
+  const { user } = useAuth();
 
-  // Fetch chat availability status on component mount
+  // Fetch chat availability status when user is logged in
   useEffect(() => {
+    // Only fetch chat status if user is logged in
+    if (!user) {
+      console.log('User not logged in, skipping chat status check');
+      setChatStatus({ isAvailable: false, provider: null, model: null });
+      return;
+    }
+    
     const fetchChatStatus = async () => {
       try {
-        console.log('Fetching chat status...');
+        console.log('Fetching chat status with authenticated user:', user.id);
         const response = await fetch('/api/v1/ai/chat/status', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json'
-          }
+          },
+          credentials: 'include' // Important for sending session cookies
         });
         
         if (!response.ok) {
@@ -43,20 +53,27 @@ export function useChat() {
         
         const data = await response.json();
         console.log('Chat status response:', data);
-        setChatStatus(data);
+        
+        // Force re-render by creating a new object even if the data is the same
+        setChatStatus({
+          isAvailable: data.isAvailable === true, // Ensure boolean conversion
+          provider: data.provider || null,
+          model: data.model || null
+        });
       } catch (error) {
         console.error('Error checking chat availability:', error);
         setChatStatus({ isAvailable: false, provider: null, model: null });
       }
     };
     
-    // Wait a moment to ensure authentication is complete
-    const timer = setTimeout(() => {
-      fetchChatStatus();
-    }, 1000);
+    // Fetch immediately since we know the user is logged in
+    fetchChatStatus();
     
-    return () => clearTimeout(timer);
-  }, []);
+    // Also set up a refresh timer
+    const refreshTimer = setInterval(fetchChatStatus, 30000); // Check every 30 seconds
+    
+    return () => clearInterval(refreshTimer);
+  }, [user]); // Re-run when user changes
 
   // Send a message to the AI assistant
   const sendMessage = useCallback(async (content: string) => {
@@ -79,12 +96,13 @@ export function useChat() {
         conversationId
       };
       
-      // Call API
+      // Call API with credentials to include session cookies
       const response = await fetch('/api/v1/ai/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify(payload)
       });
       
