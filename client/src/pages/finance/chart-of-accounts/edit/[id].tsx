@@ -368,7 +368,7 @@ export default function EditChartOfAccountPage() {
                               <SelectContent>
                                 {filteredDetailedGroups.map((group: any) => (
                                   <SelectItem key={group.id} value={group.id.toString()}>
-                                    {group.name}
+                                    {group.customName || group.name}
                                   </SelectItem>
                                 ))}
                               </SelectContent>

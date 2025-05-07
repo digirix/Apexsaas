@@ -123,6 +123,7 @@ export default function COAConfigurationPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState<ChartOfAccount | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteDetailedGroupError, setDeleteDetailedGroupError] = useState<string | null>(null);
   
   // Sub Element Group dialog states
   const [createSubElementGroupDialogOpen, setCreateSubElementGroupDialogOpen] = useState(false);
@@ -1492,7 +1493,7 @@ export default function COAConfigurationPage() {
                 {
                   subElementGroupId,
                   name: "custom", // Always use 'custom' as enum value
-                  customName: values.name, // Store actual name in customName field
+                  customName: values.customName, // Store display name in customName field
                   code: values.code,
                   description: values.description || null,
                 }
@@ -1548,8 +1549,11 @@ export default function COAConfigurationPage() {
                     <FormItem>
                       <FormLabel>Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter name" {...field} />
+                        <Input placeholder="Custom" {...field} value="Custom" disabled />
                       </FormControl>
+                      <FormDescription>
+                        Internal name (automatically set to "Custom")
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1560,10 +1564,13 @@ export default function COAConfigurationPage() {
                   name="customName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Custom Name</FormLabel>
+                      <FormLabel>Display Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter custom name (optional)" {...field} />
+                        <Input placeholder="Enter display name" {...field} />
                       </FormControl>
+                      <FormDescription>
+                        This is the name that will appear in dropdowns and displays
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1692,6 +1699,13 @@ export default function COAConfigurationPage() {
               This action cannot be undone and may affect related accounts.
             </DialogDescription>
           </DialogHeader>
+          
+          {deleteDetailedGroupError && (
+            <div className="bg-destructive/15 p-3 rounded-md mb-4 text-sm text-destructive">
+              {deleteDetailedGroupError}
+            </div>
+          )}
+          
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDetailedGroupDialogOpen(false)}>
               Cancel
@@ -1700,6 +1714,7 @@ export default function COAConfigurationPage() {
               variant="destructive" 
               onClick={() => {
                 if (!currentDetailedGroup) return;
+                setDeleteDetailedGroupError(null);
                 
                 apiRequest(
                   'DELETE',
@@ -1712,9 +1727,17 @@ export default function COAConfigurationPage() {
                   setDeleteDetailedGroupDialogOpen(false);
                   queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups'] });
                 }).catch(error => {
+                  if (error.message && error.message.includes("being used by accounts")) {
+                    setDeleteDetailedGroupError(
+                      "Cannot delete this detailed group because it's being used by one or more accounts. Please remove or reassign those accounts first."
+                    );
+                  } else {
+                    setDeleteDetailedGroupError(error.message || "Failed to delete detailed group");
+                  }
+                  
                   toast({
                     title: "Error",
-                    description: error.message || "Failed to delete detailed group",
+                    description: "Failed to delete detailed group. See details in the dialog.",
                     variant: "destructive",
                   });
                 });

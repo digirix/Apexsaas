@@ -846,7 +846,7 @@ export default function ChartOfAccountsCreateTabular() {
                   <SelectContent>
                     {getFilteredDetailedGroups().map((group) => (
                       <SelectItem key={group.id || group.value} value={group.id?.toString() || group.value}>
-                        {group.name}
+                        {group.customName || group.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -871,6 +871,9 @@ export default function ChartOfAccountsCreateTabular() {
                     <div>
                       <span className="font-medium">Detailed:</span> {
                         getFilteredDetailedGroups().find(g => 
+                          g.id?.toString() === selectedDetailedGroup || 
+                          g.value === selectedDetailedGroup
+                        )?.customName || getFilteredDetailedGroups().find(g => 
                           g.id?.toString() === selectedDetailedGroup || 
                           g.value === selectedDetailedGroup
                         )?.name
