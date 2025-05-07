@@ -347,13 +347,6 @@ export const registerAICustomizationRoutes = (app: Express, isAuthenticated: any
           provider: settings.provider,
           apiKey: settings.apiKey,
           model: settings.model,
-          temperature: settings.temperature,
-          maxTokens: settings.maxTokens,
-          systemPromptOverride: settings.systemPromptOverride,
-          preferredAnalyticsTypes: settings.preferredAnalyticsTypes,
-          enableDatabaseAccess: settings.enableDatabaseAccess ?? true,
-          enableGeneralKnowledge: settings.enableGeneralKnowledge ?? true,
-          customInstructions: settings.customInstructions,
           isActive: settings.isActive
         });
         
