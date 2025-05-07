@@ -7,7 +7,7 @@ import {
   // Chart of Accounts hierarchical structure
   chartOfAccountsMainGroups, chartOfAccountsElementGroups, chartOfAccountsSubElementGroups, chartOfAccountsDetailedGroups,
   // AI module
-  aiConfigurations, aiInteractions
+  aiConfigurations, aiInteractions, aiAssistantCustomizations
 } from "@shared/schema";
 import type { 
   Tenant, User, InsertUser, InsertTenant, 
@@ -31,7 +31,8 @@ import type {
   // Journal entry types
   JournalEntry, InsertJournalEntry, JournalEntryLine, InsertJournalEntryLine, JournalEntryType, InsertJournalEntryType,
   // AI module types
-  AiConfiguration, InsertAiConfiguration, AiInteraction, InsertAiInteraction
+  AiConfiguration, InsertAiConfiguration, AiInteraction, InsertAiInteraction, 
+  AiAssistantCustomization, InsertAiAssistantCustomization
 } from "@shared/schema";
 import { IStorage } from "./storage";
 import { db } from "./db";

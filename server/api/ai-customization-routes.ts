@@ -1,17 +1,28 @@
 import { Express, Request, Response } from 'express';
 import { DatabaseStorage } from '../database-storage';
 import { sql } from 'drizzle-orm';
-import { InsertAiAssistantCustomization } from '@shared/schema';
+import { 
+  InsertAiAssistantCustomization, 
+  AiAssistantCustomization, 
+  InsertAiConfiguration, 
+  AiConfiguration,
+  aiPersonalityEnum,
+  aiSpecializationEnum,
+  aiResponseLengthEnum,
+  aiToneEnum,
+  aiProviderEnum
+} from '@shared/schema';
 
 /**
  * Interface for AI provider configuration settings
  */
-interface AIProviderSettings {
+interface AIProviderSettings extends Omit<InsertAiConfiguration, 'tenantId'> {
   id?: number;
   tenantId: number;
-  provider: string;
-  apiKey: string;
-  model: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+  
+  // Extended properties not in schema
   temperature?: number;
   maxTokens?: number;
   systemPromptOverride?: string;
@@ -19,29 +30,254 @@ interface AIProviderSettings {
   enableDatabaseAccess?: boolean;
   enableGeneralKnowledge?: boolean;
   customInstructions?: string;
-  isActive: boolean;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-/**
- * Interface for AI assistant persona customization
- */
-interface AIAssistantCustomization {
-  id?: number;
-  tenantId: number;
-  userId: number;
-  name: string;
-  personality: 'Professional' | 'Friendly' | 'Technical' | 'Concise' | 'Detailed';
-  specialization: 'General' | 'Accounting' | 'Tax' | 'Audit' | 'Finance' | 'Compliance';
-  responseLength: 'Brief' | 'Standard' | 'Detailed';
-  tone: 'Formal' | 'Neutral' | 'Casual';
-  isActive: boolean;
-  createdAt?: Date;
-  updatedAt?: Date;
 }
 
 export const registerAICustomizationRoutes = (app: Express, isAuthenticated: any, hasTenantAccess: any, db: DatabaseStorage) => {
+  // AI Assistant Persona Customization Routes
+  
+  // Get AI assistant customizations for current user
+  app.get('/api/v1/ai/assistant/customizations', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.user?.tenantId;
+      const userId = req.user?.id;
+      
+      if (!tenantId || !userId) {
+        return res.status(401).json({ error: 'Unauthorized: Missing tenant ID or user ID' });
+      }
+      
+      const customizations = await db.getAiAssistantCustomizations(tenantId);
+      
+      // Only return customizations for the current user
+      const userCustomizations = customizations.filter(c => c.userId === userId);
+      
+      return res.json({ customizations: userCustomizations });
+    } catch (error: any) {
+      console.error('Error fetching AI assistant customizations:', error);
+      return res.status(500).json({ error: 'Failed to fetch AI assistant customizations' });
+    }
+  });
+  
+  // Get active AI assistant customization for current user
+  app.get('/api/v1/ai/assistant/customization/active', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.user?.tenantId;
+      const userId = req.user?.id;
+      
+      if (!tenantId || !userId) {
+        return res.status(401).json({ error: 'Unauthorized: Missing tenant ID or user ID' });
+      }
+      
+      const customization = await db.getUserAiAssistantCustomization(tenantId, userId);
+      
+      if (!customization) {
+        return res.status(404).json({ error: 'No active AI assistant customization found' });
+      }
+      
+      return res.json({ customization });
+    } catch (error: any) {
+      console.error('Error fetching active AI assistant customization:', error);
+      return res.status(500).json({ error: 'Failed to fetch active AI assistant customization' });
+    }
+  });
+  
+  // Get specific AI assistant customization
+  app.get('/api/v1/ai/assistant/customization/:id', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.user?.tenantId;
+      const userId = req.user?.id;
+      const customizationId = parseInt(req.params.id);
+      
+      if (!tenantId || !userId) {
+        return res.status(401).json({ error: 'Unauthorized: Missing tenant ID or user ID' });
+      }
+      
+      if (isNaN(customizationId)) {
+        return res.status(400).json({ error: 'Invalid customization ID' });
+      }
+      
+      const customization = await db.getAiAssistantCustomization(customizationId, tenantId);
+      
+      if (!customization) {
+        return res.status(404).json({ error: 'AI assistant customization not found' });
+      }
+      
+      // Ensure the user can only access their own customizations
+      if (customization.userId !== userId) {
+        return res.status(403).json({ error: 'Not authorized to access this customization' });
+      }
+      
+      return res.json({ customization });
+    } catch (error: any) {
+      console.error('Error fetching AI assistant customization:', error);
+      return res.status(500).json({ error: 'Failed to fetch AI assistant customization' });
+    }
+  });
+  
+  // Create new AI assistant customization
+  app.post('/api/v1/ai/assistant/customization', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.user?.tenantId;
+      const userId = req.user?.id;
+      const customization: AIAssistantCustomization = req.body;
+      
+      if (!tenantId || !userId) {
+        return res.status(401).json({ error: 'Unauthorized: Missing tenant ID or user ID' });
+      }
+      
+      // Validate required fields
+      if (!customization.name || !customization.personality || !customization.specialization || 
+          !customization.responseLength || !customization.tone) {
+        return res.status(400).json({ 
+          error: 'Required fields missing: name, personality, specialization, responseLength, and tone are required' 
+        });
+      }
+      
+      const newCustomization = await db.createAiAssistantCustomization({
+        tenantId,
+        userId,
+        name: customization.name,
+        personality: customization.personality,
+        specialization: customization.specialization,
+        responseLength: customization.responseLength,
+        tone: customization.tone,
+        isActive: customization.isActive || false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      
+      // If this customization is set as active, deactivate others
+      if (newCustomization.isActive) {
+        const existingCustomizations = await db.getAiAssistantCustomizations(tenantId);
+        
+        for (const existing of existingCustomizations) {
+          if (existing.id !== newCustomization.id && existing.userId === userId && existing.isActive) {
+            await db.updateAiAssistantCustomization(existing.id, { isActive: false });
+          }
+        }
+      }
+      
+      return res.json({ 
+        success: true, 
+        message: 'AI assistant customization created successfully',
+        customization: newCustomization
+      });
+    } catch (error: any) {
+      console.error('Error creating AI assistant customization:', error);
+      return res.status(500).json({ error: 'Failed to create AI assistant customization' });
+    }
+  });
+  
+  // Update AI assistant customization
+  app.put('/api/v1/ai/assistant/customization/:id', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.user?.tenantId;
+      const userId = req.user?.id;
+      const customizationId = parseInt(req.params.id);
+      const updates: Partial<AIAssistantCustomization> = req.body;
+      
+      if (!tenantId || !userId) {
+        return res.status(401).json({ error: 'Unauthorized: Missing tenant ID or user ID' });
+      }
+      
+      if (isNaN(customizationId)) {
+        return res.status(400).json({ error: 'Invalid customization ID' });
+      }
+      
+      // Check if the customization exists and belongs to this user
+      const existingCustomization = await db.getAiAssistantCustomization(customizationId, tenantId);
+      
+      if (!existingCustomization) {
+        return res.status(404).json({ error: 'AI assistant customization not found' });
+      }
+      
+      if (existingCustomization.userId !== userId) {
+        return res.status(403).json({ error: 'Not authorized to modify this customization' });
+      }
+      
+      // Perform the update
+      const updatedCustomization = await db.updateAiAssistantCustomization(customizationId, {
+        name: updates.name,
+        personality: updates.personality,
+        specialization: updates.specialization,
+        responseLength: updates.responseLength,
+        tone: updates.tone,
+        isActive: updates.isActive,
+        updatedAt: new Date()
+      });
+      
+      // If this customization is being set as active, deactivate others
+      if (updates.isActive) {
+        const existingCustomizations = await db.getAiAssistantCustomizations(tenantId);
+        
+        for (const existing of existingCustomizations) {
+          if (existing.id !== customizationId && existing.userId === userId && existing.isActive) {
+            await db.updateAiAssistantCustomization(existing.id, { isActive: false });
+          }
+        }
+      }
+      
+      return res.json({ 
+        success: true, 
+        message: 'AI assistant customization updated successfully',
+        customization: updatedCustomization
+      });
+    } catch (error: any) {
+      console.error('Error updating AI assistant customization:', error);
+      return res.status(500).json({ error: 'Failed to update AI assistant customization' });
+    }
+  });
+  
+  // Delete AI assistant customization
+  app.delete('/api/v1/ai/assistant/customization/:id', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.user?.tenantId;
+      const userId = req.user?.id;
+      const customizationId = parseInt(req.params.id);
+      
+      if (!tenantId || !userId) {
+        return res.status(401).json({ error: 'Unauthorized: Missing tenant ID or user ID' });
+      }
+      
+      if (isNaN(customizationId)) {
+        return res.status(400).json({ error: 'Invalid customization ID' });
+      }
+      
+      // Check if the customization exists and belongs to this user
+      const existingCustomization = await db.getAiAssistantCustomization(customizationId, tenantId);
+      
+      if (!existingCustomization) {
+        return res.status(404).json({ error: 'AI assistant customization not found' });
+      }
+      
+      if (existingCustomization.userId !== userId) {
+        return res.status(403).json({ error: 'Not authorized to delete this customization' });
+      }
+      
+      // Don't allow deletion of active customization
+      if (existingCustomization.isActive) {
+        return res.status(400).json({ 
+          error: 'Cannot delete active customization. Set another customization as active first.' 
+        });
+      }
+      
+      // Delete the customization
+      const success = await db.deleteAiAssistantCustomization(customizationId, tenantId);
+      
+      if (!success) {
+        return res.status(500).json({ error: 'Failed to delete AI assistant customization' });
+      }
+      
+      return res.json({ 
+        success: true, 
+        message: 'AI assistant customization deleted successfully'
+      });
+    } catch (error: any) {
+      console.error('Error deleting AI assistant customization:', error);
+      return res.status(500).json({ error: 'Failed to delete AI assistant customization' });
+    }
+  });
+
+  // AI Provider Configuration Routes
   // Get current AI customization settings for the tenant
   app.get('/api/v1/ai/settings', isAuthenticated, async (req: Request, res: Response) => {
     try {
@@ -85,7 +321,7 @@ export const registerAICustomizationRoutes = (app: Express, isAuthenticated: any
   app.post('/api/v1/ai/settings', isAuthenticated, hasTenantAccess, async (req: Request, res: Response) => {
     try {
       const tenantId = req.user?.tenantId;
-      const settings: AICustomizationSettings = req.body;
+      const settings: AIProviderSettings = req.body;
       
       if (!tenantId) {
         return res.status(401).json({ error: 'Unauthorized: Missing tenant ID' });
