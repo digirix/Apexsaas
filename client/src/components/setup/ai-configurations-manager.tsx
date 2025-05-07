@@ -77,6 +77,7 @@ const aiConfigurationSchema = z.object({
   provider: z.enum(['OpenAI', 'Google', 'Anthropic']),
   apiKey: z.string().min(1, "API key is required"),
   model: z.string().min(1, "Model is required"),
+  typeScriptConfig: z.string().optional(),
   isActive: z.boolean().default(true),
 });
 
@@ -522,28 +523,36 @@ export default function AiConfigurationsManager() {
                   name="model"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Default Model</FormLabel>
-                      <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select AI Model" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {getSuggestedModels(provider).map(model => (
-                            <SelectItem key={model.value} value={model.value}>
-                              {model.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Model ID</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Enter the model ID (e.g., google/gemini-flash-1.5-8b-exp)" 
+                          {...field} 
+                        />
+                      </FormControl>
                       <FormDescription>
-                        {provider === 'OpenAI' && field.value === 'google/gemini-flash-1.5-8b-exp' 
-                          ? 'Using Google Gemini Flash 1.5 8B model via OpenRouter.ai for optimal performance'
-                          : 'Select the default AI model to use with this provider'}
+                        Paste the exact model ID provided by your AI service provider
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="typeScriptConfig"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>TypeScript Configuration</FormLabel>
+                      <FormControl>
+                        <textarea 
+                          className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          placeholder="Paste TypeScript configuration code provided by the AI service provider" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Optional: Paste any TypeScript configuration code required to configure this AI model
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

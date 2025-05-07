@@ -1101,6 +1101,7 @@ export const aiConfigurations = pgTable("ai_configurations", {
   provider: aiProviderEnum("provider").notNull(),
   apiKey: text("api_key").notNull(),
   model: text("model").notNull(), // The selected/detected model to use
+  typeScriptConfig: text("typescript_config"), // TypeScript configuration provided by the AI provider
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -1135,6 +1136,7 @@ export const insertAiConfigurationSchema = createInsertSchema(aiConfigurations).
   provider: true,
   apiKey: true,
   model: true,
+  typeScriptConfig: true,
   isActive: true,
 });
 
