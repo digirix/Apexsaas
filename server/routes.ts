@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
+import { DatabaseStorage } from "./database-storage";
 import { TaskScheduler } from "./task-scheduler";
 import { 
   insertCountrySchema, insertCurrencySchema, insertStateSchema, 
@@ -43,6 +44,7 @@ import { eq, and, desc } from "drizzle-orm";
 // Import AI services
 import { queryAI } from './services/ai-service';
 import { fetchDataForChatbot, generateSystemPrompt } from './services/chatbot-data-service';
+import { registerChatbotRoutes } from './api/chatbot-routes';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   console.log("Starting to register routes...");
@@ -5782,6 +5784,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to create journal entry type" });
     }
   });
+
+  // Register AI Chatbot routes
+  const databaseStorage = storage as DatabaseStorage;
+  registerChatbotRoutes(app, isAuthenticated, databaseStorage);
+  console.log("AI Chatbot routes registered");
 
   // Create an HTTP server
   const httpServer = createServer(app);

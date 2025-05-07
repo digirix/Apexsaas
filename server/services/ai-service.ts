@@ -1,221 +1,270 @@
 import { fetch } from 'undici';
 
-// Function to get tenant-specific data based on the query
-export const fetchTenantDataForQuery = async (tenantId: number, query: string) => {
-  // This function will be extended to query various tenant data
-  // based on the user's request
-  
-  // Types of data we need to handle:
-  // - Clients
-  // - Entities
-  // - Tasks
-  // - Users
-  // - Financial data
-  // - Chart of Accounts
-  // - etc.
-
-  // For now, return a placeholder message
-  return {
-    clients: [], // Will be populated with tenant-specific client data
-    entities: [], // Will be populated with tenant-specific entity data
-    tasks: [], // Will be populated with tenant-specific task data
-    users: [], // Will be populated with tenant-specific user data
-    message: "Data fetch functionality will be implemented based on query type"
-  };
+// Define message type
+interface ChatMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
 }
 
-// Function to send a query to OpenRouter.ai
-export const queryOpenRouter = async (
-  apiKey: string, 
-  modelId: string, 
-  messages: Array<{role: string, content: string}>,
-  systemPrompt?: string
-) => {
-  try {
-    // Prepare the body of the request
-    const body: any = {
-      model: modelId,
-      messages: []
+// Define response types for different AI providers
+interface OpenRouterResponse {
+  id: string;
+  choices: {
+    message: {
+      role: string;
+      content: string;
     };
+    index: number;
+    finish_reason: string;
+  }[];
+  model: string;
+}
 
+interface GoogleAIResponse {
+  candidates: {
+    content: {
+      parts: {
+        text: string;
+      }[];
+    };
+    finishReason: string;
+    index: number;
+  }[];
+}
+
+interface AnthropicResponse {
+  content: {
+    type: string;
+    text: string;
+  }[];
+  id: string;
+  model: string;
+  role: string;
+  stop_reason: string;
+  type: string;
+}
+
+// Standardized response format for all providers
+interface StandardAIResponse {
+  choices: {
+    message: {
+      role: string;
+      content: string;
+    };
+    index: number;
+    finish_reason: string;
+  }[];
+  model: string;
+}
+
+// Function to fetch relevant tenant data for the query
+export const fetchTenantDataForQuery = async (tenantId: number, query: string) => {
+  // This function will be implemented to retrieve specific tenant data
+  // based on the user's query
+  return {
+    tenantId,
+    query,
+    timestamp: new Date().toISOString(),
+    tenantData: {
+      // This will be populated with actual tenant data depending on the query
+    }
+  };
+};
+
+// OpenRouter API implementation
+export const queryOpenRouter = async (
+  apiKey: string,
+  modelId: string,
+  messages: ChatMessage[],
+  systemPrompt?: string
+): Promise<StandardAIResponse> => {
+  try {
     // Add system prompt if provided
+    const modifiedMessages = [...messages];
     if (systemPrompt) {
-      body.messages.push({
+      modifiedMessages.unshift({
         role: "system",
         content: systemPrompt
       });
     }
 
-    // Add user messages
-    body.messages = [...body.messages, ...messages];
-
-    // Make the request to OpenRouter API
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://accountant-ai.replit.app/', // Replace with your domain
-        'X-Title': 'Accountant AI Assistant'
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://accountant.io",
+        "X-Title": "Accountant.io"
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify({
+        model: modelId || "google/gemini-flash-1.5-8b-exp",
+        messages: modifiedMessages,
+        temperature: 0.7
+      })
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`OpenRouter API error: ${errorData.error?.message || response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`OpenRouter API Error: ${response.status} - ${errorText}`);
     }
 
-    return await response.json();
+    const data: OpenRouterResponse = await response.json();
+    
+    // Return in standardized format
+    return {
+      choices: data.choices,
+      model: data.model
+    };
   } catch (error: any) {
-    console.error('Error querying OpenRouter:', error);
-    throw new Error(`Failed to get response from AI: ${error.message}`);
+    console.error("Error querying OpenRouter:", error.message);
+    throw new Error(`Failed to query OpenRouter: ${error.message}`);
   }
-}
+};
 
-// Function to send a query to Google AI (Gemini)
+// Google AI (Gemini) API implementation
 export const queryGoogleAI = async (
-  apiKey: string, 
-  modelId: string, 
-  messages: Array<{role: string, content: string}>,
+  apiKey: string,
+  modelId: string,
+  messages: ChatMessage[],
   systemPrompt?: string
-) => {
+): Promise<StandardAIResponse> => {
   try {
-    // Convert messages to Gemini format
-    // Gemini uses a different format than OpenAI/OpenRouter
-    const contents = [];
+    const model = modelId || "gemini-pro";
+    const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    
+    // Format messages for Google AI
+    const formattedMessages = messages.map(msg => ({
+      role: msg.role === "assistant" ? "model" : msg.role,
+      parts: [{ text: msg.content }]
+    }));
     
     // Add system prompt if provided
     if (systemPrompt) {
-      contents.push({
+      formattedMessages.unshift({
         role: "user",
-        parts: [{ text: `[System Instruction]\n${systemPrompt}\n[End System Instruction]` }]
+        parts: [{ text: `System Instructions: ${systemPrompt}` }]
       });
     }
-
-    // Convert messages to Gemini format
-    for (const message of messages) {
-      contents.push({
-        role: message.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: message.content }]
-      });
-    }
-
-    // Make the request to Google AI API
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          contents,
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 2048,
-          }
-        })
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Google AI API error: ${errorData.error?.message || response.statusText}`);
-    }
-
-    const data = await response.json();
     
-    // Format the response to match OpenAI/OpenRouter format
-    return {
-      choices: [
-        {
-          message: {
-            role: 'assistant',
-            content: data.candidates[0].content.parts[0].text
-          }
-        }
-      ]
-    };
-  } catch (error: any) {
-    console.error('Error querying Google AI:', error);
-    throw new Error(`Failed to get response from AI: ${error.message}`);
-  }
-}
-
-// Function to send a query to Anthropic (Claude)
-export const queryAnthropic = async (
-  apiKey: string, 
-  modelId: string, 
-  messages: Array<{role: string, content: string}>,
-  systemPrompt?: string
-) => {
-  try {
-    // Prepare the request body
-    const body: any = {
-      model: modelId,
-      messages: messages,
-      max_tokens: 2048
-    };
-
-    // Add system prompt if provided
-    if (systemPrompt) {
-      body.system = systemPrompt;
-    }
-
-    // Make the request to Anthropic API
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
+    const response = await fetch(apiEndpoint, {
+      method: "POST",
       headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json"
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify({
+        contents: formattedMessages,
+        generationConfig: {
+          temperature: 0.7,
+          topP: 0.95,
+          topK: 40
+        }
+      })
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Anthropic API error: ${errorData.error?.message || response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Google AI API Error: ${response.status} - ${errorText}`);
     }
 
-    const data = await response.json();
+    const data: GoogleAIResponse = await response.json();
     
-    // Format the response to match OpenAI/OpenRouter format
+    // Convert Google AI response to standard format
     return {
-      choices: [
-        {
-          message: {
-            role: 'assistant',
-            content: data.content[0].text
-          }
-        }
-      ]
+      choices: data.candidates.map(candidate => ({
+        message: {
+          role: "assistant",
+          content: candidate.content.parts[0].text
+        },
+        index: candidate.index,
+        finish_reason: candidate.finishReason
+      })),
+      model: model
     };
   } catch (error: any) {
-    console.error('Error querying Anthropic:', error);
-    throw new Error(`Failed to get response from AI: ${error.message}`);
+    console.error("Error querying Google AI:", error.message);
+    throw new Error(`Failed to query Google AI: ${error.message}`);
   }
-}
+};
 
-// Generic function to query any AI provider
+// Anthropic API implementation
+export const queryAnthropic = async (
+  apiKey: string,
+  modelId: string,
+  messages: ChatMessage[],
+  systemPrompt?: string
+): Promise<StandardAIResponse> => {
+  try {
+    const model = modelId || "claude-3-opus-20240229";
+    
+    // Format messages for Anthropic
+    const formattedMessages = messages.map(msg => ({
+      role: msg.role,
+      content: msg.content
+    }));
+    
+    // Add system instructions
+    const systemInstructions = systemPrompt || "You are a helpful AI assistant for an accounting firm. Answer questions clearly and accurately.";
+    
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01"
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: formattedMessages,
+        system: systemInstructions,
+        max_tokens: 2000,
+        temperature: 0.7
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Anthropic API Error: ${response.status} - ${errorText}`);
+    }
+
+    const data: AnthropicResponse = await response.json();
+    
+    // Convert Anthropic response to standard format
+    return {
+      choices: [{
+        message: {
+          role: "assistant",
+          content: data.content[0].text
+        },
+        index: 0,
+        finish_reason: data.stop_reason
+      }],
+      model: data.model
+    };
+  } catch (error: any) {
+    console.error("Error querying Anthropic:", error.message);
+    throw new Error(`Failed to query Anthropic: ${error.message}`);
+  }
+};
+
+// Main function to query AI based on provider
 export const queryAI = async (
   provider: string,
   apiKey: string,
   modelId: string,
-  messages: Array<{role: string, content: string}>,
+  messages: ChatMessage[],
   systemPrompt?: string
-) => {
-  switch(provider) {
-    case 'OpenAI':
-      return await queryOpenRouter(apiKey, modelId, messages, systemPrompt);
-    case 'Google':
-      return await queryGoogleAI(apiKey, modelId, messages, systemPrompt);
-    case 'Anthropic':
-      return await queryAnthropic(apiKey, modelId, messages, systemPrompt);
+): Promise<StandardAIResponse> => {
+  // Normalize provider name to handle case variations
+  const normalizedProvider = provider.toLowerCase();
+  
+  switch (normalizedProvider) {
+    case "openai":
+      return queryOpenRouter(apiKey, modelId, messages, systemPrompt);
+    case "google":
+      return queryGoogleAI(apiKey, modelId, messages, systemPrompt);
+    case "anthropic":
+      return queryAnthropic(apiKey, modelId, messages, systemPrompt);
     default:
       throw new Error(`Unsupported AI provider: ${provider}`);
   }
-}
+};
