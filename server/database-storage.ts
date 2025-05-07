@@ -1409,13 +1409,13 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getTask(id: number, tenantId?: number): Promise<Task | undefined> {
-    let query = db.select().from(tasks).where(eq(tasks.id, id));
+    // Use SQL specific AND operator to make sure both conditions are applied together
+    const [task] = await db.select().from(tasks)
+      .where(and(
+        eq(tasks.id, id),
+        tenantId ? eq(tasks.tenantId, tenantId) : undefined
+      ));
     
-    if (tenantId) {
-      query = query.where(eq(tasks.tenantId, tenantId));
-    }
-    
-    const [task] = await query;
     return task;
   }
   
