@@ -28,6 +28,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -548,9 +549,9 @@ export default function AiConfigurationsManager() {
                     <FormItem>
                       <FormLabel>TypeScript Configuration</FormLabel>
                       <FormControl>
-                        <textarea 
-                          className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        <Textarea 
                           placeholder="Paste TypeScript configuration code provided by the AI service provider" 
+                          className="font-mono text-sm h-32"
                           {...field} 
                         />
                       </FormControl>
