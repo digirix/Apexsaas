@@ -88,6 +88,12 @@ export const queryOpenRouter = async (
       });
     }
 
+    // Format the model name according to OpenRouter standards
+    // If the model doesn't include a slash, assume it's already correct
+    // Otherwise, make sure it matches the OpenRouter format
+    const formattedModel = modelId.includes('/') ? modelId : `google/${modelId}`;
+    console.log(`Using OpenRouter with model: ${formattedModel}`);
+    
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -97,7 +103,7 @@ export const queryOpenRouter = async (
         "X-Title": "Accountant.io"
       },
       body: JSON.stringify({
-        model: modelId || "google/gemini-flash-1.5-8b-exp",
+        model: formattedModel || "google/gemini-flash-1.5-8b-exp",
         messages: modifiedMessages,
         temperature: 0.7
       })

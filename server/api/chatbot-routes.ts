@@ -106,7 +106,7 @@ something or the information is not in the provided context, be honest about it.
         userQuery: userMessage.content,
         aiResponse: aiResponse.choices[0].message.content,
         provider: config.provider,
-        modelId: config.modelId || 'default',
+        modelId: config.model || 'default', // Use model instead of modelId
         processingTimeMs,
         feedbackRating: null,  // Will be updated later when user provides feedback
         feedbackComment: null  // Will be updated later when user provides feedback
