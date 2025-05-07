@@ -2,6 +2,8 @@ import { db } from '../db';
 import { queryAI } from './ai-service';
 import { fetchTenantDataForQuery } from './chatbot-data-service';
 import { sql } from 'drizzle-orm';
+import { generateDatabaseContext, getSampleQueriesForTenant } from './database-schema-service';
+import { answerQuestionWithDatabaseInsights } from './ai-query-assistant';
 
 // Define types for the report data
 export interface ReportData {
@@ -125,191 +127,55 @@ export async function generateReport(
       throw new Error("No active AI configuration found for this tenant");
     }
     
-    // Step 2: Fetch relevant tenant data for the query
+    // Step 2: Use the enhanced database services to get comprehensive schema information
+    console.log("Generating comprehensive database context...");
+    const dbContext = await generateDatabaseContext(tenantId);
+    
+    // Step 3: Fetch relevant tenant data for the query
     console.log("Fetching relevant tenant data for the query...");
     const contextData = await fetchTenantDataForQuery(tenantId, query);
     
-    // Step 3: Generate database schema info to help the AI understand the database structure
-    console.log("Generating database schema information...");
-    let schemaInfo = "";
-    try {
-      // Get table structure for key tables
-      const tableSchema = await db.execute(sql`
-        SELECT 
-          table_name, 
-          column_name, 
-          data_type,
-          column_default,
-          is_nullable
-        FROM 
-          information_schema.columns
-        WHERE 
-          table_schema = 'public'
-          AND table_name IN (
-            'clients', 'entities', 'invoices', 'accounts',
-            'journal_entries', 'journal_entry_items', 'tasks',
-            'users', 'chart_of_accounts_main_groups', 'payments'
-          )
-        ORDER BY 
-          table_name, ordinal_position;
-      `);
-      
-      // Format the schema for easier reading
-      if (tableSchema && tableSchema.rows && tableSchema.rows.length > 0) {
-        let currentTable = '';
-        schemaInfo += "DATABASE SCHEMA:\n";
-        
-        for (const row of tableSchema.rows) {
-          const tableName = String(row.table_name || '');
-          if (tableName !== currentTable) {
-            schemaInfo += `\nTABLE: ${tableName}\n`;
-            currentTable = tableName;
-          }
-          
-          const columnName = String(row.column_name || '');
-          const dataType = String(row.data_type || '');
-          const isNullable = row.is_nullable === 'YES' ? ' NULL' : ' NOT NULL';
-          const columnDefault = row.column_default ? ` DEFAULT ${row.column_default}` : '';
-          schemaInfo += `- ${columnName} (${dataType})${isNullable}${columnDefault}\n`;
-        }
-      }
-      
-      // Add some data volume info
-      const tableStats = await db.execute(sql`
-        SELECT 
-          'clients' as table_name, 
-          COUNT(*) as row_count 
-        FROM clients 
-        WHERE tenant_id = ${tenantId}
-        
-        UNION ALL
-        
-        SELECT 
-          'invoices' as table_name, 
-          COUNT(*) as row_count 
-        FROM invoices 
-        WHERE tenant_id = ${tenantId}
-        
-        UNION ALL
-        
-        SELECT 
-          'accounts' as table_name, 
-          COUNT(*) as row_count 
-        FROM accounts 
-        WHERE tenant_id = ${tenantId}
-        
-        UNION ALL
-        
-        SELECT 
-          'journal_entries' as table_name, 
-          COUNT(*) as row_count 
-        FROM journal_entries 
-        WHERE tenant_id = ${tenantId}
-      `);
-      
-      if (tableStats && tableStats.rows && tableStats.rows.length > 0) {
-        schemaInfo += "\nDATA VOLUME:\n";
-        for (const row of tableStats.rows) {
-          const tableName = String(row.table_name || '');
-          const rowCount = String(row.row_count || '0');
-          schemaInfo += `- ${tableName}: ${rowCount} rows\n`;
-        }
-      }
-    } catch (error) {
-      console.error("Error generating schema information:", error);
-      schemaInfo = "Error generating schema information.";
-    }
-    
-    // Step 4: Generate a sample query based on the user's request for context
+    // Step 4: Use the AI Query Assistant to generate, execute, and analyze SQL
+    console.log("Using AI Query Assistant to handle the database query...");
+    let queryInsights;
     let sqlQuery = "";
     let queryData = null;
     
     try {
-      // Generate a relevant SQL query based on the user's query
-      // This is a simplified version - in a production app, this would be more sophisticated
-      const lowerQuery = query.toLowerCase();
+      // This is a powerful end-to-end process that:
+      // 1. Generates appropriate SQL based on the natural language query
+      // 2. Executes the SQL with proper tenant isolation
+      // 3. Analyzes the results to extract insights
+      queryInsights = await answerQuestionWithDatabaseInsights(
+        tenantId,
+        userId,
+        query,
+        aiConfig
+      );
       
-      if (lowerQuery.includes("revenue") || lowerQuery.includes("income") || lowerQuery.includes("sales")) {
-        sqlQuery = `
-          SELECT 
-            TO_CHAR(created_at, 'YYYY-MM') as month,
-            SUM(total_amount) as total_revenue,
-            COUNT(*) as invoice_count,
-            AVG(total_amount) as average_invoice
-          FROM invoices
-          WHERE tenant_id = ${tenantId}
-          GROUP BY TO_CHAR(created_at, 'YYYY-MM')
-          ORDER BY month DESC
-          LIMIT 12;
-        `;
-      } else if (lowerQuery.includes("client") || lowerQuery.includes("customer")) {
-        sqlQuery = `
-          SELECT 
-            c.name as client_name,
-            COUNT(i.id) as invoice_count,
-            SUM(i.total_amount) as total_billed,
-            AVG(i.total_amount) as average_invoice,
-            MAX(i.created_at) as last_invoice_date
-          FROM clients c
-          LEFT JOIN invoices i ON c.id = i.client_id AND i.tenant_id = ${tenantId}
-          WHERE c.tenant_id = ${tenantId}
-          GROUP BY c.id, c.name
-          ORDER BY total_billed DESC NULLS LAST;
-        `;
-      } else if (lowerQuery.includes("profit") || lowerQuery.includes("loss") || lowerQuery.includes("p&l")) {
-        sqlQuery = `
-          SELECT 
-            TO_CHAR(je.entry_date, 'YYYY-MM') as month,
-            SUM(CASE WHEN a.account_type = 'revenue' THEN jei.credit_amount - jei.debit_amount ELSE 0 END) as revenue,
-            SUM(CASE WHEN a.account_type = 'expense' THEN jei.debit_amount - jei.credit_amount ELSE 0 END) as expenses,
-            SUM(CASE WHEN a.account_type = 'revenue' THEN jei.credit_amount - jei.debit_amount 
-                    WHEN a.account_type = 'expense' THEN -(jei.debit_amount - jei.credit_amount)
-                    ELSE 0 END) as profit
-          FROM journal_entries je
-          JOIN journal_entry_items jei ON je.id = jei.journal_entry_id AND jei.tenant_id = ${tenantId}
-          JOIN accounts a ON jei.account_id = a.id AND a.tenant_id = ${tenantId}
-          WHERE je.tenant_id = ${tenantId}
-            AND a.account_type IN ('revenue', 'expense')
-          GROUP BY TO_CHAR(je.entry_date, 'YYYY-MM')
-          ORDER BY month DESC;
-        `;
-      } else if (lowerQuery.includes("task") || lowerQuery.includes("todo") || lowerQuery.includes("assignment")) {
-        sqlQuery = `
-          SELECT 
-            t.name as task_name,
-            u.display_name as assignee,
-            ts.name as status,
-            t.due_date,
-            c.name as client_name
-          FROM tasks t
-          LEFT JOIN users u ON t.assignee_id = u.id AND u.tenant_id = ${tenantId}
-          LEFT JOIN task_statuses ts ON t.status_id = ts.id AND ts.tenant_id = ${tenantId}
-          LEFT JOIN clients c ON t.client_id = c.id AND c.tenant_id = ${tenantId}
-          WHERE t.tenant_id = ${tenantId}
-          ORDER BY t.due_date ASC NULLS LAST
-          LIMIT 20;
-        `;
-      }
+      // Extract the SQL and data for our report
+      sqlQuery = queryInsights.sql;
+      queryData = queryInsights.data;
       
-      // Execute the SQL query if one was generated
-      if (sqlQuery) {
-        console.log("Executing SQL query:", sqlQuery);
-        queryData = await db.execute(sql.raw(sqlQuery));
-        console.log("Query returned rows:", queryData?.rows?.length || 0);
-      }
+      console.log("AI Query Assistant results:", {
+        sqlGenerated: !!sqlQuery,
+        dataReturned: !!queryData,
+        rowCount: queryData?.rows?.length || 0,
+        error: queryInsights.error || null
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error("Error executing SQL query:", error);
+      console.error("Error using AI Query Assistant:", error);
       sqlQuery = `Error executing query: ${errorMessage}`;
       // Continue without the SQL data
     }
     
-    // Step 5: Prepare the prompt for the AI
+    // Step 5: Prepare the enhanced prompt for the AI with our comprehensive database context
     const prompt = `
 User query: ${query}
 
-Database schema information:
-${schemaInfo}
+Comprehensive Database Context:
+${dbContext}
 
 Context information about the tenant:
 ${contextData}
@@ -324,18 +190,24 @@ SQL Query Result:
 ${JSON.stringify(queryData, null, 2)}
 ` : ''}
 
+${queryInsights?.analysis ? `
+Analysis of the data:
+${queryInsights.analysis}
+` : ''}
+
 tenant_id for this user: ${tenantId}
 
 Instructions:
 1. Always filter any SQL queries by tenant_id=${tenantId} to ensure data isolation
-2. Generate SQL queries as needed to explore different aspects of the data
+2. The SQL query and data above were generated based on the user's question - use this data as the foundation for your report
 3. Provide a comprehensive analysis of the available data to address the user's query
-4. If the data is insufficient, explain what data would be needed to give a better answer
-5. Format the response with well-structured HTML tags (h2, p, ul, li, etc.)
-6. Include charts where data is suitable for visualization
+4. Format the response with well-structured HTML tags (h2, p, ul, li, etc.)
+5. Include charts where data is suitable for visualization
+6. If the query returned useful data, focus on extracting insights from that data
+7. If the data is insufficient or the query failed, explain what data would be needed to give a better answer
 `;
 
-    // Step 5: Call the OpenAI API
+    // Step 6: Call the AI service to generate the final report
     console.log("Calling AI service to generate report...");
     const aiResponse = await queryAI(
       aiConfig.provider, 
