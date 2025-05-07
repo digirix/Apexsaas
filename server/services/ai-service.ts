@@ -103,7 +103,7 @@ export const queryOpenRouter = async (
         "X-Title": "Accountant.io"
       },
       body: JSON.stringify({
-        model: formattedModel || "google/gemini-flash-1.5-8b-exp",
+        model: formattedModel || "openai/gpt-3.5-turbo", // Use a more reliable model as default fallback
         messages: modifiedMessages,
         temperature: 0.7,
         // Add Google-specific safety settings required for Gemini models
@@ -323,7 +323,14 @@ export const executeCustomAIConfig = async (
       body: JSON.stringify({
         model: alternativeModel, // Use a free model instead of the restricted one
         messages: modifiedMessages,
-        temperature: 0.7
+        temperature: 0.7,
+        // Add proper safety settings for Google models
+        safety_settings: [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" }
+        ]
       })
     });
     
