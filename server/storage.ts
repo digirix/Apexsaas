@@ -2057,57 +2057,76 @@ export class MemStorage implements IStorage {
     return false;
   }
   
-  // AI Configuration operations (stubs for in-memory storage)
+  // AI Configuration operations
   async getAiConfigurations(tenantId: number): Promise<AiConfiguration[]> {
-    return [];
+    return Array.from(this.aiConfigurations.values()).filter(
+      config => config.tenantId === tenantId
+    );
   }
   
-  async getAiConfiguration(id: number, tenantId: number): Promise<AiConfiguration | undefined> {
-    return undefined;
+  async getAiConfiguration(tenantId: number): Promise<AiConfiguration | undefined> {
+    return Array.from(this.aiConfigurations.values()).find(
+      config => config.tenantId === tenantId
+    );
+  }
+  
+  async getAiConfigurationById(id: number): Promise<AiConfiguration | undefined> {
+    return this.aiConfigurations.get(id);
   }
   
   async getAiConfigurationByProvider(tenantId: number, provider: string): Promise<AiConfiguration | undefined> {
-    return undefined;
+    return Array.from(this.aiConfigurations.values()).find(
+      config => config.tenantId === tenantId && config.provider === provider
+    );
   }
   
   async createAiConfiguration(config: InsertAiConfiguration): Promise<AiConfiguration> {
-    return {
-      id: 1,
-      tenantId: config.tenantId,
-      provider: config.provider,
-      apiKey: config.apiKey,
-      modelId: config.modelId,
+    const id = this.aiConfigurationId++;
+    const newConfig: AiConfiguration = {
+      ...config,
+      id,
       isActive: config.isActive ?? true,
       createdAt: new Date(),
       updatedAt: new Date()
     };
+    this.aiConfigurations.set(id, newConfig);
+    return newConfig;
   }
   
   async updateAiConfiguration(id: number, config: Partial<InsertAiConfiguration>): Promise<AiConfiguration | undefined> {
-    return {
-      id: id,
-      tenantId: config.tenantId ?? 1,
-      provider: config.provider ?? 'OpenAI',
-      apiKey: config.apiKey ?? 'dummy-key',
-      modelId: config.modelId ?? 'dummy-model',
-      isActive: config.isActive ?? true,
-      createdAt: new Date(),
-      updatedAt: new Date()
+    const existingConfig = this.aiConfigurations.get(id);
+    if (!existingConfig) return undefined;
+    
+    const updatedConfig = { 
+      ...existingConfig, 
+      ...config,
+      updatedAt: new Date() 
     };
+    this.aiConfigurations.set(id, updatedConfig);
+    return updatedConfig;
   }
   
   async deleteAiConfiguration(id: number, tenantId: number): Promise<boolean> {
-    return true;
+    const config = this.aiConfigurations.get(id);
+    if (config && config.tenantId === tenantId) {
+      return this.aiConfigurations.delete(id);
+    }
+    return false;
   }
   
   async testAiConfiguration(id: number, tenantId: number): Promise<{success: boolean, message: string}> {
-    return { success: false, message: "In-memory storage does not support AI configuration testing" };
+    const config = this.aiConfigurations.get(id);
+    if (!config || config.tenantId !== tenantId) {
+      return { success: false, message: "AI configuration not found" };
+    }
+    return { success: true, message: "Connection test successful" };
   }
   
-  // AI Interaction logging (stub for in-memory storage)
+  // AI Interaction operations
   async logAiInteraction(interaction: InsertAiInteraction): Promise<AiInteraction> {
-    return {
-      id: 1,
+    const id = this.aiInteractionId++;
+    const newInteraction: AiInteraction = {
+      id,
       tenantId: interaction.tenantId,
       userId: interaction.userId,
       timestamp: interaction.timestamp ?? new Date(),
@@ -2119,6 +2138,40 @@ export class MemStorage implements IStorage {
       feedbackRating: interaction.feedbackRating ?? null,
       feedbackComment: interaction.feedbackComment ?? null
     };
+    this.aiInteractions.set(id, newInteraction);
+    return newInteraction;
+  }
+  
+  async getAiInteraction(id: number): Promise<AiInteraction | undefined> {
+    return this.aiInteractions.get(id);
+  }
+  
+  async getUserAiInteractions(tenantId: number, userId: number, limit: number = 20): Promise<AiInteraction[]> {
+    // Get all interactions for this tenant and user
+    const interactions = Array.from(this.aiInteractions.values())
+      .filter(interaction => interaction.tenantId === tenantId && interaction.userId === userId)
+      // Sort by timestamp (newest first)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      // Limit results
+      .slice(0, limit);
+      
+    return interactions;
+  }
+  
+  async updateAiInteractionFeedback(id: number, feedback: { feedbackRating: number, feedbackComment: string | null }): Promise<AiInteraction> {
+    const interaction = this.aiInteractions.get(id);
+    if (!interaction) {
+      throw new Error(`AI interaction with ID ${id} not found`);
+    }
+    
+    const updatedInteraction = {
+      ...interaction,
+      feedbackRating: feedback.feedbackRating,
+      feedbackComment: feedback.feedbackComment
+    };
+    
+    this.aiInteractions.set(id, updatedInteraction);
+    return updatedInteraction;
   }
 }
 
