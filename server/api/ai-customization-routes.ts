@@ -1,11 +1,12 @@
 import { Express, Request, Response } from 'express';
 import { DatabaseStorage } from '../database-storage';
 import { sql } from 'drizzle-orm';
+import { InsertAiAssistantCustomization } from '@shared/schema';
 
 /**
- * Interface for AI assistant customization settings
+ * Interface for AI provider configuration settings
  */
-interface AICustomizationSettings {
+interface AIProviderSettings {
   id?: number;
   tenantId: number;
   provider: string;
@@ -18,6 +19,23 @@ interface AICustomizationSettings {
   enableDatabaseAccess?: boolean;
   enableGeneralKnowledge?: boolean;
   customInstructions?: string;
+  isActive: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+/**
+ * Interface for AI assistant persona customization
+ */
+interface AIAssistantCustomization {
+  id?: number;
+  tenantId: number;
+  userId: number;
+  name: string;
+  personality: 'Professional' | 'Friendly' | 'Technical' | 'Concise' | 'Detailed';
+  specialization: 'General' | 'Accounting' | 'Tax' | 'Audit' | 'Finance' | 'Compliance';
+  responseLength: 'Brief' | 'Standard' | 'Detailed';
+  tone: 'Formal' | 'Neutral' | 'Casual';
   isActive: boolean;
   createdAt?: Date;
   updatedAt?: Date;

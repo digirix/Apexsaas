@@ -3299,6 +3299,91 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
+  // AI Assistant Customization operations
+  async getAiAssistantCustomizations(tenantId: number): Promise<AiAssistantCustomization[]> {
+    try {
+      return await db.select().from(aiAssistantCustomizations)
+        .where(eq(aiAssistantCustomizations.tenantId, tenantId));
+    } catch (error) {
+      console.error("Error fetching AI assistant customizations:", error);
+      return [];
+    }
+  }
+
+  async getAiAssistantCustomization(id: number, tenantId: number): Promise<AiAssistantCustomization | undefined> {
+    try {
+      const [customization] = await db.select().from(aiAssistantCustomizations)
+        .where(and(
+          eq(aiAssistantCustomizations.id, id),
+          eq(aiAssistantCustomizations.tenantId, tenantId)
+        ));
+      return customization;
+    } catch (error) {
+      console.error("Error fetching AI assistant customization:", error);
+      return undefined;
+    }
+  }
+
+  async getUserAiAssistantCustomization(tenantId: number, userId: number): Promise<AiAssistantCustomization | undefined> {
+    try {
+      const [customization] = await db.select().from(aiAssistantCustomizations)
+        .where(and(
+          eq(aiAssistantCustomizations.tenantId, tenantId),
+          eq(aiAssistantCustomizations.userId, userId),
+          eq(aiAssistantCustomizations.isActive, true)
+        ));
+      return customization;
+    } catch (error) {
+      console.error("Error fetching user AI assistant customization:", error);
+      return undefined;
+    }
+  }
+
+  async createAiAssistantCustomization(customization: InsertAiAssistantCustomization): Promise<AiAssistantCustomization> {
+    try {
+      const [newCustomization] = await db.insert(aiAssistantCustomizations)
+        .values({
+          ...customization,
+          updatedAt: new Date()
+        })
+        .returning();
+      return newCustomization;
+    } catch (error) {
+      console.error("Error creating AI assistant customization:", error);
+      throw error;
+    }
+  }
+
+  async updateAiAssistantCustomization(id: number, customization: Partial<InsertAiAssistantCustomization>): Promise<AiAssistantCustomization | undefined> {
+    try {
+      const [updatedCustomization] = await db.update(aiAssistantCustomizations)
+        .set({
+          ...customization,
+          updatedAt: new Date()
+        })
+        .where(eq(aiAssistantCustomizations.id, id))
+        .returning();
+      return updatedCustomization;
+    } catch (error) {
+      console.error("Error updating AI assistant customization:", error);
+      throw error;
+    }
+  }
+
+  async deleteAiAssistantCustomization(id: number, tenantId: number): Promise<boolean> {
+    try {
+      await db.delete(aiAssistantCustomizations)
+        .where(and(
+          eq(aiAssistantCustomizations.id, id),
+          eq(aiAssistantCustomizations.tenantId, tenantId)
+        ));
+      return true;
+    } catch (error) {
+      console.error("Error deleting AI assistant customization:", error);
+      return false;
+    }
+  }
+  
   // AI Interaction logging operations
   async logAiInteraction(interaction: InsertAiInteraction): Promise<AiInteraction> {
     try {
