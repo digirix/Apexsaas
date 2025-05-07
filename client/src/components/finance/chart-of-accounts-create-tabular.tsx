@@ -576,7 +576,8 @@ export default function ChartOfAccountsCreateTabular() {
           .filter(g => g.subElementGroupId === subElementGroup.id)
           .map(g => ({
             id: g.id,
-            name: g.customName || g.name.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+            name: g.name.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+            customName: g.customName // Include the customName property in the returned object
           }));
       }
     }
@@ -775,7 +776,7 @@ export default function ChartOfAccountsCreateTabular() {
                   <SelectContent>
                     {getFilteredElementGroups().map((group) => (
                       <SelectItem key={group.id || group.value} value={group.id?.toString() || group.value}>
-                        {group.name}
+                        {group.customName || group.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -811,7 +812,7 @@ export default function ChartOfAccountsCreateTabular() {
                   <SelectContent>
                     {getFilteredSubElementGroups().map((group) => (
                       <SelectItem key={group.id || group.value} value={group.id?.toString() || group.value}>
-                        {group.name}
+                        {group.customName || group.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
