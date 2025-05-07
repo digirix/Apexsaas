@@ -94,18 +94,32 @@ something or the information is not in the provided context, be honest about it.
       const processingTimeMs = Date.now() - startTime;
       
       // Log conversation with expanded analytics
+      // Make sure we have a valid response before accessing it
+      const responseText = aiResponse?.choices?.[0]?.message?.content || 'No response generated';
+      
       await db.logAiInteraction({
         tenantId,
         userId: req.user.id,
         timestamp: new Date(),
         userQuery: userMessage.content,
-        aiResponse: aiResponse.choices[0].message.content,
+        aiResponse: responseText,
         provider: config.provider,
-        modelId: config.modelId || 'default',
+        modelId: config.model || 'default', // Use model instead of modelId to match the database schema
         processingTimeMs,
         feedbackRating: null,  // Will be updated later when user provides feedback
         feedbackComment: null  // Will be updated later when user provides feedback
       });
+      
+      // Make sure we have a valid response and handle it properly
+      if (!aiResponse?.choices?.[0]?.message) {
+        return res.status(500).json({
+          error: 'Failed to get a proper response from the AI provider',
+          message: {
+            role: 'assistant',
+            content: 'I apologize, but I encountered an error while processing your request. Please try again later.'
+          }
+        });
+      }
       
       // Return the AI response to the client
       return res.json({
