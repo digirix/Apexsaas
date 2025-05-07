@@ -109,11 +109,12 @@ export const queryOpenRouter = async (
     }
 
     const data: OpenRouterResponse = await response.json();
+    console.log('OpenRouter API response:', JSON.stringify(data, null, 2));
     
     // Return in standardized format
     return {
-      choices: data.choices,
-      model: data.model
+      choices: data.choices || [],
+      model: data.model || 'unknown'
     };
   } catch (error: any) {
     console.error("Error querying OpenRouter:", error.message);
@@ -167,16 +168,21 @@ export const queryGoogleAI = async (
     }
 
     const data: GoogleAIResponse = await response.json();
+    console.log('Google AI response:', JSON.stringify(data, null, 2));
     
     // Convert Google AI response to standard format
+    if (!data.candidates || !Array.isArray(data.candidates) || data.candidates.length === 0) {
+      throw new Error('Invalid response from Google AI: No candidates returned');
+    }
+    
     return {
       choices: data.candidates.map(candidate => ({
         message: {
           role: "assistant",
-          content: candidate.content.parts[0].text
+          content: candidate.content?.parts?.[0]?.text || "No response content"
         },
-        index: candidate.index,
-        finish_reason: candidate.finishReason
+        index: candidate.index || 0,
+        finish_reason: candidate.finishReason || "unknown"
       })),
       model: model
     };
@@ -227,18 +233,23 @@ export const queryAnthropic = async (
     }
 
     const data: AnthropicResponse = await response.json();
+    console.log('Anthropic API response:', JSON.stringify(data, null, 2));
     
     // Convert Anthropic response to standard format
+    if (!data.content || !Array.isArray(data.content) || data.content.length === 0) {
+      throw new Error('Invalid response from Anthropic: No content returned');
+    }
+    
     return {
       choices: [{
         message: {
           role: "assistant",
-          content: data.content[0].text
+          content: data.content[0]?.text || "No response content"
         },
         index: 0,
-        finish_reason: data.stop_reason
+        finish_reason: data.stop_reason || "unknown"
       }],
-      model: data.model
+      model: data.model || 'unknown'
     };
   } catch (error: any) {
     console.error("Error querying Anthropic:", error.message);

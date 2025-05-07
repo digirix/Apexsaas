@@ -93,13 +93,22 @@ something or the information is not in the provided context, be honest about it.
       // Calculate processing time
       const processingTimeMs = Date.now() - startTime;
       
+      // Add safety check for choices array
+      if (!aiResponse.choices || !Array.isArray(aiResponse.choices) || aiResponse.choices.length === 0) {
+        console.error('AI provider returned no choices in the response:', aiResponse);
+        throw new Error('AI provider returned an invalid response format');
+      }
+      
+      // Add safety check for message content
+      const aiResponseContent = aiResponse.choices[0]?.message?.content || "I'm sorry, I couldn't generate a proper response.";
+      
       // Log conversation with expanded analytics
       await db.logAiInteraction({
         tenantId,
         userId: (req.user as any).id,
         timestamp: new Date(),
         userQuery: userMessage.content,
-        aiResponse: aiResponse.choices[0].message.content,
+        aiResponse: aiResponseContent,
         provider: config.provider,
         modelId: config.modelId || 'default',
         processingTimeMs,
@@ -109,7 +118,10 @@ something or the information is not in the provided context, be honest about it.
       
       // Return the AI response to the client
       return res.json({
-        message: aiResponse.choices[0].message,
+        message: {
+          role: "assistant",
+          content: aiResponseContent
+        },
         conversationId: conversationId || `chat-${Date.now()}`
       });
     } catch (error: any) {
