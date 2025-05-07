@@ -284,17 +284,180 @@ export const queryAnthropic = async (
   }
 };
 
+// Execute custom TypeScript configuration if provided
+export const executeCustomAIConfig = async (
+  typeScriptConfig: string,
+  apiKey: string,
+  modelId: string,
+  messages: ChatMessage[],
+  systemPrompt?: string
+): Promise<StandardAIResponse> => {
+  try {
+    console.log("Executing custom TypeScript configuration");
+    
+    // Replace placeholders in the config
+    let configCode = typeScriptConfig
+      .replace(/<OPENROUTER_API_KEY>/g, apiKey)
+      .replace(/<YOUR_SITE_URL>/g, "https://accountant.io")
+      .replace(/<YOUR_SITE_NAME>/g, "Accountant.io");
+    
+    // Add system prompt if provided
+    let modifiedMessages = [...messages];
+    if (systemPrompt) {
+      modifiedMessages.unshift({
+        role: "system",
+        content: systemPrompt
+      });
+    }
+    
+    // Create a function that we can execute with our parameters
+    const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+    const customFetchFunction = new AsyncFunction(
+      'apiKey', 'model', 'messages', 'fetch', 
+      `
+      // Define standard response format to use for conversion
+      const convertToStandardResponse = (responseData) => {
+        // If the response already has the standard format
+        if (responseData.choices && Array.isArray(responseData.choices)) {
+          return responseData;
+        }
+        
+        // Handle OpenAI/OpenRouter format
+        if (responseData.choices && responseData.choices[0]?.message) {
+          return {
+            choices: responseData.choices,
+            model: responseData.model || model
+          };
+        }
+        
+        // Handle Google AI format
+        if (responseData.candidates) {
+          return {
+            choices: responseData.candidates.map(candidate => ({
+              message: {
+                role: "assistant",
+                content: candidate.content?.parts?.[0]?.text || "No response content"
+              },
+              index: candidate.index || 0,
+              finish_reason: candidate.finishReason || "unknown"
+            })),
+            model: model
+          };
+        }
+        
+        // Handle Anthropic format
+        if (responseData.content) {
+          return {
+            choices: [{
+              message: {
+                role: "assistant",
+                content: responseData.content[0]?.text || "No response content"
+              },
+              index: 0,
+              finish_reason: responseData.stop_reason || "unknown"
+            }],
+            model: responseData.model || model
+          };
+        }
+        
+        // Default case - create a basic response structure
+        return {
+          choices: [{
+            message: {
+              role: "assistant",
+              content: typeof responseData === 'string' ? responseData : 
+                      JSON.stringify(responseData, null, 2)
+            },
+            index: 0,
+            finish_reason: "unknown"
+          }],
+          model: model
+        };
+      };
+      
+      // Make any custom JSON.stringify replacements in messages if needed
+      const processedMessages = JSON.parse(JSON.stringify(messages).replace(/"role":"system"/g, '"role":"system"'));
+      
+      try {
+        ${configCode}
+        
+        // If the code doesn't include a return statement or fetch call, add a default implementation
+        return await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + apiKey,
+            "HTTP-Referer": "https://accountant.io",
+            "X-Title": "Accountant.io"
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: processedMessages,
+            temperature: 0.7
+          })
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('API request failed with status ' + response.status);
+          }
+          return response.json();
+        })
+        .then(data => {
+          return convertToStandardResponse(data);
+        });
+      } catch (err) {
+        console.error("Error executing custom API configuration:", err);
+        throw err;
+      }
+      `
+    );
+    
+    // Execute the custom function
+    try {
+      const response = await customFetchFunction(apiKey, modelId, modifiedMessages, fetch);
+      console.log("Custom configuration executed successfully");
+      
+      // Ensure the response has the standard format
+      if (!response.choices || !Array.isArray(response.choices)) {
+        throw new Error("Custom configuration returned invalid response format");
+      }
+      
+      return response;
+    } catch (error) {
+      console.error("Error executing custom configuration:", error);
+      throw error;
+    }
+  } catch (error) {
+    console.error("Failed to execute custom TypeScript configuration:", error);
+    throw new Error(`Failed to execute custom TypeScript configuration: ${error.message}`);
+  }
+};
+
 // Main function to query AI based on provider
 export const queryAI = async (
   provider: string,
   apiKey: string,
   modelId: string,
   messages: ChatMessage[],
-  systemPrompt?: string
+  systemPrompt?: string,
+  typeScriptConfig?: string
 ): Promise<StandardAIResponse> => {
+  // If a custom TypeScript configuration is provided, use it
+  if (typeScriptConfig) {
+    try {
+      console.log("Using custom TypeScript configuration");
+      return await executeCustomAIConfig(typeScriptConfig, apiKey, modelId, messages, systemPrompt);
+    } catch (error) {
+      console.error("Custom TypeScript configuration failed:", error);
+      console.log("Falling back to standard provider implementation");
+      // If the custom config fails, fall back to the standard implementation
+    }
+  }
+
   // Normalize provider name to handle case variations
   const normalizedProvider = provider.toLowerCase();
   
+  // Use standard provider implementations
   switch (normalizedProvider) {
     case "openai":
     case "openrouter":

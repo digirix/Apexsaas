@@ -142,7 +142,8 @@ Current date: ${new Date().toLocaleDateString()}
           config.apiKey,
           config.model || 'google/gemini-flash-1.5-8b-exp', // Default model if not specified
           messages,
-          systemPrompt
+          systemPrompt,
+          config.typeScriptConfig // Pass the TypeScript configuration if available
         );
         
         // Calculate processing time
@@ -180,7 +181,7 @@ Current date: ${new Date().toLocaleDateString()}
             userQuery: userMessage.content,
             aiResponse: responseContent,
             provider: config.provider,
-            modelId: config.model || 'default', // Use model instead of modelId
+            model: config.model || 'default', // Use the model name
             processingTimeMs,
             feedbackRating: null,  // Will be updated later when user provides feedback
             feedbackComment: null  // Will be updated later when user provides feedback
@@ -210,7 +211,7 @@ Current date: ${new Date().toLocaleDateString()}
             userQuery: userMessage.content,
             aiResponse: `Error: ${innerError.message || "Unknown error"}`,
             provider: config.provider,
-            modelId: config.model || 'default',
+            model: config.model || 'default',
             processingTimeMs: Date.now() - startTime,
             feedbackRating: null,
             feedbackComment: null
