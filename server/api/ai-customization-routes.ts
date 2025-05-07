@@ -19,17 +19,6 @@ import {
 interface AIProviderSettings extends Omit<InsertAiConfiguration, 'tenantId'> {
   id?: number;
   tenantId: number;
-  createdAt?: Date;
-  updatedAt?: Date;
-  
-  // Extended properties not in schema
-  temperature?: number;
-  maxTokens?: number;
-  systemPromptOverride?: string;
-  preferredAnalyticsTypes?: string[];
-  enableDatabaseAccess?: boolean;
-  enableGeneralKnowledge?: boolean;
-  customInstructions?: string;
 }
 
 export const registerAICustomizationRoutes = (app: Express, isAuthenticated: any, hasTenantAccess: any, db: DatabaseStorage) => {
@@ -140,9 +129,7 @@ export const registerAICustomizationRoutes = (app: Express, isAuthenticated: any
         specialization: customization.specialization,
         responseLength: customization.responseLength,
         tone: customization.tone,
-        isActive: customization.isActive || false,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        isActive: customization.isActive || false
       });
       
       // If this customization is set as active, deactivate others
@@ -201,8 +188,7 @@ export const registerAICustomizationRoutes = (app: Express, isAuthenticated: any
         specialization: updates.specialization,
         responseLength: updates.responseLength,
         tone: updates.tone,
-        isActive: updates.isActive,
-        updatedAt: new Date()
+        isActive: updates.isActive
       });
       
       // If this customization is being set as active, deactivate others
@@ -346,15 +332,7 @@ export const registerAICustomizationRoutes = (app: Express, isAuthenticated: any
           provider: settings.provider,
           apiKey: settings.apiKey,
           model: settings.model,
-          temperature: settings.temperature,
-          maxTokens: settings.maxTokens,
-          systemPromptOverride: settings.systemPromptOverride,
-          preferredAnalyticsTypes: settings.preferredAnalyticsTypes,
-          enableDatabaseAccess: settings.enableDatabaseAccess,
-          enableGeneralKnowledge: settings.enableGeneralKnowledge,
-          customInstructions: settings.customInstructions,
-          isActive: settings.isActive,
-          updatedAt: new Date()
+          isActive: settings.isActive
         });
         
         return res.json({ 
@@ -376,9 +354,7 @@ export const registerAICustomizationRoutes = (app: Express, isAuthenticated: any
           enableDatabaseAccess: settings.enableDatabaseAccess ?? true,
           enableGeneralKnowledge: settings.enableGeneralKnowledge ?? true,
           customInstructions: settings.customInstructions,
-          isActive: settings.isActive,
-          createdAt: new Date(),
-          updatedAt: new Date()
+          isActive: settings.isActive
         });
         
         return res.json({ 
@@ -419,8 +395,7 @@ export const registerAICustomizationRoutes = (app: Express, isAuthenticated: any
       
       // Set this configuration to active
       const updatedConfig = await db.updateTenantAiConfiguration(configId, {
-        isActive: true,
-        updatedAt: new Date()
+        isActive: true
       });
       
       return res.json({ 
