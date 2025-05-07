@@ -3113,23 +3113,12 @@ export class DatabaseStorage implements IStorage {
       .where(eq(aiConfigurations.tenantId, tenantId));
   }
 
-  async getAiConfigurationById(id: number, tenantId: number): Promise<AiConfiguration | undefined> {
+  async getAiConfiguration(id: number, tenantId: number): Promise<AiConfiguration | undefined> {
     const [config] = await db.select().from(aiConfigurations)
       .where(and(
         eq(aiConfigurations.id, id),
         eq(aiConfigurations.tenantId, tenantId)
       ));
-    return config;
-  }
-  
-  async getAiConfiguration(tenantId: number): Promise<AiConfiguration | undefined> {
-    // This gets the first active AI configuration for a tenant
-    const [config] = await db.select().from(aiConfigurations)
-      .where(and(
-        eq(aiConfigurations.tenantId, tenantId),
-        eq(aiConfigurations.isActive, true)
-      ))
-      .limit(1);
     return config;
   }
 
@@ -3179,7 +3168,7 @@ export class DatabaseStorage implements IStorage {
 
   async testAiConfiguration(id: number, tenantId: number): Promise<{success: boolean, message: string}> {
     try {
-      const config = await this.getAiConfigurationById(id, tenantId);
+      const config = await this.getAiConfiguration(id, tenantId);
       if (!config) {
         return { success: false, message: "AI configuration not found" };
       }

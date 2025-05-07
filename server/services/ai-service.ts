@@ -97,27 +97,9 @@ export const queryOpenRouter = async (
         "X-Title": "Accountant.io"
       },
       body: JSON.stringify({
-        model: modelId || "anthropic/claude-3-haiku",
+        model: modelId || "google/gemini-flash-1.5-8b-exp",
         messages: modifiedMessages,
-        temperature: 0.7,
-        safety_settings: [
-          {
-            category: "HARM_CATEGORY_HARASSMENT", 
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          },
-          {
-            category: "HARM_CATEGORY_HATE_SPEECH", 
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          },
-          {
-            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", 
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          },
-          {
-            category: "HARM_CATEGORY_DANGEROUS_CONTENT", 
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          }
-        ]
+        temperature: 0.7
       })
     });
 
@@ -127,12 +109,11 @@ export const queryOpenRouter = async (
     }
 
     const data: OpenRouterResponse = await response.json();
-    console.log('OpenRouter API response:', JSON.stringify(data, null, 2));
     
     // Return in standardized format
     return {
-      choices: data.choices || [],
-      model: data.model || 'unknown'
+      choices: data.choices,
+      model: data.model
     };
   } catch (error: any) {
     console.error("Error querying OpenRouter:", error.message);
@@ -186,21 +167,16 @@ export const queryGoogleAI = async (
     }
 
     const data: GoogleAIResponse = await response.json();
-    console.log('Google AI response:', JSON.stringify(data, null, 2));
     
     // Convert Google AI response to standard format
-    if (!data.candidates || !Array.isArray(data.candidates) || data.candidates.length === 0) {
-      throw new Error('Invalid response from Google AI: No candidates returned');
-    }
-    
     return {
       choices: data.candidates.map(candidate => ({
         message: {
           role: "assistant",
-          content: candidate.content?.parts?.[0]?.text || "No response content"
+          content: candidate.content.parts[0].text
         },
-        index: candidate.index || 0,
-        finish_reason: candidate.finishReason || "unknown"
+        index: candidate.index,
+        finish_reason: candidate.finishReason
       })),
       model: model
     };
@@ -251,23 +227,18 @@ export const queryAnthropic = async (
     }
 
     const data: AnthropicResponse = await response.json();
-    console.log('Anthropic API response:', JSON.stringify(data, null, 2));
     
     // Convert Anthropic response to standard format
-    if (!data.content || !Array.isArray(data.content) || data.content.length === 0) {
-      throw new Error('Invalid response from Anthropic: No content returned');
-    }
-    
     return {
       choices: [{
         message: {
           role: "assistant",
-          content: data.content[0]?.text || "No response content"
+          content: data.content[0].text
         },
         index: 0,
-        finish_reason: data.stop_reason || "unknown"
+        finish_reason: data.stop_reason
       }],
-      model: data.model || 'unknown'
+      model: data.model
     };
   } catch (error: any) {
     console.error("Error querying Anthropic:", error.message);

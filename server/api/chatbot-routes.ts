@@ -13,12 +13,12 @@ export const registerChatbotRoutes = (app: Express, isAuthenticated: any, db: Da
   // Route to check if chat is available (tenant has valid AI configuration)
   app.get('/api/v1/ai/chat/status', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const tenantId = (req.user as any).tenantId;
+      const tenantId = req.user.tenantId;
       
       // Get AI configuration for this tenant
       const config = await db.getAiConfiguration(tenantId);
       
-      if (!config || !config.isActive || !config.provider || !config.apiKey) {
+      if (!config || !config.isEnabled || !config.provider || !config.apiKey) {
         return res.json({ 
           isAvailable: false,
           provider: null,
@@ -30,7 +30,7 @@ export const registerChatbotRoutes = (app: Express, isAuthenticated: any, db: Da
       return res.json({
         isAvailable: true,
         provider: config.provider,
-        model: config.modelId || 'anthropic/claude-3-haiku-20240307'
+        model: config.modelId || 'default'
       });
     } catch (error) {
       console.error('Error checking chat availability:', error);
@@ -45,7 +45,7 @@ export const registerChatbotRoutes = (app: Express, isAuthenticated: any, db: Da
   app.post('/api/v1/ai/chat', isAuthenticated, async (req: Request, res: Response) => {
     try {
       const { messages, conversationId } = req.body;
-      const tenantId = (req.user as any).tenantId;
+      const tenantId = req.user.tenantId;
       
       if (!messages || !Array.isArray(messages)) {
         return res.status(400).json({ error: 'Messages are required and must be an array' });
@@ -54,7 +54,7 @@ export const registerChatbotRoutes = (app: Express, isAuthenticated: any, db: Da
       // Get the AI configuration for this tenant
       const config = await db.getAiConfiguration(tenantId);
       
-      if (!config || !config.isActive || !config.provider || !config.apiKey) {
+      if (!config || !config.isEnabled || !config.provider || !config.apiKey) {
         return res.status(400).json({ error: 'AI is not configured or enabled for this tenant' });
       }
       
@@ -85,7 +85,7 @@ something or the information is not in the provided context, be honest about it.
       const aiResponse = await queryAI(
         config.provider,
         config.apiKey,
-        config.modelId || 'anthropic/claude-3-haiku-20240307', // Default model if not specified
+        config.modelId || 'google/gemini-flash-1.5-8b-exp', // Default model if not specified
         messages,
         systemPrompt
       );
@@ -93,24 +93,15 @@ something or the information is not in the provided context, be honest about it.
       // Calculate processing time
       const processingTimeMs = Date.now() - startTime;
       
-      // Add safety check for choices array
-      if (!aiResponse.choices || !Array.isArray(aiResponse.choices) || aiResponse.choices.length === 0) {
-        console.error('AI provider returned no choices in the response:', aiResponse);
-        throw new Error('AI provider returned an invalid response format');
-      }
-      
-      // Add safety check for message content
-      const aiResponseContent = aiResponse.choices[0]?.message?.content || "I'm sorry, I couldn't generate a proper response.";
-      
       // Log conversation with expanded analytics
       await db.logAiInteraction({
         tenantId,
-        userId: (req.user as any).id,
+        userId: req.user.id,
         timestamp: new Date(),
         userQuery: userMessage.content,
-        aiResponse: aiResponseContent,
+        aiResponse: aiResponse.choices[0].message.content,
         provider: config.provider,
-        modelId: config.modelId || 'anthropic/claude-3-haiku',
+        modelId: config.modelId || 'default',
         processingTimeMs,
         feedbackRating: null,  // Will be updated later when user provides feedback
         feedbackComment: null  // Will be updated later when user provides feedback
@@ -118,10 +109,7 @@ something or the information is not in the provided context, be honest about it.
       
       // Return the AI response to the client
       return res.json({
-        message: {
-          role: "assistant",
-          content: aiResponseContent
-        },
+        message: aiResponse.choices[0].message,
         conversationId: conversationId || `chat-${Date.now()}`
       });
     } catch (error: any) {
@@ -140,7 +128,7 @@ something or the information is not in the provided context, be honest about it.
   app.post('/api/v1/ai/chat/feedback', isAuthenticated, async (req: Request, res: Response) => {
     try {
       const { interactionId, rating, comment } = req.body as AiInteractionFeedback;
-      const tenantId = (req.user as any).tenantId;
+      const tenantId = req.user.tenantId;
       
       if (!interactionId || typeof interactionId !== 'number') {
         return res.status(400).json({ error: 'Valid interaction ID is required' });
@@ -187,8 +175,8 @@ something or the information is not in the provided context, be honest about it.
   // Route to get AI interaction history for current user
   app.get('/api/v1/ai/chat/history', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const tenantId = (req.user as any).tenantId;
-      const userId = (req.user as any).id;
+      const tenantId = req.user.tenantId;
+      const userId = req.user.id;
       
       // Get the recent chat history for this user
       // We would implement this method in database-storage.ts
