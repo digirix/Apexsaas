@@ -105,8 +105,8 @@ const subElementGroupSchema = z.object({
 // Schema for Detailed Group form
 const detailedGroupSchema = z.object({
   subElementGroup: z.string(),
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  customName: z.string().optional(),
+  name: z.string().default("Custom"), // No minimum length since it's always "Custom"
+  customName: z.string().min(2, "Display name must be at least 2 characters"),
   code: z.string().min(1, "Code is required"),
   description: z.string().nullable().optional(),
 });
@@ -181,7 +181,13 @@ export default function COAConfigurationPage() {
   };
   
   const handleCreateDetailedGroup = () => {
-    detailedGroupForm.reset();
+    detailedGroupForm.reset({
+      subElementGroup: "",
+      name: "Custom", // Always ensure it's reset to "Custom"
+      customName: "",
+      code: "",
+      description: "",
+    });
     setCreateDetailedGroupDialogOpen(true);
   };
   
@@ -386,7 +392,7 @@ export default function COAConfigurationPage() {
     resolver: zodResolver(detailedGroupSchema),
     defaultValues: {
       subElementGroup: "",
-      name: "",
+      name: "Custom", // Set default value to "Custom" to match the disabled input
       customName: "",
       code: "",
       description: "",
@@ -1475,7 +1481,21 @@ export default function COAConfigurationPage() {
       </Dialog>
 
       {/* Create Detailed Group Dialog */}
-      <Dialog open={createDetailedGroupDialogOpen} onOpenChange={setCreateDetailedGroupDialogOpen}>
+      <Dialog 
+        open={createDetailedGroupDialogOpen} 
+        onOpenChange={(open) => {
+          setCreateDetailedGroupDialogOpen(open);
+          if (!open) {
+            // Reset the form when dialog is closed
+            detailedGroupForm.reset({
+              subElementGroup: "",
+              name: "Custom",
+              customName: "",
+              code: "",
+              description: "",
+            });
+          }
+        }}>
         <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
             <DialogTitle>Add New Detailed Group</DialogTitle>
@@ -1504,7 +1524,13 @@ export default function COAConfigurationPage() {
                   description: "Detailed Group created successfully",
                 });
                 setCreateDetailedGroupDialogOpen(false);
-                detailedGroupForm.reset();
+                detailedGroupForm.reset({
+                  subElementGroup: "",
+                  name: "Custom",
+                  customName: "",
+                  code: "",
+                  description: "",
+                });
                 queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/detailed-groups'] });
               }).catch(error => {
                 toast({
