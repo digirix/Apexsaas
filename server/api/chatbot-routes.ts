@@ -18,7 +18,7 @@ export const registerChatbotRoutes = (app: Express, isAuthenticated: any, db: Da
       // Get AI configuration for this tenant
       const config = await db.getAiConfiguration(tenantId);
       
-      if (!config || !config.isEnabled || !config.provider || !config.apiKey) {
+      if (!config || !config.isActive || !config.provider || !config.apiKey) {
         return res.json({ 
           isAvailable: false,
           provider: null,
@@ -54,7 +54,7 @@ export const registerChatbotRoutes = (app: Express, isAuthenticated: any, db: Da
       // Get the AI configuration for this tenant
       const config = await db.getAiConfiguration(tenantId);
       
-      if (!config || !config.isEnabled || !config.provider || !config.apiKey) {
+      if (!config || !config.isActive || !config.provider || !config.apiKey) {
         return res.status(400).json({ error: 'AI is not configured or enabled for this tenant' });
       }
       

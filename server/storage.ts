@@ -366,6 +366,9 @@ export class MemStorage implements IStorage {
   private paymentGatewaySettings: Map<number, PaymentGatewaySetting>;
   private chartOfAccounts: Map<number, ChartOfAccount>;
   private journalEntryTypes: Map<number, JournalEntryType>;
+  // AI module storage
+  private aiConfigurations: Map<number, AiConfiguration>;
+  private aiInteractions: Map<number, AiInteraction>;
   
   sessionStore: MemoryStoreType;
   
@@ -396,6 +399,9 @@ export class MemStorage implements IStorage {
   private paymentGatewaySettingId: number = 1;
   private chartOfAccountId: number = 1;
   private journalEntryTypeId: number = 1;
+  // AI module IDs
+  private aiConfigurationId: number = 1;
+  private aiInteractionId: number = 1;
 
   constructor() {
     this.tenants = new Map();
@@ -425,6 +431,9 @@ export class MemStorage implements IStorage {
     this.paymentGatewaySettings = new Map();
     this.chartOfAccounts = new Map();
     this.journalEntryTypes = new Map();
+    // Initialize AI module maps
+    this.aiConfigurations = new Map();
+    this.aiInteractions = new Map();
     
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000, // 24h
