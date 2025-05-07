@@ -2044,6 +2044,70 @@ export class MemStorage implements IStorage {
     }
     return false;
   }
+  
+  // AI Configuration operations (stubs for in-memory storage)
+  async getAiConfigurations(tenantId: number): Promise<AiConfiguration[]> {
+    return [];
+  }
+  
+  async getAiConfiguration(id: number, tenantId: number): Promise<AiConfiguration | undefined> {
+    return undefined;
+  }
+  
+  async getAiConfigurationByProvider(tenantId: number, provider: string): Promise<AiConfiguration | undefined> {
+    return undefined;
+  }
+  
+  async createAiConfiguration(config: InsertAiConfiguration): Promise<AiConfiguration> {
+    return {
+      id: 1,
+      tenantId: config.tenantId,
+      provider: config.provider,
+      apiKey: config.apiKey,
+      modelId: config.modelId,
+      isActive: config.isActive ?? true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+  }
+  
+  async updateAiConfiguration(id: number, config: Partial<InsertAiConfiguration>): Promise<AiConfiguration | undefined> {
+    return {
+      id: id,
+      tenantId: config.tenantId ?? 1,
+      provider: config.provider ?? 'OpenAI',
+      apiKey: config.apiKey ?? 'dummy-key',
+      modelId: config.modelId ?? 'dummy-model',
+      isActive: config.isActive ?? true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+  }
+  
+  async deleteAiConfiguration(id: number, tenantId: number): Promise<boolean> {
+    return true;
+  }
+  
+  async testAiConfiguration(id: number, tenantId: number): Promise<{success: boolean, message: string}> {
+    return { success: false, message: "In-memory storage does not support AI configuration testing" };
+  }
+  
+  // AI Interaction logging (stub for in-memory storage)
+  async logAiInteraction(interaction: InsertAiInteraction): Promise<AiInteraction> {
+    return {
+      id: 1,
+      tenantId: interaction.tenantId,
+      userId: interaction.userId,
+      timestamp: interaction.timestamp ?? new Date(),
+      userQuery: interaction.userQuery,
+      aiResponse: interaction.aiResponse,
+      provider: interaction.provider,
+      modelId: interaction.modelId,
+      processingTimeMs: interaction.processingTimeMs ?? 0,
+      feedbackRating: interaction.feedbackRating ?? null,
+      feedbackComment: interaction.feedbackComment ?? null
+    };
+  }
 }
 
 import { DatabaseStorage } from "./database-storage";

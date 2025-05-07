@@ -3,6 +3,12 @@ import { DatabaseStorage } from '../database-storage';
 import { queryAI } from '../services/ai-service';
 import { fetchTenantDataForQuery } from '../services/chatbot-data-service';
 
+interface AiInteractionFeedback {
+  interactionId: number;
+  rating: number; // 1-5 star rating
+  comment?: string; // Optional comment
+}
+
 export const registerChatbotRoutes = (app: Express, isAuthenticated: any, db: DatabaseStorage) => {
   // Route to check if chat is available (tenant has valid AI configuration)
   app.get('/api/v1/ai/chat/status', isAuthenticated, async (req: Request, res: Response) => {
@@ -72,6 +78,9 @@ Please use this information to provide accurate and helpful responses. If you do
 something or the information is not in the provided context, be honest about it.
       `.trim();
       
+      // Record start time for processing time calculation
+      const startTime = Date.now();
+      
       // Query the AI with the tenant's configuration
       const aiResponse = await queryAI(
         config.provider,
@@ -81,7 +90,10 @@ something or the information is not in the provided context, be honest about it.
         systemPrompt
       );
       
-      // Log conversation (could be expanded for analytics)
+      // Calculate processing time
+      const processingTimeMs = Date.now() - startTime;
+      
+      // Log conversation with expanded analytics
       await db.logAiInteraction({
         tenantId,
         userId: req.user.id,
@@ -89,7 +101,10 @@ something or the information is not in the provided context, be honest about it.
         userQuery: userMessage.content,
         aiResponse: aiResponse.choices[0].message.content,
         provider: config.provider,
-        modelId: config.modelId || 'default'
+        modelId: config.modelId || 'default',
+        processingTimeMs,
+        feedbackRating: null,  // Will be updated later when user provides feedback
+        feedbackComment: null  // Will be updated later when user provides feedback
       });
       
       // Return the AI response to the client
