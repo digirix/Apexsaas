@@ -13,7 +13,7 @@ export const registerChatbotRoutes = (app: Express, isAuthenticated: any, db: Da
   // Route to check if chat is available (tenant has valid AI configuration)
   app.get('/api/v1/ai/chat/status', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const tenantId = req.user.tenantId;
+      const tenantId = (req.user as any).tenantId;
       
       // Get AI configuration for this tenant
       const config = await db.getAiConfiguration(tenantId);
@@ -45,7 +45,7 @@ export const registerChatbotRoutes = (app: Express, isAuthenticated: any, db: Da
   app.post('/api/v1/ai/chat', isAuthenticated, async (req: Request, res: Response) => {
     try {
       const { messages, conversationId } = req.body;
-      const tenantId = req.user.tenantId;
+      const tenantId = (req.user as any).tenantId;
       
       if (!messages || !Array.isArray(messages)) {
         return res.status(400).json({ error: 'Messages are required and must be an array' });
