@@ -4,6 +4,8 @@ import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { DatabaseStorage } from "./database-storage";
 import { TaskScheduler } from "./task-scheduler";
+import { registerChatbotRoutes } from "./api/chatbot-routes";
+import { registerAiReportingRoutes } from "./api/ai-reporting-routes";
 import { 
   insertCountrySchema, insertCurrencySchema, insertStateSchema, 
   insertEntityTypeSchema, insertTaskStatusSchema, insertTaskCategorySchema, insertServiceTypeSchema,
@@ -44,7 +46,6 @@ import { eq, and, desc } from "drizzle-orm";
 // Import AI services
 import { queryAI } from './services/ai-service';
 import { fetchTenantDataForQuery } from './services/chatbot-data-service';
-import { registerChatbotRoutes } from './api/chatbot-routes';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   console.log("Starting to register routes...");
