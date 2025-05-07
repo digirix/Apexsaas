@@ -84,11 +84,7 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
       label: 'Task Categories',
       icon: <FileText className="h-5 w-5" />
     },
-    {
-      id: 'ai-configurations',
-      label: 'AI Configurations',
-      icon: <Brain className="h-5 w-5" />
-    },
+    // AI Configuration is now handled via a direct link to the unified page
     
     // HR Configuration
     {
@@ -105,8 +101,8 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
 
   // Group items by category
   const locationItems = setupItems.slice(0, 3);
-  const businessItems = setupItems.slice(3, 10);
-  const hrItems = setupItems.slice(10, 12);
+  const businessItems = setupItems.slice(3, 9); // Updated slice to account for removed AI item
+  const hrItems = setupItems.slice(9, 11);      // Updated slice to account for removed AI item
 
   return (
     <Card className="p-4">

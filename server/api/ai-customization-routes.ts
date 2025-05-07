@@ -118,7 +118,7 @@ export const registerAICustomizationRoutes = (app: Express, isAuthenticated: any
     try {
       const tenantId = req.user?.tenantId;
       const userId = req.user?.id;
-      const customization: AIAssistantCustomization = req.body;
+      const customization: Partial<AiAssistantCustomization> = req.body;
       
       if (!tenantId || !userId) {
         return res.status(401).json({ error: 'Unauthorized: Missing tenant ID or user ID' });
@@ -173,7 +173,7 @@ export const registerAICustomizationRoutes = (app: Express, isAuthenticated: any
       const tenantId = req.user?.tenantId;
       const userId = req.user?.id;
       const customizationId = parseInt(req.params.id);
-      const updates: Partial<AIAssistantCustomization> = req.body;
+      const updates: Partial<AiAssistantCustomization> = req.body;
       
       if (!tenantId || !userId) {
         return res.status(401).json({ error: 'Unauthorized: Missing tenant ID or user ID' });
