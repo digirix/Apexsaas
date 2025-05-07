@@ -259,6 +259,7 @@ export const queryAI = async (
   
   switch (normalizedProvider) {
     case "openai":
+    case "openrouter":
       return queryOpenRouter(apiKey, modelId, messages, systemPrompt);
     case "google":
       return queryGoogleAI(apiKey, modelId, messages, systemPrompt);

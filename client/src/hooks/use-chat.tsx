@@ -29,10 +29,19 @@ export function useChat() {
   useEffect(() => {
     const fetchChatStatus = async () => {
       try {
-        const response = await apiRequest('/api/v1/ai/chat/status', {
-          method: 'GET'
+        const response = await fetch('/api/v1/ai/chat/status', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
         });
-        setChatStatus(response);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to check chat status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        setChatStatus(data);
       } catch (error) {
         console.error('Error checking chat availability:', error);
         setChatStatus({ isAvailable: false, provider: null, model: null });
@@ -64,20 +73,29 @@ export function useChat() {
       };
       
       // Call API
-      const response = await apiRequest('/api/v1/ai/chat', {
+      const response = await fetch('/api/v1/ai/chat', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify(payload)
       });
       
+      if (!response.ok) {
+        throw new Error(`Failed to send message: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
       // Update conversation ID if it was generated on the server
-      if (response.conversationId) {
-        setConversationId(response.conversationId);
+      if (data.conversationId) {
+        setConversationId(data.conversationId);
       }
       
       // Add assistant's response to the messages
       const assistantMessage: ChatMessage = {
         role: 'assistant',
-        content: response.message.content,
+        content: data.message.content,
         timestamp: new Date().toISOString()
       };
       

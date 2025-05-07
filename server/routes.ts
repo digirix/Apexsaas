@@ -43,7 +43,7 @@ import { eq, and, desc } from "drizzle-orm";
 
 // Import AI services
 import { queryAI } from './services/ai-service';
-import { fetchDataForChatbot, generateSystemPrompt } from './services/chatbot-data-service';
+import { fetchTenantDataForQuery } from './services/chatbot-data-service';
 import { registerChatbotRoutes } from './api/chatbot-routes';
 
 export async function registerRoutes(app: Express): Promise<Server> {

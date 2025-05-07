@@ -1,163 +1,258 @@
-import { DatabaseStorage } from "../database-storage";
+import { db } from '../db';
+import { clients, entities, invoices, tasks, users, payments, journalEntries, chartOfAccounts } from '@shared/schema';
+import { and, eq, lt, gt, gte, lte, like, desc, sql } from 'drizzle-orm';
 
-// Interface for tenant data response
-interface TenantDataResponse {
-  tenantId: number;
-  query: string;
-  tenantData: Record<string, any>;
-  timestamp: string;
-}
-
-// Function to fetch data from the tenant's database based on the user's query
-export const fetchDataForChatbot = async (
-  db: DatabaseStorage,
-  tenantId: number,
-  query: string
-): Promise<TenantDataResponse | null> => {
-  // Initialize the data structure
-  const data: TenantDataResponse = {
-    tenantId,
-    query,
-    tenantData: {},
-    timestamp: new Date().toISOString()
-  };
-  
-  // Convert query to lowercase for easier matching
-  const lowercaseQuery = query.toLowerCase();
-  
+/**
+ * Fetches relevant tenant data based on the user's query
+ * This function uses simple keyword matching to determine what data to fetch
+ * In a production environment, this would be enhanced with more sophisticated
+ * natural language processing and semantic understanding
+ */
+export const fetchTenantDataForQuery = async (tenantId: number, query: string): Promise<string> => {
   try {
-    // Check if query is about clients
-    if (
-      lowercaseQuery.includes("client") || 
-      lowercaseQuery.includes("customers") ||
-      lowercaseQuery.includes("customer list")
-    ) {
-      const clients = await db.getClients(tenantId);
-      data.tenantData.clients = clients;
-    }
+    // Convert query to lowercase for easier matching
+    const lowerQuery = query.toLowerCase();
+    let contextData: string[] = [];
     
-    // Check if query is about invoices
+    // Basic information
+    contextData.push(`Tenant ID: ${tenantId}`);
+    
+    // Client information
     if (
-      lowercaseQuery.includes("invoice") || 
-      lowercaseQuery.includes("invoices") ||
-      lowercaseQuery.includes("billing")
+      lowerQuery.includes('client') || 
+      lowerQuery.includes('customer') || 
+      lowerQuery.includes('company')
     ) {
-      const invoices = await db.getInvoices(tenantId);
-      data.tenantData.invoices = invoices;
-      
-      // If the query specifically asks about overdue invoices
-      if (lowercaseQuery.includes("overdue") || lowercaseQuery.includes("past due")) {
-        const overdueInvoices = invoices.filter(invoice => invoice.status === "overdue");
-        data.tenantData.overdueInvoices = overdueInvoices;
+      const clientData = await db
+        .select({
+          id: clients.id,
+          name: clients.name,
+          email: clients.email,
+          phone: clients.phone,
+          industry: clients.industryId,
+        })
+        .from(clients)
+        .where(eq(clients.tenantId, tenantId))
+        .limit(10);
+
+      if (clientData.length > 0) {
+        contextData.push('\nClient Information:');
+        clientData.forEach(client => {
+          contextData.push(`- Client ID: ${client.id}, Name: ${client.name}, Email: ${client.email}`);
+        });
       }
     }
     
-    // Check if query is about tasks
+    // Entity information
     if (
-      lowercaseQuery.includes("task") || 
-      lowercaseQuery.includes("tasks") ||
-      lowercaseQuery.includes("to do") ||
-      lowercaseQuery.includes("todo")
+      lowerQuery.includes('entity') || 
+      lowerQuery.includes('business') || 
+      lowerQuery.includes('companies')
     ) {
-      const tasks = await db.getTasks(tenantId);
-      data.tenantData.tasks = tasks;
-      
-      // If asking about task statuses
-      if (lowercaseQuery.includes("status")) {
-        const taskStatuses = await db.getTaskStatuses(tenantId);
-        data.tenantData.taskStatuses = taskStatuses;
+      const entityData = await db
+        .select({
+          id: entities.id,
+          name: entities.name,
+          clientId: entities.clientId,
+        })
+        .from(entities)
+        .where(eq(entities.tenantId, tenantId))
+        .limit(10);
+
+      if (entityData.length > 0) {
+        contextData.push('\nEntity Information:');
+        entityData.forEach(entity => {
+          contextData.push(`- Entity ID: ${entity.id}, Name: ${entity.name}, Client ID: ${entity.clientId}`);
+        });
       }
     }
     
-    // Check if query is about finances or chart of accounts
+    // Task information
     if (
-      lowercaseQuery.includes("finance") || 
-      lowercaseQuery.includes("account") ||
-      lowercaseQuery.includes("chart of accounts") ||
-      lowercaseQuery.includes("coa") ||
-      lowercaseQuery.includes("ledger")
+      lowerQuery.includes('task') || 
+      lowerQuery.includes('todo') || 
+      lowerQuery.includes('assignment') ||
+      lowerQuery.includes('work')
     ) {
-      const accounts = await db.getChartOfAccounts(tenantId);
-      data.tenantData.chartOfAccounts = accounts;
+      const taskData = await db
+        .select({
+          id: tasks.id,
+          name: tasks.name,
+          description: tasks.description,
+          statusId: tasks.statusId,
+          dueDate: tasks.dueDate,
+        })
+        .from(tasks)
+        .where(eq(tasks.tenantId, tenantId))
+        .orderBy(desc(tasks.createdAt))
+        .limit(10);
+
+      if (taskData.length > 0) {
+        contextData.push('\nRecent Task Information:');
+        taskData.forEach(task => {
+          contextData.push(`- Task ID: ${task.id}, Name: ${task.name}, Status: ${task.statusId}, Due: ${task.dueDate?.toLocaleDateString() || 'Not set'}`);
+        });
+      }
     }
     
-    // Check if query is about payments
+    // Invoice information
     if (
-      lowercaseQuery.includes("payment") || 
-      lowercaseQuery.includes("payments") ||
-      lowercaseQuery.includes("transaction")
+      lowerQuery.includes('invoice') || 
+      lowerQuery.includes('bill') || 
+      lowerQuery.includes('payment') ||
+      lowerQuery.includes('money') ||
+      lowerQuery.includes('finance') ||
+      lowerQuery.includes('amount')
     ) {
-      const payments = await db.getPayments(tenantId);
-      data.tenantData.payments = payments;
+      const invoiceData = await db
+        .select({
+          id: invoices.id,
+          invoiceNumber: invoices.invoiceNumber,
+          clientId: invoices.clientId,
+          totalAmount: invoices.totalAmount,
+          status: invoices.status,
+          dueDate: invoices.dueDate,
+        })
+        .from(invoices)
+        .where(eq(invoices.tenantId, tenantId))
+        .orderBy(desc(invoices.createdAt))
+        .limit(10);
+
+      if (invoiceData.length > 0) {
+        contextData.push('\nRecent Invoice Information:');
+        invoiceData.forEach(invoice => {
+          contextData.push(`- Invoice: ${invoice.invoiceNumber}, Amount: ${invoice.totalAmount}, Status: ${invoice.status}, Due: ${invoice.dueDate.toLocaleDateString()}`);
+        });
+      }
+      
+      // Payment information
+      const paymentData = await db
+        .select({
+          id: payments.id,
+          invoiceId: payments.invoiceId, 
+          amount: payments.amount,
+          paymentDate: payments.paymentDate,
+        })
+        .from(payments)
+        .where(eq(payments.tenantId, tenantId))
+        .orderBy(desc(payments.createdAt))
+        .limit(5);
+
+      if (paymentData.length > 0) {
+        contextData.push('\nRecent Payment Information:');
+        paymentData.forEach(payment => {
+          contextData.push(`- Payment ID: ${payment.id}, Invoice ID: ${payment.invoiceId}, Amount: ${payment.amount}, Date: ${payment.paymentDate.toLocaleDateString()}`);
+        });
+      }
     }
     
-    // Check if query is about journal entries
+    // Chart of accounts and journal entries
     if (
-      lowercaseQuery.includes("journal") || 
-      lowercaseQuery.includes("entries") ||
-      lowercaseQuery.includes("accounting entries")
+      lowerQuery.includes('account') || 
+      lowerQuery.includes('ledger') || 
+      lowerQuery.includes('journal') ||
+      lowerQuery.includes('entry') ||
+      lowerQuery.includes('coa') ||
+      lowerQuery.includes('chart of accounts')
     ) {
-      const journalEntries = await db.getJournalEntries(tenantId);
-      data.tenantData.journalEntries = journalEntries;
+      const accountData = await db
+        .select({
+          id: chartOfAccounts.id,
+          name: chartOfAccounts.name,
+          accountCode: chartOfAccounts.accountCode,
+          accountType: chartOfAccounts.accountType,
+        })
+        .from(chartOfAccounts)
+        .where(eq(chartOfAccounts.tenantId, tenantId))
+        .limit(15);
+
+      if (accountData.length > 0) {
+        contextData.push('\nChart of Accounts:');
+        accountData.forEach(account => {
+          contextData.push(`- Account: ${account.name}, Code: ${account.accountCode}, Type: ${account.accountType}`);
+        });
+      }
+      
+      const journalData = await db
+        .select({
+          id: journalEntries.id,
+          reference: journalEntries.reference,
+          amount: journalEntries.amount,
+          entryDate: journalEntries.entryDate,
+          description: journalEntries.description,
+        })
+        .from(journalEntries)
+        .where(eq(journalEntries.tenantId, tenantId))
+        .orderBy(desc(journalEntries.entryDate))
+        .limit(5);
+
+      if (journalData.length > 0) {
+        contextData.push('\nRecent Journal Entries:');
+        journalData.forEach(entry => {
+          contextData.push(`- Entry: ${entry.reference}, Amount: ${entry.amount}, Date: ${entry.entryDate.toLocaleDateString()}, Description: ${entry.description.substring(0, 50)}${entry.description.length > 50 ? '...' : ''}`);
+        });
+      }
     }
     
-    // Check if query is about AI configurations
+    // User information
     if (
-      lowercaseQuery.includes("ai") || 
-      lowercaseQuery.includes("artificial intelligence") ||
-      lowercaseQuery.includes("machine learning") ||
-      lowercaseQuery.includes("config")
+      lowerQuery.includes('user') || 
+      lowerQuery.includes('staff') || 
+      lowerQuery.includes('employee') ||
+      lowerQuery.includes('team') ||
+      lowerQuery.includes('profile')
     ) {
-      const aiConfigs = await db.getAiConfigurations(tenantId);
-      // Remove sensitive information like API keys
-      const safeConfigs = aiConfigs.map(config => ({
-        id: config.id,
-        provider: config.provider,
-        modelId: config.modelId,
-        isActive: config.isActive,
-        createdAt: config.createdAt
-      }));
-      data.tenantData.aiConfigurations = safeConfigs;
+      const userData = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          role: users.role,
+        })
+        .from(users)
+        .where(eq(users.tenantId, tenantId))
+        .limit(10);
+
+      if (userData.length > 0) {
+        contextData.push('\nUser Information:');
+        userData.forEach(user => {
+          contextData.push(`- User: ${user.name}, Email: ${user.email}, Role: ${user.role}`);
+        });
+      }
     }
     
-    // If we didn't find any specific data to return
-    if (Object.keys(data.tenantData).length === 0) {
-      // Get basic tenant information as a fallback
-      const tenantInfo = {
-        clientCount: (await db.getClients(tenantId)).length,
-        taskCount: (await db.getTasks(tenantId)).length,
-        invoiceCount: (await db.getInvoices(tenantId)).length
-      };
-      data.tenantData.tenantInfo = tenantInfo;
+    // If no specific data matched, provide a basic tenant summary
+    if (contextData.length <= 1) {
+      const clientCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(clients)
+        .where(eq(clients.tenantId, tenantId));
+        
+      const entityCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(entities)
+        .where(eq(entities.tenantId, tenantId));
+        
+      const taskCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(tasks)
+        .where(eq(tasks.tenantId, tenantId));
+        
+      const invoiceCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(invoices)
+        .where(eq(invoices.tenantId, tenantId));
+      
+      contextData.push('\nTenant Summary:');
+      contextData.push(`- Total Clients: ${clientCount[0]?.count || 0}`);
+      contextData.push(`- Total Entities: ${entityCount[0]?.count || 0}`);
+      contextData.push(`- Total Tasks: ${taskCount[0]?.count || 0}`);
+      contextData.push(`- Total Invoices: ${invoiceCount[0]?.count || 0}`);
     }
     
-    return data;
+    return contextData.join('\n');
   } catch (error) {
-    console.error(`Error fetching data for tenant ${tenantId}:`, error);
-    return null;
+    console.error('Error fetching tenant data for AI query:', error);
+    return 'Unable to fetch tenant data. Please provide a general response.';
   }
-};
-
-// Generate a system prompt for the AI with tenant context
-export const generateSystemPrompt = (tenantId: number): string => {
-  return `
-You are an AI assistant for Accountant.io, a multi-tenant accounting management platform for accounting professionals.
-You are currently helping a user from tenant ID: ${tenantId}.
-
-Your role is to help with:
-1. Answering questions about how to use the Accountant.io platform
-2. Providing information about the tenant's clients, tasks, and financial data
-3. Explaining accounting concepts and best practices
-4. Helping users navigate the application
-
-Important guidelines:
-- Only provide information related to the specific tenant (${tenantId})
-- Do not share data from other tenants
-- Be clear, concise, and professional in your responses
-- If you don't know the answer, say so rather than making something up
-- For security reasons, never provide or ask for passwords, API keys, or other sensitive credentials
-- When showing financial data, format currency values appropriately with proper currency symbols
-
-Always think about context when answering questions and provide relevant, accurate information based on the tenant's data.
-`;
 };

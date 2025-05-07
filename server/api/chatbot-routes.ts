@@ -1,124 +1,110 @@
-import { Express } from "express";
-import { z } from "zod";
-import { DatabaseStorage } from "../database-storage";
-import { queryAI } from "../services/ai-service";
-import { fetchDataForChatbot, generateSystemPrompt } from "../services/chatbot-data-service";
-
-// Chatbot message schema
-const chatMessageSchema = z.object({
-  role: z.enum(["user", "assistant", "system"]),
-  content: z.string().min(1)
-});
-
-// Chatbot request schema
-const chatRequestSchema = z.object({
-  messages: z.array(chatMessageSchema).min(1),
-  conversationId: z.string().optional()
-});
+import { Express, Request, Response } from 'express';
+import { DatabaseStorage } from '../database-storage';
+import { queryAI } from '../services/ai-service';
+import { fetchTenantDataForQuery } from '../services/chatbot-data-service';
 
 export const registerChatbotRoutes = (app: Express, isAuthenticated: any, db: DatabaseStorage) => {
-  // Get active AI configuration for the tenant
-  const getActiveConfig = async (tenantId: number) => {
-    // Get all AI configurations for the tenant
-    const configs = await db.getAiConfigurations(tenantId);
-    
-    // Find the first active configuration
-    return configs.find(config => config.isActive);
-  };
-  
-  // Endpoint to send message to chatbot
-  app.post("/api/v1/ai/chat", isAuthenticated, async (req, res) => {
+  // Route to check if chat is available (tenant has valid AI configuration)
+  app.get('/api/v1/ai/chat/status', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const tenantId = (req.user as any).tenantId;
+      const tenantId = req.user.tenantId;
       
-      // Validate the request body
-      const { messages } = chatRequestSchema.parse(req.body);
+      // Get AI configuration for this tenant
+      const config = await db.getAiConfiguration(tenantId);
       
-      // Get active AI configuration
-      const config = await getActiveConfig(tenantId);
-      if (!config) {
-        return res.status(400).json({ 
-          message: "No active AI configuration found. Please set up an AI configuration in the Setup module."
+      if (!config || !config.isEnabled || !config.provider || !config.apiKey) {
+        return res.json({ 
+          isAvailable: false,
+          provider: null,
+          model: null
         });
       }
       
-      // Get the most recent user message
-      const latestUserMessage = [...messages].reverse().find(m => m.role === "user");
-      if (!latestUserMessage) {
-        return res.status(400).json({ message: "No user message found in the conversation" });
-      }
-      
-      // Fetch relevant tenant data based on the user's query
-      const data = await fetchDataForChatbot(db, tenantId, latestUserMessage.content);
-      
-      // Generate system prompt
-      const systemPrompt = generateSystemPrompt(tenantId);
-      
-      // Add context to the system prompt based on the fetched data
-      const contextMessages = [{
-        role: "system",
-        content: systemPrompt
-      }];
-      
-      // Add data context
-      if (data) {
-        contextMessages.push({
-          role: "system",
-          content: `Here is some data from tenant ${tenantId} that might be relevant to the question:\n\n${JSON.stringify(data.tenantData, null, 2)}`
-        });
-      }
-      
-      // Prepare messages for AI query (excluding system messages from the original conversation)
-      const userMessages = messages.filter(m => m.role !== "system");
-      
-      // Query the AI model
-      const aiResponse = await queryAI(
-        config.provider,
-        config.apiKey,
-        config.modelId,
-        userMessages,
-        systemPrompt
-      );
-      
-      // Return the AI response
-      res.json({
-        message: aiResponse.choices[0].message,
-        conversationId: req.body.conversationId || Date.now().toString(),
+      // Return status indicating chat is available
+      return res.json({
+        isAvailable: true,
         provider: config.provider,
-        model: config.modelId
+        model: config.modelId || 'default'
       });
-    } catch (error: any) {
-      console.error("Error in chatbot API:", error);
-      
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Validation error", errors: error.errors });
-      }
-      
-      res.status(500).json({ 
-        message: "Failed to get response from AI assistant", 
-        error: error.message
+    } catch (error) {
+      console.error('Error checking chat availability:', error);
+      return res.status(500).json({ 
+        error: 'Failed to check chat availability',
+        isAvailable: false
       });
     }
   });
   
-  // Endpoint to check if AI chat is available for tenant
-  app.get("/api/v1/ai/chat/status", isAuthenticated, async (req, res) => {
+  // Route to handle chat messages
+  app.post('/api/v1/ai/chat', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const tenantId = (req.user as any).tenantId;
+      const { messages, conversationId } = req.body;
+      const tenantId = req.user.tenantId;
       
-      // Get active AI configuration
-      const config = await getActiveConfig(tenantId);
+      if (!messages || !Array.isArray(messages)) {
+        return res.status(400).json({ error: 'Messages are required and must be an array' });
+      }
       
-      res.json({
-        isAvailable: !!config,
-        provider: config?.provider || null,
-        model: config?.modelId || null
+      // Get the AI configuration for this tenant
+      const config = await db.getAiConfiguration(tenantId);
+      
+      if (!config || !config.isEnabled || !config.provider || !config.apiKey) {
+        return res.status(400).json({ error: 'AI is not configured or enabled for this tenant' });
+      }
+      
+      // Get the latest user message
+      const userMessage = messages[messages.length - 1];
+      
+      if (!userMessage || userMessage.role !== 'user') {
+        return res.status(400).json({ error: 'Last message must be from the user' });
+      }
+      
+      // Create a system prompt that includes tenant-specific data
+      const tenantData = await fetchTenantDataForQuery(tenantId, userMessage.content);
+      
+      // Create a system prompt that includes tenant-specific context
+      const systemPrompt = `
+You are an AI assistant for an accounting firm management platform. 
+You have access to the following information about the tenant:
+${tenantData}
+
+Please use this information to provide accurate and helpful responses. If you don't know 
+something or the information is not in the provided context, be honest about it.
+      `.trim();
+      
+      // Query the AI with the tenant's configuration
+      const aiResponse = await queryAI(
+        config.provider,
+        config.apiKey,
+        config.modelId || 'google/gemini-flash-1.5-8b-exp', // Default model if not specified
+        messages,
+        systemPrompt
+      );
+      
+      // Log conversation (could be expanded for analytics)
+      await db.logAiInteraction({
+        tenantId,
+        userId: req.user.id,
+        timestamp: new Date(),
+        userQuery: userMessage.content,
+        aiResponse: aiResponse.choices[0].message.content,
+        provider: config.provider,
+        modelId: config.modelId || 'default'
+      });
+      
+      // Return the AI response to the client
+      return res.json({
+        message: aiResponse.choices[0].message,
+        conversationId: conversationId || `chat-${Date.now()}`
       });
     } catch (error: any) {
-      console.error("Error checking chatbot status:", error);
-      res.status(500).json({ 
-        message: "Failed to check AI availability", 
-        error: error.message
+      console.error('Error in chat API:', error);
+      return res.status(500).json({ 
+        error: error.message || 'Failed to get AI response',
+        message: {
+          role: 'assistant',
+          content: 'I apologize, but I encountered an error while processing your request. Please try again later.'
+        }
       });
     }
   });
