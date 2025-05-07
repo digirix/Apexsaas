@@ -96,7 +96,7 @@ something or the information is not in the provided context, be honest about it.
       // Log conversation with expanded analytics
       await db.logAiInteraction({
         tenantId,
-        userId: req.user.id,
+        userId: (req.user as any).id,
         timestamp: new Date(),
         userQuery: userMessage.content,
         aiResponse: aiResponse.choices[0].message.content,
@@ -128,7 +128,7 @@ something or the information is not in the provided context, be honest about it.
   app.post('/api/v1/ai/chat/feedback', isAuthenticated, async (req: Request, res: Response) => {
     try {
       const { interactionId, rating, comment } = req.body as AiInteractionFeedback;
-      const tenantId = req.user.tenantId;
+      const tenantId = (req.user as any).tenantId;
       
       if (!interactionId || typeof interactionId !== 'number') {
         return res.status(400).json({ error: 'Valid interaction ID is required' });
@@ -175,8 +175,8 @@ something or the information is not in the provided context, be honest about it.
   // Route to get AI interaction history for current user
   app.get('/api/v1/ai/chat/history', isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const tenantId = req.user.tenantId;
-      const userId = req.user.id;
+      const tenantId = (req.user as any).tenantId;
+      const userId = (req.user as any).id;
       
       // Get the recent chat history for this user
       // We would implement this method in database-storage.ts
