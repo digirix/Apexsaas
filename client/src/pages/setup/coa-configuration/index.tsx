@@ -124,6 +124,7 @@ export default function COAConfigurationPage() {
   const [currentItem, setCurrentItem] = useState<ChartOfAccount | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteDetailedGroupError, setDeleteDetailedGroupError] = useState<string | null>(null);
+  const [deleteSubElementGroupError, setDeleteSubElementGroupError] = useState<string | null>(null);
   
   // Sub Element Group dialog states
   const [createSubElementGroupDialogOpen, setCreateSubElementGroupDialogOpen] = useState(false);
@@ -1656,6 +1657,13 @@ export default function COAConfigurationPage() {
               This action cannot be undone and may affect related detailed groups and accounts.
             </DialogDescription>
           </DialogHeader>
+          
+          {deleteSubElementGroupError && (
+            <div className="bg-destructive/15 p-3 rounded-md mb-4 text-sm text-destructive">
+              {deleteSubElementGroupError}
+            </div>
+          )}
+          
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteSubElementGroupDialogOpen(false)}>
               Cancel
@@ -1664,6 +1672,7 @@ export default function COAConfigurationPage() {
               variant="destructive" 
               onClick={() => {
                 if (!currentSubElementGroup) return;
+                setDeleteSubElementGroupError(null);
                 
                 apiRequest(
                   'DELETE',
@@ -1676,9 +1685,17 @@ export default function COAConfigurationPage() {
                   setDeleteSubElementGroupDialogOpen(false);
                   queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/sub-element-groups'] });
                 }).catch(error => {
+                  if (error.message && error.message.includes("being used by detailed groups")) {
+                    setDeleteSubElementGroupError(
+                      "Cannot delete this sub-element group because it's being used by one or more detailed groups. Please remove or reassign those detailed groups first."
+                    );
+                  } else {
+                    setDeleteSubElementGroupError(error.message || "Failed to delete sub element group");
+                  }
+                  
                   toast({
                     title: "Error",
-                    description: error.message || "Failed to delete sub element group",
+                    description: "Failed to delete sub element group. See details in the dialog.",
                     variant: "destructive",
                   });
                 });
