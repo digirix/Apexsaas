@@ -900,7 +900,7 @@ export default function COAConfigurationPage() {
                                 </TableCell>
                                 <TableCell>{group.code}</TableCell>
                                 <TableCell>{group.customName || group.name}</TableCell>
-                                <TableCell>{elementGroup ? (elementGroup.name.charAt(0).toUpperCase() + elementGroup.name.slice(1)) : '-'}</TableCell>
+                                <TableCell>{elementGroup ? (elementGroup.customName || elementGroup.name.charAt(0).toUpperCase() + elementGroup.name.slice(1)) : '-'}</TableCell>
                                 <TableCell>{group.description || '-'}</TableCell>
                                 <TableCell>
                                   <div className="flex space-x-2">
@@ -1826,7 +1826,7 @@ export default function COAConfigurationPage() {
                         <SelectContent>
                           {elementGroups.map((group) => (
                             <SelectItem key={group.id} value={group.id.toString()}>
-                              {group.name.charAt(0).toUpperCase() + group.name.slice(1)}
+                              {group.customName || group.name.charAt(0).toUpperCase() + group.name.slice(1)}
                             </SelectItem>
                           ))}
                         </SelectContent>

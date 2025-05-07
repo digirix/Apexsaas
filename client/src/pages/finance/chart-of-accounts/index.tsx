@@ -196,9 +196,9 @@ export default function ChartOfAccountsPage() {
 
     return {
       mainGroup: mainGroup?.name || '',
-      elementGroup: elementGroup?.name || '',
-      subElementGroup: subElementGroup?.name || '',
-      detailedGroup: detailedGroup?.name || '',
+      elementGroup: elementGroup?.customName || elementGroup?.name || '',
+      subElementGroup: subElementGroup?.customName || subElementGroup?.name || '',
+      detailedGroup: detailedGroup?.customName || detailedGroup?.name || '',
     };
   };
 
@@ -360,12 +360,12 @@ export default function ChartOfAccountsPage() {
                         .filter((eg: any) => eg.mainGroupId === mainGroup.id)
                         .map((elementGroup: any) => (
                           <div key={elementGroup.id} className="mb-4">
-                            <h3 className="font-semibold border-b pb-1 mb-2">{elementGroup.name}</h3>
+                            <h3 className="font-semibold border-b pb-1 mb-2">{elementGroup.customName || elementGroup.name}</h3>
                             {subElementGroups
                               .filter((seg: any) => seg.elementGroupId === elementGroup.id)
                               .map((subElementGroup: any) => (
                                 <div key={subElementGroup.id} className="mb-3 ml-4">
-                                  <h4 className="font-medium text-sm mb-1">{subElementGroup.name}</h4>
+                                  <h4 className="font-medium text-sm mb-1">{subElementGroup.customName || subElementGroup.name}</h4>
                                   <div className="ml-4">
                                     {detailedGroups
                                       .filter((dg: any) => dg.subElementGroupId === subElementGroup.id)
