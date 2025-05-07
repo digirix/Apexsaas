@@ -124,7 +124,7 @@ export default function AiReportingPage() {
                 {chart.type === "bar" && (
                   <RechartsBarChart
                     data={chart.data}
-                    xAxis={chart.xAxis}
+                    xAxis={chart.xAxis ? { dataKey: chart.xAxis.dataKey, label: chart.xAxis.label } : { dataKey: "name" }}
                     series={chart.series || []}
                     tooltip
                   />
@@ -132,7 +132,7 @@ export default function AiReportingPage() {
                 {chart.type === "line" && (
                   <RechartsLineChart
                     data={chart.data}
-                    xAxis={chart.xAxis}
+                    xAxis={chart.xAxis ? { dataKey: chart.xAxis.dataKey, label: chart.xAxis.label } : { dataKey: "name" }}
                     series={chart.series || []}
                     tooltip
                   />

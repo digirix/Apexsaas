@@ -5790,6 +5790,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const databaseStorage = storage as DatabaseStorage;
   registerChatbotRoutes(app, isAuthenticated, databaseStorage);
   console.log("AI Chatbot routes registered");
+  
+  // Register AI Reporting routes
+  registerAiReportingRoutes(app);
+  console.log("AI Reporting routes registered");
 
   // Create an HTTP server
   const httpServer = createServer(app);

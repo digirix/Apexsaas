@@ -96,15 +96,17 @@ export async function generateReport(
     console.log(`Generating report for query: "${query}" (Tenant ID: ${tenantId}, User ID: ${userId})`);
     
     // Step 1: Get AI configuration for the tenant
-    const [aiConfig] = await db
-      .select({
-        provider: sql<string>`provider`,
-        apiKey: sql<string>`api_key`,
-        model: sql<string>`model`,
-      })
-      .from(sql`ai_configurations`)
-      .where(sql`tenant_id = ${tenantId} AND is_active = true`)
-      .limit(1);
+    const aiConfig = await db.query.aiConfigurations.findFirst({
+      where: (aiConf, { eq, and }) => and(
+        eq(aiConf.tenantId, tenantId),
+        eq(aiConf.isActive, true)
+      ),
+      columns: {
+        provider: true,
+        apiKey: true,
+        model: true
+      }
+    });
     
     if (!aiConfig) {
       throw new Error("No active AI configuration found for this tenant");
@@ -203,16 +205,21 @@ Please analyze this data and provide a comprehensive report addressing the user'
     }
     
     // Step 7: Log the AI interaction
-    await db.insert(sql.raw('ai_interactions')).values({
-      tenant_id: tenantId,
-      user_id: userId,
-      timestamp: new Date(),
-      user_query: query,
-      ai_response: JSON.stringify(reportData),
-      provider: aiConfig.provider,
-      model_id: aiConfig.model,
-      processing_time_ms: Date.now() - startTime
-    });
+    try {
+      await db.execute(sql`
+        INSERT INTO ai_interactions (
+          tenant_id, user_id, timestamp, user_query, ai_response, 
+          provider, model, processing_time_ms
+        ) VALUES (
+          ${tenantId}, ${userId}, ${new Date()}, ${query}, 
+          ${JSON.stringify(reportData)}, ${aiConfig.provider}, 
+          ${aiConfig.model}, ${Date.now() - startTime}
+        )
+      `);
+    } catch (err) {
+      // Just log the error, but continue to return the report
+      console.warn("Failed to log AI interaction:", err);
+    }
     
     // Set the processing time
     reportData.processingTimeMs = Date.now() - startTime;
