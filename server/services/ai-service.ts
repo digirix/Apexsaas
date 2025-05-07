@@ -103,7 +103,7 @@ export const queryOpenRouter = async (
         "X-Title": "Accountant.io"
       },
       body: JSON.stringify({
-        model: formattedModel || "openai/gpt-3.5-turbo", // Use a more reliable model as default fallback
+        model: formattedModel || "google/gemini-flash-1.5-8b-exp",
         messages: modifiedMessages,
         temperature: 0.7,
         // Add Google-specific safety settings required for Gemini models
@@ -284,123 +284,17 @@ export const queryAnthropic = async (
   }
 };
 
-// Execute custom TypeScript configuration if provided
-export const executeCustomAIConfig = async (
-  typeScriptConfig: string,
-  apiKey: string,
-  modelId: string,
-  messages: ChatMessage[],
-  systemPrompt?: string
-): Promise<StandardAIResponse> => {
-  try {
-    console.log("Executing custom TypeScript configuration");
-    
-    // Add system prompt if provided
-    let modifiedMessages = [...messages];
-    if (systemPrompt) {
-      modifiedMessages.unshift({
-        role: "system",
-        content: systemPrompt
-      });
-    }
-    
-    // Check if we should use an available model instead of the restricted one
-    // This handles the case where a model requires credits but we're using a free account
-    const alternativeModel = "openai/gpt-3.5-turbo"; // Free fallback model
-    
-    // Use a simpler, more direct approach that works with OpenRouter API
-    console.log(`Making direct request to OpenRouter for model: ${modelId}`);
-    
-    // Make the API request directly
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-        "HTTP-Referer": "https://accountant.io",
-        "X-Title": "Accountant.io"
-      },
-      body: JSON.stringify({
-        model: alternativeModel, // Use a free model instead of the restricted one
-        messages: modifiedMessages,
-        temperature: 0.7,
-        // Add proper safety settings for Google models
-        safety_settings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" }
-        ]
-      })
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`OpenRouter API Error: ${response.status} - ${errorText}`);
-      throw new Error(`OpenRouter API Error: ${response.status} - ${errorText}`);
-    }
-    
-    const data = await response.json();
-    console.log("OpenRouter response data:", JSON.stringify(data));
-    
-    // Check if the response has the expected structure
-    if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
-      console.error("Invalid response format from OpenRouter:", data);
-      throw new Error("Invalid response format from OpenRouter API");
-    }
-    
-    // Ensure the response has the required fields
-    const choices = data.choices.map(choice => {
-      // Make sure each choice has a message with content
-      if (!choice.message || !choice.message.content) {
-        console.warn("Choice missing message or content:", choice);
-        return {
-          ...choice,
-          message: {
-            role: "assistant",
-            content: "I apologize, but I couldn't generate a proper response."
-          }
-        };
-      }
-      return choice;
-    });
-    
-    // Return in standardized format
-    return {
-      choices: choices,
-      model: data.model || alternativeModel
-    };
-  } catch (error: any) {
-    console.error("Failed to execute custom TypeScript configuration:", error);
-    throw new Error(`Failed to execute custom TypeScript configuration: ${error.message}`);
-  }
-};
-
 // Main function to query AI based on provider
 export const queryAI = async (
   provider: string,
   apiKey: string,
   modelId: string,
   messages: ChatMessage[],
-  systemPrompt?: string,
-  typeScriptConfig?: string
+  systemPrompt?: string
 ): Promise<StandardAIResponse> => {
-  // If a custom TypeScript configuration is provided, use it
-  if (typeScriptConfig) {
-    try {
-      console.log("Using custom TypeScript configuration");
-      return await executeCustomAIConfig(typeScriptConfig, apiKey, modelId, messages, systemPrompt);
-    } catch (error) {
-      console.error("Custom TypeScript configuration failed:", error);
-      console.log("Falling back to standard provider implementation");
-      // If the custom config fails, fall back to the standard implementation
-    }
-  }
-
   // Normalize provider name to handle case variations
   const normalizedProvider = provider.toLowerCase();
   
-  // Use standard provider implementations
   switch (normalizedProvider) {
     case "openai":
     case "openrouter":

@@ -2068,8 +2068,7 @@ export class MemStorage implements IStorage {
       tenantId: config.tenantId,
       provider: config.provider,
       apiKey: config.apiKey,
-      model: config.model,
-      typeScriptConfig: config.typeScriptConfig || null,
+      modelId: config.modelId,
       isActive: config.isActive ?? true,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -2082,8 +2081,7 @@ export class MemStorage implements IStorage {
       tenantId: config.tenantId ?? 1,
       provider: config.provider ?? 'OpenAI',
       apiKey: config.apiKey ?? 'dummy-key',
-      model: config.model ?? 'google/gemini-flash-1.5-8b-exp',
-      typeScriptConfig: config.typeScriptConfig || null,
+      modelId: config.modelId ?? 'dummy-model',
       isActive: config.isActive ?? true,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -2099,7 +2097,7 @@ export class MemStorage implements IStorage {
   }
   
   // AI Interaction logging (stub for in-memory storage)
-  async logAiInteraction(interaction: any): Promise<any> {
+  async logAiInteraction(interaction: InsertAiInteraction): Promise<AiInteraction> {
     return {
       id: 1,
       tenantId: interaction.tenantId,
@@ -2108,7 +2106,7 @@ export class MemStorage implements IStorage {
       userQuery: interaction.userQuery,
       aiResponse: interaction.aiResponse,
       provider: interaction.provider,
-      model: interaction.model,
+      modelId: interaction.modelId,
       processingTimeMs: interaction.processingTimeMs ?? 0,
       feedbackRating: interaction.feedbackRating ?? null,
       feedbackComment: interaction.feedbackComment ?? null

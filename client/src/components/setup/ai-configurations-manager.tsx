@@ -28,7 +28,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -78,7 +77,6 @@ const aiConfigurationSchema = z.object({
   provider: z.enum(['OpenAI', 'Google', 'Anthropic']),
   apiKey: z.string().min(1, "API key is required"),
   model: z.string().min(1, "Model is required"),
-  typeScriptConfig: z.string().optional(),
   isActive: z.boolean().default(true),
 });
 
@@ -125,7 +123,6 @@ export default function AiConfigurationsManager() {
       provider: 'OpenAI',
       apiKey: '',
       model: 'openai/gpt-4-turbo',
-      typeScriptConfig: '',
       isActive: true,
     },
   });
@@ -141,7 +138,6 @@ export default function AiConfigurationsManager() {
         provider: 'OpenAI',
         apiKey: '',
         model: 'google/gemini-flash-1.5-8b-exp',
-        typeScriptConfig: '',
         isActive: true,
       });
     }
@@ -332,7 +328,6 @@ export default function AiConfigurationsManager() {
       provider: 'OpenAI',
       apiKey: '',
       model: 'google/gemini-flash-1.5-8b-exp',
-      typeScriptConfig: '',
       isActive: true,
     });
     setIsOpen(true);
@@ -527,36 +522,28 @@ export default function AiConfigurationsManager() {
                   name="model"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Model ID</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="Enter the model ID (e.g., google/gemini-flash-1.5-8b-exp)" 
-                          {...field} 
-                        />
-                      </FormControl>
+                      <FormLabel>Default Model</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select AI Model" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {getSuggestedModels(provider).map(model => (
+                            <SelectItem key={model.value} value={model.value}>
+                              {model.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormDescription>
-                        Paste the exact model ID provided by your AI service provider
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="typeScriptConfig"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>TypeScript Configuration</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Paste TypeScript configuration code provided by the AI service provider" 
-                          className="font-mono text-sm h-32"
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Optional: Paste any TypeScript configuration code required to configure this AI model
+                        {provider === 'OpenAI' && field.value === 'google/gemini-flash-1.5-8b-exp' 
+                          ? 'Using Google Gemini Flash 1.5 8B model via OpenRouter.ai for optimal performance'
+                          : 'Select the default AI model to use with this provider'}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

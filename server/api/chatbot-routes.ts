@@ -142,8 +142,7 @@ Current date: ${new Date().toLocaleDateString()}
           config.apiKey,
           config.model || 'google/gemini-flash-1.5-8b-exp', // Default model if not specified
           messages,
-          systemPrompt,
-          config.typeScriptConfig // Pass the TypeScript configuration if available
+          systemPrompt
         );
         
         // Calculate processing time
@@ -181,7 +180,7 @@ Current date: ${new Date().toLocaleDateString()}
             userQuery: userMessage.content,
             aiResponse: responseContent,
             provider: config.provider,
-            modelId: config.model || 'default', // Use model ID in the modelId field
+            modelId: config.model || 'default', // Use model instead of modelId
             processingTimeMs,
             feedbackRating: null,  // Will be updated later when user provides feedback
             feedbackComment: null  // Will be updated later when user provides feedback
