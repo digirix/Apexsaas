@@ -1,6 +1,7 @@
 import { db } from '../db';
 import { clients, entities, invoices, tasks, users, payments, journalEntries, chartOfAccounts } from '@shared/schema';
 import { and, eq, lt, gt, gte, lte, like, desc, sql } from 'drizzle-orm';
+import { analyzeTenantData } from './data-analysis-service';
 
 /**
  * Fetches relevant tenant data based on the user's query
@@ -318,6 +319,53 @@ export const fetchTenantDataForQuery = async (
       }
     }
     
+    // Detect if analysis is needed for financial or analytical queries
+    if (
+      lowerQuery.includes('analyze') ||
+      lowerQuery.includes('analysis') ||
+      lowerQuery.includes('calculate') ||
+      lowerQuery.includes('comparison') ||
+      lowerQuery.includes('profit') ||
+      lowerQuery.includes('trend') ||
+      lowerQuery.includes('financial') ||
+      lowerQuery.includes('performance') ||
+      lowerQuery.includes('revenue') ||
+      lowerQuery.includes('margin') ||
+      lowerQuery.includes('report') ||
+      lowerQuery.includes('summary') ||
+      lowerQuery.includes('average') ||
+      lowerQuery.includes('compute')
+    ) {
+      try {
+        console.log('Performing advanced data analysis for query:', query);
+        const analysisResult = await analyzeTenantData(tenantId, query);
+        
+        contextData.push('\nADVANCED DATA ANALYSIS:');
+        contextData.push(analysisResult);
+        
+        // Also provide a basic financial summary for context
+        const financialSummary = await db
+          .select({
+            totalInvoiced: sql<string>`COALESCE(SUM(${invoices.totalAmount}::numeric), 0)`,
+            totalPaid: sql<string>`COALESCE(SUM(CASE WHEN ${invoices.status} = 'paid' THEN ${invoices.totalAmount}::numeric ELSE 0 END), 0)`,
+            totalOutstanding: sql<string>`COALESCE(SUM(CASE WHEN ${invoices.status} IN ('draft', 'sent', 'overdue') THEN ${invoices.amountDue}::numeric ELSE 0 END), 0)`
+          })
+          .from(invoices)
+          .where(eq(invoices.tenantId, tenantId));
+        
+        if (financialSummary.length > 0) {
+          contextData.push('\nFinancial Overview:');
+          contextData.push(`- Total Amount Invoiced: $${parseFloat(financialSummary[0].totalInvoiced).toFixed(2)}`);
+          contextData.push(`- Total Amount Paid: $${parseFloat(financialSummary[0].totalPaid).toFixed(2)}`);
+          contextData.push(`- Total Outstanding: $${parseFloat(financialSummary[0].totalOutstanding).toFixed(2)}`);
+        }
+      } catch (error) {
+        console.error('Error performing data analysis:', error);
+        contextData.push('\nData Analysis Error:');
+        contextData.push('Could not complete the requested analysis. Please try a different question.');
+      }
+    }
+
     // If no specific data matched, provide a basic tenant summary
     if (contextData.length <= 1) {
       const clientCount = await db
