@@ -326,6 +326,7 @@ export interface IStorage {
   getAiConfigurations(tenantId: number): Promise<AiConfiguration[]>;
   getAiConfiguration(id: number, tenantId: number): Promise<AiConfiguration | undefined>;
   getAiConfigurationByProvider(tenantId: number, provider: string): Promise<AiConfiguration | undefined>;
+  getActiveTenantAiConfiguration(tenantId: number): Promise<AiConfiguration | undefined>;
   createAiConfiguration(config: InsertAiConfiguration): Promise<AiConfiguration>;
   updateAiConfiguration(id: number, config: Partial<InsertAiConfiguration>): Promise<AiConfiguration | undefined>;
   deleteAiConfiguration(id: number, tenantId: number): Promise<boolean>;

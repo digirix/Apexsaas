@@ -15,10 +15,10 @@ export const registerChatbotRoutes = (app: Express, isAuthenticated: any, db: Da
     try {
       const tenantId = req.user.tenantId;
       
-      // Get AI configuration for this tenant
-      const config = await db.getAiConfiguration(tenantId);
+      // Get AI configuration for this tenant using the correct method
+      const config = await db.getActiveTenantAiConfiguration(tenantId);
       
-      if (!config || !config.isEnabled || !config.provider || !config.apiKey) {
+      if (!config || !config.isActive || !config.provider || !config.apiKey) {
         return res.json({ 
           isAvailable: false,
           provider: null,
@@ -30,7 +30,7 @@ export const registerChatbotRoutes = (app: Express, isAuthenticated: any, db: Da
       return res.json({
         isAvailable: true,
         provider: config.provider,
-        model: config.modelId || 'default'
+        model: config.model || 'default'
       });
     } catch (error) {
       console.error('Error checking chat availability:', error);
@@ -52,9 +52,9 @@ export const registerChatbotRoutes = (app: Express, isAuthenticated: any, db: Da
       }
       
       // Get the AI configuration for this tenant
-      const config = await db.getAiConfiguration(tenantId);
+      const config = await db.getActiveTenantAiConfiguration(tenantId);
       
-      if (!config || !config.isEnabled || !config.provider || !config.apiKey) {
+      if (!config || !config.isActive || !config.provider || !config.apiKey) {
         return res.status(400).json({ error: 'AI is not configured or enabled for this tenant' });
       }
       
@@ -85,7 +85,7 @@ something or the information is not in the provided context, be honest about it.
       const aiResponse = await queryAI(
         config.provider,
         config.apiKey,
-        config.modelId || 'google/gemini-flash-1.5-8b-exp', // Default model if not specified
+        config.model || 'google/gemini-flash-1.5-8b-exp', // Default model if not specified
         messages,
         systemPrompt
       );

@@ -3130,6 +3130,17 @@ export class DatabaseStorage implements IStorage {
       ));
     return config;
   }
+  
+  // Get active AI configuration for a tenant (for chatbot)
+  async getActiveTenantAiConfiguration(tenantId: number): Promise<AiConfiguration | undefined> {
+    const [config] = await db.select().from(aiConfigurations)
+      .where(and(
+        eq(aiConfigurations.tenantId, tenantId),
+        eq(aiConfigurations.isActive, true)
+      ))
+      .limit(1);
+    return config;
+  }
 
   async createAiConfiguration(config: InsertAiConfiguration): Promise<AiConfiguration> {
     // Check if configuration for this provider already exists for this tenant
