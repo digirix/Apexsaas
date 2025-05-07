@@ -3342,12 +3342,12 @@ export class DatabaseStorage implements IStorage {
 
   async createAiAssistantCustomization(customization: InsertAiAssistantCustomization): Promise<AiAssistantCustomization> {
     try {
+      // The updatedAt field should be handled by the database, not explicitly set here
       const [newCustomization] = await db.insert(aiAssistantCustomizations)
-        .values({
-          ...customization,
-          updatedAt: new Date()
-        })
+        .values(customization)
         .returning();
+      
+      console.log("Successfully created AI assistant customization:", newCustomization);
       return newCustomization;
     } catch (error) {
       console.error("Error creating AI assistant customization:", error);
@@ -3357,13 +3357,13 @@ export class DatabaseStorage implements IStorage {
 
   async updateAiAssistantCustomization(id: number, customization: Partial<InsertAiAssistantCustomization>): Promise<AiAssistantCustomization | undefined> {
     try {
+      // The updatedAt field should be handled by the database, not explicitly set here
       const [updatedCustomization] = await db.update(aiAssistantCustomizations)
-        .set({
-          ...customization,
-          updatedAt: new Date()
-        })
+        .set(customization)
         .where(eq(aiAssistantCustomizations.id, id))
         .returning();
+      
+      console.log("Successfully updated AI assistant customization:", updatedCustomization);
       return updatedCustomization;
     } catch (error) {
       console.error("Error updating AI assistant customization:", error);
