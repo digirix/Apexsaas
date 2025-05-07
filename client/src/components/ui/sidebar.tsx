@@ -17,6 +17,8 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  BarChart2,
+  Brain,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -62,6 +64,11 @@ const coreModules: NavItem[] = [
     title: "Finance",
     href: "/finance",
     icon: <CreditCard className="h-5 w-5 mr-3 text-slate-500" />,
+  },
+  {
+    title: "AI Reporting",
+    href: "/ai-reporting",
+    icon: <BarChart2 className="h-5 w-5 mr-3 text-slate-500" />,
   },
 ];
 
