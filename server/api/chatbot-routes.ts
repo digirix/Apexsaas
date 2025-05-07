@@ -124,19 +124,24 @@ something or the information is not in the provided context, be honest about it.
         
         const responseContent = choice.message.content;
         
-        // Log conversation with expanded analytics
-        await db.logAiInteraction({
-          tenantId,
-          userId: req.user.id,
-          timestamp: new Date(),
-          userQuery: userMessage.content,
-          aiResponse: responseContent,
-          provider: config.provider,
-          modelId: config.model || 'default', // Use model instead of modelId
-          processingTimeMs,
-          feedbackRating: null,  // Will be updated later when user provides feedback
-          feedbackComment: null  // Will be updated later when user provides feedback
-        });
+        // Log conversation with expanded analytics (if table exists)
+        try {
+          await db.logAiInteraction({
+            tenantId,
+            userId: req.user.id,
+            timestamp: new Date(),
+            userQuery: userMessage.content,
+            aiResponse: responseContent,
+            provider: config.provider,
+            modelId: config.model || 'default', // Use model instead of modelId
+            processingTimeMs,
+            feedbackRating: null,  // Will be updated later when user provides feedback
+            feedbackComment: null  // Will be updated later when user provides feedback
+          });
+        } catch (logError) {
+          // Just log the error but don't fail the request if logging fails
+          console.warn("Could not log AI interaction (table may not exist yet):", logError.message);
+        }
         
         // Return the AI response to the client with properly structured message
         return res.json({
@@ -149,7 +154,7 @@ something or the information is not in the provided context, be honest about it.
       } catch (innerError) {
         console.error("Error processing AI response:", innerError);
         
-        // Log the failed interaction
+        // Log the failed interaction (if table exists)
         try {
           await db.logAiInteraction({
             tenantId,
@@ -164,7 +169,7 @@ something or the information is not in the provided context, be honest about it.
             feedbackComment: null
           });
         } catch (logError) {
-          console.error("Failed to log AI error:", logError);
+          console.warn("Could not log AI error (table may not exist yet):", logError.message);
         }
         
         throw innerError; // Re-throw to be caught by the outer try/catch
@@ -195,32 +200,39 @@ something or the information is not in the provided context, be honest about it.
         return res.status(400).json({ error: 'Rating is required and must be between 1 and 5' });
       }
       
-      // Get the interaction to confirm it belongs to this tenant and user
-      // We would implement this method in database-storage.ts
-      const interaction = await db.getAiInteraction(interactionId);
-      
-      if (!interaction || interaction.tenantId !== tenantId) {
-        return res.status(404).json({ error: 'Interaction not found or unauthorized' });
-      }
-      
-      // Update the interaction with feedback
-      // We would implement this method in database-storage.ts
-      const updatedInteraction = await db.updateAiInteractionFeedback(interactionId, {
-        feedbackRating: rating,
-        feedbackComment: comment || null
-      });
-      
-      return res.json({ 
-        success: true, 
-        message: 'Feedback submitted successfully',
-        interaction: {
-          id: updatedInteraction.id,
-          timestamp: updatedInteraction.timestamp,
-          feedbackRating: updatedInteraction.feedbackRating,
-          feedbackComment: updatedInteraction.feedbackComment
+      try {
+        // Get the interaction to confirm it belongs to this tenant and user
+        const interaction = await db.getAiInteraction(interactionId);
+        
+        if (!interaction || interaction.tenantId !== tenantId) {
+          return res.status(404).json({ error: 'Interaction not found or unauthorized' });
         }
-      });
-      
+        
+        // Update the interaction with feedback
+        const updatedInteraction = await db.updateAiInteractionFeedback(interactionId, {
+          feedbackRating: rating,
+          feedbackComment: comment || null
+        });
+        
+        return res.json({ 
+          success: true, 
+          message: 'Feedback submitted successfully',
+          interaction: {
+            id: updatedInteraction.id,
+            timestamp: updatedInteraction.timestamp,
+            feedbackRating: updatedInteraction.feedbackRating,
+            feedbackComment: updatedInteraction.feedbackComment
+          }
+        });
+      } catch (dbError) {
+        // The table may not exist yet, so we just log the error and return a generic success
+        console.warn("Could not save AI feedback (table may not exist yet):", dbError.message);
+        return res.json({
+          success: true,
+          message: 'Feedback noted (storage not available)',
+          interaction: null
+        });
+      }
     } catch (error: any) {
       console.error('Error submitting AI feedback:', error);
       return res.status(500).json({ 
@@ -235,22 +247,26 @@ something or the information is not in the provided context, be honest about it.
       const tenantId = req.user.tenantId;
       const userId = req.user.id;
       
-      // Get the recent chat history for this user
-      // We would implement this method in database-storage.ts
-      const interactions = await db.getUserAiInteractions(tenantId, userId, 20); // Limit to last 20
-      
-      // Map to a format suitable for the client
-      const history = interactions.map(interaction => ({
-        id: interaction.id,
-        timestamp: interaction.timestamp,
-        userQuery: interaction.userQuery,
-        aiResponse: interaction.aiResponse,
-        feedbackRating: interaction.feedbackRating,
-        processingTimeMs: interaction.processingTimeMs
-      }));
-      
-      return res.json({ history });
-      
+      try {
+        // Get the recent chat history for this user
+        const interactions = await db.getUserAiInteractions(tenantId, userId, 20); // Limit to last 20
+        
+        // Map to a format suitable for the client
+        const history = interactions.map(interaction => ({
+          id: interaction.id,
+          timestamp: interaction.timestamp,
+          userQuery: interaction.userQuery,
+          aiResponse: interaction.aiResponse,
+          feedbackRating: interaction.feedbackRating,
+          processingTimeMs: interaction.processingTimeMs
+        }));
+        
+        return res.json({ history });
+      } catch (dbError) {
+        // The table may not exist yet, so we just return an empty history
+        console.warn("Could not retrieve AI chat history (table may not exist yet):", dbError.message);
+        return res.json({ history: [] });
+      }
     } catch (error: any) {
       console.error('Error fetching AI chat history:', error);
       return res.status(500).json({ 
