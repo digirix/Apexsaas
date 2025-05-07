@@ -76,7 +76,7 @@ const aiConfigurationSchema = z.object({
   id: z.number().optional(),
   provider: z.enum(['OpenAI', 'Google', 'Anthropic']),
   apiKey: z.string().min(1, "API key is required"),
-  modelId: z.string().min(1, "Model ID is required"),
+  model: z.string().min(1, "Model is required"),
   isActive: z.boolean().default(true),
 });
 
