@@ -40,6 +40,10 @@ import {
 } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 
+// Import AI services
+import { queryAI } from './services/ai-service';
+import { fetchDataForChatbot, generateSystemPrompt } from './services/chatbot-data-service';
+
 export async function registerRoutes(app: Express): Promise<Server> {
   console.log("Starting to register routes...");
   
