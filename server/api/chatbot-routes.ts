@@ -110,7 +110,7 @@ something or the information is not in the provided context, be honest about it.
         userQuery: userMessage.content,
         aiResponse: aiResponseContent,
         provider: config.provider,
-        modelId: config.modelId || 'anthropic/claude-3-haiku-20240307',
+        modelId: config.modelId || 'anthropic/claude-3-haiku',
         processingTimeMs,
         feedbackRating: null,  // Will be updated later when user provides feedback
         feedbackComment: null  // Will be updated later when user provides feedback

@@ -97,7 +97,7 @@ export const queryOpenRouter = async (
         "X-Title": "Accountant.io"
       },
       body: JSON.stringify({
-        model: modelId || "google/gemini-flash-1.5-8b-exp",
+        model: modelId || "anthropic/claude-3-haiku",
         messages: modifiedMessages,
         temperature: 0.7,
         safety_settings: [
