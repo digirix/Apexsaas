@@ -1093,6 +1093,10 @@ export type RegisterData = z.infer<typeof registerSchema>;
 
 // AI Feature module
 export const aiProviderEnum = pgEnum('ai_provider', ['Google', 'OpenAI', 'Anthropic']);
+export const aiPersonalityEnum = pgEnum('ai_personality', ['Professional', 'Friendly', 'Technical', 'Concise', 'Detailed']);
+export const aiSpecializationEnum = pgEnum('ai_specialization', ['General', 'Accounting', 'Tax', 'Audit', 'Finance', 'Compliance']);
+export const aiResponseLengthEnum = pgEnum('ai_response_length', ['Brief', 'Standard', 'Detailed']);
+export const aiToneEnum = pgEnum('ai_tone', ['Formal', 'Neutral', 'Casual']);
 
 // AI Configuration table
 export const aiConfigurations = pgTable("ai_configurations", {
@@ -1151,8 +1155,43 @@ export const insertAiInteractionSchema = createInsertSchema(aiInteractions).pick
   feedbackComment: true,
 });
 
+// AI Assistant Customization table for personalized AI settings per user
+export const aiAssistantCustomizations = pgTable("ai_assistant_customizations", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  userId: integer("user_id").notNull(),
+  name: text("name").default("My Assistant").notNull(),
+  personality: aiPersonalityEnum("personality").default("Professional").notNull(),
+  specialization: aiSpecializationEnum("specialization").default("General").notNull(),
+  responseLength: aiResponseLengthEnum("response_length").default("Standard").notNull(),
+  tone: aiToneEnum("tone").default("Neutral").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    userTenantUnique: unique().on(table.tenantId, table.userId),
+    tenantFk: foreignKey({ columns: [table.tenantId], foreignColumns: [tenants.id] }),
+    userFk: foreignKey({ columns: [table.userId], foreignColumns: [users.id] })
+  };
+});
+
+export const insertAiAssistantCustomizationSchema = createInsertSchema(aiAssistantCustomizations).pick({
+  tenantId: true,
+  userId: true,
+  name: true,
+  personality: true,
+  specialization: true, 
+  responseLength: true,
+  tone: true,
+  isActive: true,
+});
+
 export type AiConfiguration = typeof aiConfigurations.$inferSelect;
 export type InsertAiConfiguration = z.infer<typeof insertAiConfigurationSchema>;
 
 export type AiInteraction = typeof aiInteractions.$inferSelect;
 export type InsertAiInteraction = z.infer<typeof insertAiInteractionSchema>;
+
+export type AiAssistantCustomization = typeof aiAssistantCustomizations.$inferSelect;
+export type InsertAiAssistantCustomization = z.infer<typeof insertAiAssistantCustomizationSchema>;

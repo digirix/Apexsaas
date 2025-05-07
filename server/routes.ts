@@ -6,6 +6,7 @@ import { DatabaseStorage } from "./database-storage";
 import { TaskScheduler } from "./task-scheduler";
 import { registerChatbotRoutes } from "./api/chatbot-routes";
 import { registerAiReportingRoutes } from "./api/ai-reporting-routes";
+import { registerAICustomizationRoutes } from "./api/ai-customization-routes";
 import { 
   insertCountrySchema, insertCurrencySchema, insertStateSchema, 
   insertEntityTypeSchema, insertTaskStatusSchema, insertTaskCategorySchema, insertServiceTypeSchema,

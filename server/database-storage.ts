@@ -3121,6 +3121,44 @@ export class DatabaseStorage implements IStorage {
       ));
     return config;
   }
+  
+  // Methods for customization panel
+  async getTenantAiConfigurations(tenantId: number): Promise<AiConfiguration[]> {
+    return await db.select().from(aiConfigurations)
+      .where(eq(aiConfigurations.tenantId, tenantId))
+      .orderBy(desc(aiConfigurations.isActive), desc(aiConfigurations.updatedAt));
+  }
+  
+  async getTenantAiConfiguration(id: number): Promise<AiConfiguration | undefined> {
+    const [config] = await db.select().from(aiConfigurations)
+      .where(eq(aiConfigurations.id, id))
+      .limit(1);
+    return config;
+  }
+  
+  async createTenantAiConfiguration(config: InsertAiConfiguration): Promise<AiConfiguration> {
+    const [newConfig] = await db.insert(aiConfigurations).values(config).returning();
+    return newConfig;
+  }
+  
+  async updateTenantAiConfiguration(id: number, updates: Partial<AiConfiguration>): Promise<AiConfiguration> {
+    const [updatedConfig] = await db.update(aiConfigurations)
+      .set(updates)
+      .where(eq(aiConfigurations.id, id))
+      .returning();
+    return updatedConfig;
+  }
+  
+  async deleteTenantAiConfiguration(id: number): Promise<void> {
+    await db.delete(aiConfigurations)
+      .where(eq(aiConfigurations.id, id));
+  }
+  
+  async setAllTenantAiConfigurationsInactive(tenantId: number): Promise<void> {
+    await db.update(aiConfigurations)
+      .set({ isActive: false })
+      .where(eq(aiConfigurations.tenantId, tenantId));
+  }
 
   async getAiConfigurationByProvider(tenantId: number, provider: string): Promise<AiConfiguration | undefined> {
     const [config] = await db.select().from(aiConfigurations)
