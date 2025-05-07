@@ -529,7 +529,8 @@ export default function ChartOfAccountsCreateTabular() {
           .filter(g => g.mainGroupId === mainGroup.id)
           .map(g => ({
             id: g.id,
-            name: g.customName || g.name.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+            name: g.name.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+            customName: g.customName // Include the customName property in the returned object
           }));
       }
     }
@@ -550,7 +551,8 @@ export default function ChartOfAccountsCreateTabular() {
           .filter(g => g.elementGroupId === elementGroup.id)
           .map(g => ({
             id: g.id,
-            name: g.customName || g.name.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+            name: g.name.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+            customName: g.customName // Include the customName property in the returned object
           }));
       }
     }
