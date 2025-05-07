@@ -3249,4 +3249,15 @@ export class DatabaseStorage implements IStorage {
       };
     }
   }
+  
+  // AI Interaction logging operations
+  async logAiInteraction(interaction: InsertAiInteraction): Promise<AiInteraction> {
+    try {
+      const [newInteraction] = await db.insert(aiInteractions).values(interaction).returning();
+      return newInteraction;
+    } catch (error) {
+      console.error("Error logging AI interaction:", error);
+      throw new Error(`Failed to log AI interaction: ${error}`);
+    }
+  }
 }
