@@ -73,6 +73,11 @@ export function ChatWidget() {
     scrollToBottom();
   }, [messages]);
   
+  // Debug chat status
+  useEffect(() => {
+    console.log('ChatWidget - Current chat status:', chatStatus);
+  }, [chatStatus]);
+  
   // Handle sending message
   const handleSendMessage = () => {
     if (input.trim() && !isLoading) {

@@ -29,6 +29,7 @@ export function useChat() {
   useEffect(() => {
     const fetchChatStatus = async () => {
       try {
+        console.log('Fetching chat status...');
         const response = await fetch('/api/v1/ai/chat/status', {
           method: 'GET',
           headers: {
@@ -41,6 +42,7 @@ export function useChat() {
         }
         
         const data = await response.json();
+        console.log('Chat status response:', data);
         setChatStatus(data);
       } catch (error) {
         console.error('Error checking chat availability:', error);
@@ -48,7 +50,12 @@ export function useChat() {
       }
     };
     
-    fetchChatStatus();
+    // Wait a moment to ensure authentication is complete
+    const timer = setTimeout(() => {
+      fetchChatStatus();
+    }, 1000);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   // Send a message to the AI assistant
