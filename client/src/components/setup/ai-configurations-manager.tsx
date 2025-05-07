@@ -124,6 +124,7 @@ export default function AiConfigurationsManager() {
       provider: 'OpenAI',
       apiKey: '',
       model: 'openai/gpt-4-turbo',
+      typeScriptConfig: '',
       isActive: true,
     },
   });
@@ -139,6 +140,7 @@ export default function AiConfigurationsManager() {
         provider: 'OpenAI',
         apiKey: '',
         model: 'google/gemini-flash-1.5-8b-exp',
+        typeScriptConfig: '',
         isActive: true,
       });
     }
@@ -329,6 +331,7 @@ export default function AiConfigurationsManager() {
       provider: 'OpenAI',
       apiKey: '',
       model: 'google/gemini-flash-1.5-8b-exp',
+      typeScriptConfig: '',
       isActive: true,
     });
     setIsOpen(true);
