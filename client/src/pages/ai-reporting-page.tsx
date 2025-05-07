@@ -232,62 +232,62 @@ export default function AiReportingPage() {
       
       {generateReportMutation.isSuccess && reportData && (
         <Card>
-          <CardHeader>
-            <Tabs defaultValue="report" value={activeTab} onValueChange={setActiveTab}>
+          <Tabs defaultValue="report" value={activeTab} onValueChange={setActiveTab}>
+            <CardHeader>
               <TabsList>
                 <TabsTrigger value="report">Report</TabsTrigger>
                 {reportData.sql && <TabsTrigger value="sql">SQL Query</TabsTrigger>}
                 {reportData.rawData && <TabsTrigger value="data">Raw Data</TabsTrigger>}
               </TabsList>
-            </Tabs>
-          </CardHeader>
-          <CardContent>
-            <TabsContent value="report" className="space-y-6 mt-0">
-              <div className="prose prose-blue max-w-none">
-                <div dangerouslySetInnerHTML={{ __html: reportData.text.replace(/\n/g, '<br/>') }} />
-              </div>
-              {renderCharts()}
-            </TabsContent>
-            
-            {reportData.sql && (
-              <TabsContent value="sql" className="mt-0">
-                <div className="bg-slate-900 text-slate-50 p-4 rounded-md overflow-x-auto">
-                  <pre className="text-sm font-mono">{reportData.sql}</pre>
+            </CardHeader>
+            <CardContent>
+              <TabsContent value="report" className="space-y-6 mt-0">
+                <div className="prose prose-blue max-w-none">
+                  <div dangerouslySetInnerHTML={{ __html: reportData.text.replace(/\n/g, '<br/>') }} />
                 </div>
-                <p className="text-xs text-slate-500 mt-2">
-                  <Terminal className="inline-block h-3 w-3 mr-1" />
-                  This is the SQL query that was generated to retrieve your data.
-                </p>
+                {renderCharts()}
               </TabsContent>
-            )}
-            
-            {reportData.rawData && (
-              <TabsContent value="data" className="mt-0">
-                <div className="bg-slate-100 p-4 rounded-md overflow-x-auto">
-                  <pre className="text-sm">{JSON.stringify(reportData.rawData, null, 2)}</pre>
-                </div>
-              </TabsContent>
-            )}
-          </CardContent>
-          <CardFooter className="border-t bg-slate-50 text-xs text-slate-500 flex justify-between items-center">
-            <div>
-              Generated in {reportData.processingTimeMs ? (reportData.processingTimeMs / 1000).toFixed(2) : '?'} seconds
-            </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-8"
-              onClick={() => generateReportMutation.mutate(query)}
-              disabled={generateReportMutation.isPending}
-            >
-              {generateReportMutation.isPending ? (
-                <RefreshCw className="h-3 w-3 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3 w-3" />
+              
+              {reportData.sql && (
+                <TabsContent value="sql" className="mt-0">
+                  <div className="bg-slate-900 text-slate-50 p-4 rounded-md overflow-x-auto">
+                    <pre className="text-sm font-mono">{reportData.sql}</pre>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2">
+                    <Terminal className="inline-block h-3 w-3 mr-1" />
+                    This is the SQL query that was generated to retrieve your data.
+                  </p>
+                </TabsContent>
               )}
-              <span className="ml-1">Regenerate</span>
-            </Button>
-          </CardFooter>
+              
+              {reportData.rawData && (
+                <TabsContent value="data" className="mt-0">
+                  <div className="bg-slate-100 p-4 rounded-md overflow-x-auto">
+                    <pre className="text-sm">{JSON.stringify(reportData.rawData, null, 2)}</pre>
+                  </div>
+                </TabsContent>
+              )}
+            </CardContent>
+            <CardFooter className="border-t bg-slate-50 text-xs text-slate-500 flex justify-between items-center">
+              <div>
+                Generated in {reportData.processingTimeMs ? (reportData.processingTimeMs / 1000).toFixed(2) : '?'} seconds
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8"
+                onClick={() => generateReportMutation.mutate(query)}
+                disabled={generateReportMutation.isPending}
+              >
+                {generateReportMutation.isPending ? (
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3 w-3" />
+                )}
+                <span className="ml-1">Regenerate</span>
+              </Button>
+            </CardFooter>
+          </Tabs>
         </Card>
       )}
     </AppLayout>

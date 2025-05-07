@@ -183,8 +183,22 @@ Please analyze this data and provide a comprehensive report addressing the user'
     let reportData: ReportData;
     
     try {
+      // Check if the content is wrapped in a markdown code block
+      let jsonContent = content;
+      
+      // If it's wrapped in a markdown code block, extract just the JSON
+      if (content.trim().startsWith('```') && content.trim().endsWith('```')) {
+        const jsonStartIndex = content.indexOf('{');
+        const jsonEndIndex = content.lastIndexOf('}') + 1;
+        
+        if (jsonStartIndex !== -1 && jsonEndIndex !== -1) {
+          jsonContent = content.substring(jsonStartIndex, jsonEndIndex);
+          console.log("Extracted JSON from markdown:", jsonContent);
+        }
+      }
+      
       // Try to parse as JSON
-      reportData = JSON.parse(content);
+      reportData = JSON.parse(jsonContent);
       
       // Add the SQL query and raw data if available
       if (sqlQuery) {
