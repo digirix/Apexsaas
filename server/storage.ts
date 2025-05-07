@@ -2078,7 +2078,7 @@ export class MemStorage implements IStorage {
       tenantId: config.tenantId,
       provider: config.provider,
       apiKey: config.apiKey,
-      modelId: config.modelId,
+      model: config.model,
       isActive: config.isActive ?? true,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -2091,7 +2091,7 @@ export class MemStorage implements IStorage {
       tenantId: config.tenantId ?? 1,
       provider: config.provider ?? 'OpenAI',
       apiKey: config.apiKey ?? 'dummy-key',
-      modelId: config.modelId ?? 'dummy-model',
+      model: config.model ?? 'dummy-model',
       isActive: config.isActive ?? true,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -2107,6 +2107,56 @@ export class MemStorage implements IStorage {
   }
   
   // AI Interaction logging (stub for in-memory storage)
+  // AI Assistant Customization operations
+  async getAiAssistantCustomizations(tenantId: number): Promise<AiAssistantCustomization[]> {
+    return [];
+  }
+
+  async getAiAssistantCustomization(id: number, tenantId: number): Promise<AiAssistantCustomization | undefined> {
+    return undefined;
+  }
+
+  async getUserAiAssistantCustomization(tenantId: number, userId: number): Promise<AiAssistantCustomization | undefined> {
+    return undefined;
+  }
+
+  async createAiAssistantCustomization(customization: InsertAiAssistantCustomization): Promise<AiAssistantCustomization> {
+    return {
+      id: 1,
+      tenantId: customization.tenantId,
+      userId: customization.userId,
+      name: customization.name,
+      personality: customization.personality,
+      specialization: customization.specialization,
+      responseLength: customization.responseLength,
+      tone: customization.tone,
+      isActive: customization.isActive ?? false,
+      createdAt: customization.createdAt ?? new Date(),
+      updatedAt: customization.updatedAt ?? new Date()
+    };
+  }
+
+  async updateAiAssistantCustomization(id: number, customization: Partial<InsertAiAssistantCustomization>): Promise<AiAssistantCustomization | undefined> {
+    return {
+      id: id,
+      tenantId: customization.tenantId ?? 1,
+      userId: customization.userId ?? 1,
+      name: customization.name ?? 'Default Assistant',
+      personality: customization.personality ?? 'Professional',
+      specialization: customization.specialization ?? 'General',
+      responseLength: customization.responseLength ?? 'Standard',
+      tone: customization.tone ?? 'Neutral',
+      isActive: customization.isActive ?? false,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+  }
+
+  async deleteAiAssistantCustomization(id: number, tenantId: number): Promise<boolean> {
+    return true;
+  }
+
+  // AI Interaction logging
   async logAiInteraction(interaction: InsertAiInteraction): Promise<AiInteraction> {
     return {
       id: 1,
@@ -2116,11 +2166,35 @@ export class MemStorage implements IStorage {
       userQuery: interaction.userQuery,
       aiResponse: interaction.aiResponse,
       provider: interaction.provider,
-      modelId: interaction.modelId,
+      model: interaction.model,
       processingTimeMs: interaction.processingTimeMs ?? 0,
       feedbackRating: interaction.feedbackRating ?? null,
       feedbackComment: interaction.feedbackComment ?? null
     };
+  }
+  
+  async getAiInteraction(id: number): Promise<AiInteraction | undefined> {
+    return undefined;
+  }
+
+  async updateAiInteractionFeedback(id: number, feedback: { feedbackRating: number; feedbackComment: string | null }): Promise<AiInteraction> {
+    return {
+      id: id,
+      tenantId: 1,
+      userId: 1,
+      timestamp: new Date(),
+      userQuery: 'Sample query',
+      aiResponse: 'Sample response',
+      provider: 'OpenAI',
+      model: 'gpt-4o',
+      processingTimeMs: 500,
+      feedbackRating: feedback.feedbackRating,
+      feedbackComment: feedback.feedbackComment
+    };
+  }
+
+  async getUserAiInteractions(tenantId: number, userId: number, limit: number = 20): Promise<AiInteraction[]> {
+    return [];
   }
 }
 
