@@ -1139,7 +1139,21 @@ export default function COAConfigurationPage() {
       </AlertDialog>
 
       {/* Create Chart of Account Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+      <Dialog 
+        open={createDialogOpen} 
+        onOpenChange={(open) => {
+          setCreateDialogOpen(open);
+          if (!open) {
+            // Reset the form when dialog is closed
+            chartOfAccountForm.reset({
+              elementGroup: "",
+              subElementGroup: "",
+              detailedGroup: "",
+              accountName: "",
+              description: "",
+            });
+          }
+        }}>
         <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
             <DialogTitle>Add New Account</DialogTitle>
@@ -1210,7 +1224,13 @@ export default function COAConfigurationPage() {
                   description: "Account created successfully",
                 });
                 setCreateDialogOpen(false);
-                chartOfAccountForm.reset();
+                chartOfAccountForm.reset({
+                  elementGroup: "",
+                  subElementGroup: "",
+                  detailedGroup: "",
+                  accountName: "",
+                  description: "",
+                });
                 queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts'] });
               }).catch(error => {
                 toast({
@@ -1244,6 +1264,17 @@ export default function COAConfigurationPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                      {field.value && (
+                        <FormDescription>
+                          {(() => {
+                            const elementGroup = elementGroups.find(g => g.id === parseInt(field.value));
+                            if (elementGroup) {
+                              return `Selected: ${elementGroup.customName || elementGroup.name.charAt(0).toUpperCase() + elementGroup.name.slice(1)} (${elementGroup.code})`;
+                            }
+                            return "";
+                          })()}
+                        </FormDescription>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1275,6 +1306,17 @@ export default function COAConfigurationPage() {
                             ))}
                         </SelectContent>
                       </Select>
+                      {field.value && (
+                        <FormDescription>
+                          {(() => {
+                            const subElementGroup = subElementGroups.find(g => g.id === parseInt(field.value));
+                            if (subElementGroup) {
+                              return `Selected: ${subElementGroup.customName || subElementGroup.name} (${subElementGroup.code})`;
+                            }
+                            return "";
+                          })()}
+                        </FormDescription>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1306,6 +1348,17 @@ export default function COAConfigurationPage() {
                             ))}
                         </SelectContent>
                       </Select>
+                      {field.value && (
+                        <FormDescription>
+                          {(() => {
+                            const detailedGroup = detailedGroups.find(g => g.id === parseInt(field.value));
+                            if (detailedGroup) {
+                              return `Selected: ${detailedGroup.customName || detailedGroup.name} (${detailedGroup.code})`;
+                            }
+                            return "";
+                          })()}
+                        </FormDescription>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1348,7 +1401,21 @@ export default function COAConfigurationPage() {
       </Dialog>
 
       {/* Create Sub Element Group Dialog */}
-      <Dialog open={createSubElementGroupDialogOpen} onOpenChange={setCreateSubElementGroupDialogOpen}>
+      <Dialog 
+        open={createSubElementGroupDialogOpen} 
+        onOpenChange={(open) => {
+          setCreateSubElementGroupDialogOpen(open);
+          if (!open) {
+            // Reset the form when dialog is closed
+            subElementGroupForm.reset({
+              elementGroup: "",
+              name: "",
+              customName: "",
+              code: "",
+              description: "",
+            });
+          }
+        }}>
         <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
             <DialogTitle>Add New Sub Element Group</DialogTitle>
@@ -1377,7 +1444,13 @@ export default function COAConfigurationPage() {
                   description: "Sub Element Group created successfully",
                 });
                 setCreateSubElementGroupDialogOpen(false);
-                subElementGroupForm.reset();
+                subElementGroupForm.reset({
+                  elementGroup: "",
+                  name: "",
+                  customName: "",
+                  code: "",
+                  description: "",
+                });
                 queryClient.invalidateQueries({ queryKey: ['/api/v1/finance/chart-of-accounts/sub-element-groups'] });
               }).catch(error => {
                 toast({
