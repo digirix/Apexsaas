@@ -510,7 +510,7 @@ export default function ChartOfAccountsCreate() {
                             <SelectContent>
                               {elementGroups?.map((group: any) => (
                                 <SelectItem key={group.id} value={group.id.toString()}>
-                                  {group.name}
+                                  {group.customName || group.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -542,7 +542,7 @@ export default function ChartOfAccountsCreate() {
                             <SelectContent>
                               {subElementGroups?.map((group: any) => (
                                 <SelectItem key={group.id} value={group.id.toString()}>
-                                  {group.name}
+                                  {group.customName || group.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -573,7 +573,7 @@ export default function ChartOfAccountsCreate() {
                             <SelectContent>
                               {detailedGroups?.map((group: any) => (
                                 <SelectItem key={group.id} value={group.id.toString()}>
-                                  {group.name}
+                                  {group.customName || group.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
