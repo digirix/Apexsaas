@@ -333,6 +333,9 @@ export interface IStorage {
   
   // AI Interaction logging
   logAiInteraction(interaction: InsertAiInteraction): Promise<AiInteraction>;
+  getAiInteraction(id: number): Promise<AiInteraction | undefined>;
+  updateAiInteractionFeedback(id: number, feedback: { feedbackRating: number; feedbackComment: string | null }): Promise<AiInteraction>;
+  getUserAiInteractions(tenantId: number, userId: number, limit?: number): Promise<AiInteraction[]>;
 }
 
 export class MemStorage implements IStorage {

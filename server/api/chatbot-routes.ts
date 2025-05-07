@@ -123,4 +123,82 @@ something or the information is not in the provided context, be honest about it.
       });
     }
   });
+  
+  // Route to submit feedback for AI interactions
+  app.post('/api/v1/ai/chat/feedback', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { interactionId, rating, comment } = req.body as AiInteractionFeedback;
+      const tenantId = req.user.tenantId;
+      
+      if (!interactionId || typeof interactionId !== 'number') {
+        return res.status(400).json({ error: 'Valid interaction ID is required' });
+      }
+      
+      if (!rating || typeof rating !== 'number' || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: 'Rating is required and must be between 1 and 5' });
+      }
+      
+      // Get the interaction to confirm it belongs to this tenant and user
+      // We would implement this method in database-storage.ts
+      const interaction = await db.getAiInteraction(interactionId);
+      
+      if (!interaction || interaction.tenantId !== tenantId) {
+        return res.status(404).json({ error: 'Interaction not found or unauthorized' });
+      }
+      
+      // Update the interaction with feedback
+      // We would implement this method in database-storage.ts
+      const updatedInteraction = await db.updateAiInteractionFeedback(interactionId, {
+        feedbackRating: rating,
+        feedbackComment: comment || null
+      });
+      
+      return res.json({ 
+        success: true, 
+        message: 'Feedback submitted successfully',
+        interaction: {
+          id: updatedInteraction.id,
+          timestamp: updatedInteraction.timestamp,
+          feedbackRating: updatedInteraction.feedbackRating,
+          feedbackComment: updatedInteraction.feedbackComment
+        }
+      });
+      
+    } catch (error: any) {
+      console.error('Error submitting AI feedback:', error);
+      return res.status(500).json({ 
+        error: error.message || 'Failed to submit feedback' 
+      });
+    }
+  });
+  
+  // Route to get AI interaction history for current user
+  app.get('/api/v1/ai/chat/history', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.user.tenantId;
+      const userId = req.user.id;
+      
+      // Get the recent chat history for this user
+      // We would implement this method in database-storage.ts
+      const interactions = await db.getUserAiInteractions(tenantId, userId, 20); // Limit to last 20
+      
+      // Map to a format suitable for the client
+      const history = interactions.map(interaction => ({
+        id: interaction.id,
+        timestamp: interaction.timestamp,
+        userQuery: interaction.userQuery,
+        aiResponse: interaction.aiResponse,
+        feedbackRating: interaction.feedbackRating,
+        processingTimeMs: interaction.processingTimeMs
+      }));
+      
+      return res.json({ history });
+      
+    } catch (error: any) {
+      console.error('Error fetching AI chat history:', error);
+      return res.status(500).json({ 
+        error: error.message || 'Failed to retrieve chat history' 
+      });
+    }
+  });
 };

@@ -3260,4 +3260,57 @@ export class DatabaseStorage implements IStorage {
       throw new Error(`Failed to log AI interaction: ${error}`);
     }
   }
+  
+  async getAiInteraction(id: number): Promise<AiInteraction | undefined> {
+    try {
+      const interaction = await db.select()
+        .from(aiInteractions)
+        .where(eq(aiInteractions.id, id))
+        .limit(1);
+      
+      return interaction.length > 0 ? interaction[0] : undefined;
+    } catch (error) {
+      console.error("Error retrieving AI interaction:", error);
+      throw new Error(`Failed to retrieve AI interaction: ${error}`);
+    }
+  }
+  
+  async updateAiInteractionFeedback(id: number, feedback: { feedbackRating: number; feedbackComment: string | null }): Promise<AiInteraction> {
+    try {
+      const [updatedInteraction] = await db.update(aiInteractions)
+        .set({
+          feedbackRating: feedback.feedbackRating,
+          feedbackComment: feedback.feedbackComment
+        })
+        .where(eq(aiInteractions.id, id))
+        .returning();
+      
+      if (!updatedInteraction) {
+        throw new Error(`Interaction with ID ${id} not found`);
+      }
+      
+      return updatedInteraction;
+    } catch (error) {
+      console.error("Error updating AI interaction feedback:", error);
+      throw new Error(`Failed to update AI interaction feedback: ${error}`);
+    }
+  }
+  
+  async getUserAiInteractions(tenantId: number, userId: number, limit: number = 20): Promise<AiInteraction[]> {
+    try {
+      const interactions = await db.select()
+        .from(aiInteractions)
+        .where(and(
+          eq(aiInteractions.tenantId, tenantId),
+          eq(aiInteractions.userId, userId)
+        ))
+        .orderBy(desc(aiInteractions.timestamp))
+        .limit(limit);
+      
+      return interactions;
+    } catch (error) {
+      console.error("Error retrieving user AI interactions:", error);
+      throw new Error(`Failed to retrieve user AI interactions: ${error}`);
+    }
+  }
 }
