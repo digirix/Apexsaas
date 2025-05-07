@@ -58,6 +58,28 @@ const APP_FEATURE_TERMS = [
 ];
 
 /**
+ * List of terms that strongly indicate general knowledge questions
+ */
+const GENERAL_KNOWLEDGE_TERMS = [
+  // Common general knowledge questions
+  'history', 'science', 'politics', 'technology', 'culture', 'religion',
+  'world', 'universe', 'space', 'earth', 'ocean', 'mountain', 'animal', 'plant',
+  'country', 'government', 'war', 'peace', 'invention', 'discovery',
+  'language', 'art', 'music', 'movie', 'book', 'literature', 'author',
+  'disease', 'medicine', 'treatment', 'cure', 'health', 'exercise',
+  'programming', 'code', 'algorithm', 'computer', 'internet', 'website',
+  'cryptocurrency', 'blockchain', 'bitcoin', 'ethereum', 'invest',
+  // Philosophy and concepts
+  'philosophy', 'ethics', 'moral', 'meaning', 'define', 'concept', 'theory',
+  'idea', 'strategy', 'approach', 'method', 'technique',
+  // Current events
+  'news', 'current', 'latest', 'trend', 'event', 'recent',
+  // Non-specific queries
+  'best practice', 'general', 'common', 'typical', 'standard', 'example',
+  'difference between', 'compare', 'versus', 'vs', 'unlike', 'similar'
+];
+
+/**
  * Determines if a query is about the tenant's database or requires general knowledge
  * @param query The user query to classify
  * @returns Classification result
@@ -74,6 +96,14 @@ export function classifyQuery(query: string): QueryClassification {
     }
   }
   
+  // Count general knowledge terms
+  let generalKnowledgeTermsCount = 0;
+  for (const term of GENERAL_KNOWLEDGE_TERMS) {
+    if (lowerQuery.includes(term)) {
+      generalKnowledgeTermsCount++;
+    }
+  }
+  
   // Check for application feature terms
   const appFeatureTermsCount = APP_FEATURE_TERMS.filter(term => 
     lowerQuery.includes(term)
@@ -84,31 +114,63 @@ export function classifyQuery(query: string): QueryClassification {
     lowerQuery.startsWith(term) || lowerQuery.includes(` ${term} `)
   );
   
-  // Check for specific data references
-  const hasDatabaseReference = ['my', 'our', 'us', 'we', 'mine', 'tenant', 'show me', 'list'].some(term => 
+  // Check for specific data references that indicate database queries
+  const hasDatabaseReference = ['my', 'our', 'us', 'we', 'mine', 'tenant', 'show me', 'list', 'show', 'find'].some(term => 
     lowerQuery.startsWith(term) || lowerQuery.includes(` ${term} `)
   );
   
+  // Check for explicit general knowledge indicators
+  const hasExplicitGeneralIndicator = lowerQuery.includes('in general') || 
+    lowerQuery.includes('generally speaking') || 
+    lowerQuery.includes('tell me about') ||
+    lowerQuery.includes('what is') ||
+    lowerQuery.includes('how does') ||
+    lowerQuery.includes('explain') ||
+    !lowerQuery.includes('my') && !lowerQuery.includes('our') && (
+      lowerQuery.includes('difference between') || 
+      lowerQuery.includes('vs') || 
+      lowerQuery.includes('versus') ||
+      lowerQuery.includes('compared to')
+    );
+  
   // Calculate confidence scores
-  const dbTermRatio = dbTermsFound.length / words.length;
+  const dbTermRatio = dbTermsFound.length / (words.length || 1);
   const dbConfidence = Math.min(0.9, dbTermsFound.length > 0 ? 0.3 + (dbTermRatio * 0.7) : 0);
-  const generalConfidence = hasQuestionTerm && dbTermsFound.length === 0 ? 0.8 : 0.2;
+  const generalConfidence = hasExplicitGeneralIndicator || 
+    (hasQuestionTerm && dbTermsFound.length === 0) || 
+    generalKnowledgeTermsCount > 0 ? 0.8 : 0.2;
   
   // Apply rules for classification
   let type: 'database' | 'general' | 'hybrid';
   let confidence: number;
   
-  if (hasDatabaseReference || dbTermsFound.length >= 2) {
+  // Strong signals for general knowledge
+  if (
+    generalKnowledgeTermsCount >= 2 || 
+    (hasExplicitGeneralIndicator && dbTermsFound.length === 0) ||
+    (hasQuestionTerm && generalKnowledgeTermsCount > 0 && dbTermsFound.length === 0)
+  ) {
+    type = 'general';
+    confidence = 0.85;
+  }
+  // Strong signals for database queries
+  else if (hasDatabaseReference || dbTermsFound.length >= 2) {
     type = 'database';
     confidence = Math.max(0.65, dbConfidence);
-  } else if (dbTermsFound.length > 0 && hasQuestionTerm) {
+  }
+  // Hybrid case - some database terms mixed with general question format
+  else if (dbTermsFound.length > 0 && (hasQuestionTerm || generalKnowledgeTermsCount > 0)) {
     type = 'hybrid';
     confidence = 0.75;
-  } else if (dbTermsFound.length === 0 && hasQuestionTerm) {
+  }
+  // Default to general if it looks like a question without database terms
+  else if (dbTermsFound.length === 0 && hasQuestionTerm) {
     type = 'general';
     confidence = generalConfidence;
-  } else {
-    // Default to database if we can't determine confidently
+  }
+  // Fallback classification based on term counts
+  else {
+    // More likely to be general if no clear database terms found
     type = dbTermsFound.length > 0 ? 'database' : 'general';
     confidence = 0.5;
   }
