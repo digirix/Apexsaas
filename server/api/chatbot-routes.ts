@@ -75,12 +75,19 @@ export const registerChatbotRoutes = (app: Express, isAuthenticated: any, db: Da
       
       // Create a system prompt that includes tenant-specific context
       const systemPrompt = `
-You are an AI assistant for an accounting firm management platform. 
-You have access to the following information about the tenant:
+You are an AI assistant for an accounting firm management platform. You should provide helpful, accurate information to users of the accounting platform.
+
+IMPORTANT - You have access to the following real-time information about the tenant's accounting data:
 ${tenantData}
 
-Please use this information to provide accurate and helpful responses. If you don't know 
-something or the information is not in the provided context, be honest about it.
+When answering questions:
+1. Always prioritize using the data provided above when a user asks about their specific information.
+2. If the user asks about clients, invoices, financial data, or other tenant-specific information, use the data above to provide details.
+3. Specifically mention when you're using the provided tenant data in your responses.
+4. If asked about information that is not in the context above, clearly state that you don't have access to that specific data.
+5. For general accounting questions not related to specific tenant data, provide knowledgeable accounting advice.
+
+Current date: ${new Date().toLocaleDateString()}
       `.trim();
       
       // Record start time for processing time calculation

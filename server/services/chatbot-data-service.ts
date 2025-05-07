@@ -10,12 +10,56 @@ import { and, eq, lt, gt, gte, lte, like, desc, sql } from 'drizzle-orm';
  */
 export const fetchTenantDataForQuery = async (tenantId: number, query: string): Promise<string> => {
   try {
+    console.log(`Fetching tenant data for query: "${query}" (Tenant ID: ${tenantId})`);
+    
     // Convert query to lowercase for easier matching
     const lowerQuery = query.toLowerCase();
     let contextData: string[] = [];
+    const queryKeywords: string[] = [];
+    
+    // Extract keywords from the query
+    lowerQuery.split(/\s+/).forEach(word => {
+      if (word.length > 3 && !['what', 'when', 'where', 'which', 'who', 'whom', 'whose', 'why', 'how', 'this', 'that', 'these', 'those', 'have', 'has', 'had', 'does', 'did', 'doing', 'with', 'from', 'about'].includes(word)) {
+        queryKeywords.push(word);
+      }
+    });
+    
+    console.log(`Extracted keywords from query: ${queryKeywords.join(', ')}`);
     
     // Basic information
     contextData.push(`Tenant ID: ${tenantId}`);
+    
+    // Get tenant information
+    try {
+      const tenantInfo = await db
+        .select({
+          id: sql<number>`id`,
+          name: sql<string>`name`,
+          primaryContact: sql<string>`primary_contact`,
+          email: sql<string>`email`,
+          phone: sql<string>`phone`,
+          country: sql<string>`country`,
+          createdAt: sql<Date>`created_at`
+        })
+        .from(sql`tenants`)
+        .where(sql`id = ${tenantId}`)
+        .limit(1);
+        
+      if (tenantInfo.length > 0) {
+        const tenant = tenantInfo[0];
+        contextData.push(`Tenant Name: ${tenant.name || 'Unknown'}`);
+        contextData.push(`Tenant Contact: ${tenant.primaryContact || 'Not set'}`);
+        contextData.push(`Tenant Email: ${tenant.email || 'Not set'}`);
+        
+        // Add tenant creation date
+        if (tenant.createdAt) {
+          const accountAge = Math.floor((new Date().getTime() - tenant.createdAt.getTime()) / (1000 * 60 * 60 * 24));
+          contextData.push(`Tenant Account Age: ${accountAge} days`);
+        }
+      }
+    } catch (err) {
+      console.log('Could not fetch tenant details (table may not exist):', err.message);
+    }
     
     // Client information
     if (
