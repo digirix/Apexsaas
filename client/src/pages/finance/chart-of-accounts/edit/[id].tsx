@@ -293,7 +293,7 @@ export default function EditChartOfAccountPage() {
                           <SelectContent>
                             {mainGroups.map((group: any) => (
                               <SelectItem key={group.id} value={group.id.toString()}>
-                                {group.name}
+                                {group.customName || group.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -318,7 +318,7 @@ export default function EditChartOfAccountPage() {
                           <SelectContent>
                             {filteredElementGroups.map((group: any) => (
                               <SelectItem key={group.id} value={group.id.toString()}>
-                                {group.name}
+                                {group.customName || group.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -342,7 +342,7 @@ export default function EditChartOfAccountPage() {
                           <SelectContent>
                             {filteredSubElementGroups.map((group: any) => (
                               <SelectItem key={group.id} value={group.id.toString()}>
-                                {group.name}
+                                {group.customName || group.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
