@@ -371,7 +371,7 @@ export default function ChartOfAccountsPage() {
                                       .filter((dg: any) => dg.subElementGroupId === subElementGroup.id)
                                       .map((detailedGroup: any) => (
                                         <div key={detailedGroup.id} className="mb-2">
-                                          <h5 className="text-sm font-medium text-muted-foreground">{detailedGroup.name}</h5>
+                                          <h5 className="text-sm font-medium text-muted-foreground">{detailedGroup.customName || detailedGroup.name}</h5>
                                           <div className="ml-4 mt-1">
                                             {Array.isArray(accounts) && accounts
                                               .filter((a: any) => a.detailedGroupId === detailedGroup.id)
