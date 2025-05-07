@@ -70,22 +70,51 @@ export const registerChatbotRoutes = (app: Express, isAuthenticated: any, db: Da
         return res.status(400).json({ error: 'Last message must be from the user' });
       }
       
+      // Get current user information
+      const currentUser = req.user;
+      
+      // Get tenant name if available
+      let tenantName = "your accounting firm";
+      try {
+        const tenantInfo = await db
+          .select({
+            name: sql<string>`name`
+          })
+          .from(sql`tenants`)
+          .where(sql`id = ${tenantId}`)
+          .limit(1);
+        
+        if (tenantInfo.length > 0) {
+          tenantName = tenantInfo[0].name || tenantName;
+        }
+      } catch (err) {
+        console.log('Could not fetch tenant name:', err.message);
+      }
+      
+      // Log details for debugging
+      console.log(`Fetching data for user ${currentUser.id} (${currentUser.email}) of tenant ${tenantId}`);
+      
       // Create a system prompt that includes tenant-specific data
-      const tenantData = await fetchTenantDataForQuery(tenantId, userMessage.content);
+      const tenantData = await fetchTenantDataForQuery(tenantId, userMessage.content, currentUser);
       
       // Create a system prompt that includes tenant-specific context
       const systemPrompt = `
-You are an AI assistant for an accounting firm management platform. You should provide helpful, accurate information to users of the accounting platform.
+You are an AI assistant for an accounting firm management platform. You're currently helping ${currentUser.displayName} at ${tenantName} (Tenant ID: ${tenantId}).
 
-IMPORTANT - You have access to the following real-time information about the tenant's accounting data:
+IMPORTANT CONTEXT - You have direct access to this tenant's database. You already know:
+1. Which tenant you're working with (${tenantId})
+2. Which user you're talking to (${currentUser.displayName}, ID: ${currentUser.id})
+
+REAL-TIME TENANT DATA:
 ${tenantData}
 
-When answering questions:
-1. Always prioritize using the data provided above when a user asks about their specific information.
-2. If the user asks about clients, invoices, financial data, or other tenant-specific information, use the data above to provide details.
-3. Specifically mention when you're using the provided tenant data in your responses.
-4. If asked about information that is not in the context above, clearly state that you don't have access to that specific data.
-5. For general accounting questions not related to specific tenant data, provide knowledgeable accounting advice.
+INSTRUCTIONS FOR RESPONDING:
+1. NEVER ask the user to provide their tenant ID, username, or other credentials - you already have them.
+2. NEVER say "I don't have access to your tenant data" - you do have access as shown above.
+3. ALWAYS use the provided tenant data to answer questions about clients, invoices, accounts, etc.
+4. SPECIFICALLY mention when you're using the tenant data: "According to your tenant data, I can see that..."
+5. If asked about information not in the context above, say "I don't see that specific information in your current tenant data."
+6. For general accounting questions, provide knowledgeable accounting advice.
 
 Current date: ${new Date().toLocaleDateString()}
       `.trim();

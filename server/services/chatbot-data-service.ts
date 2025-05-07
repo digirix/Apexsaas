@@ -8,7 +8,27 @@ import { and, eq, lt, gt, gte, lte, like, desc, sql } from 'drizzle-orm';
  * In a production environment, this would be enhanced with more sophisticated
  * natural language processing and semantic understanding
  */
-export const fetchTenantDataForQuery = async (tenantId: number, query: string): Promise<string> => {
+interface UserInfo {
+  id: number;
+  tenantId: number;
+  username: string;
+  email: string;
+  displayName: string;
+  [key: string]: any; // Allow other properties
+}
+
+/**
+ * Fetches tenant-specific data for the AI assistant based on the user's query
+ * @param tenantId The ID of the tenant
+ * @param query The user's query text
+ * @param currentUser The current user making the request
+ * @returns A formatted string containing relevant tenant data
+ */
+export const fetchTenantDataForQuery = async (
+  tenantId: number, 
+  query: string,
+  currentUser?: UserInfo
+): Promise<string> => {
   try {
     console.log(`Fetching tenant data for query: "${query}" (Tenant ID: ${tenantId})`);
     
@@ -26,8 +46,41 @@ export const fetchTenantDataForQuery = async (tenantId: number, query: string): 
     
     console.log(`Extracted keywords from query: ${queryKeywords.join(', ')}`);
     
-    // Basic information
-    contextData.push(`Tenant ID: ${tenantId}`);
+    // Add current user context
+    if (currentUser) {
+      contextData.push(`CURRENT USER INFORMATION:`);
+      contextData.push(`- User ID: ${currentUser.id}`);
+      contextData.push(`- Username: ${currentUser.username}`);
+      contextData.push(`- Email: ${currentUser.email}`);
+      contextData.push(`- Display Name: ${currentUser.displayName}`);
+      
+      // Try to get more user info if available
+      try {
+        const userDetail = await db
+          .select({
+            id: users.id,
+            role: users.role,
+            isAdmin: users.isAdmin,
+            department: users.departmentId
+          })
+          .from(users)
+          .where(eq(users.id, currentUser.id))
+          .limit(1);
+          
+        if (userDetail.length > 0) {
+          const detail = userDetail[0];
+          if (detail.role) contextData.push(`- Role: ${detail.role}`);
+          if (detail.isAdmin !== undefined) contextData.push(`- Is Admin: ${detail.isAdmin ? 'Yes' : 'No'}`);
+          if (detail.department) contextData.push(`- Department ID: ${detail.department}`);
+        }
+      } catch (err) {
+        console.log('Could not fetch detailed user info:', err.message);
+      }
+    }
+    
+    // Basic tenant information
+    contextData.push(`\nTENANT INFORMATION:`);
+    contextData.push(`- Tenant ID: ${tenantId}`);
     
     // Get tenant information
     try {
