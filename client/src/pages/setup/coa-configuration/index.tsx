@@ -536,7 +536,7 @@ export default function COAConfigurationPage() {
   // Helper functions
   const getElementGroupName = (id: number) => {
     const group = elementGroups.find(eg => eg.id === id);
-    return group ? (group.name.charAt(0).toUpperCase() + group.name.slice(1)) : '';
+    return group ? (group.customName || group.name.charAt(0).toUpperCase() + group.name.slice(1)) : '';
   };
   
   const getSubElementGroupName = (id: number) => {
