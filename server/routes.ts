@@ -5795,6 +5795,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register AI Reporting routes
   registerAiReportingRoutes(app);
   console.log("AI Reporting routes registered");
+  
+  // Register AI Customization routes
+  registerAICustomizationRoutes(app, isAuthenticated, hasTenantAccess, databaseStorage);
+  console.log("AI Customization routes registered");
 
   // Create an HTTP server
   const httpServer = createServer(app);
