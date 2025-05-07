@@ -181,7 +181,7 @@ Current date: ${new Date().toLocaleDateString()}
             userQuery: userMessage.content,
             aiResponse: responseContent,
             provider: config.provider,
-            model: config.model || 'default', // Use the model name
+            modelId: config.model || 'default', // Use model ID in the modelId field
             processingTimeMs,
             feedbackRating: null,  // Will be updated later when user provides feedback
             feedbackComment: null  // Will be updated later when user provides feedback
@@ -211,7 +211,7 @@ Current date: ${new Date().toLocaleDateString()}
             userQuery: userMessage.content,
             aiResponse: `Error: ${innerError.message || "Unknown error"}`,
             provider: config.provider,
-            model: config.model || 'default',
+            modelId: config.model || 'default',
             processingTimeMs: Date.now() - startTime,
             feedbackRating: null,
             feedbackComment: null
