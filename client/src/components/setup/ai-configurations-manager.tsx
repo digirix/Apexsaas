@@ -122,7 +122,7 @@ export default function AiConfigurationsManager() {
     defaultValues: {
       provider: 'OpenAI',
       apiKey: '',
-      modelId: 'openai/gpt-4-turbo',
+      model: 'openai/gpt-4-turbo',
       isActive: true,
     },
   });
@@ -137,7 +137,7 @@ export default function AiConfigurationsManager() {
       form.reset({
         provider: 'OpenAI',
         apiKey: '',
-        modelId: 'google/gemini-flash-1.5-8b-exp',
+        model: 'google/gemini-flash-1.5-8b-exp',
         isActive: true,
       });
     }
@@ -327,7 +327,7 @@ export default function AiConfigurationsManager() {
     form.reset({
       provider: 'OpenAI',
       apiKey: '',
-      modelId: 'google/gemini-flash-1.5-8b-exp',
+      model: 'google/gemini-flash-1.5-8b-exp',
       isActive: true,
     });
     setIsOpen(true);
@@ -338,11 +338,11 @@ export default function AiConfigurationsManager() {
     
     // Set default model based on provider
     if (value === 'OpenAI') {
-      form.setValue("modelId", "google/gemini-flash-1.5-8b-exp");
+      form.setValue("model", "google/gemini-flash-1.5-8b-exp");
     } else if (value === 'Google') {
-      form.setValue("modelId", "gemini-1.5-pro");
+      form.setValue("model", "gemini-1.5-pro");
     } else {
-      form.setValue("modelId", "anthropic/claude-3-haiku-20240307");
+      form.setValue("model", "anthropic/claude-3-haiku-20240307");
     }
   };
 
@@ -394,7 +394,7 @@ export default function AiConfigurationsManager() {
                         {config.isActive ? "Enabled" : "Disabled"}
                       </Badge>
                       <span className="text-sm text-slate-500">
-                        Model: {config.modelId}
+                        Model: {config.model}
                       </span>
                     </div>
                   </div>
@@ -519,7 +519,7 @@ export default function AiConfigurationsManager() {
 
                 <FormField
                   control={form.control}
-                  name="modelId"
+                  name="model"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Default Model</FormLabel>
