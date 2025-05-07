@@ -86,37 +86,89 @@ something or the information is not in the provided context, be honest about it.
       // Record start time for processing time calculation
       const startTime = Date.now();
       
-      // Query the AI with the tenant's configuration
-      const aiResponse = await queryAI(
-        config.provider,
-        config.apiKey,
-        config.model || 'google/gemini-flash-1.5-8b-exp', // Default model if not specified
-        messages,
-        systemPrompt
-      );
-      
-      // Calculate processing time
-      const processingTimeMs = Date.now() - startTime;
-      
-      // Log conversation with expanded analytics
-      await db.logAiInteraction({
-        tenantId,
-        userId: req.user.id,
-        timestamp: new Date(),
-        userQuery: userMessage.content,
-        aiResponse: aiResponse.choices[0].message.content,
-        provider: config.provider,
-        modelId: config.model || 'default', // Use model instead of modelId
-        processingTimeMs,
-        feedbackRating: null,  // Will be updated later when user provides feedback
-        feedbackComment: null  // Will be updated later when user provides feedback
-      });
-      
-      // Return the AI response to the client
-      return res.json({
-        message: aiResponse.choices[0].message,
-        conversationId: conversationId || `chat-${Date.now()}`
-      });
+      try {
+        console.log(`Querying AI for tenant ${tenantId} with provider: ${config.provider}, model: ${config.model || 'google/gemini-flash-1.5-8b-exp'}`);
+        
+        // Query the AI with the tenant's configuration
+        const aiResponse = await queryAI(
+          config.provider,
+          config.apiKey,
+          config.model || 'google/gemini-flash-1.5-8b-exp', // Default model if not specified
+          messages,
+          systemPrompt
+        );
+        
+        // Calculate processing time
+        const processingTimeMs = Date.now() - startTime;
+        
+        console.log("AI response structure:", JSON.stringify({
+          model: aiResponse.model,
+          choicesCount: aiResponse.choices?.length || 0,
+          hasContent: aiResponse.choices?.[0]?.message?.content ? true : false
+        }));
+        
+        // Validate the response structure
+        if (!aiResponse.choices || !Array.isArray(aiResponse.choices) || aiResponse.choices.length === 0) {
+          console.error("Invalid AI response structure:", aiResponse);
+          throw new Error("Received invalid response from AI provider");
+        }
+        
+        // Safely extract the first choice
+        const choice = aiResponse.choices[0];
+        
+        // Ensure message and content exist
+        if (!choice.message || typeof choice.message.content !== 'string') {
+          console.error("Invalid message structure in choice:", choice);
+          throw new Error("AI response missing message content");
+        }
+        
+        const responseContent = choice.message.content;
+        
+        // Log conversation with expanded analytics
+        await db.logAiInteraction({
+          tenantId,
+          userId: req.user.id,
+          timestamp: new Date(),
+          userQuery: userMessage.content,
+          aiResponse: responseContent,
+          provider: config.provider,
+          modelId: config.model || 'default', // Use model instead of modelId
+          processingTimeMs,
+          feedbackRating: null,  // Will be updated later when user provides feedback
+          feedbackComment: null  // Will be updated later when user provides feedback
+        });
+        
+        // Return the AI response to the client with properly structured message
+        return res.json({
+          message: {
+            role: "assistant",
+            content: responseContent
+          },
+          conversationId: conversationId || `chat-${Date.now()}`
+        });
+      } catch (innerError) {
+        console.error("Error processing AI response:", innerError);
+        
+        // Log the failed interaction
+        try {
+          await db.logAiInteraction({
+            tenantId,
+            userId: req.user.id,
+            timestamp: new Date(),
+            userQuery: userMessage.content,
+            aiResponse: `Error: ${innerError.message || "Unknown error"}`,
+            provider: config.provider,
+            modelId: config.model || 'default',
+            processingTimeMs: Date.now() - startTime,
+            feedbackRating: null,
+            feedbackComment: null
+          });
+        } catch (logError) {
+          console.error("Failed to log AI error:", logError);
+        }
+        
+        throw innerError; // Re-throw to be caught by the outer try/catch
+      }
     } catch (error: any) {
       console.error('Error in chat API:', error);
       return res.status(500).json({ 

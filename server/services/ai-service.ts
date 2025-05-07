@@ -116,10 +116,34 @@ export const queryOpenRouter = async (
 
     const data: OpenRouterResponse = await response.json();
     
+    console.log("OpenRouter response data:", JSON.stringify(data));
+    
+    // Check if the response has the expected structure
+    if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+      console.error("Invalid response format from OpenRouter:", data);
+      throw new Error("Invalid response format from OpenRouter API");
+    }
+    
+    // Ensure the response has the required fields
+    const choices = data.choices.map(choice => {
+      // Make sure each choice has a message with content
+      if (!choice.message || !choice.message.content) {
+        console.warn("Choice missing message or content:", choice);
+        return {
+          ...choice,
+          message: {
+            role: "assistant",
+            content: "I apologize, but I couldn't generate a proper response."
+          }
+        };
+      }
+      return choice;
+    });
+    
     // Return in standardized format
     return {
-      choices: data.choices,
-      model: data.model
+      choices: choices,
+      model: data.model || formattedModel
     };
   } catch (error: any) {
     console.error("Error querying OpenRouter:", error.message);
