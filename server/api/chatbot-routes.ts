@@ -2,6 +2,8 @@ import { Express, Request, Response } from 'express';
 import { DatabaseStorage } from '../database-storage';
 import { queryAI } from '../services/ai-service';
 import { fetchTenantDataForQuery } from '../services/chatbot-data-service';
+import { classifyQuery } from '../services/query-classifier-service';
+import { sql } from 'drizzle-orm';
 
 interface AiInteractionFeedback {
   interactionId: number;
@@ -94,11 +96,26 @@ export const registerChatbotRoutes = (app: Express, isAuthenticated: any, db: Da
       // Log details for debugging
       console.log(`Fetching data for user ${currentUser.id} (${currentUser.email}) of tenant ${tenantId}`);
       
-      // Create a system prompt that includes tenant-specific data
-      const tenantData = await fetchTenantDataForQuery(tenantId, userMessage.content, currentUser);
+      // Classify the query to determine if it needs database context or is a general knowledge question
+      const queryClassification = classifyQuery(userMessage.content);
+      console.log(`Query classification: ${JSON.stringify(queryClassification)}`);
       
-      // Create a system prompt that includes tenant-specific context
-      const systemPrompt = `
+      // Fetch tenant data if the query is database-related or hybrid
+      let tenantData = '';
+      if (queryClassification.type === 'database' || queryClassification.type === 'hybrid') {
+        console.log(`Query is database-related, fetching tenant data...`);
+        tenantData = await fetchTenantDataForQuery(tenantId, userMessage.content, currentUser);
+      } else {
+        console.log(`Query is general knowledge, skipping tenant data fetch`);
+        tenantData = "This appears to be a general knowledge question, not related to your tenant data.";
+      }
+      
+      // Create a system prompt based on the query classification
+      let systemPrompt = '';
+      
+      if (queryClassification.type === 'database') {
+        // Database-specific system prompt
+        systemPrompt = `
 You are an AI assistant for an accounting firm management platform. You're currently helping ${currentUser.displayName} at ${tenantName} (Tenant ID: ${tenantId}).
 
 IMPORTANT CONTEXT - You have direct access to this tenant's database. You already know:
@@ -128,7 +145,66 @@ INSTRUCTIONS FOR RESPONDING:
 8. For general accounting questions, provide knowledgeable accounting advice.
 
 Current date: ${new Date().toLocaleDateString()}
-      `.trim();
+        `.trim();
+      } else if (queryClassification.type === 'hybrid') {
+        // Hybrid system prompt for questions that might need both database context and general knowledge
+        systemPrompt = `
+You are an AI assistant for an accounting firm management platform. You're currently helping ${currentUser.displayName} at ${tenantName} (Tenant ID: ${tenantId}).
+
+You have two capabilities:
+1. You can access this user's accounting data to answer specific questions about their business
+2. You can provide general knowledge responses like ChatGPT 
+
+The user's question appears to need both tenant-specific data and general knowledge.
+
+TENANT DATA CONTEXT:
+${tenantData}
+
+INSTRUCTIONS FOR RESPONDING:
+1. If the question relates to the user's specific accounting data, reference the tenant data provided above.
+2. If the question requires general knowledge not related to their specific data, provide a helpful answer drawing on your training.
+3. For hybrid questions, combine both data-specific insights and general knowledge.
+4. When referring to tenant-specific information, say "Based on your tenant data..."
+5. For general knowledge portions, make it clear you're providing general information.
+6. Be conversational, informative, and accurate.
+7. Format financial data clearly with proper currency symbols and decimal places.
+
+Current date: ${new Date().toLocaleDateString()}
+        `.trim();
+      } else {
+        // General knowledge system prompt (like ChatGPT)
+        systemPrompt = `
+You are an AI assistant for an accounting firm management platform, but you also function as a general knowledge assistant similar to ChatGPT.
+
+The current question appears to be a general knowledge question not specific to the user's accounting data.
+
+INSTRUCTIONS FOR RESPONDING:
+1. Provide a comprehensive, accurate response drawing on your general knowledge.
+2. Be conversational, informative, and helpful.
+3. If the topic relates to accounting, finance, taxation, or business administration, provide expert-level information.
+4. If the question involves current events beyond your training data, mention your knowledge cutoff date.
+5. If the question requires specific user data that you don't have, suggest they rephrase to ask about their specific accounting information.
+6. Be ethical and helpful while maintaining professional boundaries.
+7. You may provide code examples, explanations of concepts, or general advice as appropriate.
+
+Current date: ${new Date().toLocaleDateString()}
+        `.trim();
+      }
+      
+      // If it's about app features, add some extra context
+      if (queryClassification.isAboutApplicationFeatures) {
+        systemPrompt += `\n\nAPPLICATION FEATURES CONTEXT:
+This is an accounting firm management platform with features including:
+- Client and entity management
+- Invoice and payment tracking
+- Journal entries and accounting records
+- Chart of accounts management
+- Tax calculation and reporting
+- Task management and assignments
+- Financial reporting and analysis
+- AI-powered assistant for data analysis and general help
+`;
+      }
       
       // Record start time for processing time calculation
       const startTime = Date.now();
