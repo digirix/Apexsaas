@@ -30,7 +30,7 @@ export const registerChatbotRoutes = (app: Express, isAuthenticated: any, db: Da
       return res.json({
         isAvailable: true,
         provider: config.provider,
-        model: config.modelId || 'default'
+        model: config.modelId || 'anthropic/claude-3-haiku-20240307'
       });
     } catch (error) {
       console.error('Error checking chat availability:', error);
@@ -85,7 +85,7 @@ something or the information is not in the provided context, be honest about it.
       const aiResponse = await queryAI(
         config.provider,
         config.apiKey,
-        config.modelId || 'google/gemini-flash-1.5-8b-exp', // Default model if not specified
+        config.modelId || 'anthropic/claude-3-haiku-20240307', // Default model if not specified
         messages,
         systemPrompt
       );
@@ -110,7 +110,7 @@ something or the information is not in the provided context, be honest about it.
         userQuery: userMessage.content,
         aiResponse: aiResponseContent,
         provider: config.provider,
-        modelId: config.modelId || 'default',
+        modelId: config.modelId || 'anthropic/claude-3-haiku-20240307',
         processingTimeMs,
         feedbackRating: null,  // Will be updated later when user provides feedback
         feedbackComment: null  // Will be updated later when user provides feedback
