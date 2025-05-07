@@ -3,7 +3,7 @@ import {
   entityTypes, taskStatuses, taskStatusWorkflowRules, taxJurisdictions, serviceTypes, 
   clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions, 
   userPermissions, invoices, invoiceLineItems, payments, paymentGatewaySettings, chartOfAccounts,
-  journalEntries, journalEntryLines, journalEntryTypes, aiConfigurations
+  journalEntries, journalEntryLines, journalEntryTypes, aiConfigurations, aiInteractions, aiAssistantCustomizations
 } from "@shared/schema";
 import type { 
   Tenant, User, InsertUser, InsertTenant, 
@@ -23,7 +23,9 @@ import type {
   JournalEntry, InsertJournalEntry, JournalEntryLine, InsertJournalEntryLine,
   JournalEntryType, InsertJournalEntryType,
   // AI module types
-  AiConfiguration, InsertAiConfiguration
+  AiConfiguration, InsertAiConfiguration,
+  AiInteraction, InsertAiInteraction,
+  AiAssistantCustomization, InsertAiAssistantCustomization
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -331,6 +333,14 @@ export interface IStorage {
   updateAiConfiguration(id: number, config: Partial<InsertAiConfiguration>): Promise<AiConfiguration | undefined>;
   deleteAiConfiguration(id: number, tenantId: number): Promise<boolean>;
   testAiConfiguration(id: number, tenantId: number): Promise<{success: boolean, message: string}>;
+  
+  // AI Assistant Customization operations
+  getAiAssistantCustomizations(tenantId: number): Promise<AiAssistantCustomization[]>;
+  getAiAssistantCustomization(id: number, tenantId: number): Promise<AiAssistantCustomization | undefined>;
+  getUserAiAssistantCustomization(tenantId: number, userId: number): Promise<AiAssistantCustomization | undefined>;
+  createAiAssistantCustomization(customization: InsertAiAssistantCustomization): Promise<AiAssistantCustomization>;
+  updateAiAssistantCustomization(id: number, customization: Partial<InsertAiAssistantCustomization>): Promise<AiAssistantCustomization | undefined>;
+  deleteAiAssistantCustomization(id: number, tenantId: number): Promise<boolean>;
   
   // AI Interaction logging
   logAiInteraction(interaction: InsertAiInteraction): Promise<AiInteraction>;
