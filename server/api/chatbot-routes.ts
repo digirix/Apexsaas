@@ -15,10 +15,14 @@ export const registerChatbotRoutes = (app: Express, isAuthenticated: any, db: Da
     try {
       const tenantId = req.user.tenantId;
       
+      console.log(`Checking chat availability for tenant: ${tenantId}`);
+      
       // Get AI configuration for this tenant using the correct method
       const config = await db.getActiveTenantAiConfiguration(tenantId);
+      console.log('AI config found:', config);
       
       if (!config || !config.isActive || !config.provider || !config.apiKey) {
+        console.log('AI not available, returning false');
         return res.json({ 
           isAvailable: false,
           provider: null,
@@ -27,6 +31,7 @@ export const registerChatbotRoutes = (app: Express, isAuthenticated: any, db: Da
       }
       
       // Return status indicating chat is available
+      console.log(`AI available: provider=${config.provider}, model=${config.model}`);
       return res.json({
         isAvailable: true,
         provider: config.provider,
