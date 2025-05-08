@@ -75,9 +75,14 @@ function ClientTasks({ clientId }: { clientId: number }) {
     }
   };
   
-  // Handle view task details
+  // Handle view task details - include client ID in the URL for context
   const handleViewTask = (taskId: number) => {
-    setLocation(`/tasks/${taskId}`);
+    setLocation(`/tasks/${taskId}?clientId=${clientId}`);
+  };
+  
+  // Handle creating a task for this client
+  const handleCreateTask = () => {
+    setLocation(`/tasks/create?clientId=${clientId}`);
   };
   
   if (isTasksLoading) {
@@ -90,34 +95,41 @@ function ClientTasks({ clientId }: { clientId: number }) {
   
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-3 items-center">
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
-          <Input
-            type="search"
-            placeholder="Search tasks..." 
-            className="pl-9"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-3 items-center">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
+            <Input
+              type="search"
+              placeholder="Search tasks..." 
+              className="pl-9"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <Select
+            value={statusFilter || "all"}
+            onValueChange={(value) => setStatusFilter(value === "all" ? null : value)}
+          >
+            <SelectTrigger className="w-full sm:w-40">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              {taskStatuses.map((status) => (
+                <SelectItem key={status.id} value={status.id.toString()}>
+                  {status.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         
-        <Select
-          value={statusFilter || "all"}
-          onValueChange={(value) => setStatusFilter(value === "all" ? null : value)}
-        >
-          <SelectTrigger className="w-full sm:w-40">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            {taskStatuses.map((status) => (
-              <SelectItem key={status.id} value={status.id.toString()}>
-                {status.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Button size="sm" onClick={handleCreateTask} className="mt-3 sm:mt-0">
+          <Plus className="-ml-0.5 mr-2 h-4 w-4" />
+          Create Task
+        </Button>
       </div>
       
       {filteredTasks.length === 0 ? (
@@ -221,9 +233,9 @@ function ClientInvoices({ clientId }: { clientId: number }) {
     }).format(Number(amount));
   };
   
-  // Handle view invoice details
+  // Handle view invoice details - include client ID in context
   const handleViewInvoice = (invoiceId: number) => {
-    setLocation(`/finance/invoices/${invoiceId}`);
+    setLocation(`/finance/invoices/${invoiceId}?clientId=${clientId}`);
   };
   
   if (isInvoicesLoading) {
@@ -327,7 +339,7 @@ function ClientInvoices({ clientId }: { clientId: number }) {
                           <Button
                             variant="link"
                             className="text-green-500 hover:text-green-600"
-                            onClick={() => setLocation(`/finance/invoices/${invoice.id}/payment`)}
+                            onClick={() => setLocation(`/finance/invoices/${invoice.id}/payment?clientId=${clientId}`)}
                           >
                             Pay
                           </Button>
