@@ -39,9 +39,9 @@ export class TaskScheduler {
    */
   public async generateRecurringTasksForTenant(tenantId: number): Promise<void> {
     try {
-      // Get lead days setting for this tenant, or use default
-      const leadDaysSetting = await this.storage.getTenantSetting(tenantId, "recurring_task_lead_days");
-      const leadDays = leadDaysSetting ? parseInt(leadDaysSetting.value) : DEFAULT_LEAD_DAYS;
+      // Get auto generate days setting or use default
+      const autoGenerateSetting = await this.storage.getTenantSetting(tenantId, "auto_generate_task_days");
+      const leadDays = autoGenerateSetting ? parseInt(autoGenerateSetting.value) : DEFAULT_LEAD_DAYS;
       
       // Get all recurring tasks for this tenant
       const allTasks = await this.storage.getTasks(tenantId);
