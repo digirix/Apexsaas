@@ -417,6 +417,14 @@ export function AddTaskModal({ isOpen, onClose, taskType, preselectedClientId }:
   }
   
   // Effect to calculate compliance end date based on frequency and start date
+  // Set preselected client ID when modal opens
+  useEffect(() => {
+    if (isOpen && taskType === "revenue" && preselectedClientId) {
+      console.log("Setting preselected client ID:", preselectedClientId);
+      revenueTaskForm.setValue("clientId", preselectedClientId);
+    }
+  }, [isOpen, taskType, preselectedClientId, revenueTaskForm]);
+  
   useEffect(() => {
     const frequency = revenueTaskForm.watch("complianceFrequency");
     const startDate = revenueTaskForm.watch("complianceStartDate");

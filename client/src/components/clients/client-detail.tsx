@@ -24,6 +24,7 @@ import { EntityConfigModal } from "./entity-config-modal";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { EditClientModal } from "./edit-client-modal";
 import { TaskDetails } from "@/components/tasks/task-details";
+import { AddTaskModal } from "@/components/tasks/add-task-modal";
 
 
 interface ClientDetailProps {
@@ -363,6 +364,7 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
   const [isEditEntityModalOpen, setIsEditEntityModalOpen] = useState(false);
   const [isEditClientModalOpen, setIsEditClientModalOpen] = useState(false);
   const [isDeleteEntityModalOpen, setIsDeleteEntityModalOpen] = useState(false);
+  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   const [selectedEntityId, setSelectedEntityId] = useState<number | null>(null);
   const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -892,7 +894,7 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
                   </Button>
                   <Button 
                     size="sm"
-                    onClick={() => setLocation(`/tasks/new?clientId=${clientId}`)}
+                    onClick={() => setIsAddTaskModalOpen(true)}
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     Create Task
@@ -987,6 +989,14 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
         title="Delete Entity"
         description={`Are you sure you want to delete entity "${selectedEntity?.name}"? This action cannot be undone.`}
         isLoading={isDeleting}
+      />
+      
+      {/* Add Task Modal */}
+      <AddTaskModal
+        isOpen={isAddTaskModalOpen}
+        onClose={() => setIsAddTaskModalOpen(false)}
+        taskType="revenue"
+        preselectedClientId={clientId.toString()}
       />
     </>
   );
