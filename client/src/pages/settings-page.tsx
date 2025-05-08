@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { AppLayout } from "@/components/layout/app-layout";
+import React, { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { SettingsNavigation } from "@/components/settings/settings-navigation";
 import { GeneralSettings } from "@/components/settings/general-settings";
 import { SecuritySettings } from "@/components/settings/security-settings";
@@ -9,41 +9,91 @@ import { BackupSettings } from "@/components/settings/backup-settings";
 import { TaskSettings } from "@/components/settings/task-settings";
 import { InvoiceSettings } from "@/components/settings/invoice-settings";
 import { IntegrationSettings } from "@/components/settings/integration-settings";
-
-export type SettingsSection = 
-  'general' | 
-  'security' | 
-  'display' | 
-  'notifications' | 
-  'backup' | 
-  'tasks' | 
-  'invoices' | 
-  'integrations';
+import { useAuth } from "@/hooks/use-auth";
+import { Loader2 } from "lucide-react";
 
 export default function SettingsPage() {
-  const [activeSection, setActiveSection] = useState<SettingsSection>('general');
-
+  const { user, isLoading } = useAuth();
+  const [location] = useLocation();
+  const [activeCategory, setActiveCategory] = useState("general");
+  
+  // Extract the category from URL query parameters if present
+  useEffect(() => {
+    const params = new URLSearchParams(location.split("?")[1]);
+    const category = params.get("category");
+    if (category) {
+      setActiveCategory(category);
+    }
+  }, [location]);
+  
+  // Handle category change
+  const handleCategoryChange = (category: string) => {
+    setActiveCategory(category);
+  };
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+  
+  if (!user) {
+    // Redirect to login page or show access denied message
+    return (
+      <div className="flex flex-col items-center justify-center h-screen">
+        <h1 className="text-2xl font-semibold mb-4">Access Denied</h1>
+        <p className="text-muted-foreground">Please log in to access settings.</p>
+      </div>
+    );
+  }
+  
+  // Render the appropriate settings component based on active category
+  const renderSettingsContent = () => {
+    switch (activeCategory) {
+      case "general":
+        return <GeneralSettings />;
+      case "security":
+        return <SecuritySettings />;
+      case "display":
+        return <DisplaySettings />;
+      case "notifications":
+        return <NotificationSettings />;
+      case "backup":
+        return <BackupSettings />;
+      case "tasks":
+        return <TaskSettings />;
+      case "invoices":
+        return <InvoiceSettings />;
+      case "integrations":
+        return <IntegrationSettings />;
+      case "reports":
+        return (
+          <div className="p-8 text-center">
+            <h2 className="text-xl font-semibold">Report Settings</h2>
+            <p className="text-muted-foreground mt-2">
+              Report settings are coming soon. This feature is under development.
+            </p>
+          </div>
+        );
+      default:
+        return <GeneralSettings />;
+    }
+  };
+  
   return (
-    <AppLayout title="Settings">
-      <div className="flex flex-col md:flex-row gap-6">
-        <div className="w-full md:w-64 flex-shrink-0">
-          <SettingsNavigation 
-            activeSection={activeSection} 
-            onSectionChange={setActiveSection} 
-          />
-        </div>
+    <div className="container mx-auto px-4 py-6">
+      <div className="flex flex-col md:flex-row gap-6 bg-background rounded-lg shadow-sm">
+        <SettingsNavigation 
+          activeCategory={activeCategory} 
+          onCategoryChange={handleCategoryChange} 
+        />
         
-        <div className="flex-1">
-          {activeSection === 'general' && <GeneralSettings />}
-          {activeSection === 'security' && <SecuritySettings />}
-          {activeSection === 'display' && <DisplaySettings />}
-          {activeSection === 'notifications' && <NotificationSettings />}
-          {activeSection === 'backup' && <BackupSettings />}
-          {activeSection === 'tasks' && <TaskSettings />}
-          {activeSection === 'invoices' && <InvoiceSettings />}
-          {activeSection === 'integrations' && <IntegrationSettings />}
+        <div className="flex-1 p-4">
+          {renderSettingsContent()}
         </div>
       </div>
-    </AppLayout>
+    </div>
   );
 }

@@ -3,17 +3,17 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { TenantSetting, TaskStatus } from "@shared/schema";
+import { TenantSetting } from "@shared/schema";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Save, HelpCircle } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Plus, Save, X } from "lucide-react";
 
 export function TaskSettings() {
   const { toast } = useToast();
@@ -21,28 +21,38 @@ export function TaskSettings() {
   const [loading, setLoading] = useState(false);
   
   // Form state
-  const [defaultAssigneeId, setDefaultAssigneeId] = useState("");
-  const [defaultTaskStatusId, setDefaultTaskStatusId] = useState("");
-  const [showComplianceCalendarReminders, setShowComplianceCalendarReminders] = useState(true);
-  const [taskReminderDays, setTaskReminderDays] = useState("3,7,1");
-  const [defaultLeadTime, setDefaultLeadTime] = useState("30");
-  const [autoCreateInvoice, setAutoCreateInvoice] = useState(false);
-  const [markCompletedOnInvoice, setMarkCompletedOnInvoice] = useState(true);
+  const [defaultTaskPriority, setDefaultTaskPriority] = useState("medium");
+  const [defaultDueDays, setDefaultDueDays] = useState("7");
+  const [enableAutomaticAssignment, setEnableAutomaticAssignment] = useState(false);
+  const [enableTaskDeadlines, setEnableTaskDeadlines] = useState(true);
+  const [enableTaskReminders, setEnableTaskReminders] = useState(true);
+  const [reminderDays, setReminderDays] = useState("1,3");
+  const [enableRecurringTasks, setEnableRecurringTasks] = useState(true);
+  const [showCompletedTasks, setShowCompletedTasks] = useState("30");
+  const [defaultTaskView, setDefaultTaskView] = useState("list");
+  const [taskCategories, setTaskCategories] = useState<string[]>([
+    "Administrative", "Client Communication", "Tax Preparation", "Bookkeeping", "Financial Statement", "Audit"
+  ]);
+  const [newCategory, setNewCategory] = useState("");
+  const [customTaskStatuses, setCustomTaskStatuses] = useState<string[]>([
+    "Not Started", "In Progress", "On Hold", "Completed", "Canceled"
+  ]);
+  const [newStatus, setNewStatus] = useState("");
+  const [defaultAssignee, setDefaultAssignee] = useState("0");
+  const [enableTaskDependencies, setEnableTaskDependencies] = useState(true);
+  const [taskTimeTracking, setTaskTimeTracking] = useState(true);
+  const [enableTaskComments, setEnableTaskComments] = useState(true);
+  const [enableTaskAttachments, setEnableTaskAttachments] = useState(true);
+  const [enableTaskNotes, setEnableTaskNotes] = useState(true);
   
   // Fetch settings
-  const { data: settings = [], isLoading: settingsLoading } = useQuery<TenantSetting[]>({
+  const { data: settings = [], isLoading: isSettingsLoading } = useQuery<TenantSetting[]>({
     queryKey: ["/api/v1/tenant/settings"],
     refetchOnWindowFocus: false
   });
   
-  // Fetch task statuses for dropdown
-  const { data: taskStatuses = [], isLoading: statusesLoading } = useQuery<TaskStatus[]>({
-    queryKey: ["/api/v1/setup/task-statuses"],
-    refetchOnWindowFocus: false
-  });
-  
-  // Fetch users for dropdown
-  const { data: users = [], isLoading: usersLoading } = useQuery({
+  // Fetch users for assignee selection
+  const { data: users, isLoading: isUsersLoading } = useQuery({
     queryKey: ["/api/v1/users"],
     refetchOnWindowFocus: false
   });
@@ -71,13 +81,32 @@ export function TaskSettings() {
         return setting ? setting.value : "";
       };
       
-      setDefaultAssigneeId(getSetting("default_assignee_id") || "");
-      setDefaultTaskStatusId(getSetting("default_task_status_id") || "");
-      setShowComplianceCalendarReminders(getSetting("show_compliance_calendar_reminders") !== "false");
-      setTaskReminderDays(getSetting("task_reminder_days") || "3,7,1");
-      setDefaultLeadTime(getSetting("default_lead_time") || "30");
-      setAutoCreateInvoice(getSetting("auto_create_invoice") === "true");
-      setMarkCompletedOnInvoice(getSetting("mark_completed_on_invoice") !== "false");
+      setDefaultTaskPriority(getSetting("default_task_priority") || "medium");
+      setDefaultDueDays(getSetting("default_task_due_days") || "7");
+      setEnableAutomaticAssignment(getSetting("enable_automatic_assignment") === "true");
+      setEnableTaskDeadlines(getSetting("enable_task_deadlines") !== "false");
+      setEnableTaskReminders(getSetting("enable_task_reminders") !== "false");
+      setReminderDays(getSetting("task_reminder_days") || "1,3");
+      setEnableRecurringTasks(getSetting("enable_recurring_tasks") !== "false");
+      setShowCompletedTasks(getSetting("show_completed_tasks_days") || "30");
+      setDefaultTaskView(getSetting("default_task_view") || "list");
+      
+      const savedCategories = getSetting("task_categories");
+      if (savedCategories) {
+        setTaskCategories(JSON.parse(savedCategories));
+      }
+      
+      const savedStatuses = getSetting("custom_task_statuses");
+      if (savedStatuses) {
+        setCustomTaskStatuses(JSON.parse(savedStatuses));
+      }
+      
+      setDefaultAssignee(getSetting("default_assignee") || "0");
+      setEnableTaskDependencies(getSetting("enable_task_dependencies") !== "false");
+      setTaskTimeTracking(getSetting("task_time_tracking") !== "false");
+      setEnableTaskComments(getSetting("enable_task_comments") !== "false");
+      setEnableTaskAttachments(getSetting("enable_task_attachments") !== "false");
+      setEnableTaskNotes(getSetting("enable_task_notes") !== "false");
     }
   }, [settings]);
   
@@ -88,13 +117,23 @@ export function TaskSettings() {
     try {
       // Create array of settings to save
       const settingsToSave = [
-        { key: "default_assignee_id", value: defaultAssigneeId },
-        { key: "default_task_status_id", value: defaultTaskStatusId },
-        { key: "show_compliance_calendar_reminders", value: showComplianceCalendarReminders.toString() },
-        { key: "task_reminder_days", value: taskReminderDays },
-        { key: "default_lead_time", value: defaultLeadTime },
-        { key: "auto_create_invoice", value: autoCreateInvoice.toString() },
-        { key: "mark_completed_on_invoice", value: markCompletedOnInvoice.toString() }
+        { key: "default_task_priority", value: defaultTaskPriority },
+        { key: "default_task_due_days", value: defaultDueDays },
+        { key: "enable_automatic_assignment", value: enableAutomaticAssignment.toString() },
+        { key: "enable_task_deadlines", value: enableTaskDeadlines.toString() },
+        { key: "enable_task_reminders", value: enableTaskReminders.toString() },
+        { key: "task_reminder_days", value: reminderDays },
+        { key: "enable_recurring_tasks", value: enableRecurringTasks.toString() },
+        { key: "show_completed_tasks_days", value: showCompletedTasks },
+        { key: "default_task_view", value: defaultTaskView },
+        { key: "task_categories", value: JSON.stringify(taskCategories) },
+        { key: "custom_task_statuses", value: JSON.stringify(customTaskStatuses) },
+        { key: "default_assignee", value: defaultAssignee },
+        { key: "enable_task_dependencies", value: enableTaskDependencies.toString() },
+        { key: "task_time_tracking", value: taskTimeTracking.toString() },
+        { key: "enable_task_comments", value: enableTaskComments.toString() },
+        { key: "enable_task_attachments", value: enableTaskAttachments.toString() },
+        { key: "enable_task_notes", value: enableTaskNotes.toString() }
       ];
       
       // Save each setting
@@ -117,7 +156,75 @@ export function TaskSettings() {
     }
   };
   
-  const isLoading = settingsLoading || statusesLoading || usersLoading;
+  // Handle adding a new task category
+  const handleAddCategory = () => {
+    if (newCategory.trim() === "") {
+      toast({
+        title: "Invalid Category",
+        description: "Please enter a category name.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (taskCategories.includes(newCategory.trim())) {
+      toast({
+        title: "Duplicate Category",
+        description: "This category already exists.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setTaskCategories([...taskCategories, newCategory.trim()]);
+    setNewCategory("");
+  };
+  
+  // Handle removing a task category
+  const handleRemoveCategory = (category: string) => {
+    setTaskCategories(taskCategories.filter(c => c !== category));
+  };
+  
+  // Handle adding a new task status
+  const handleAddStatus = () => {
+    if (newStatus.trim() === "") {
+      toast({
+        title: "Invalid Status",
+        description: "Please enter a status name.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (customTaskStatuses.includes(newStatus.trim())) {
+      toast({
+        title: "Duplicate Status",
+        description: "This status already exists.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setCustomTaskStatuses([...customTaskStatuses, newStatus.trim()]);
+    setNewStatus("");
+  };
+  
+  // Handle removing a task status
+  const handleRemoveStatus = (status: string) => {
+    // Don't allow removing the first 5 default statuses
+    if (["Not Started", "In Progress", "On Hold", "Completed", "Canceled"].includes(status)) {
+      toast({
+        title: "Cannot Remove Default Status",
+        description: "Default statuses cannot be removed.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setCustomTaskStatuses(customTaskStatuses.filter(s => s !== status));
+  };
+  
+  const isLoading = isSettingsLoading || isUsersLoading;
   
   if (isLoading) {
     return (
@@ -135,159 +242,323 @@ export function TaskSettings() {
     <Card className="w-full">
       <CardHeader>
         <CardTitle>Task Settings</CardTitle>
-        <CardDescription>
-          Configure default task behavior and automation settings
-        </CardDescription>
+        <CardDescription>Configure task behavior and default options</CardDescription>
       </CardHeader>
       
       <CardContent className="space-y-6">
-        <Tabs defaultValue="defaults">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="defaults">Default Values</TabsTrigger>
-            <TabsTrigger value="reminders">Reminders</TabsTrigger>
-            <TabsTrigger value="automation">Automation</TabsTrigger>
-          </TabsList>
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Task Defaults</h3>
           
-          <TabsContent value="defaults" className="space-y-4 pt-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="default-assignee">Default Assignee</Label>
-                <Select 
-                  value={defaultAssigneeId} 
-                  onValueChange={setDefaultAssigneeId}
-                >
-                  <SelectTrigger id="default-assignee">
-                    <SelectValue placeholder="Select a default assignee" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">No Default</SelectItem>
-                    {users.map(user => (
-                      <SelectItem key={user.id} value={user.id.toString()}>
-                        {user.displayName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-sm text-muted-foreground">
-                  The default user assigned to new tasks
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="default-status">Default Task Status</Label>
-                <Select 
-                  value={defaultTaskStatusId} 
-                  onValueChange={setDefaultTaskStatusId}
-                >
-                  <SelectTrigger id="default-status">
-                    <SelectValue placeholder="Select a default status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">No Default</SelectItem>
-                    {taskStatuses.map(status => (
-                      <SelectItem key={status.id} value={status.id.toString()}>
-                        {status.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-sm text-muted-foreground">
-                  The default status for new tasks
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="lead-time">Default Lead Time (days)</Label>
-                <Input 
-                  id="lead-time" 
-                  type="number"
-                  min="0"
-                  value={defaultLeadTime} 
-                  onChange={(e) => setDefaultLeadTime(e.target.value)}
-                  placeholder="30"
-                />
-                <p className="text-sm text-muted-foreground">
-                  Number of days before compliance deadlines to generate tasks
-                </p>
-              </div>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="reminders" className="space-y-4 pt-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="show-reminders">Show Calendar Reminders</Label>
-                <p className="text-sm text-muted-foreground">
-                  Display reminders for upcoming compliance deadlines in the calendar
-                </p>
-              </div>
-              <Switch 
-                id="show-reminders" 
-                checked={showComplianceCalendarReminders}
-                onCheckedChange={setShowComplianceCalendarReminders}
-              />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="default-priority">Default Priority</Label>
+              <Select 
+                value={defaultTaskPriority}
+                onValueChange={setDefaultTaskPriority}
+              >
+                <SelectTrigger id="default-priority">
+                  <SelectValue placeholder="Select default priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             
             <div className="space-y-2">
-              <div className="flex items-center">
-                <Label htmlFor="reminder-days" className="mr-2">Reminder Days</Label>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="w-80">
-                        Comma-separated list of days before the due date to show reminders. For example, "3,7,1" will show reminders 7 days, 3 days, and 1 day before the due date.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
+              <Label htmlFor="default-due-days">Default Due Days</Label>
               <Input 
-                id="reminder-days" 
-                value={taskReminderDays} 
-                onChange={(e) => setTaskReminderDays(e.target.value)}
-                placeholder="3,7,1"
+                id="default-due-days" 
+                type="number"
+                min="1"
+                value={defaultDueDays}
+                onChange={(e) => setDefaultDueDays(e.target.value)}
+                placeholder="7"
               />
+              <p className="text-xs text-muted-foreground">Days until a new task is due</p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="default-assignee">Default Assignee</Label>
+              <Select 
+                value={defaultAssignee}
+                onValueChange={setDefaultAssignee}
+              >
+                <SelectTrigger id="default-assignee">
+                  <SelectValue placeholder="Select default assignee" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">No Default Assignee</SelectItem>
+                  <SelectItem value="current_user">Current User</SelectItem>
+                  {users && users.map(user => (
+                    <SelectItem key={user.id} value={user.id.toString()}>
+                      {user.firstName} {user.lastName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="default-view">Default Task View</Label>
+              <Select 
+                value={defaultTaskView}
+                onValueChange={setDefaultTaskView}
+              >
+                <SelectTrigger id="default-view">
+                  <SelectValue placeholder="Select default view" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="list">List View</SelectItem>
+                  <SelectItem value="kanban">Kanban Board</SelectItem>
+                  <SelectItem value="calendar">Calendar View</SelectItem>
+                  <SelectItem value="gantt">Gantt Chart</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="completed-visibility">Show Completed Tasks</Label>
+              <Select 
+                value={showCompletedTasks}
+                onValueChange={setShowCompletedTasks}
+              >
+                <SelectTrigger id="completed-visibility">
+                  <SelectValue placeholder="Select time period" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">Last 7 days</SelectItem>
+                  <SelectItem value="14">Last 14 days</SelectItem>
+                  <SelectItem value="30">Last 30 days</SelectItem>
+                  <SelectItem value="90">Last 90 days</SelectItem>
+                  <SelectItem value="365">Last year</SelectItem>
+                  <SelectItem value="-1">Always show all</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+        
+        <Separator />
+        
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Task Features</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <Label htmlFor="automatic-assignment">Automatic Assignment</Label>
+                <p className="text-sm text-muted-foreground">Automatically assign tasks based on workload</p>
+              </div>
+              <Switch 
+                id="automatic-assignment" 
+                checked={enableAutomaticAssignment}
+                onCheckedChange={setEnableAutomaticAssignment}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <Label htmlFor="task-deadlines">Task Deadlines</Label>
+                <p className="text-sm text-muted-foreground">Enable due dates for tasks</p>
+              </div>
+              <Switch 
+                id="task-deadlines" 
+                checked={enableTaskDeadlines}
+                onCheckedChange={setEnableTaskDeadlines}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <Label htmlFor="recurring-tasks">Recurring Tasks</Label>
+                <p className="text-sm text-muted-foreground">Allow tasks to recur on a schedule</p>
+              </div>
+              <Switch 
+                id="recurring-tasks" 
+                checked={enableRecurringTasks}
+                onCheckedChange={setEnableRecurringTasks}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <Label htmlFor="task-dependencies">Task Dependencies</Label>
+                <p className="text-sm text-muted-foreground">Allow tasks to depend on completion of other tasks</p>
+              </div>
+              <Switch 
+                id="task-dependencies" 
+                checked={enableTaskDependencies}
+                onCheckedChange={setEnableTaskDependencies}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <Label htmlFor="time-tracking">Time Tracking</Label>
+                <p className="text-sm text-muted-foreground">Enable tracking time spent on tasks</p>
+              </div>
+              <Switch 
+                id="time-tracking" 
+                checked={taskTimeTracking}
+                onCheckedChange={setTaskTimeTracking}
+              />
+            </div>
+          </div>
+        </div>
+        
+        <Separator />
+        
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium">Task Reminders</h3>
               <p className="text-sm text-muted-foreground">
-                Number of days before due date to show reminders (comma-separated)
+                Configure when to send task reminders
               </p>
             </div>
-          </TabsContent>
+            <Switch 
+              checked={enableTaskReminders}
+              onCheckedChange={setEnableTaskReminders}
+            />
+          </div>
           
-          <TabsContent value="automation" className="space-y-4 pt-4">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="auto-invoice">Automatically Create Invoice</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Create an invoice automatically when a billable task is completed
-                  </p>
-                </div>
-                <Switch 
-                  id="auto-invoice" 
-                  checked={autoCreateInvoice}
-                  onCheckedChange={setAutoCreateInvoice}
-                />
+          <div className={`space-y-2 ${!enableTaskReminders ? 'opacity-50' : ''}`}>
+            <Label htmlFor="reminder-days">Reminder Days</Label>
+            <Input 
+              id="reminder-days" 
+              value={reminderDays}
+              onChange={(e) => setReminderDays(e.target.value)}
+              placeholder="1,3"
+              disabled={!enableTaskReminders}
+            />
+            <p className="text-xs text-muted-foreground">Days before due date to send reminders (e.g., 1,3)</p>
+          </div>
+        </div>
+        
+        <Separator />
+        
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Task Content</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <Label htmlFor="task-comments">Task Comments</Label>
+                <p className="text-sm text-muted-foreground">Allow adding comments to tasks</p>
               </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="mark-completed">Mark Task Completed on Invoice Creation</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Automatically mark tasks as completed when an invoice is created
-                  </p>
-                </div>
-                <Switch 
-                  id="mark-completed" 
-                  checked={markCompletedOnInvoice}
-                  onCheckedChange={setMarkCompletedOnInvoice}
-                />
-              </div>
+              <Switch 
+                id="task-comments" 
+                checked={enableTaskComments}
+                onCheckedChange={setEnableTaskComments}
+              />
             </div>
-          </TabsContent>
-        </Tabs>
+            
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <Label htmlFor="task-attachments">Task Attachments</Label>
+                <p className="text-sm text-muted-foreground">Allow file attachments on tasks</p>
+              </div>
+              <Switch 
+                id="task-attachments" 
+                checked={enableTaskAttachments}
+                onCheckedChange={setEnableTaskAttachments}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <Label htmlFor="task-notes">Task Notes</Label>
+                <p className="text-sm text-muted-foreground">Allow adding detailed notes to tasks</p>
+              </div>
+              <Switch 
+                id="task-notes" 
+                checked={enableTaskNotes}
+                onCheckedChange={setEnableTaskNotes}
+              />
+            </div>
+          </div>
+        </div>
+        
+        <Separator />
+        
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Task Categories</h3>
+          
+          <div className="flex flex-wrap gap-2 mb-4">
+            {taskCategories.map((category) => (
+              <Badge key={category} className="flex items-center gap-1 px-3 py-1">
+                {category}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveCategory(category)}
+                  className="text-muted-foreground hover:text-foreground transition-colors ml-1"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+          
+          <div className="flex gap-2">
+            <Input
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              placeholder="Add new category"
+              className="flex-1"
+            />
+            <Button type="button" onClick={handleAddCategory} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Add
+            </Button>
+          </div>
+        </div>
+        
+        <Separator />
+        
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Task Statuses</h3>
+          
+          <div className="flex flex-wrap gap-2 mb-4">
+            {customTaskStatuses.map((status, index) => (
+              <Badge 
+                key={status} 
+                className={`flex items-center gap-1 px-3 py-1 ${
+                  index < 5 ? 'bg-gray-200 hover:bg-gray-200 text-gray-700' : ''
+                }`}
+              >
+                {status}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveStatus(status)}
+                  className={`ml-1 ${
+                    index < 5 ? 'text-gray-400 cursor-not-allowed' : 'text-muted-foreground hover:text-foreground transition-colors'
+                  }`}
+                  disabled={index < 5}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+          
+          <div className="flex gap-2">
+            <Input
+              value={newStatus}
+              onChange={(e) => setNewStatus(e.target.value)}
+              placeholder="Add new status"
+              className="flex-1"
+            />
+            <Button type="button" onClick={handleAddStatus} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Add
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">Note: The first five default statuses cannot be removed</p>
+        </div>
       </CardContent>
       
       <CardFooter className="flex justify-end">

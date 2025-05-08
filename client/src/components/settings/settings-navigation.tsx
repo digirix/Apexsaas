@@ -1,116 +1,124 @@
 import React from "react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { 
-  Globe, 
-  Shield, 
-  Layout, 
-  Bell, 
-  Database, 
-  ClipboardCheck,
-  Receipt,
-  PlugZap
-} from "lucide-react";
+import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { SettingsSection } from "@/pages/settings-page";
+import { 
+  BarChart4,
+  Bell, 
+  Cloud, 
+  Database, 
+  FileText, 
+  Layers, 
+  Settings2, 
+  Shield, 
+  Workflow,
+} from "lucide-react";
 
-interface SettingsNavigationProps {
-  activeSection: SettingsSection;
-  onSectionChange: (section: SettingsSection) => void;
-}
-
-interface NavItem {
-  id: SettingsSection;
-  label: string;
+type SettingCategory = {
+  id: string;
+  name: string;
+  description: string;
   icon: React.ReactNode;
-  description?: string;
-}
+};
 
-export function SettingsNavigation({ activeSection, onSectionChange }: SettingsNavigationProps) {
-  const settingsItems: NavItem[] = [
-    // General settings
-    {
-      id: 'general',
-      label: 'General',
-      icon: <Globe className="h-5 w-5" />,
-      description: 'Basic application settings'
-    },
-    {
-      id: 'security',
-      label: 'Security',
-      icon: <Shield className="h-5 w-5" />,
-      description: 'Password and access settings'
-    },
-    {
-      id: 'display',
-      label: 'Display',
-      icon: <Layout className="h-5 w-5" />,
-      description: 'Appearance and theme settings'
-    },
-    {
-      id: 'notifications',
-      label: 'Notifications',
-      icon: <Bell className="h-5 w-5" />,
-      description: 'Email and alert preferences'
-    },
-    {
-      id: 'backup',
-      label: 'Backup & Restore',
-      icon: <Database className="h-5 w-5" />,
-      description: 'Data backup and restoration'
-    },
-    
-    // Module-specific settings
-    {
-      id: 'tasks',
-      label: 'Tasks',
-      icon: <ClipboardCheck className="h-5 w-5" />,
-      description: 'Task management settings'
-    },
-    {
-      id: 'invoices',
-      label: 'Invoices',
-      icon: <Receipt className="h-5 w-5" />,
-      description: 'Invoice and billing settings'
-    },
-    {
-      id: 'integrations',
-      label: 'Integrations',
-      icon: <PlugZap className="h-5 w-5" />,
-      description: 'External service connections'
-    }
-  ];
+// Define all setting categories
+const settingCategories: SettingCategory[] = [
+  {
+    id: "general",
+    name: "General",
+    description: "Basic account settings and preferences",
+    icon: <Settings2 className="h-5 w-5" />,
+  },
+  {
+    id: "security",
+    name: "Security",
+    description: "Password and authentication options",
+    icon: <Shield className="h-5 w-5" />,
+  },
+  {
+    id: "display",
+    name: "Display",
+    description: "Appearance and theme customization",
+    icon: <Layers className="h-5 w-5" />,
+  },
+  {
+    id: "notifications",
+    name: "Notifications",
+    description: "Manage alerts and notification preferences",
+    icon: <Bell className="h-5 w-5" />,
+  },
+  {
+    id: "backup",
+    name: "Backup & Restore",
+    description: "Data backup and recovery options",
+    icon: <Database className="h-5 w-5" />,
+  },
+  {
+    id: "tasks",
+    name: "Task Settings",
+    description: "Configure task behavior and defaults",
+    icon: <Workflow className="h-5 w-5" />,
+  },
+  {
+    id: "invoices",
+    name: "Invoice Settings",
+    description: "Invoice templates and payment options",
+    icon: <FileText className="h-5 w-5" />,
+  },
+  {
+    id: "reports",
+    name: "Report Settings",
+    description: "Customize reports and analytics",
+    icon: <BarChart4 className="h-5 w-5" />,
+  },
+  {
+    id: "integrations",
+    name: "Integrations",
+    description: "Connect with third-party services",
+    icon: <Cloud className="h-5 w-5" />,
+  },
+];
 
+type SettingsNavigationProps = {
+  activeCategory: string;
+  onCategoryChange: (category: string) => void;
+};
+
+export function SettingsNavigation({ activeCategory, onCategoryChange }: SettingsNavigationProps) {
+  const [_, setLocation] = useLocation();
+  
+  const handleCategoryClick = (categoryId: string) => {
+    onCategoryChange(categoryId);
+    setLocation(`/settings?category=${categoryId}`, { replace: true });
+  };
+  
   return (
-    <Card className="p-4">
-      <h2 className="text-lg font-semibold mb-4">Settings</h2>
-      <div className="space-y-1">
-        {settingsItems.map((item) => (
-          <Button
-            key={item.id}
-            variant="ghost"
-            className={cn(
-              "w-full justify-start",
-              activeSection === item.id ? "bg-blue-50 text-blue-700" : "text-slate-600"
-            )}
-            onClick={() => onSectionChange(item.id)}
-          >
-            {React.cloneElement(item.icon as React.ReactElement, {
-              className: cn(
-                (item.icon as React.ReactElement).props.className,
-                "mr-2",
-                activeSection === item.id ? "text-blue-700" : "text-slate-500"
-              ),
-            })}
-            <div className="flex flex-col items-start">
-              <span>{item.label}</span>
-              {item.description && (
-                <span className="text-xs text-slate-500">{item.description}</span>
-              )}
-            </div>
-          </Button>
-        ))}
+    <div className="w-full md:w-64 flex-shrink-0 border-r border-border bg-card rounded-l-lg overflow-hidden">
+      <div className="p-4 border-b">
+        <h2 className="text-xl font-semibold">Settings</h2>
+        <p className="text-sm text-muted-foreground">Manage your account settings</p>
       </div>
-    </Card>
+      
+      <nav className="space-y-1 p-2">
+        {settingCategories.map((category) => (
+          <button
+            key={category.id}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors",
+              "hover:bg-accent hover:text-accent-foreground",
+              activeCategory === category.id
+                ? "bg-accent text-accent-foreground font-medium"
+                : "text-muted-foreground"
+            )}
+            onClick={() => handleCategoryClick(category.id)}
+          >
+            {category.icon}
+            <div className="text-left">
+              <p className="font-medium">{category.name}</p>
+              <p className="text-xs text-muted-foreground hidden md:block">{category.description}</p>
+            </div>
+          </button>
+        ))}
+      </nav>
+    </div>
   );
 }
