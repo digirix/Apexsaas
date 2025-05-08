@@ -69,21 +69,26 @@ export class TaskScheduler {
   private async processRecurringTask(task: Task, leadDays: number): Promise<void> {
     // Skip processing if task doesn't have compliance information
     if (!task.complianceFrequency || !task.complianceDuration) {
+      console.log(`Skipping task ${task.id} - Missing frequency or duration. Frequency: ${task.complianceFrequency}, Duration: ${task.complianceDuration}`);
       return;
     }
+    
+    console.log(`Processing recurring task ${task.id}: ${task.taskDetails || 'No details'}. Frequency: ${task.complianceFrequency}, Start: ${task.complianceStartDate}, End: ${task.complianceEndDate}`);
     
     // Calculate the next compliance period
     const nextPeriod = this.calculateNextCompliancePeriod(
       task.complianceFrequency, 
-      task.complianceDuration,
+      task.complianceDuration || '',
       new Date() // Current date as reference
     );
     
     if (!nextPeriod) {
+      console.log(`No next period calculated for task ${task.id}`);
       return; // Skip if we couldn't calculate the next period
     }
     
     const { startDate, endDate } = nextPeriod;
+    console.log(`Next period for task ${task.id}: Start: ${startDate.toISOString()}, End: ${endDate.toISOString()}`);
     
     // Check if the task for this period already exists
     const existingTasks = await this.storage.getTasks(
@@ -95,10 +100,16 @@ export class TaskScheduler {
     
     const periodExists = existingTasks.some(existingTask => {
       // Check if this task matches the recurring template and period
-      return existingTask.taskCategoryId === task.taskCategoryId &&
+      const matches = existingTask.taskCategoryId === task.taskCategoryId &&
         existingTask.serviceTypeId === task.serviceTypeId &&
         existingTask.complianceStartDate?.getTime() === startDate.getTime() &&
         existingTask.complianceEndDate?.getTime() === endDate.getTime();
+      
+      if (matches) {
+        console.log(`Task for period already exists: Existing task ID ${existingTask.id}`);
+      }
+      
+      return matches;
     });
     
     // If the task doesn't exist and is within the lead time, create it
@@ -107,9 +118,16 @@ export class TaskScheduler {
       const leadTimeThreshold = addDays(dueDate, -leadDays);
       const now = new Date();
       
+      console.log(`Lead time check for task ${task.id}: Now: ${now.toISOString()}, Lead threshold: ${leadTimeThreshold.toISOString()}, Due date: ${dueDate.toISOString()}`);
+      
       if (now >= leadTimeThreshold) {
+        console.log(`Creating new task instance for task ${task.id}`);
         await this.createRecurringTaskInstance(task, startDate, endDate, dueDate);
+      } else {
+        console.log(`Not creating task yet - current date ${now.toISOString()} is before lead time threshold ${leadTimeThreshold.toISOString()}`);
       }
+    } else {
+      console.log(`Not creating task - period already exists for task ${task.id}`);
     }
   }
   
@@ -417,6 +435,7 @@ export class TaskScheduler {
     referenceDate: Date
   ): { startDate: Date; endDate: Date } | null {
     try {
+      console.log(`Calculating next period for frequency: ${frequency}, duration: ${duration}, reference date: ${referenceDate.toISOString()}`);
       const currentYear = referenceDate.getFullYear();
       const currentMonth = referenceDate.getMonth();
       let startDate: Date, endDate: Date;
