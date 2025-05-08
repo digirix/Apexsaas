@@ -49,7 +49,12 @@ export class TaskScheduler {
       
       // Check each recurring task
       for (const task of recurringTasks) {
-        await this.processRecurringTask(task, leadDays);
+        try {
+          await this.processRecurringTask(task, leadDays);
+        } catch (error) {
+          console.error(`Error processing recurring task ${task.id}:`, error);
+          // Continue with next task instead of stopping the entire process
+        }
       }
       
       console.log(`Generated recurring tasks for tenant ${tenantId}`);
@@ -297,7 +302,8 @@ export class TaskScheduler {
       const update = {
         isCanceled: false,
         activatedAt: new Date(),
-        canceledAt: null,
+        // Use undefined instead of null for Date field to avoid type errors
+        canceledAt: undefined,
         statusId: inProgressStatus.id
       };
       
@@ -370,7 +376,7 @@ export class TaskScheduler {
       // Update the task to be no longer canceled and change its status
       const update = {
         isCanceled: false,
-        canceledAt: null,
+        canceledAt: undefined, // Use undefined instead of null for Date field
         activatedAt: new Date(),
         statusId: inProgressStatus.id
       };
