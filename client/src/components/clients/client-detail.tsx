@@ -33,7 +33,8 @@ interface ClientDetailProps {
 function ClientTasks({ clientId }: { clientId: number }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [, setLocation] = useLocation();
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [isTaskDetailsOpen, setIsTaskDetailsOpen] = useState(false);
   
   // Fetch tasks for this client
   const { data: tasks = [], isLoading: isTasksLoading } = useQuery<Task[]>({
@@ -77,7 +78,8 @@ function ClientTasks({ clientId }: { clientId: number }) {
   
   // Handle view task details
   const handleViewTask = (taskId: number) => {
-    setLocation(`/tasks/${taskId}`);
+    setSelectedTaskId(taskId);
+    setIsTaskDetailsOpen(true);
   };
   
   if (isTasksLoading) {
@@ -176,6 +178,14 @@ function ClientTasks({ clientId }: { clientId: number }) {
           </div>
         </div>
       )}
+      
+      {/* Task Details Dialog */}
+      <TaskDetails
+        isOpen={isTaskDetailsOpen}
+        onClose={() => setIsTaskDetailsOpen(false)}
+        taskId={selectedTaskId}
+        initialTab="details"
+      />
     </div>
   );
 }
