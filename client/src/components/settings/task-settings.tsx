@@ -30,14 +30,6 @@ export function TaskSettings() {
   const [enableRecurringTasks, setEnableRecurringTasks] = useState(true);
   const [showCompletedTasks, setShowCompletedTasks] = useState("30");
   const [defaultTaskView, setDefaultTaskView] = useState("list");
-  const [taskCategories, setTaskCategories] = useState<string[]>([
-    "Administrative", "Client Communication", "Tax Preparation", "Bookkeeping", "Financial Statement", "Audit"
-  ]);
-  const [newCategory, setNewCategory] = useState("");
-  const [customTaskStatuses, setCustomTaskStatuses] = useState<string[]>([
-    "Not Started", "In Progress", "On Hold", "Completed", "Canceled"
-  ]);
-  const [newStatus, setNewStatus] = useState("");
   const [defaultAssignee, setDefaultAssignee] = useState("0");
   const [enableTaskDependencies, setEnableTaskDependencies] = useState(true);
   const [taskTimeTracking, setTaskTimeTracking] = useState(true);
@@ -90,17 +82,6 @@ export function TaskSettings() {
       setEnableRecurringTasks(getSetting("enable_recurring_tasks") !== "false");
       setShowCompletedTasks(getSetting("show_completed_tasks_days") || "30");
       setDefaultTaskView(getSetting("default_task_view") || "list");
-      
-      const savedCategories = getSetting("task_categories");
-      if (savedCategories) {
-        setTaskCategories(JSON.parse(savedCategories));
-      }
-      
-      const savedStatuses = getSetting("custom_task_statuses");
-      if (savedStatuses) {
-        setCustomTaskStatuses(JSON.parse(savedStatuses));
-      }
-      
       setDefaultAssignee(getSetting("default_assignee") || "0");
       setEnableTaskDependencies(getSetting("enable_task_dependencies") !== "false");
       setTaskTimeTracking(getSetting("task_time_tracking") !== "false");
@@ -126,8 +107,6 @@ export function TaskSettings() {
         { key: "enable_recurring_tasks", value: enableRecurringTasks.toString() },
         { key: "show_completed_tasks_days", value: showCompletedTasks },
         { key: "default_task_view", value: defaultTaskView },
-        { key: "task_categories", value: JSON.stringify(taskCategories) },
-        { key: "custom_task_statuses", value: JSON.stringify(customTaskStatuses) },
         { key: "default_assignee", value: defaultAssignee },
         { key: "enable_task_dependencies", value: enableTaskDependencies.toString() },
         { key: "task_time_tracking", value: taskTimeTracking.toString() },
@@ -156,73 +135,7 @@ export function TaskSettings() {
     }
   };
   
-  // Handle adding a new task category
-  const handleAddCategory = () => {
-    if (newCategory.trim() === "") {
-      toast({
-        title: "Invalid Category",
-        description: "Please enter a category name.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (taskCategories.includes(newCategory.trim())) {
-      toast({
-        title: "Duplicate Category",
-        description: "This category already exists.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setTaskCategories([...taskCategories, newCategory.trim()]);
-    setNewCategory("");
-  };
-  
-  // Handle removing a task category
-  const handleRemoveCategory = (category: string) => {
-    setTaskCategories(taskCategories.filter(c => c !== category));
-  };
-  
-  // Handle adding a new task status
-  const handleAddStatus = () => {
-    if (newStatus.trim() === "") {
-      toast({
-        title: "Invalid Status",
-        description: "Please enter a status name.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (customTaskStatuses.includes(newStatus.trim())) {
-      toast({
-        title: "Duplicate Status",
-        description: "This status already exists.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setCustomTaskStatuses([...customTaskStatuses, newStatus.trim()]);
-    setNewStatus("");
-  };
-  
-  // Handle removing a task status
-  const handleRemoveStatus = (status: string) => {
-    // Don't allow removing the first 5 default statuses
-    if (["Not Started", "In Progress", "On Hold", "Completed", "Canceled"].includes(status)) {
-      toast({
-        title: "Cannot Remove Default Status",
-        description: "Default statuses cannot be removed.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setCustomTaskStatuses(customTaskStatuses.filter(s => s !== status));
-  };
+  // Note: Task Categories and Task Statuses are now managed in the Setup Module
   
   const isLoading = isSettingsLoading || isUsersLoading;
   
