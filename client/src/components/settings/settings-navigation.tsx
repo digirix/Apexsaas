@@ -2,15 +2,12 @@ import React from "react";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { 
-  BarChart4,
   Bell, 
-  Cloud, 
   Database, 
   FileText, 
   Layers, 
-  Settings2, 
   Shield, 
-  Workflow,
+  Workflow
 } from "lucide-react";
 
 type SettingCategory = {
@@ -21,13 +18,11 @@ type SettingCategory = {
 };
 
 // Define all setting categories
+// Removed duplicates that exist in Setup Module:
+// - General (company info is in setup)
+// - Reports (reporting is in setup)
+// - Integrations (AI configs and payment gateways in setup)
 const settingCategories: SettingCategory[] = [
-  {
-    id: "general",
-    name: "General",
-    description: "Basic account settings and preferences",
-    icon: <Settings2 className="h-5 w-5" />,
-  },
   {
     id: "security",
     name: "Security",
@@ -64,18 +59,6 @@ const settingCategories: SettingCategory[] = [
     description: "Invoice templates and payment options",
     icon: <FileText className="h-5 w-5" />,
   },
-  {
-    id: "reports",
-    name: "Report Settings",
-    description: "Customize reports and analytics",
-    icon: <BarChart4 className="h-5 w-5" />,
-  },
-  {
-    id: "integrations",
-    name: "Integrations",
-    description: "Connect with third-party services",
-    icon: <Cloud className="h-5 w-5" />,
-  },
 ];
 
 type SettingsNavigationProps = {
@@ -96,6 +79,9 @@ export function SettingsNavigation({ activeCategory, onCategoryChange }: Setting
       <div className="p-4 border-b">
         <h2 className="text-xl font-semibold">Settings</h2>
         <p className="text-sm text-muted-foreground">Manage your account settings</p>
+        <a href="/setup" className="block mt-2 text-sm text-blue-500 hover:underline">
+          System setup options →
+        </a>
       </div>
       
       <nav className="space-y-1 p-2">

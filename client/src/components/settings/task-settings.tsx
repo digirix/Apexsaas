@@ -52,7 +52,7 @@ export function TaskSettings() {
   });
   
   // Fetch users for assignee selection
-  const { data: users, isLoading: isUsersLoading } = useQuery({
+  const { data: users = [], isLoading: isUsersLoading } = useQuery<any[]>({
     queryKey: ["/api/v1/users"],
     refetchOnWindowFocus: false
   });
