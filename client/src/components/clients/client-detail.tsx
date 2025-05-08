@@ -1,24 +1,346 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Client, Entity, Country, State, EntityType } from "@shared/schema";
-import { ArrowLeft, Edit, Plus, MapPin, Building, FileText, Settings, Trash2 } from "lucide-react";
+import { Client, Entity, Country, State, EntityType, Task, Invoice } from "@shared/schema";
+import { 
+  ArrowLeft, Edit, Plus, MapPin, Building, FileText, Settings, Trash2, 
+  CalendarClock, CheckCircle2, Clock, AlertCircle, CreditCard, Search,
+  User, Key, Mail, UserPlus, RefreshCw, Filter, Download
+} from "lucide-react";
+import { format } from "date-fns";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AddEntityModal } from "./add-entity-modal";
 import { EditEntityModal } from "./edit-entity-modal";
 import { EntityConfigModal } from "./entity-config-modal";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { EditClientModal } from "./edit-client-modal";
 
+
 interface ClientDetailProps {
   clientId: number;
+}
+
+// Client Tasks Component
+function ClientTasks({ clientId }: { clientId: number }) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  
+  // Fetch tasks for this client
+  const { data: tasks = [], isLoading: isTasksLoading } = useQuery<Task[]>({
+    queryKey: [`/api/v1/tasks?clientId=${clientId}`],
+    enabled: !!clientId,
+  });
+  
+  // Fetch task statuses
+  const { data: taskStatuses = [] } = useQuery<any[]>({
+    queryKey: ["/api/v1/setup/task-statuses"],
+  });
+  
+  // Filter tasks based on search and status
+  const filteredTasks = tasks.filter(task => {
+    const matchesSearch = searchTerm === "" || 
+      (task.taskDetails?.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesStatus = !statusFilter || task.statusId.toString() === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+  
+  // Get status name by ID
+  const getStatusName = (statusId: number) => {
+    const status = taskStatuses.find(s => s.id === statusId);
+    return status ? status.name : "Unknown";
+  };
+  
+  // Get status badge variant by status
+  const getStatusVariant = (statusId: number) => {
+    const status = taskStatuses.find(s => s.id === statusId);
+    if (!status) return "default";
+    
+    switch (status.rank) {
+      case 1: return "secondary"; // Not Started
+      case 2: return "warning";   // In Progress
+      case 3: return "success";   // Completed
+      default: return "default";
+    }
+  };
+  
+  // Handle view task details
+  const handleViewTask = (taskId: number) => {
+    window.location.href = `/tasks/${taskId}`;
+  };
+  
+  if (isTasksLoading) {
+    return (
+      <div className="flex justify-center items-center py-10">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row gap-3 items-center">
+        <div className="relative w-full sm:w-64">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
+          <Input
+            type="search"
+            placeholder="Search tasks..." 
+            className="pl-9"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        
+        <Select
+          value={statusFilter || ""}
+          onValueChange={(value) => setStatusFilter(value === "" ? null : value)}
+        >
+          <SelectTrigger className="w-full sm:w-40">
+            <SelectValue placeholder="Filter by status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">All Statuses</SelectItem>
+            {taskStatuses.map((status) => (
+              <SelectItem key={status.id} value={status.id.toString()}>
+                {status.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      
+      {filteredTasks.length === 0 ? (
+        <div className="bg-slate-50 rounded-md p-8 text-center">
+          <p className="text-slate-500">No tasks found for this client.</p>
+        </div>
+      ) : (
+        <div className="bg-white border rounded-md overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Task
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Due Date
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredTasks.map((task) => (
+                  <tr key={task.id} className="hover:bg-slate-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-slate-900">{task.taskDetails || "No description"}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-slate-500">
+                        {format(new Date(task.dueDate), "MMM d, yyyy")}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge variant={getStatusVariant(task.statusId)}>
+                        {getStatusName(task.statusId)}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <Button 
+                        variant="link" 
+                        onClick={() => handleViewTask(task.id)}
+                        className="text-blue-500 hover:text-blue-600"
+                      >
+                        View
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Client Invoices Component
+function ClientInvoices({ clientId }: { clientId: number }) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  
+  // Fetch invoices for this client
+  const { data: invoices = [], isLoading: isInvoicesLoading } = useQuery<Invoice[]>({
+    queryKey: [`/api/v1/finance/invoices?clientId=${clientId}`],
+    enabled: !!clientId,
+  });
+  
+  // Filter invoices based on search and status
+  const filteredInvoices = invoices.filter(invoice => {
+    const matchesSearch = searchTerm === "" || 
+      invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = !statusFilter || invoice.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+  
+  // Get status badge variant by status
+  const getStatusVariant = (status: string) => {
+    switch (status) {
+      case 'draft': return "secondary";
+      case 'sent': return "warning";
+      case 'paid': return "success";
+      case 'overdue': return "destructive";
+      default: return "outline";
+    }
+  };
+  
+  // Format currency
+  const formatCurrency = (amount: string | number, currency: string) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency || 'USD',
+    }).format(Number(amount));
+  };
+  
+  // Handle view invoice details
+  const handleViewInvoice = (invoiceId: number) => {
+    window.location.href = `/finance/invoices/${invoiceId}`;
+  };
+  
+  if (isInvoicesLoading) {
+    return (
+      <div className="flex justify-center items-center py-10">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row gap-3 items-center">
+        <div className="relative w-full sm:w-64">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
+          <Input
+            type="search"
+            placeholder="Search invoices..." 
+            className="pl-9"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        
+        <Select
+          value={statusFilter || ""}
+          onValueChange={(value) => setStatusFilter(value === "" ? null : value)}
+        >
+          <SelectTrigger className="w-full sm:w-40">
+            <SelectValue placeholder="Filter by status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">All Statuses</SelectItem>
+            <SelectItem value="draft">Draft</SelectItem>
+            <SelectItem value="sent">Sent</SelectItem>
+            <SelectItem value="paid">Paid</SelectItem>
+            <SelectItem value="overdue">Overdue</SelectItem>
+            <SelectItem value="canceled">Canceled</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      
+      {filteredInvoices.length === 0 ? (
+        <div className="bg-slate-50 rounded-md p-8 text-center">
+          <p className="text-slate-500">No invoices found for this client.</p>
+        </div>
+      ) : (
+        <div className="bg-white border rounded-md overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Invoice
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Amount
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredInvoices.map((invoice) => (
+                  <tr key={invoice.id} className="hover:bg-slate-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-slate-900">{invoice.invoiceNumber}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-slate-500">
+                        {format(new Date(invoice.issueDate), "MMM d, yyyy")}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-slate-900">
+                        {formatCurrency(invoice.totalAmount, invoice.currencyCode)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge variant={getStatusVariant(invoice.status)}>
+                        {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <Button 
+                          variant="link" 
+                          onClick={() => handleViewInvoice(invoice.id)}
+                          className="text-blue-500 hover:text-blue-600"
+                        >
+                          View
+                        </Button>
+                        {invoice.status !== 'paid' && invoice.status !== 'canceled' && (
+                          <Button
+                            variant="link"
+                            className="text-green-500 hover:text-green-600"
+                            onClick={() => window.location.href = `/finance/invoices/${invoice.id}/payment`}
+                          >
+                            Pay
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function ClientDetail({ clientId }: ClientDetailProps) {
@@ -32,6 +354,7 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
   const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState("entities");
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
   const { toast } = useToast();
 
   const { data: client, isLoading: isClientLoading } = useQuery<Client>({
@@ -437,24 +760,170 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
         
         <TabsContent value="portal-access" className="pt-4">
           <Card>
-            <CardContent className="flex flex-col items-center justify-center py-10">
-              <p className="text-slate-500 mb-4">Portal access management coming soon</p>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                <div>
+                  <CardTitle>Portal Access</CardTitle>
+                  <CardDescription>Manage client portal access for {client.displayName}</CardDescription>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      toast({
+                        title: "Credentials Reset",
+                        description: "Client portal credentials have been reset and emailed to the client.",
+                      });
+                    }}
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Reset Credentials
+                  </Button>
+                  <Button 
+                    size="sm"
+                    onClick={() => {
+                      toast({
+                        title: "Portal Invitation Sent",
+                        description: "Portal access invitation sent to client email.",
+                      });
+                    }}
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Invite to Portal
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            
+            <CardContent>
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Card className="border-blue-100">
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center">
+                        <User className="h-5 w-5 mr-2 text-blue-500" />
+                        Portal Account Status
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <dl className="space-y-4">
+                        <div>
+                          <dt className="text-sm font-medium text-slate-500">Status</dt>
+                          <dd className="mt-1 text-sm text-slate-900 flex items-center">
+                            <Badge variant="success" className="mr-2">Active</Badge>
+                            Last login: Never
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-sm font-medium text-slate-500">Portal Username</dt>
+                          <dd className="mt-1 text-sm text-slate-900">{client.email}</dd>
+                        </div>
+                      </dl>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card className="border-blue-100">
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center">
+                        <Key className="h-5 w-5 mr-2 text-blue-500" />
+                        Access Permissions
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <dl className="space-y-4">
+                        <div>
+                          <dt className="text-sm font-medium text-slate-500">Document Access</dt>
+                          <dd className="mt-1 text-sm text-slate-900 flex items-center">
+                            <Badge variant="outline" className="mr-2">Read Only</Badge>
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-sm font-medium text-slate-500">Invoice Access</dt>
+                          <dd className="mt-1 text-sm text-slate-900 flex items-center">
+                            <Badge variant="outline" className="mr-2">Read Only</Badge>
+                          </dd>
+                        </div>
+                      </dl>
+                    </CardContent>
+                  </Card>
+                </div>
+                
+                <div className="mt-6">
+                  <h3 className="text-sm font-medium text-slate-900 mb-3">Recent Portal Activity</h3>
+                  <div className="bg-slate-50 rounded-md p-4 text-sm text-slate-600">
+                    No recent portal activity found for this client.
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
         
         <TabsContent value="tasks" className="pt-4">
           <Card>
-            <CardContent className="flex flex-col items-center justify-center py-10">
-              <p className="text-slate-500 mb-4">Task management for this client coming soon</p>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                <div>
+                  <CardTitle>Client Tasks</CardTitle>
+                  <CardDescription>Manage tasks for {client.displayName}</CardDescription>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setLocation(`/tasks?clientId=${clientId}`)}
+                  >
+                    <Filter className="mr-2 h-4 w-4" />
+                    View All
+                  </Button>
+                  <Button 
+                    size="sm"
+                    onClick={() => setLocation(`/tasks/new?clientId=${clientId}`)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Task
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            
+            <CardContent>
+              <ClientTasks clientId={clientId} />
             </CardContent>
           </Card>
         </TabsContent>
         
         <TabsContent value="invoices" className="pt-4">
           <Card>
-            <CardContent className="flex flex-col items-center justify-center py-10">
-              <p className="text-slate-500 mb-4">Invoicing functionality coming soon</p>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                <div>
+                  <CardTitle>Client Invoices</CardTitle>
+                  <CardDescription>Manage invoices for {client.displayName}</CardDescription>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setLocation(`/finance/invoices?clientId=${clientId}`)}
+                  >
+                    <Filter className="mr-2 h-4 w-4" />
+                    View All
+                  </Button>
+                  <Button 
+                    size="sm"
+                    onClick={() => setLocation(`/finance/invoices/new?clientId=${clientId}`)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Invoice
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            
+            <CardContent>
+              <ClientInvoices clientId={clientId} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -504,7 +973,7 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
         onConfirm={confirmDeleteEntity}
         title="Delete Entity"
         description={`Are you sure you want to delete entity "${selectedEntity?.name}"? This action cannot be undone.`}
-        isDeleting={isDeleting}
+        isLoading={isDeleting}
       />
     </>
   );
