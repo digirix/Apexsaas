@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { AppLayout } from "@/components/layout/app-layout";
 import { SettingsNavigation } from "@/components/settings/settings-navigation";
+import { GeneralSettings } from "@/components/settings/general-settings";
 import { SecuritySettings } from "@/components/settings/security-settings";
 import { DisplaySettings } from "@/components/settings/display-settings";
 import { NotificationSettings } from "@/components/settings/notification-settings";
@@ -15,7 +16,7 @@ import { Loader2 } from "lucide-react";
 export default function SettingsPage() {
   const { user, isLoading } = useAuth();
   const [location] = useLocation();
-  const [activeCategory, setActiveCategory] = useState("security");
+  const [activeCategory, setActiveCategory] = useState("general");
   
   // Extract the category from URL query parameters if present
   useEffect(() => {
@@ -52,6 +53,8 @@ export default function SettingsPage() {
   // Render the appropriate settings component based on active category
   const renderSettingsContent = () => {
     switch (activeCategory) {
+      case "general":
+        return <GeneralSettings />;
       case "security":
         return <SecuritySettings />;
       case "display":
@@ -76,7 +79,7 @@ export default function SettingsPage() {
           </div>
         );
       default:
-        return <SecuritySettings />;
+        return <GeneralSettings />;
     }
   };
   

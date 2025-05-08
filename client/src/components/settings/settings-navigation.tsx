@@ -5,7 +5,8 @@ import {
   Bell, 
   Database, 
   FileText, 
-  Layers, 
+  Layers,
+  Settings2, 
   Shield, 
   Workflow
 } from "lucide-react";
@@ -19,10 +20,15 @@ type SettingCategory = {
 
 // Define all setting categories
 // Removed duplicates that exist in Setup Module:
-// - General (company info is in setup)
 // - Reports (reporting is in setup)
 // - Integrations (AI configs and payment gateways in setup)
 const settingCategories: SettingCategory[] = [
+  {
+    id: "general",
+    name: "General",
+    description: "Basic account settings and preferences",
+    icon: <Settings2 className="h-5 w-5" />,
+  },
   {
     id: "security",
     name: "Security",
