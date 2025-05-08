@@ -25,6 +25,7 @@ import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-di
 import { EditClientModal } from "./edit-client-modal";
 import { TaskDetails } from "@/components/tasks/task-details";
 import { AddTaskModal } from "@/components/tasks/add-task-modal";
+import { InvoiceDetails } from "@/components/finance/invoice-details";
 
 
 interface ClientDetailProps {
@@ -197,6 +198,8 @@ function ClientInvoices({ clientId }: { clientId: number }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [, setLocation] = useLocation();
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
+  const [isInvoiceDetailsOpen, setIsInvoiceDetailsOpen] = useState(false);
   
   // Fetch invoices for this client
   const { data: invoices = [], isLoading: isInvoicesLoading } = useQuery<Invoice[]>({
@@ -235,7 +238,8 @@ function ClientInvoices({ clientId }: { clientId: number }) {
   
   // Handle view invoice details
   const handleViewInvoice = (invoiceId: number) => {
-    setLocation(`/finance/invoices/${invoiceId}`);
+    setSelectedInvoiceId(invoiceId);
+    setIsInvoiceDetailsOpen(true);
   };
   
   if (isInvoicesLoading) {
@@ -353,6 +357,14 @@ function ClientInvoices({ clientId }: { clientId: number }) {
           </div>
         </div>
       )}
+      
+      {/* Invoice Details Modal */}
+      <InvoiceDetails
+        isOpen={isInvoiceDetailsOpen}
+        onClose={() => setIsInvoiceDetailsOpen(false)}
+        invoiceId={selectedInvoiceId}
+        initialTab="details"
+      />
     </div>
   );
 }
@@ -925,13 +937,6 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
                   >
                     <Filter className="mr-2 h-4 w-4" />
                     View All
-                  </Button>
-                  <Button 
-                    size="sm"
-                    onClick={() => setLocation(`/finance/invoices/new?clientId=${clientId}`)}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Invoice
                   </Button>
                 </div>
               </div>
