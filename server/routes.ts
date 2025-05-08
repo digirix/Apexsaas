@@ -2467,6 +2467,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       }
+
+      // Check if past due dates are allowed
+      const allowPastDueDates = await storage.getTenantSetting(tenantId, "allow_past_due_dates");
+      const isPastDueDateAllowed = allowPastDueDates?.value === "true";
+      
+      // If past due dates are not allowed, validate the due date
+      if (!isPastDueDateAllowed) {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0); // Start of today
+        
+        if (validatedData.dueDate < now) {
+          return res.status(400).json({
+            message: "Due date cannot be in the past. Please enable 'Allow Past Due Dates' in Task Settings to use past dates."
+          });
+        }
+      }
       
       const task = await storage.createTask(validatedData);
       res.status(201).json(task);
@@ -2568,6 +2584,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Ensure dates are proper Date objects
       if (taskUpdateData.dueDate && typeof taskUpdateData.dueDate === 'string') {
         taskUpdateData.dueDate = new Date(taskUpdateData.dueDate);
+        
+        // Check if past due dates are allowed if the due date is being modified
+        const allowPastDueDates = await storage.getTenantSetting(tenantId, "allow_past_due_dates");
+        const isPastDueDateAllowed = allowPastDueDates?.value === "true";
+        
+        // If past due dates are not allowed, validate the due date
+        if (!isPastDueDateAllowed) {
+          const now = new Date();
+          now.setHours(0, 0, 0, 0); // Start of today
+          
+          if (taskUpdateData.dueDate < now) {
+            return res.status(400).json({
+              message: "Due date cannot be in the past. Please enable 'Allow Past Due Dates' in Task Settings to use past dates."
+            });
+          }
+        }
       }
       
       if (taskUpdateData.complianceStartDate && typeof taskUpdateData.complianceStartDate === 'string') {
