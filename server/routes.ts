@@ -2833,6 +2833,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  
+  // Activate a task
+  app.post("/api/v1/auto-generated-tasks/:id/activate", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const taskId = parseInt(req.params.id);
+      
+      const taskScheduler = new TaskScheduler(storage);
+      const success = await taskScheduler.activateTask(taskId, tenantId);
+      
+      if (success) {
+        res.json({ 
+          message: "Task activated successfully" 
+        });
+      } else {
+        res.status(400).json({ 
+          message: "Failed to activate task - it may not exist or is not an auto-generated task" 
+        });
+      }
+    } catch (error) {
+      console.error("Error activating task:", error);
+      res.status(500).json({ 
+        message: "Failed to activate task",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Cancel a task
+  app.post("/api/v1/auto-generated-tasks/:id/cancel", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const taskId = parseInt(req.params.id);
+      
+      const taskScheduler = new TaskScheduler(storage);
+      const success = await taskScheduler.cancelTask(taskId, tenantId);
+      
+      if (success) {
+        res.json({ 
+          message: "Task canceled successfully" 
+        });
+      } else {
+        res.status(400).json({ 
+          message: "Failed to cancel task - it may not exist or is not an auto-generated task" 
+        });
+      }
+    } catch (error) {
+      console.error("Error canceling task:", error);
+      res.status(500).json({ 
+        message: "Failed to cancel task",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
+  // Resume a task
+  app.post("/api/v1/auto-generated-tasks/:id/resume", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const taskId = parseInt(req.params.id);
+      
+      const taskScheduler = new TaskScheduler(storage);
+      const success = await taskScheduler.resumeTask(taskId, tenantId);
+      
+      if (success) {
+        res.json({ 
+          message: "Task resumed successfully" 
+        });
+      } else {
+        res.status(400).json({ 
+          message: "Failed to resume task - it may not exist, is not canceled, or is not an auto-generated task" 
+        });
+      }
+    } catch (error) {
+      console.error("Error resuming task:", error);
+      res.status(500).json({ 
+        message: "Failed to resume task",
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  });
+  
+  // Delete a task permanently
+  app.delete("/api/v1/auto-generated-tasks/:id", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const taskId = parseInt(req.params.id);
+      
+      const taskScheduler = new TaskScheduler(storage);
+      const success = await taskScheduler.deleteTask(taskId, tenantId);
+      
+      if (success) {
+        res.json({ 
+          message: "Task deleted successfully" 
+        });
+      } else {
+        res.status(400).json({ 
+          message: "Failed to delete task - it may not exist or is not an auto-generated task" 
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      res.status(500).json({ 
+        message: "Failed to delete task",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
 
   // Tenant Settings routes
   app.get("/api/v1/tenant/settings", isAuthenticated, async (req, res) => {
