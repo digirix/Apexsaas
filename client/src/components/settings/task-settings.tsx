@@ -399,78 +399,20 @@ export function TaskSettings() {
         <Separator />
         
         <div className="space-y-4">
-          <h3 className="text-lg font-medium">Task Categories</h3>
+          <h3 className="text-lg font-medium">Task Categories and Statuses</h3>
           
-          <div className="flex flex-wrap gap-2 mb-4">
-            {taskCategories.map((category) => (
-              <Badge key={category} className="flex items-center gap-1 px-3 py-1">
-                {category}
-                <button
-                  type="button"
-                  onClick={() => handleRemoveCategory(category)}
-                  className="text-muted-foreground hover:text-foreground transition-colors ml-1"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
-          </div>
-          
-          <div className="flex gap-2">
-            <Input
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
-              placeholder="Add new category"
-              className="flex-1"
-            />
-            <Button type="button" onClick={handleAddCategory} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Add
+          <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+            <p className="text-sm">
+              Task Categories and Statuses are now managed in the Setup Module to ensure consistency across the application.
+            </p>
+            <Button 
+              variant="outline" 
+              onClick={() => window.location.href = '/setup?category=task-management'}
+              className="mt-2"
+            >
+              Go to Task Management Setup
             </Button>
           </div>
-        </div>
-        
-        <Separator />
-        
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">Task Statuses</h3>
-          
-          <div className="flex flex-wrap gap-2 mb-4">
-            {customTaskStatuses.map((status, index) => (
-              <Badge 
-                key={status} 
-                className={`flex items-center gap-1 px-3 py-1 ${
-                  index < 5 ? 'bg-gray-200 hover:bg-gray-200 text-gray-700' : ''
-                }`}
-              >
-                {status}
-                <button
-                  type="button"
-                  onClick={() => handleRemoveStatus(status)}
-                  className={`ml-1 ${
-                    index < 5 ? 'text-gray-400 cursor-not-allowed' : 'text-muted-foreground hover:text-foreground transition-colors'
-                  }`}
-                  disabled={index < 5}
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
-          </div>
-          
-          <div className="flex gap-2">
-            <Input
-              value={newStatus}
-              onChange={(e) => setNewStatus(e.target.value)}
-              placeholder="Add new status"
-              className="flex-1"
-            />
-            <Button type="button" onClick={handleAddStatus} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Add
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">Note: The first five default statuses cannot be removed</p>
         </div>
       </CardContent>
       
