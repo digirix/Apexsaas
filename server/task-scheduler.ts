@@ -10,9 +10,11 @@ const DEFAULT_LEAD_DAYS = 14; // Default lead time for generating recurring task
  */
 export class TaskScheduler {
   private storage: IStorage;
+  private leadDaysOverride: number | null;
   
-  constructor(storage: IStorage) {
+  constructor(storage: IStorage, leadDaysOverride: number | null = null) {
     this.storage = storage;
+    this.leadDaysOverride = leadDaysOverride;
   }
   
   /**
@@ -39,13 +41,30 @@ export class TaskScheduler {
    */
   public async generateRecurringTasksForTenant(tenantId: number): Promise<void> {
     try {
-      // Get auto generate days setting or use default
-      const autoGenerateSetting = await this.storage.getTenantSetting(tenantId, "auto_generate_task_days");
-      const leadDays = autoGenerateSetting ? parseInt(autoGenerateSetting.value) : DEFAULT_LEAD_DAYS;
+      // If we have a lead days override (for manual generation), use that value
+      // Otherwise get the auto generate days setting or use default
+      let leadDays: number;
+      
+      if (this.leadDaysOverride !== null) {
+        // Use the override (typically 0 for manual generation to force immediate creation)
+        leadDays = this.leadDaysOverride;
+        console.log(`Using override lead days: ${leadDays} for tenant ${tenantId}`);
+      } else {
+        // Get setting from database
+        const autoGenerateSetting = await this.storage.getTenantSetting(tenantId, "auto_generate_task_days");
+        leadDays = autoGenerateSetting ? parseInt(autoGenerateSetting.value) : DEFAULT_LEAD_DAYS;
+        console.log(`Using configured lead days: ${leadDays} for tenant ${tenantId}`);
+      }
       
       // Get all recurring tasks for this tenant
       const allTasks = await this.storage.getTasks(tenantId);
       const recurringTasks = allTasks.filter(task => task.isRecurring);
+      
+      if (recurringTasks.length === 0) {
+        console.log(`No recurring tasks found for tenant ${tenantId}`);
+      } else {
+        console.log(`Found ${recurringTasks.length} recurring tasks for tenant ${tenantId}`);
+      }
       
       // Check each recurring task
       for (const task of recurringTasks) {
@@ -67,11 +86,14 @@ export class TaskScheduler {
    * Process a single recurring task and create new instances if needed
    */
   private async processRecurringTask(task: Task, leadDays: number): Promise<void> {
-    // Skip processing if task doesn't have compliance information
-    if (!task.complianceFrequency || !task.complianceDuration) {
-      console.log(`Skipping task ${task.id} - Missing frequency or duration. Frequency: ${task.complianceFrequency}, Duration: ${task.complianceDuration}`);
+    // Skip processing if task doesn't have compliance frequency
+    if (!task.complianceFrequency) {
+      console.log(`Skipping task ${task.id} - Missing frequency. Frequency: ${task.complianceFrequency}, Duration: ${task.complianceDuration}`);
       return;
     }
+    
+    // Initialize duration to empty string if not provided
+    const duration = task.complianceDuration || '';
     
     console.log(`Processing recurring task ${task.id}: ${task.taskDetails || 'No details'}. Frequency: ${task.complianceFrequency}, Start: ${task.complianceStartDate}, End: ${task.complianceEndDate}`);
     
@@ -115,16 +137,29 @@ export class TaskScheduler {
     // If the task doesn't exist and is within the lead time, create it
     if (!periodExists) {
       const dueDate = this.calculateDueDate(endDate);
-      const leadTimeThreshold = addDays(dueDate, -leadDays);
+      // Note: For monthly tasks that should be generated every month, we'll 
+      // bypass the lead time check to ensure they're always generated when requested
       const now = new Date();
       
-      console.log(`Lead time check for task ${task.id}: Now: ${now.toISOString()}, Lead threshold: ${leadTimeThreshold.toISOString()}, Due date: ${dueDate.toISOString()}`);
+      // Always generate if it's a manually triggered generation (lead time = 0)
+      // or if it's a monthly task with today's date past the end of previous month
+      const shouldForceGenerate = leadDays === 0 || 
+                                 (task.complianceFrequency?.toLowerCase() === 'monthly' &&
+                                  now.getDate() > 5); // Generate if we're past the 5th day of the month
       
-      if (now >= leadTimeThreshold) {
-        console.log(`Creating new task instance for task ${task.id}`);
+      if (shouldForceGenerate) {
+        console.log(`Forcing task generation for task ${task.id} - Manual generation or monthly task past month start`);
         await this.createRecurringTaskInstance(task, startDate, endDate, dueDate);
       } else {
-        console.log(`Not creating task yet - current date ${now.toISOString()} is before lead time threshold ${leadTimeThreshold.toISOString()}`);
+        const leadTimeThreshold = addDays(dueDate, -leadDays);
+        console.log(`Lead time check for task ${task.id}: Now: ${now.toISOString()}, Lead threshold: ${leadTimeThreshold.toISOString()}, Due date: ${dueDate.toISOString()}`);
+        
+        if (now >= leadTimeThreshold) {
+          console.log(`Creating new task instance for task ${task.id}`);
+          await this.createRecurringTaskInstance(task, startDate, endDate, dueDate);
+        } else {
+          console.log(`Not creating task yet - current date ${now.toISOString()} is before lead time threshold ${leadTimeThreshold.toISOString()}`);
+        }
       }
     } else {
       console.log(`Not creating task - period already exists for task ${task.id}`);
@@ -481,12 +516,31 @@ export class TaskScheduler {
             endDate = new Date(currentYear, currentMonth, 0);
             endDate.setHours(23, 59, 59, 999);
           } else {
-            // Next month (default)
-            // First day of next month
-            startDate = new Date(currentYear, currentMonth + 1, 1);
-            // Last day of next month at 23:59:59.999
-            endDate = new Date(currentYear, currentMonth + 2, 0);
-            endDate.setHours(23, 59, 59, 999);
+            // Get current month (for handling completed periods)
+            const currentMonthStart = new Date(currentYear, currentMonth, 1);
+            const currentMonthEnd = new Date(currentYear, currentMonth + 1, 0);
+            currentMonthEnd.setHours(23, 59, 59, 999);
+            
+            // Check if we're in the current month or past it
+            const today = new Date();
+            
+            // If today is past the middle of the month, we should generate for next month
+            // Otherwise, we should still generate for the current month (if it doesn't exist)
+            if (today.getDate() > 15) {
+              // Next month
+              startDate = new Date(currentYear, currentMonth + 1, 1);
+              // Last day of next month at 23:59:59.999
+              endDate = new Date(currentYear, currentMonth + 2, 0);
+              endDate.setHours(23, 59, 59, 999);
+              
+              console.log(`Monthly task - Using NEXT month: ${startDate.toDateString()} to ${endDate.toDateString()}`);
+            } else {
+              // Current month
+              startDate = currentMonthStart;
+              endDate = currentMonthEnd;
+              
+              console.log(`Monthly task - Using CURRENT month: ${startDate.toDateString()} to ${endDate.toDateString()}`);
+            }
           }
           break;
           

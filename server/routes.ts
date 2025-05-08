@@ -2758,17 +2758,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Unauthorized: Admin access required" });
       }
       
-      const taskScheduler = new TaskScheduler(storage);
+      // Create a task scheduler with special override for manual generation
+      // This ensures tasks will be created regardless of lead time
+      // by passing 0 as the lead days override parameter
+      const taskScheduler = new TaskScheduler(storage, 0); // Pass 0 to override lead days and force generation
       
       // If tenant ID is provided, generate for that tenant only
       if (req.body.tenantId) {
         const tenantId = parseInt(req.body.tenantId);
+        console.log(`Manually generating recurring tasks for tenant ${tenantId}`);
         await taskScheduler.generateRecurringTasksForTenant(tenantId);
         res.json({ 
           message: `Recurring tasks generated successfully for tenant ${tenantId}` 
         });
       } else {
         // Otherwise generate for all tenants
+        console.log(`Manually generating recurring tasks for all tenants`);
         await taskScheduler.generateUpcomingRecurringTasks();
         res.json({ 
           message: "Recurring tasks generated successfully for all tenants" 
