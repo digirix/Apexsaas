@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Client, User, TaskCategory, TaskStatus, Entity, ServiceType } from "@shared/schema";
+import { Client, User, TaskCategory, TaskStatus, Entity, ServiceType, TenantSetting } from "@shared/schema";
 import { addMonths, addYears, addQuarters } from "date-fns";
 import { 
   Dialog, 
@@ -271,6 +271,15 @@ export function AddTaskModal({ isOpen, onClose, taskType, preselectedClientId }:
     queryKey: ["/api/v1/setup/currencies"],
     enabled: isOpen && taskType === "revenue",
   });
+  
+  // Fetch tenant settings to check if past due dates are allowed
+  const { data: tenantSettings = [], isLoading: isLoadingSettings } = useQuery<TenantSetting[]>({
+    queryKey: ["/api/v1/tenant/settings"],
+    enabled: isOpen,
+  });
+  
+  // Get the allow_past_due_dates setting
+  const allowPastDueDates = tenantSettings.find(setting => setting.key === "allow_past_due_dates")?.value === "true";
   
   // Create task mutation for admin tasks
   const createAdminTaskMutation = useMutation({
@@ -617,7 +626,7 @@ export function AddTaskModal({ isOpen, onClose, taskType, preselectedClientId }:
                             selected={field.value}
                             onSelect={field.onChange}
                             disabled={(date) =>
-                              date < new Date(new Date().setHours(0, 0, 0, 0))
+                              !allowPastDueDates && date < new Date(new Date().setHours(0, 0, 0, 0))
                             }
                             initialFocus
                           />
@@ -1041,7 +1050,7 @@ export function AddTaskModal({ isOpen, onClose, taskType, preselectedClientId }:
                                   selected={field.value}
                                   onSelect={field.onChange}
                                   disabled={(date) =>
-                                    date < new Date(new Date().setHours(0, 0, 0, 0))
+                                    !allowPastDueDates && date < new Date(new Date().setHours(0, 0, 0, 0))
                                   }
                                   initialFocus
                                 />
