@@ -23,6 +23,7 @@ import { EditEntityModal } from "./edit-entity-modal";
 import { EntityConfigModal } from "./entity-config-modal";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { EditClientModal } from "./edit-client-modal";
+import { TaskDetails } from "@/components/tasks/task-details";
 
 
 interface ClientDetailProps {
