@@ -45,6 +45,7 @@ interface AddTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   taskType: "admin" | "revenue";
+  preselectedClientId?: string;
 }
 
 // Define form schema for admin tasks
@@ -120,7 +121,7 @@ const revenueTaskSchema = z.object({
 
 type RevenueTaskFormValues = z.infer<typeof revenueTaskSchema>;
 
-export function AddTaskModal({ isOpen, onClose, taskType }: AddTaskModalProps) {
+export function AddTaskModal({ isOpen, onClose, taskType, preselectedClientId }: AddTaskModalProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("basic");
   
