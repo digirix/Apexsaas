@@ -102,14 +102,14 @@ function ClientTasks({ clientId }: { clientId: number }) {
         </div>
         
         <Select
-          value={statusFilter || ""}
-          onValueChange={(value) => setStatusFilter(value === "" ? null : value)}
+          value={statusFilter || "all"}
+          onValueChange={(value) => setStatusFilter(value === "all" ? null : value)}
         >
           <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Statuses</SelectItem>
+            <SelectItem value="all">All Statuses</SelectItem>
             {taskStatuses.map((status) => (
               <SelectItem key={status.id} value={status.id.toString()}>
                 {status.name}
@@ -247,14 +247,14 @@ function ClientInvoices({ clientId }: { clientId: number }) {
         </div>
         
         <Select
-          value={statusFilter || ""}
-          onValueChange={(value) => setStatusFilter(value === "" ? null : value)}
+          value={statusFilter || "all"}
+          onValueChange={(value) => setStatusFilter(value === "all" ? null : value)}
         >
           <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Statuses</SelectItem>
+            <SelectItem value="all">All Statuses</SelectItem>
             <SelectItem value="draft">Draft</SelectItem>
             <SelectItem value="sent">Sent</SelectItem>
             <SelectItem value="paid">Paid</SelectItem>
