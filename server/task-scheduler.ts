@@ -39,13 +39,9 @@ export class TaskScheduler {
    */
   public async generateRecurringTasksForTenant(tenantId: number): Promise<void> {
     try {
-      // Get auto-generate task days setting for this tenant, or use default
-      const autoGenerateTaskDaysSetting = await this.storage.getTenantSetting(tenantId, "auto_generate_task_days");
-      const leadDays = autoGenerateTaskDaysSetting ? parseInt(autoGenerateTaskDaysSetting.value) : DEFAULT_LEAD_DAYS;
-      
-      // Get allow past due dates setting for this tenant
-      const allowPastDueDatesSetting = await this.storage.getTenantSetting(tenantId, "allow_past_due_dates");
-      const allowPastDueDates = allowPastDueDatesSetting?.value === "true";
+      // Get lead days setting for this tenant, or use default
+      const leadDaysSetting = await this.storage.getTenantSetting(tenantId, "recurring_task_lead_days");
+      const leadDays = leadDaysSetting ? parseInt(leadDaysSetting.value) : DEFAULT_LEAD_DAYS;
       
       // Get all recurring tasks for this tenant
       const allTasks = await this.storage.getTasks(tenantId);
@@ -106,19 +102,6 @@ export class TaskScheduler {
       const leadTimeThreshold = addDays(dueDate, -leadDays);
       const now = new Date();
       
-      // Check if the due date is in the past and if we're allowed to create tasks with past due dates
-      if (dueDate < now) {
-        // Get allow past due dates setting for this tenant
-        const allowPastDueDatesSetting = await this.storage.getTenantSetting(task.tenantId, "allow_past_due_dates");
-        const allowPastDueDates = allowPastDueDatesSetting?.value === "true";
-        
-        if (!allowPastDueDates) {
-          console.log(`Skipping task creation for period ${format(startDate, 'yyyy-MM-dd')} to ${format(endDate, 'yyyy-MM-dd')} - due date is in the past and past due dates are not allowed`);
-          return; // Skip creating this task
-        }
-      }
-      
-      // Create the task if it's within the lead time
       if (now >= leadTimeThreshold) {
         await this.createRecurringTaskInstance(task, startDate, endDate, dueDate);
       }

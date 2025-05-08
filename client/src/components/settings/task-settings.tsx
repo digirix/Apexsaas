@@ -36,8 +36,6 @@ export function TaskSettings() {
   const [enableTaskComments, setEnableTaskComments] = useState(true);
   const [enableTaskAttachments, setEnableTaskAttachments] = useState(true);
   const [enableTaskNotes, setEnableTaskNotes] = useState(true);
-  const [autoGenerateTaskDays, setAutoGenerateTaskDays] = useState("14");
-  const [allowPastDueDates, setAllowPastDueDates] = useState(false);
   
   // Fetch settings
   const { data: settings = [], isLoading: isSettingsLoading } = useQuery<TenantSetting[]>({
@@ -90,8 +88,6 @@ export function TaskSettings() {
       setEnableTaskComments(getSetting("enable_task_comments") !== "false");
       setEnableTaskAttachments(getSetting("enable_task_attachments") !== "false");
       setEnableTaskNotes(getSetting("enable_task_notes") !== "false");
-      setAutoGenerateTaskDays(getSetting("auto_generate_task_days") || "14");
-      setAllowPastDueDates(getSetting("allow_past_due_dates") === "true");
     }
   }, [settings]);
   
@@ -116,9 +112,7 @@ export function TaskSettings() {
         { key: "task_time_tracking", value: taskTimeTracking.toString() },
         { key: "enable_task_comments", value: enableTaskComments.toString() },
         { key: "enable_task_attachments", value: enableTaskAttachments.toString() },
-        { key: "enable_task_notes", value: enableTaskNotes.toString() },
-        { key: "auto_generate_task_days", value: autoGenerateTaskDays },
-        { key: "allow_past_due_dates", value: allowPastDueDates.toString() }
+        { key: "enable_task_notes", value: enableTaskNotes.toString() }
       ];
       
       // Save each setting
@@ -397,43 +391,6 @@ export function TaskSettings() {
                 id="task-notes" 
                 checked={enableTaskNotes}
                 onCheckedChange={setEnableTaskNotes}
-              />
-            </div>
-          </div>
-        </div>
-        
-        <Separator />
-        
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">Auto-Generated Tasks</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="auto-generate-days">Generate Tasks Before Compliance End Date</Label>
-              <Input 
-                id="auto-generate-days" 
-                type="number"
-                min="1"
-                value={autoGenerateTaskDays}
-                onChange={(e) => setAutoGenerateTaskDays(e.target.value)}
-                placeholder="14"
-              />
-              <p className="text-xs text-muted-foreground">
-                Number of days before the compliance end date to auto-generate recurring tasks
-              </p>
-            </div>
-            
-            <div className="flex items-center justify-between py-2">
-              <div>
-                <Label htmlFor="allow-past-due-dates">Allow Past Due Dates</Label>
-                <p className="text-sm text-muted-foreground">
-                  Allow setting due dates in the past for tasks
-                </p>
-              </div>
-              <Switch 
-                id="allow-past-due-dates" 
-                checked={allowPastDueDates}
-                onCheckedChange={setAllowPastDueDates}
               />
             </div>
           </div>
