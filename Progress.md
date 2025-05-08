@@ -3,6 +3,21 @@
 ## Overview
 This document provides a comprehensive overview of the progress made on the Accounting Firm Management Application, a multi-tenant system designed for accounting firms to manage clients, tasks, users, permissions, and system configuration across different countries and service types.
 
+## Latest Updates (May 8, 2025)
+
+### Auto Generated Tasks Module Enhancements
+- Fixed critical issues in task scheduler for auto-generated recurring tasks:
+  - Enhanced date handling logic in the task scheduler to properly calculate next periods for monthly tasks
+  - Fixed issue with empty compliance duration causing tasks to be skipped
+  - Improved date comparison logic to correctly identify if a task for a period already exists
+  - Added extensive logging throughout the task generation process for better debugging
+  - Implemented override mechanism for lead time in manual task generation to ensure tasks are created immediately when requested
+  - Fixed database queries to handle missing columns gracefully (isCanceled, canceledAt, activatedAt)
+  - Added task existence checking logic to prevent duplicate tasks for the same compliance period
+  - Added force generation capability for monthly frequency tasks to ensure they're always generated when requested
+  - Implemented tenant setting for configurable lead days before task generation
+  - Fixed monthly frequency calculations to properly handle current month vs. next month decision based on current date
+
 ## Latest Updates (May 7, 2025)
 
 ### AI Assistant Enhancements
