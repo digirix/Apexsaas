@@ -2468,6 +2468,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Check if the due date is in the past, and if not allowed by settings, reject it
+      if (validatedData.dueDate) {
+        const now = new Date();
+        const dueDate = new Date(validatedData.dueDate);
+        
+        // If due date is in the past, check tenant settings
+        if (dueDate < now) {
+          const allowPastDueDatesSetting = await storage.getTenantSetting(tenantId, "allow_past_due_dates");
+          const allowPastDueDates = allowPastDueDatesSetting?.value === "true";
+          
+          if (!allowPastDueDates) {
+            return res.status(400).json({ 
+              message: "Setting due dates in the past is not allowed according to your task settings" 
+            });
+          }
+        }
+      }
+      
       const task = await storage.createTask(validatedData);
       res.status(201).json(task);
     } catch (error) {
@@ -2568,6 +2586,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Ensure dates are proper Date objects
       if (taskUpdateData.dueDate && typeof taskUpdateData.dueDate === 'string') {
         taskUpdateData.dueDate = new Date(taskUpdateData.dueDate);
+        
+        // Check if the updated due date is in the past, and if not allowed by settings, reject it
+        const now = new Date();
+        if (taskUpdateData.dueDate < now) {
+          const allowPastDueDatesSetting = await storage.getTenantSetting(tenantId, "allow_past_due_dates");
+          const allowPastDueDates = allowPastDueDatesSetting?.value === "true";
+          
+          if (!allowPastDueDates) {
+            return res.status(400).json({ 
+              message: "Setting due dates in the past is not allowed according to your task settings" 
+            });
+          }
+        }
       }
       
       if (taskUpdateData.complianceStartDate && typeof taskUpdateData.complianceStartDate === 'string') {
