@@ -33,6 +33,7 @@ interface ClientDetailProps {
 function ClientTasks({ clientId }: { clientId: number }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [, setLocation] = useLocation();
   
   // Fetch tasks for this client
   const { data: tasks = [], isLoading: isTasksLoading } = useQuery<Task[]>({
@@ -76,7 +77,7 @@ function ClientTasks({ clientId }: { clientId: number }) {
   
   // Handle view task details
   const handleViewTask = (taskId: number) => {
-    window.location.href = `/tasks/${taskId}`;
+    setLocation(`/tasks/${taskId}`);
   };
   
   if (isTasksLoading) {
@@ -183,6 +184,7 @@ function ClientTasks({ clientId }: { clientId: number }) {
 function ClientInvoices({ clientId }: { clientId: number }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [, setLocation] = useLocation();
   
   // Fetch invoices for this client
   const { data: invoices = [], isLoading: isInvoicesLoading } = useQuery<Invoice[]>({
@@ -221,7 +223,7 @@ function ClientInvoices({ clientId }: { clientId: number }) {
   
   // Handle view invoice details
   const handleViewInvoice = (invoiceId: number) => {
-    window.location.href = `/finance/invoices/${invoiceId}`;
+    setLocation(`/finance/invoices/${invoiceId}`);
   };
   
   if (isInvoicesLoading) {
@@ -325,7 +327,7 @@ function ClientInvoices({ clientId }: { clientId: number }) {
                           <Button
                             variant="link"
                             className="text-green-500 hover:text-green-600"
-                            onClick={() => window.location.href = `/finance/invoices/${invoice.id}/payment`}
+                            onClick={() => setLocation(`/finance/invoices/${invoice.id}/payment`)}
                           >
                             Pay
                           </Button>
