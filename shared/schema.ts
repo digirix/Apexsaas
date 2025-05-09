@@ -412,6 +412,7 @@ export const tasks = pgTable("tasks", {
   canceledAt: timestamp("canceled_at"),
   activatedAt: timestamp("activated_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
 });
 
 // Create a custom task schema that properly handles dates as strings or Date objects
@@ -455,6 +456,7 @@ export const insertTaskSchema = createInsertSchema(tasks)
     isCanceled: z.boolean().default(false).optional(),
     canceledAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
     activatedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
+    updatedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
   });
 
 // Entity Tax Jurisdictions table (links entities to tax jurisdictions)
