@@ -2805,6 +2805,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get task history (previously approved auto-generated tasks)
+  app.get("/api/v1/auto-generated-tasks/history", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const taskScheduler = new TaskScheduler(storage);
+      
+      const tasks = await taskScheduler.getTaskHistory(tenantId);
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching task history:", error);
+      res.status(500).json({ 
+        message: "Failed to fetch task history",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+  
   // Approve a single auto-generated task
   app.post("/api/v1/auto-generated-tasks/:id/approve", isAuthenticated, async (req, res) => {
     try {
