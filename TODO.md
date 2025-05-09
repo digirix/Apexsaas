@@ -9,7 +9,8 @@ This document outlines the remaining tasks and future enhancements for the Accou
 - Users Module: 100% complete  
 - Finance Module: 98% complete (invoice-task integration complete, auto-posting journal entries fixed, financial reports now working correctly with actual data)
 - AI Features: 75% complete (chatbot with database analysis implemented, AI reporting section pending)
-- Settings Module: 70% complete (tenant settings functionality implemented, UI needs enhancements)
+- Settings Module: 75% complete (tenant settings functionality implemented, settings for auto-generated tasks working, UI needs improvements)
+- Auto Generated Tasks Module: 90% complete (task generation working for all frequency types, settings control task generation behavior)
 
 ## Current Priority
 1. ✓ Fix the Journal Entry source document bug (currently causing 500 error)
@@ -29,33 +30,47 @@ This document outlines the remaining tasks and future enhancements for the Accou
 15. ✓ Improve API paths and synchronization between Tasks and Finance modules for invoice updates
 16. ✓ Implement automated task-invoice linking for better traceability
 17. ✓ Fix navigation consistency in Journal Entry views (tab-based path handling)
-18. ✓ Implement auto-posting of journal entries when invoice status changes to "approved":
-   - ✓ Corrected voucher entries balancing for proper debit/credit totals
-   - ✓ Improved handling of discount amounts with proper accounting entries
-   - ✓ Enhanced transaction descriptions for better tracking
-   - ✓ Ensured proper journal entry creation for all invoice scenarios
-19. ✓ Fixed financial reports to properly display live accounting data:
-   - ✓ Balance Sheet report now correctly shows Asset ($1,093), Liability ($180), and Equity totals
-   - ✓ Profit & Loss report displays Revenue (Consultancy Income: $1,013) and Expense (Discount Allowed: $100) figures
-   - ✓ Cash Flow report shows proper transaction data for operating activities
-   - ✓ Expense Report correctly categorizes and displays expense accounts with actual balances
-   - ✓ Tax Summary displays proper tax liabilities ($180)
+18. ✓ Implement auto-posting of journal entries when invoice status changes to "approved"
+19. ✓ Fixed financial reports to properly display live accounting data
 20. ✓ Removed "New Invoice" button from Finance page and disabled direct invoice route
-21. ✓ Implemented AI features with database analysis capabilities:
-   - ✓ Created chatbot with tenant data access and analysis functions
-   - ✓ Added support for OpenRouter.ai, Google AI (Gemini), and Anthropic providers
-   - ✓ Added tenant-specific AI configurations with per-tenant API keys
-   - ✓ Implemented analytical query detection and response generation
-   - ✓ Added proper error handling and fallback mechanisms
-22. Implement TypeScript type definitions for all components in Chart of Accounts and Journal Entries related pages
-23. Implement automatic Account Code generation based on selected Chart of Accounts structure
-24. Add data visualization for financial reports (charts, graphs, trend analysis)
-25. Implement single-page PDF invoice layout with professional design
-26. Create dedicated AI reporting section with customizable reports and visualizations
-27. Implement service recommendation system based on entity profile and compliance requirements
-28. Create AI interactions logging and feedback system to improve suggestions
+21. ✓ Implemented AI features with database analysis capabilities
+22. ✓ Fixed auto-generated tasks for proper recurring task generation:
+   - ✓ Fixed monthly frequency calculations to properly handle dates
+   - ✓ Improved existence checking logic to prevent duplicate tasks
+   - ✓ Added tenant settings for lead days configuration
+   - ✓ Implemented force generation capability for manually triggered tasks
+   - ✓ Added approval workflow for auto-generated tasks
+23. Improve Settings UI with better controls and visual feedback
+24. Add settings section for AI customization (model selection, API key management)
+25. Add invoice settings and template capabilities for more flexibility
+26. Improve task template capabilities for easier recurring task setup
+27. Implement batch approval/rejection for multiple auto-generated tasks
+28. Create dedicated AI reporting section with customizable reports and visualizations
+29. Fix remaining type errors in storage interface implementation
 
 ## Priority 1: Critical System Improvements
+
+### Settings Module Enhancements 
+- [x] Implement tenant settings management for global application configuration
+- [x] Add setting for "auto_generate_task_days" to control lead time for task generation
+- [x] Add setting for "auto_approve_recurring_tasks" to control approval workflow
+- [x] Hook up settings changes to have actual impact throughout the application
+- [ ] Improve Settings UI with intuitive controls and visual feedback
+- [ ] Add settings section for AI customization (model selection, API key management)
+- [ ] Add settings for invoice defaults (payment terms, invoice numbering format)
+- [ ] Enable email notification settings configuration
+- [ ] Add tenant timezone and regional settings configuration
+
+### Auto Generated Tasks Enhancements
+- [x] Fixed task scheduler for proper recurring task generation with correct periods
+- [x] Implement tenant-specific configuration for lead days before task generation
+- [x] Create approval workflow for auto-generated tasks
+- [x] Fix compliance period calculations for all frequency types (monthly, quarterly, etc.)
+- [x] Add detailed logging throughout task generation process
+- [x] Implement force generation capability for manually triggered generation
+- [ ] Add task template capabilities for easier recurring task setup
+- [ ] Implement batch approval/rejection for multiple tasks
+- [ ] Add custom notifications when new tasks require approval
 
 ### Bug Fixes and Optimizations
 - [x] Fixed DOM nesting error in sidebar navigation (eliminated nested `<a>` tags)

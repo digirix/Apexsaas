@@ -3,9 +3,41 @@
 ## Overview
 This document provides a comprehensive overview of the progress made on the Accounting Firm Management Application, a multi-tenant system designed for accounting firms to manage clients, tasks, users, permissions, and system configuration across different countries and service types.
 
-## Latest Updates (May 8, 2025)
+## Latest Updates (May 9, 2025)
 
-### Auto Generated Tasks Module Enhancements
+### Task Scheduler Core Logic Documentation
+The task scheduler system is a crucial component for managing recurring tasks in the accounting application. It handles the automated generation of compliance-related tasks based on predefined recurring templates.
+
+#### Key Components and Workflow
+1. **TaskScheduler Class**: Central manager for generating, approving, and managing tasks
+2. **Task Generation Process**:
+   - Runs daily as a background process to check for tasks that need to be created
+   - For each tenant, retrieves recurring task templates
+   - Calculates the next compliance period for each recurring task
+   - Checks if a task for that period already exists to prevent duplicates
+   - If no duplicate exists and within lead time threshold, creates a new task instance
+
+#### Configuration Options
+- **Lead Days Setting**: Each tenant can configure how many days in advance tasks should be generated
+  - Default is 14 days, but can be customized via tenant settings
+  - Lead days can be overridden for manual generation (usually set to 0)
+- **Auto-Approval Setting**: Tenants can enable auto-approval of generated tasks
+  - When disabled, tasks require explicit approval by an authorized user
+  - When enabled, tasks automatically appear in the main task list
+
+#### Period Calculation Logic
+- **Monthly Tasks**: 
+  - Current month (1st to last day) if before the 15th of the month
+  - Next month (1st to last day) if after the 15th of the month
+  - Special handling for "previous month" duration
+- **Quarterly Tasks**: 
+  - Next quarter based on current date (Q1: Jan-Mar, Q2: Apr-Jun, Q3: Jul-Sep, Q4: Oct-Dec)
+- **Biannual/Semi-annual Tasks**: 
+  - Next half-year period (Jan-Jun or Jul-Dec)
+- **Annual/Yearly Tasks**: 
+  - Next calendar year or fiscal year based on duration
+
+#### Auto Generated Tasks Module Enhancements
 - Fixed critical issues in task scheduler for auto-generated recurring tasks:
   - Enhanced date handling logic in the task scheduler to properly calculate next periods for monthly tasks
   - Fixed issue with empty compliance duration causing tasks to be skipped
@@ -17,6 +49,7 @@ This document provides a comprehensive overview of the progress made on the Acco
   - Added force generation capability for monthly frequency tasks to ensure they're always generated when requested
   - Implemented tenant setting for configurable lead days before task generation
   - Fixed monthly frequency calculations to properly handle current month vs. next month decision based on current date
+  - Added special logic to handle mid-month generation decisions based on the current day of month
 
 ## Latest Updates (May 7, 2025)
 
