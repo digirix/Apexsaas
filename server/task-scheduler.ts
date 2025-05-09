@@ -311,7 +311,8 @@ export class TaskScheduler {
       
       // First, update the auto-generated task to no longer need approval
       const update = {
-        needsApproval: false
+        needsApproval: false,
+        updatedAt: new Date() // Set updatedAt to track when the task was approved
       };
       
       const updated = await this.storage.updateTask(taskId, update);
