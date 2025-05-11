@@ -10,7 +10,7 @@ This document outlines the remaining tasks and future enhancements for the Accou
 - Finance Module: 98% complete (invoice-task integration complete, auto-posting journal entries fixed, financial reports now working correctly with actual data)
 - AI Features: 75% complete (chatbot with database analysis implemented, AI reporting section pending)
 - Settings Module: 75% complete (tenant settings functionality implemented, settings for auto-generated tasks working, UI needs improvements)
-- Auto Generated Tasks Module: 90% complete (task generation working for all frequency types, settings control task generation behavior)
+- Auto Generated Tasks Module: 95% complete (fixed generation logic for current month only, improved compliance period date handling, fixed duplicate task creation during approval)
 
 ## Current Priority
 1. ✓ Fix the Journal Entry source document bug (currently causing 500 error)
@@ -40,6 +40,10 @@ This document outlines the remaining tasks and future enhancements for the Accou
    - ✓ Added tenant settings for lead days configuration
    - ✓ Implemented force generation capability for manually triggered tasks
    - ✓ Added approval workflow for auto-generated tasks
+   - ✓ Fixed future task generation to only generate current month tasks
+   - ✓ Improved compliance end date calculation to use last day of month (23:59:59.999)
+   - ✓ Fixed duplicate task creation issue during approval process
+   - ✓ Enhanced date handling for consistent compliance period calculation
 23. Improve Settings UI with better controls and visual feedback
 24. Add settings section for AI customization (model selection, API key management)
 25. Add invoice settings and template capabilities for more flexibility

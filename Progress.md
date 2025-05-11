@@ -3,7 +3,31 @@
 ## Overview
 This document provides a comprehensive overview of the progress made on the Accounting Firm Management Application, a multi-tenant system designed for accounting firms to manage clients, tasks, users, permissions, and system configuration across different countries and service types.
 
-## Latest Updates (May 9, 2025)
+## Latest Updates (May 11, 2025)
+
+### Auto Generated Tasks Critical Fixes
+Fixed multiple critical issues in the Auto Generated Tasks module to ensure proper task generation, lead time handling, and approval workflow:
+
+#### Task Generation Improvements
+- Rewrote task generation logic to only create tasks up to the current month (not future months)
+- Modified the lead days system to only generate future tasks when explicitly within the lead time threshold
+- Restructured the task-scheduler.ts file to separate current/past period generation from future period generation
+- Enhanced date formatting to ensure proper first/last day of month handling for all compliance periods
+- Fixed compliance end date calculation to always use the last day of each month at 23:59:59.999
+
+#### Approval Flow Enhancements 
+- Fixed duplicate task creation issue during approval process - the system now properly checks for existing tasks
+- Improved the approval flow to maintain consistent date formats between auto-generated tasks and regular tasks
+- Added extensive logging to track task creation and approval status for easier debugging
+- Implemented more thorough duplicate checking that considers both parent task relationships and matching periods
+- Fixed one-time task handling to properly set isRecurring=false when tasks are approved
+
+#### Sequential Task Generation Logic
+- Implemented logic to generate all missing tasks from original task period to current month
+- Added proper date handling for each period to ensure consistent compliance period dates
+- Fixed period existence checking to prevent duplicate tasks for the same month/year
+- Ensured that period generation stops at the current month to prevent unwanted future tasks
+- Separated task template handling from task instance creation for cleaner code organization
 
 ### Task Scheduler Core Logic Documentation
 The task scheduler system is a crucial component for managing recurring tasks in the accounting application. It handles the automated generation of compliance-related tasks based on predefined recurring templates.
@@ -36,20 +60,6 @@ The task scheduler system is a crucial component for managing recurring tasks in
   - Next half-year period (Jan-Jun or Jul-Dec)
 - **Annual/Yearly Tasks**: 
   - Next calendar year or fiscal year based on duration
-
-#### Auto Generated Tasks Module Enhancements
-- Fixed critical issues in task scheduler for auto-generated recurring tasks:
-  - Enhanced date handling logic in the task scheduler to properly calculate next periods for monthly tasks
-  - Fixed issue with empty compliance duration causing tasks to be skipped
-  - Improved date comparison logic to correctly identify if a task for a period already exists
-  - Added extensive logging throughout the task generation process for better debugging
-  - Implemented override mechanism for lead time in manual task generation to ensure tasks are created immediately when requested
-  - Fixed database queries to handle missing columns gracefully (isCanceled, canceledAt, activatedAt)
-  - Added task existence checking logic to prevent duplicate tasks for the same compliance period
-  - Added force generation capability for monthly frequency tasks to ensure they're always generated when requested
-  - Implemented tenant setting for configurable lead days before task generation
-  - Fixed monthly frequency calculations to properly handle current month vs. next month decision based on current date
-  - Added special logic to handle mid-month generation decisions based on the current day of month
 
 ## Latest Updates (May 7, 2025)
 
