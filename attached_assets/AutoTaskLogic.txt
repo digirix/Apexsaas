@@ -1,0 +1,23 @@
+the issue is not yet resolved. here is what i want.
+
+1. A New Task is created in the Tasks Module "Original Task" having Recurring Status as Yes, Compliance Start Date as March 1, 2025 and Compliance End Date as Last day of March i.e. March 31st, 2025 which is being calculated at this stage perfectly well, You Now know that the Compliance Period is March 2025 on the basis of Compliance Start and End Date. 
+
+2. On this basis, The system should Generate Auto Generated Task, "Auto Task" by looking at the Current Date, 
+first example
+if Current Date is any date of May, 2025. the System should Generate one Auto Task because the Compliance Period in the "Original Task" is March 2025, we should have "Auto Task" for "April 2025".
+
+for this Auto Task, the next Compliance Start Date would be April 1, 2025 and Compliance End Date would be April 30, 2025 (Not the May 1, 2025)
+second example
+if the current date is any date of may 2025, and lets say, Compliance Period of Original Task is January 2025, Now the system should Generate "Auto Task" for the Months of Feb 2025, March 2025, April 2025. 
+
+for Auto Task of Feb 2025, Compliance Start Date would be = Feb 1, 2025 and Compliance End Date would be = Feb 28, 2025 (being the last day of Feb, and not the first date of March 2025)
+similarly 
+for Auto Task of March 2025, Compliance Start Date would be = March 1, 2025 and Compliance End Date would be = March 31, 2025 (being the last day of March, and not the first date of April 2025
+
+or Auto Task of April 2025, Compliance Start Date would be = April 1, 2025 and Compliance End Date would be = April 30, 2025 (being the last day of April, and not the first date of May 2025
+
+Now, Each Auto Task Generated in this manner would be Considered as a separate task and when approved shall go to the Tasks Module Individually with Condition that recurring status of only the Last Compliance period i.e. in second example task with compliance period of April 2025 will be Yes, all other tasks recurring statuses will be NO, including the original task whose recurring status was set as yes, but as soon as the its related auto tasks are approved that will be converted to NO.
+
+Each Auto Task generated will be separate and will be moved to Tasks Module individually and no duplication will be allowed.
+
+Same sort of Logic shall be applied to original Tasks having Compliance frequency other than monthly. I.e. Annual, bi annual etc accordingly.
