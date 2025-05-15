@@ -400,6 +400,7 @@ export const tasks = pgTable("tasks", {
   complianceDuration: text("compliance_duration"), // Quarter, Month, etc.
   complianceStartDate: timestamp("compliance_start_date"),
   complianceEndDate: timestamp("compliance_end_date"),
+  compliancePeriod: text("compliance_period"), // Formatted period string (e.g., "May 2025", "Q2 2025", "2025")
   // Invoice information
   currency: text("currency"),
   serviceRate: doublePrecision("service_rate"),
