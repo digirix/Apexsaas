@@ -437,6 +437,7 @@ export const insertTaskSchema = createInsertSchema(tasks)
     complianceDuration: true,
     complianceStartDate: true,
     complianceEndDate: true,
+    compliancePeriod: true,
     currency: true,
     serviceRate: true,
     invoiceId: true,
