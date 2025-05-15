@@ -492,7 +492,7 @@ export class TaskScheduler {
   
   /**
    * Approve a generated task (remove approval flag)
-   * When approved, creates a regular task in the Tasks module,
+   * When approved, moves the auto-generated task to the Tasks module by making it a regular task,
    * marks the original parent task as non-recurring, and only
    * sets the most recent task's recurring flag to true
    */
@@ -510,19 +510,6 @@ export class TaskScheduler {
       
       if (task.complianceStartDate && task.complianceEndDate) {
         console.log(`Compliance period: ${format(new Date(task.complianceStartDate), 'yyyy-MM-dd')} to ${format(new Date(task.complianceEndDate), 'yyyy-MM-dd')}`);
-      }
-      
-      // First, update the auto-generated task to no longer need approval
-      const update = {
-        needsApproval: false,
-        updatedAt: new Date() // Set updatedAt to track when the task was approved
-      };
-      
-      const updated = await this.storage.updateTask(taskId, update);
-      
-      if (!updated) {
-        console.log(`Failed to update task ${taskId} approval status`);
-        return false;
       }
       
       // Check if a task for this period already exists in the main Tasks module
@@ -590,55 +577,18 @@ export class TaskScheduler {
       // Don't create a new task if one already exists for this approved task
       if (regularTaskExists) {
         console.log(`Regular task already exists for auto-generated task ${task.id}. Not creating duplicate.`);
+        
+        // Still update the auto-generated task to no longer need approval
+        const update = {
+          needsApproval: false,
+          updatedAt: new Date() // Set updatedAt to track when the task was approved
+        };
+        
+        await this.storage.updateTask(taskId, update);
         return true;
       }
       
-      console.log(`Creating new regular task for approved auto-generated task ${task.id}`);
-      
-      // Properly format compliance dates for the regular task with proper month end date
-      // This is critical to ensure consistency between auto-generated and regular tasks
-      let startDate: Date | undefined;
-      let endDate: Date | undefined;
-      
-      if (task.complianceStartDate) {
-        try {
-          // Get year and month from the start date
-          const startObj = new Date(task.complianceStartDate);
-          const year = startObj.getFullYear();
-          const month = startObj.getMonth();
-          
-          // First day of month at 00:00:00
-          startDate = new Date(year, month, 1);
-          startDate.setHours(0, 0, 0, 0);
-          
-          console.log(`Original start date: ${new Date(task.complianceStartDate).toISOString()}`);
-          console.log(`Formatted start date: ${startDate.toISOString()}`);
-        } catch (error) {
-          console.error(`Error formatting start date: ${error}`);
-          // Fallback to original date if there's an error
-          startDate = new Date(task.complianceStartDate);
-        }
-      }
-      
-      if (task.complianceEndDate) {
-        try {
-          // Get year and month from the end date
-          const endObj = new Date(task.complianceEndDate);
-          const year = endObj.getFullYear();
-          const month = endObj.getMonth();
-          
-          // Last day of month: new Date(year, month + 1, 0)
-          endDate = new Date(year, month + 1, 0);
-          endDate.setHours(23, 59, 59, 999);
-          
-          console.log(`Original end date: ${new Date(task.complianceEndDate).toISOString()}`);
-          console.log(`Formatted end date: ${endDate.toISOString()} (last day of month)`);
-        } catch (error) {
-          console.error(`Error formatting end date: ${error}`);
-          // Fallback to original date if there's an error
-          endDate = new Date(task.complianceEndDate);
-        }
-      }
+      console.log(`Converting auto-generated task ${task.id} to a regular task`);
       
       // Check if this is a one-time task
       const isOneTime = task.complianceFrequency?.toLowerCase() === 'one time' || 
@@ -681,50 +631,26 @@ export class TaskScheduler {
       
       console.log(`This task is${isLatestCompliancePeriod ? '' : ' not'} the latest compliance period`);
       
-      // Prepare data for the regular task with careful handling of optional fields
-      // This ensures all fields are properly transferred from auto-generated to regular task
-      const regularTaskData: InsertTask = {
-        tenantId: task.tenantId,
-        isAdmin: task.isAdmin,
-        taskType: task.taskType,
-        // Handle optional foreign key references properly
-        clientId: task.clientId === null ? undefined : task.clientId,
-        entityId: task.entityId === null ? undefined : task.entityId,
-        serviceTypeId: task.serviceTypeId === null ? undefined : task.serviceTypeId,
-        taskCategoryId: task.taskCategoryId === null ? undefined : task.taskCategoryId,
-        assigneeId: task.assigneeId,
-        // Ensure dates are properly handled as Date objects
-        dueDate: new Date(task.dueDate), 
-        statusId: task.statusId,
-        // Handle text fields with empty string fallbacks
-        taskDetails: task.taskDetails || '',
-        nextToDo: task.nextToDo || '',
-        // IMPORTANT: Only the latest period should be recurring
-        // This is a key change to meet the requirements
-        isRecurring: !isOneTime && isLatestCompliancePeriod,
-        // Handle compliance fields
-        complianceFrequency: task.complianceFrequency || '',
-        complianceYear: task.complianceYear || '',
-        complianceDuration: task.complianceDuration || '',
-        // Use our properly formatted dates with standardized month start/end
-        complianceStartDate: startDate,
-        complianceEndDate: endDate,
-        // Handle remaining fields
-        currency: task.currency || '',
-        serviceRate: task.serviceRate || 0,
-        // Important metadata for tracking
-        isAutoGenerated: false, // This is now a regular task
-        parentTaskId: task.parentTaskId, // Link to the ORIGINAL parent
-        needsApproval: false, // Regular tasks don't need approval
-        // Set creation metadata
-        updatedAt: new Date(), // Set initial updatedAt timestamp
-      };
-      
-      console.log('Creating regular task with data:', JSON.stringify(regularTaskData, null, 2));
-      
       try {
-        const newTaskId = await this.storage.createTask(regularTaskData);
-        console.log(`Created regular task ID ${newTaskId} for approved auto-generated task ${task.id}`);
+        // Instead of creating a new task, update the existing auto-generated task
+        // to make it a regular task (moving it to the Tasks module)
+        const taskUpdate = {
+          isAutoGenerated: false, // Convert to a regular task
+          needsApproval: false, // Regular tasks don't need approval
+          isRecurring: !isOneTime && isLatestCompliancePeriod, // Only the latest period should be recurring
+          updatedAt: new Date() // Set updatedAt to track when it was converted
+        };
+        
+        console.log(`Updating task ${taskId} to convert it to a regular task:`, JSON.stringify(taskUpdate, null, 2));
+        
+        const updated = await this.storage.updateTask(taskId, taskUpdate);
+        
+        if (!updated) {
+          console.log(`Failed to convert auto-generated task ${taskId} to regular task`);
+          return false;
+        }
+        
+        console.log(`Successfully converted auto-generated task ${taskId} to regular task`);
         
         // If this task is the latest for its period, we need to set the original parent task's
         // isRecurring flag to false, as only the newest approved task should be recurring
@@ -737,12 +663,12 @@ export class TaskScheduler {
             updatedAt: new Date()
           });
         }
+        
+        return true;
       } catch (error) {
-        console.error(`Error creating regular task: ${error}`);
+        console.error(`Error converting auto-generated task to regular task: ${error}`);
         return false;
       }
-      
-      return true;
     } catch (error) {
       console.error("Error approving task:", error);
       return false;
