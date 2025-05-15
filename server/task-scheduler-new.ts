@@ -923,7 +923,7 @@ export class TaskScheduler {
     frequency?: string, 
     duration?: string,
     referenceDate?: Date
-  ): { startDate: Date; endDate: Date } | null {
+  ): { startDate: Date; endDate: Date; compliancePeriod: string } | null {
     if (!frequency || !referenceDate) {
       console.log('Missing required parameters for calculating next period');
       return null;
@@ -939,6 +939,7 @@ export class TaskScheduler {
       
       let startDate: Date;
       let endDate: Date;
+      let compliancePeriod: string = '';
       
       // MONTHLY frequency
       if (freq === 'monthly' || freq.includes('month')) {
@@ -959,6 +960,9 @@ export class TaskScheduler {
         // Last day of next month
         endDate = new Date(nextYear, nextMonth + 1, 0);
         endDate.setHours(23, 59, 59, 999);
+        
+        // Format as "May 2025" for monthly period
+        compliancePeriod = format(startDate, 'MMMM yyyy');
         
         console.log(`Monthly: Next period is ${format(startDate, 'yyyy-MM-dd')} to ${format(endDate, 'yyyy-MM-dd')}`);
       }
@@ -1167,7 +1171,13 @@ export class TaskScheduler {
         console.log(`Corrected period: ${format(startDate, 'yyyy-MM-dd')} to ${format(endDate, 'yyyy-MM-dd')}`);
       }
       
-      return { startDate, endDate };
+      // If compliancePeriod wasn't set in any of the specific frequency cases,
+      // create a default format based on the startDate
+      if (!compliancePeriod && startDate) {
+        compliancePeriod = format(startDate, 'MMMM yyyy');
+      }
+      
+      return { startDate, endDate, compliancePeriod };
     } catch (error) {
       console.error(`Error calculating next compliance period: ${error}`);
       return null;
