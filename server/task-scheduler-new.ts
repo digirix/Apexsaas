@@ -147,7 +147,7 @@ export class TaskScheduler {
       console.log(`Using lead days: ${leadDays}, cutoff date for task generation: ${format(cutoffDate, 'yyyy-MM-dd')}`);
       
       // Collection to store all periods that need to be generated
-      let periodsToGenerate: { startDate: Date, endDate: Date, dueDate: Date }[] = [];
+      let periodsToGenerate: { startDate: Date, endDate: Date, dueDate: Date, compliancePeriod: string }[] = [];
       
       // We'll use the original compliance period as our starting reference
       // and incrementally calculate the next periods
@@ -171,7 +171,7 @@ export class TaskScheduler {
           break;
         }
         
-        const { startDate, endDate } = nextPeriod;
+        const { startDate, endDate, compliancePeriod } = nextPeriod;
         
         // Calculate due date (typically a few days before the end date)
         const dueDate = this.calculateDueDate(endDate);
@@ -192,7 +192,8 @@ export class TaskScheduler {
           periodsToGenerate.push({ 
             startDate,
             endDate,
-            dueDate 
+            dueDate,
+            compliancePeriod
           });
           console.log(`Added period to generation queue: ${format(startDate, 'yyyy-MM-dd')} to ${format(endDate, 'yyyy-MM-dd')}`);
         } else {
@@ -205,8 +206,8 @@ export class TaskScheduler {
       
       // Generate tasks for all missing periods
       for (const period of periodsToGenerate) {
-        const { startDate, endDate, dueDate } = period;
-        await this.createRecurringTaskInstance(task, startDate, endDate, dueDate);
+        const { startDate, endDate, dueDate, compliancePeriod } = period;
+        await this.createRecurringTaskInstance(task, startDate, endDate, dueDate, compliancePeriod);
       }
       
       console.log(`Generated ${periodsToGenerate.length} tasks for task ${task.id}`);
@@ -286,7 +287,8 @@ export class TaskScheduler {
     templateTask: Task, 
     startDate: Date, 
     endDate: Date,
-    dueDate: Date
+    dueDate: Date,
+    compliancePeriod: string
   ): Promise<void> {
     try {
       // Ensure the dates are properly formatted with consistent time components
@@ -423,6 +425,8 @@ export class TaskScheduler {
         // Use our properly formatted dates with standardized times
         complianceStartDate: complianceStartDate,
         complianceEndDate: complianceEndDate,
+        // Use the formatted compliance period
+        compliancePeriod: compliancePeriod,
         // Handle remaining optional fields
         currency: templateTask.currency || '',
         serviceRate: templateTask.serviceRate || 0,
