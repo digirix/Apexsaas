@@ -713,6 +713,8 @@ export class TaskScheduler {
         // Use our properly formatted dates with standardized month start/end
         complianceStartDate: startDate,
         complianceEndDate: endDate,
+        // Transfer the compliance period for consistent representation
+        compliancePeriod: task.compliancePeriod || '',
         // Handle remaining fields
         currency: task.currency || '',
         serviceRate: task.serviceRate || 0,
