@@ -192,7 +192,7 @@ export function AddTaskModal({ isOpen, onClose, taskType, preselectedClientId }:
     resolver: zodResolver(revenueTaskSchema),
     defaultValues: {
       // Basic Information Tab
-      clientId: "",
+      clientId: preselectedClientId || "",
       entityId: "",
       serviceId: "",
       taskCategoryId: "",
@@ -489,6 +489,10 @@ export function AddTaskModal({ isOpen, onClose, taskType, preselectedClientId }:
     const startDate = revenueTaskForm.watch("complianceStartDate");
     
     if (frequency && startDate) {
+      // Calculate and set the compliance period for display
+      const period = calculateCompliancePeriod(frequency, startDate);
+      setCalculatedCompliancePeriod(period);
+      
       let endDate;
       
       // Make a copy of the start date to avoid modifying the original
