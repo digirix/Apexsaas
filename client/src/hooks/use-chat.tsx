@@ -27,7 +27,7 @@ export function useChat() {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Fetch chat availability status when user is logged in
+  // Fetch chat availability status ONLY when user starts a chat
   useEffect(() => {
     // Only fetch chat status if user is logged in
     if (!user) {
@@ -36,6 +36,8 @@ export function useChat() {
       return;
     }
     
+    // We'll only do the initial API check - no polling interval
+    // This greatly reduces unnecessary API calls
     const fetchChatStatus = async () => {
       try {
         console.log('Fetching chat status with authenticated user:', user.id);
@@ -66,14 +68,15 @@ export function useChat() {
       }
     };
     
-    // Fetch immediately since we know the user is logged in
-    fetchChatStatus();
+    // Only fetch status once when the user logs in or when they send a message
+    // This prevents constant API usage that exhausts rate limits
+    if (messages.length === 0) {
+      fetchChatStatus();
+    }
     
-    // Also set up a refresh timer
-    const refreshTimer = setInterval(fetchChatStatus, 30000); // Check every 30 seconds
-    
-    return () => clearInterval(refreshTimer);
-  }, [user]); // Re-run when user changes
+    // No interval timer - we don't need to constantly poll
+    // This fixes the API exhaustion issue
+  }, [user, messages.length === 0]); // Only re-run when user changes or first message is sent
 
   // Send a message to the AI assistant
   const sendMessage = useCallback(async (content: string) => {

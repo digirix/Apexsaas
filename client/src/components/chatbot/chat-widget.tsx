@@ -73,10 +73,18 @@ export function ChatWidget() {
     scrollToBottom();
   }, [messages]);
   
-  // Debug chat status
+  // Debug chat status and manage active state to prevent excessive API calls
   useEffect(() => {
     console.log('ChatWidget - Current chat status:', chatStatus);
-  }, [chatStatus]);
+    
+    // Set chat active state in localStorage to reduce API calls
+    // This tells the useChat hook whether to poll for status updates
+    if (isOpen) {
+      localStorage.setItem('chat_widget_active', 'true');
+    } else {
+      localStorage.setItem('chat_widget_active', 'false');
+    }
+  }, [chatStatus, isOpen]);
   
   // Handle sending message
   const handleSendMessage = () => {
