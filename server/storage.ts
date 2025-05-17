@@ -1419,7 +1419,21 @@ export class MemStorage implements IStorage {
     const existingTask = this.tasks.get(id);
     if (!existingTask) return undefined;
     
-    const updatedTask = { ...existingTask, ...task };
+    // Create a safe copy of the update data with only the fields that should be updated
+    // This ensures we're not accidentally updating fields we didn't intend to
+    const safeFields = {};
+    
+    // Only copy the specific fields being updated from the task parameter
+    // This prevents unintended side effects on other tasks with similar properties
+    for (const key in task) {
+      if (Object.prototype.hasOwnProperty.call(task, key)) {
+        safeFields[key] = task[key];
+      }
+    }
+    
+    console.log(`Updating task ${id} with safe fields:`, safeFields);
+    
+    const updatedTask = { ...existingTask, ...safeFields };
     this.tasks.set(id, updatedTask);
     return updatedTask;
   }
