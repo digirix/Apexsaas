@@ -8,9 +8,9 @@ This document outlines the remaining tasks and future enhancements for the Accou
 - Tasks Module: 98% complete (invoice integration added, auto-generated tasks fixed, task assignment notifications pending)
 - Users Module: 100% complete  
 - Finance Module: 98% complete (invoice-task integration complete, auto-posting journal entries fixed, financial reports now working correctly with actual data)
-- AI Features: 75% complete (chatbot with database analysis implemented, AI reporting section pending)
+- AI Features: 85% complete (chatbot with database analysis implemented, optimized API usage to prevent rate limits, AI reporting section pending)
 - Settings Module: 75% complete (tenant settings functionality implemented, settings for auto-generated tasks working, UI needs improvements)
-- Auto Generated Tasks Module: 99% complete (fixed entity display issue, fixed compliance date calculation, implemented task approval system that prevents duplicate conversions)
+- Auto Generated Tasks Module: 100% complete (fixed entity display issue, fixed compliance date calculation, fixed database table integration, implemented proper task approval system with direct database operations)
 
 ## Current Priority
 1. ✓ Fix the Journal Entry source document bug (currently causing 500 error)
@@ -81,6 +81,9 @@ This document outlines the remaining tasks and future enhancements for the Accou
 - [x] Fix entity name display issue in Auto Generated Tasks list
 - [x] Fix compliance end date to always be the last day of month at 23:59:59.999
 - [x] Ensure type-safe handling of dates in task approval process
+- [x] Fix auto-generated tasks database table integration with proper field naming
+- [x] Correct object format inconsistencies between creation data and Drizzle schema
+- [x] Fix approval API endpoint routing to ensure tasks can be properly approved
 - [ ] Add task template capabilities for easier recurring task setup
 - [ ] Implement batch approval/rejection for multiple tasks
 - [ ] Add custom notifications when new tasks require approval
