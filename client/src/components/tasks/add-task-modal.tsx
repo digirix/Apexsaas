@@ -174,6 +174,7 @@ type RevenueTaskFormValues = z.infer<typeof revenueTaskSchema>;
 export function AddTaskModal({ isOpen, onClose, taskType, preselectedClientId }: AddTaskModalProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("basic");
+  const [calculatedCompliancePeriod, setCalculatedCompliancePeriod] = useState<string>("");
   
   // Admin task form
   const adminTaskForm = useForm<AdminTaskFormValues>({
