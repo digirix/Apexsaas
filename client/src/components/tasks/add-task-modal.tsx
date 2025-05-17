@@ -1187,6 +1187,13 @@ export function AddTaskModal({ isOpen, onClose, taskType, preselectedClientId }:
                     </div>
                   ) : (
                     <div className="space-y-4">
+                      {calculatedCompliancePeriod && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                          <p className="text-blue-700 font-medium">
+                            Compliance Period: <span className="font-bold">{calculatedCompliancePeriod}</span>
+                          </p>
+                        </div>
+                      )}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
                           control={revenueTaskForm.control}

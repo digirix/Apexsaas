@@ -140,11 +140,10 @@ export async function approveTask(storage: IStorage, autoGenTaskId: number, tena
         autoGenTask.entity_id
       );
       
-      // Filter to tasks with the same parent or related tasks
+      // Filter to tasks with the same parent task id (tasks in the same series)
+      // This ensures we're only comparing tasks that are part of the same recurring series
       const sameParentTasks = relatedAutoTasks.filter(t => 
-        t.parent_task_id === autoGenTask.parent_task_id ||
-        t.id === autoGenTask.parent_task_id ||
-        (autoGenTask.parent_task_id && t.parent_task_id === autoGenTask.parent_task_id)
+        t.parent_task_id === autoGenTask.parent_task_id
       );
       
       // Sort by compliance start date to find the latest
@@ -156,6 +155,9 @@ export async function approveTask(storage: IStorage, autoGenTaskId: number, tena
       
       // Check if current task is the latest
       isLatestRecurringTask = sortedTasks.length > 0 && sortedTasks[0].id === autoGenTask.id;
+      
+      console.log(`Task ${autoGenTask.id} isLatestRecurringTask: ${isLatestRecurringTask}`);
+      console.log(`Found ${sameParentTasks.length} tasks with same parent_task_id: ${autoGenTask.parent_task_id}`);
     }
 
     // Create the regular task
