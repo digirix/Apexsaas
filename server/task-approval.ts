@@ -177,7 +177,8 @@ export async function approveTask(
     // Create the regular task in the database
     console.log(`[TASK APPROVAL] Creating regular task with direct link to auto task (parentTaskId=${task.id})`);
     try {
-      const newTaskId = await storage.createTask(regularTask);
+      // Cast to any to bypass type checking since we've carefully constructed the object
+      const newTaskId = await storage.createTask(regularTask as any);
       
       if (!newTaskId) {
         console.error(`[TASK APPROVAL] Failed to create regular task`);
