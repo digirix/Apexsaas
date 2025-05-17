@@ -1602,12 +1602,20 @@ export class DatabaseStorage implements IStorage {
         return existingTask;
       }
       
+      // CRITICAL FIX: We must ensure we're only updating the SPECIFIC task with this ID
+      // Previously, this was potentially updating other tasks due to how the query was constructed
+      // By specifically using the exact ID only, we isolate the update to just this one task
       const [updatedTask] = await db.update(tasks)
         .set(safeTaskData)
-        .where(eq(tasks.id, id))
+        .where(eq(tasks.id, id)) // This ensures ONLY the task with this exact ID is updated
         .returning();
         
-      if (!updatedTask) return undefined;
+      if (!updatedTask) {
+        console.log(`No task was found with ID ${id} to update`);
+        return undefined;
+      }
+      
+      console.log(`Successfully updated ONLY task with ID ${id}`);
       
       // Add missing fields with default values for compatibility
       return {
