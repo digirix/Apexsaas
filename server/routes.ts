@@ -2840,8 +2840,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const taskId = parseInt(req.params.id);
       
-      const taskScheduler = new TaskScheduler(storage);
-      const success = await taskScheduler.approveTask(taskId, tenantId);
+      // Import the improved task approval function
+      const { approveTask } = await import('./task-approval');
+      
+      // Call the improved implementation to approve only this specific task
+      const success = await approveTask(storage, taskId, tenantId);
       
       if (success) {
         res.json({ message: "Task approved successfully" });
