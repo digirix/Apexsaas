@@ -650,8 +650,10 @@ export class TaskScheduler {
           taskUpdate.complianceEndDate = fixedComplianceEndDate;
         }
         
-        console.log(`Updating task ${taskId} to convert it to a regular task:`, JSON.stringify(taskUpdate, null, 2));
+        console.log(`Updating task ${taskId} with data:`, JSON.stringify(taskUpdate, null, 2));
         
+        // Important: Update ONLY this specific task by its exact ID
+        // This ensures that only the requested task is modified and moved to the Tasks module
         const updated = await this.storage.updateTask(taskId, taskUpdate);
         
         if (!updated) {
@@ -666,11 +668,20 @@ export class TaskScheduler {
         if (isLatestCompliancePeriod && task.parentTaskId) {
           console.log(`This is the latest compliance period - setting original parent task ${task.parentTaskId} to non-recurring`);
           
-          // Update the original parent task to be non-recurring
-          await this.storage.updateTask(task.parentTaskId, {
-            isRecurring: false,
-            updatedAt: new Date()
-          });
+          // First, fetch the specific parent task to ensure it exists and only update that one
+          const parentTask = await this.storage.getTask(task.parentTaskId, tenantId);
+          
+          if (parentTask) {
+            console.log(`Found specific parent task with ID: ${parentTask.id}, updating only this task`);
+            
+            // Update ONLY the original parent task with the exact ID to be non-recurring
+            await this.storage.updateTask(task.parentTaskId, {
+              isRecurring: false,
+              updatedAt: new Date()
+            });
+          } else {
+            console.log(`Parent task with ID ${task.parentTaskId} not found, skipping update`);
+          }
         }
         
         return true;
@@ -689,21 +700,37 @@ export class TaskScheduler {
    */
   public async approveAllPendingTasks(tenantId: number): Promise<number> {
     try {
+      // Get initial list of pending tasks
       const pendingTasks = await this.getTasksNeedingApproval(tenantId);
       console.log(`Found ${pendingTasks.length} tasks needing approval for tenant ${tenantId}`);
       
       let approvedCount = 0;
       
-      // Process each task individually, one at a time
+      // Process each task individually, one at a time with explicit ID tracking
       // This ensures each task approval is completely isolated from the others
       for (const task of pendingTasks) {
-        console.log(`Processing task ${task.id} individually for approval`);
-        const approved = await this.approveTask(task.id, tenantId);
-        if (approved) {
-          approvedCount++;
-          console.log(`Successfully approved task ${task.id}`);
-        } else {
-          console.log(`Failed to approve task ${task.id}`);
+        // Store the specific task ID we're going to approve
+        const taskIdToApprove = task.id;
+        
+        console.log(`Processing task ${taskIdToApprove} individually for approval`);
+        
+        try {
+          // Process this specific task ID only
+          const approved = await this.approveTask(taskIdToApprove, tenantId);
+          
+          if (approved) {
+            approvedCount++;
+            console.log(`Successfully approved task ${taskIdToApprove}`);
+          } else {
+            console.log(`Failed to approve task ${taskIdToApprove}`);
+          }
+          
+          // Small delay to ensure database operations are complete before processing next task
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+        } catch (taskError) {
+          console.error(`Error processing task ${taskIdToApprove}:`, taskError);
+          // Continue with next task even if this one failed
         }
       }
       
