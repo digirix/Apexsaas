@@ -10,7 +10,7 @@
  */
 
 import { IStorage } from "./storage";
-import { format } from "date-fns";
+import { format, endOfMonth, endOfQuarter, lastDayOfYear } from "date-fns";
 import { Task, InsertTask } from "@shared/schema";
 
 /**
@@ -26,6 +26,115 @@ import { Task, InsertTask } from "@shared/schema";
  * @param tenantId - The tenant ID for security validation
  * @returns A boolean indicating success or failure
  */
+/**
+ * Calculate the correct compliance end date based on the frequency and start date.
+ * This ensures dates are properly handled with the correct time (23:59:59.999 for end dates).
+ * 
+ * @param startDate - The compliance start date
+ * @param frequency - The compliance frequency (monthly, quarterly, etc.)
+ * @returns The calculated end date with correct time
+ */
+function calculateComplianceEndDate(startDate: Date, frequency: string): Date {
+  const lowerFrequency = frequency.toLowerCase();
+  let endDate: Date;
+  
+  if (lowerFrequency.includes('quarter')) {
+    // For quarterly, get the end of the quarter
+    endDate = endOfQuarter(startDate);
+  } else if (lowerFrequency.includes('annual') || lowerFrequency.includes('year')) {
+    if (lowerFrequency.includes('5')) {
+      // 5-year period
+      endDate = new Date(startDate);
+      endDate.setFullYear(endDate.getFullYear() + 5);
+      endDate = new Date(endDate.getFullYear(), 11, 31); // December 31st
+    } else if (lowerFrequency.includes('4')) {
+      // 4-year period
+      endDate = new Date(startDate);
+      endDate.setFullYear(endDate.getFullYear() + 4);
+      endDate = new Date(endDate.getFullYear(), 11, 31); // December 31st
+    } else if (lowerFrequency.includes('3')) {
+      // 3-year period
+      endDate = new Date(startDate);
+      endDate.setFullYear(endDate.getFullYear() + 3);
+      endDate = new Date(endDate.getFullYear(), 11, 31); // December 31st
+    } else if (lowerFrequency.includes('2')) {
+      // 2-year period
+      endDate = new Date(startDate);
+      endDate.setFullYear(endDate.getFullYear() + 2);
+      endDate = new Date(endDate.getFullYear(), 11, 31); // December 31st
+    } else {
+      // Regular annual period
+      endDate = new Date(startDate);
+      endDate.setFullYear(endDate.getFullYear() + 1);
+      endDate = new Date(endDate.getFullYear(), 11, 31); // December 31st
+    }
+  } else if (lowerFrequency.includes('semi') || lowerFrequency.includes('bi-annual')) {
+    // Semi-annual/bi-annual: 6 months
+    endDate = new Date(startDate);
+    endDate.setMonth(endDate.getMonth() + 6);
+    endDate = endOfMonth(endDate);
+  } else if (lowerFrequency.includes('one time') || lowerFrequency.includes('once')) {
+    // One-time: use the same date (adjust if needed)
+    endDate = new Date(startDate);
+  } else {
+    // Default for monthly and other frequencies: end of the month
+    endDate = endOfMonth(startDate);
+  }
+  
+  // Ensure end time is set to end of day
+  endDate.setHours(23, 59, 59, 999);
+  return endDate;
+}
+
+/**
+ * Calculate the compliance period text format based on the frequency and dates.
+ * 
+ * @param startDate - The compliance start date
+ * @param endDate - The compliance end date 
+ * @param frequency - The compliance frequency (monthly, quarterly, etc.)
+ * @returns Formatted compliance period string (e.g., "May 2025", "Q2 2025", "2025", etc.)
+ */
+function calculateCompliancePeriod(startDate: Date, endDate: Date, frequency: string): string {
+  const lowerFrequency = frequency.toLowerCase();
+  
+  if (lowerFrequency.includes('quarter')) {
+    // Quarterly format: "Q2 2025"
+    const quarter = Math.floor(startDate.getMonth() / 3) + 1;
+    return `Q${quarter} ${startDate.getFullYear()}`;
+  } else if (lowerFrequency.includes('annual') || lowerFrequency.includes('year')) {
+    if (lowerFrequency.includes('5')) {
+      // 5-year format: "2025-2029"
+      const startYear = startDate.getFullYear();
+      return `${startYear}-${startYear + 4}`;
+    } else if (lowerFrequency.includes('4')) {
+      // 4-year format: "2025-2028"
+      const startYear = startDate.getFullYear();
+      return `${startYear}-${startYear + 3}`;
+    } else if (lowerFrequency.includes('3')) {
+      // 3-year format: "2025-2027"
+      const startYear = startDate.getFullYear();
+      return `${startYear}-${startYear + 2}`;
+    } else if (lowerFrequency.includes('2')) {
+      // 2-year format: "2025-2026"
+      const startYear = startDate.getFullYear();
+      return `${startYear}-${startYear + 1}`;
+    } else {
+      // Standard annual: "2025"
+      return `${startDate.getFullYear()}`;
+    }
+  } else if (lowerFrequency.includes('semi') || lowerFrequency.includes('bi-annual')) {
+    // Semi-annual format: "H1 2025" or "H2 2025"
+    const half = startDate.getMonth() < 6 ? 1 : 2;
+    return `H${half} ${startDate.getFullYear()}`;
+  } else if (lowerFrequency.includes('one time') || lowerFrequency.includes('once')) {
+    // One-time format: "May 2025 (One-time)"
+    return `${format(startDate, 'MMMM yyyy')} (One-time)`;
+  } else {
+    // Monthly format: "May 2025"
+    return format(startDate, 'MMMM yyyy');
+  }
+}
+
 /**
  * Approve a specific auto-generated task and create exactly one corresponding regular task.
  * 
