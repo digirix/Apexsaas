@@ -1346,6 +1346,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all entities for a tenant (needed for auto-generated tasks)
+  app.get("/api/v1/entities", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const entities = await storage.getEntities(tenantId);
+      res.json(entities);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch all entities" });
+    }
+  });
+
   app.get("/api/v1/entities/:id", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
