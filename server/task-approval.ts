@@ -240,7 +240,45 @@ export async function approveTask(
     console.log(`[TASK-APPROVAL] Is latest period: ${isLatestPeriod}`);
     
     // -----------------------------------------------------------------------
-    // Step 5: Create exactly ONE new regular task
+    // Step 5: Fix compliance dates and calculate proper compliance period
+    // -----------------------------------------------------------------------
+    console.log(`[TASK-APPROVAL] Fixing compliance dates and calculating compliance period`);
+    
+    // Get/validate start date
+    let correctStartDate: Date | null = null;
+    let correctEndDate: Date | null = null; 
+    let compliancePeriod: string | null = null;
+    
+    // Process compliance dates if available
+    if (task.complianceStartDate && task.complianceFrequency) {
+      // Convert to proper date objects
+      correctStartDate = new Date(task.complianceStartDate);
+      
+      // Calculate the correct end date based on frequency and start date
+      correctEndDate = calculateComplianceEndDate(correctStartDate, task.complianceFrequency);
+      
+      // Ensure the correct end time (23:59:59.999)
+      correctEndDate.setHours(23, 59, 59, 999);
+      
+      // Calculate the compliance period format
+      compliancePeriod = calculateCompliancePeriod(
+        correctStartDate,
+        correctEndDate,
+        task.complianceFrequency
+      );
+      
+      console.log(`[TASK-APPROVAL] Fixed dates - Start: ${correctStartDate.toISOString()}, End: ${correctEndDate.toISOString()}`);
+      console.log(`[TASK-APPROVAL] Calculated compliance period: ${compliancePeriod}`);
+    } else {
+      console.log(`[TASK-APPROVAL] Cannot fix compliance dates - missing start date or frequency`);
+      // Fall back to original values
+      correctStartDate = task.complianceStartDate ? new Date(task.complianceStartDate) : null;
+      correctEndDate = task.complianceEndDate ? new Date(task.complianceEndDate) : null;
+      compliancePeriod = task.compliancePeriod || null;
+    }
+    
+    // -----------------------------------------------------------------------
+    // Step 6: Create exactly ONE new regular task
     // -----------------------------------------------------------------------
     console.log(`[TASK-APPROVAL] Creating ONE regular task`);
     
@@ -274,13 +312,13 @@ export async function approveTask(
       // Set recurring flag based on period check
       isRecurring: !isOneTime && isLatestPeriod,
       
-      // Copy all compliance period information exactly
+      // Use corrected compliance date fields
       complianceFrequency: task.complianceFrequency,
       complianceYear: task.complianceYear,
       complianceDuration: task.complianceDuration,
-      complianceStartDate: task.complianceStartDate,
-      complianceEndDate: task.complianceEndDate,
-      compliancePeriod: task.compliancePeriod,
+      complianceStartDate: correctStartDate,
+      complianceEndDate: correctEndDate,
+      compliancePeriod: compliancePeriod,
       
       // Copy financial information
       currency: task.currency,
