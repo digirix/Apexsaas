@@ -680,19 +680,27 @@ export class TaskScheduler {
         if (task.compliance_duration) newRegularTask.complianceDuration = task.compliance_duration;
         
         // Use the fixed compliance dates when available
-        if (task.complianceStartDate) {
-          newRegularTask.complianceStartDate = task.complianceStartDate;
+        if (task.compliance_start_date) {
+          newRegularTask.complianceStartDate = task.compliance_start_date;
         }
         if (fixedComplianceEndDate) {
           newRegularTask.complianceEndDate = fixedComplianceEndDate;
-        } else if (task.complianceEndDate) {
-          newRegularTask.complianceEndDate = task.complianceEndDate;
+        } else if (task.compliance_end_date) {
+          newRegularTask.complianceEndDate = task.compliance_end_date;
+        }
+        
+        // Set the compliance period string (new field)
+        if (task.compliance_period) {
+          newRegularTask.compliance_period = task.compliance_period;
+        } else if (task.compliance_start_date) {
+          // If no explicit compliance_period is set, generate one from the start date
+          newRegularTask.compliance_period = format(new Date(task.compliance_start_date), 'MMM yyyy');
         }
         
         // Add remaining optional fields
         if (task.currency) newRegularTask.currency = task.currency;
-        if (task.serviceRate) newRegularTask.serviceRate = task.serviceRate;
-        if (task.invoiceId) newRegularTask.invoiceId = task.invoiceId;
+        if (task.service_rate) newRegularTask.serviceRate = task.service_rate;
+        if (task.invoice_id) newRegularTask.invoiceId = task.invoice_id;
         
         // Add metadata fields
         newRegularTask.createdAt = new Date();
@@ -714,22 +722,22 @@ export class TaskScheduler {
         
         // If this task is the latest for its period, we need to set the original parent task's
         // isRecurring flag to false, as only the newest approved task should be recurring
-        if (isLatestCompliancePeriod && task.parentTaskId) {
-          console.log(`This is the latest compliance period - setting original parent task ${task.parentTaskId} to non-recurring`);
+        if (isLatestCompliancePeriod && task.parent_task_id) {
+          console.log(`This is the latest compliance period - setting original parent task ${task.parent_task_id} to non-recurring`);
           
           // First, fetch the specific parent task to ensure it exists and only update that one
-          const parentTask = await this.storage.getTask(task.parentTaskId, tenantId);
+          const parentTask = await this.storage.getTask(task.parent_task_id, tenantId);
           
           if (parentTask) {
             console.log(`Found specific parent task with ID: ${parentTask.id}, updating only this task`);
             
             // Update ONLY the original parent task with the exact ID to be non-recurring
-            await this.storage.updateTask(task.parentTaskId, {
+            await this.storage.updateTask(task.parent_task_id, {
               isRecurring: false,
               updatedAt: new Date()
             });
           } else {
-            console.log(`Parent task with ID ${task.parentTaskId} not found, skipping update`);
+            console.log(`Parent task with ID ${task.parent_task_id} not found, skipping update`);
           }
         }
         
