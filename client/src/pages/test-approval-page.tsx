@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
-import MainLayout from '@/layouts/main-layout';
 
 export default function TestApprovalPage() {
   const [tasks, setTasks] = useState<any[]>([]);
@@ -100,9 +99,8 @@ export default function TestApprovalPage() {
   };
 
   return (
-    <MainLayout>
-      <div className="container mx-auto py-8">
-        <h1 className="text-3xl font-bold mb-6">Task Approval Testing</h1>
+    <div className="container mx-auto py-8">
+      <h1 className="text-3xl font-bold mb-6">Task Approval Testing</h1>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="w-full">
@@ -236,6 +234,5 @@ export default function TestApprovalPage() {
           </Card>
         </div>
       </div>
-    </MainLayout>
   );
 }
