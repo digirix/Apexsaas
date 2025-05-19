@@ -282,40 +282,47 @@ export class ImprovedTaskScheduler {
   
   private async processRecurringTask(task: Task, leadDays: number): Promise<void> {
     try {
-      if (!task.complianceFrequency || !task.complianceStartDate) {
-        console.log(`Task ${task.id} has no compliance frequency or start date, skipping`);
+      if (!task.complianceFrequency || !task.complianceStartDate || !task.complianceEndDate) {
+        console.log(`Task ${task.id} has no compliance frequency, start date, or end date, skipping`);
         return;
       }
       
-      // Calculate next period (month, quarter, year, etc.)
-      const startDate = new Date(task.complianceStartDate);
-      let endDate: Date;
+      // Calculate next period based on frequency (monthly, quarterly, yearly, etc.)
+      const { newStartDate, newEndDate } = this.calculateNextComplianceDates(
+        task.complianceFrequency,
+        new Date(task.complianceStartDate),
+        new Date(task.complianceEndDate)
+      );
       
-      // Default to next month if frequency not recognized
-      const nextMonth = addMonths(startDate, 1);
-      const newStartDate = startOfMonth(nextMonth);
-      endDate = endOfMonth(nextMonth);
+      console.log(`Processing recurring task ${task.id}:`);
+      console.log(`Current period: ${task.compliancePeriod}`);
+      console.log(`Current start date: ${task.complianceStartDate}`);
+      console.log(`Current end date: ${task.complianceEndDate}`);
+      console.log(`Next start date: ${newStartDate}`);
+      console.log(`Next end date: ${newEndDate}`);
       
-      // Calculate compliance period string
-      const compliancePeriod = this.calculateCompliancePeriod(
+      // Calculate compliance period string for the next period
+      const nextCompliancePeriod = this.calculateCompliancePeriod(
         task.complianceFrequency,
         newStartDate
       );
+      
+      console.log(`Next compliance period: ${nextCompliancePeriod}`);
       
       // Check if task already exists for this period
       const existingTasks = await this.storage.getTasks(task.tenantId);
       const duplicateExists = existingTasks.some(existingTask => 
         existingTask.parentTaskId === task.id && 
-        existingTask.compliancePeriod === compliancePeriod
+        existingTask.compliancePeriod === nextCompliancePeriod
       );
       
       if (duplicateExists) {
-        console.log(`Task already exists for period ${compliancePeriod}, skipping`);
+        console.log(`Task already exists for period ${nextCompliancePeriod}, skipping`);
         return;
       }
       
-      // Create new instance of this task
-      await this.createRecurringTaskInstance(task, newStartDate, endDate, compliancePeriod);
+      // Create new instance of this task with the calculated next period
+      await this.createRecurringTaskInstance(task, newStartDate, newEndDate, nextCompliancePeriod);
     } catch (error) {
       console.error(`Error processing recurring task ${task.id}:`, error);
     }
@@ -327,6 +334,66 @@ export class ImprovedTaskScheduler {
       existingTask.parentTaskId === task.id && 
       existingTask.compliancePeriod === period
     );
+  }
+  
+  /**
+   * Calculate the next start and end dates for a compliance period
+   * based on the current dates and frequency
+   */
+  private calculateNextComplianceDates(
+    frequency: string,
+    currentStartDate: Date,
+    currentEndDate: Date
+  ): { newStartDate: Date, newEndDate: Date } {
+    const frequencyLower = frequency.toLowerCase();
+    
+    // Default to the next day after current end date for start date
+    let newStartDate = new Date(currentEndDate);
+    newStartDate.setDate(newStartDate.getDate() + 1);
+    newStartDate.setHours(0, 0, 0, 1); // Start of day with 1ms offset to ensure proper sorting
+    
+    let newEndDate = new Date(newStartDate);
+    
+    if (frequencyLower.includes('month')) {
+      // Monthly: Advance to next month
+      newStartDate = startOfMonth(addMonths(currentStartDate, 1));
+      newEndDate = endOfMonth(newStartDate);
+    } else if (frequencyLower.includes('quarter')) {
+      // Quarterly: Advance by 3 months
+      newStartDate = startOfMonth(addMonths(currentStartDate, 3));
+      newEndDate = endOfMonth(addMonths(newStartDate, 2)); // End of the quarter (3 months)
+    } else if (frequencyLower.includes('semi') || frequencyLower.includes('bi-annual')) {
+      // Semi-annual: Advance by 6 months
+      newStartDate = startOfMonth(addMonths(currentStartDate, 6));
+      newEndDate = endOfMonth(addMonths(newStartDate, 5)); // End of the half year (6 months)
+    } else if (frequencyLower.includes('annual') || frequencyLower.includes('year')) {
+      let yearIncrement = 1; // Default for annual
+      
+      // Check for multi-year periods
+      if (frequencyLower.includes('2')) {
+        yearIncrement = 2;
+      } else if (frequencyLower.includes('3')) {
+        yearIncrement = 3;
+      } else if (frequencyLower.includes('4')) {
+        yearIncrement = 4;
+      } else if (frequencyLower.includes('5')) {
+        yearIncrement = 5;
+      }
+      
+      // Advance by specified number of years
+      newStartDate = new Date(currentStartDate);
+      newStartDate.setFullYear(newStartDate.getFullYear() + yearIncrement);
+      
+      newEndDate = new Date(currentEndDate);
+      newEndDate.setFullYear(newEndDate.getFullYear() + yearIncrement);
+    }
+    
+    // Set time components for proper ordering and display
+    // Start date gets 00:00:00.001, end date gets 23:59:59.999
+    newStartDate.setHours(0, 0, 0, 1);
+    newEndDate.setHours(23, 59, 59, 999);
+    
+    return { newStartDate, newEndDate };
   }
   
   private calculateDueDate(endDate: Date): Date {
@@ -407,6 +474,9 @@ export class ImprovedTaskScheduler {
       // Calculate due date (few days before end of period)
       const dueDate = this.calculateDueDate(endDate);
       
+      // Get the year from the start date for the compliance year
+      const complianceYear = format(startDate, 'yyyy');
+      
       console.log(`Creating task with data: ${JSON.stringify({
         tenantId: templateTask.tenantId,
         isAdmin: templateTask.isAdmin,
@@ -422,7 +492,7 @@ export class ImprovedTaskScheduler {
         nextToDo: templateTask.nextToDo || '',
         isRecurring: false,
         complianceFrequency: templateTask.complianceFrequency,
-        complianceYear: format(startDate, 'yyyy'),
+        complianceYear,
         complianceDuration: templateTask.complianceDuration,
         complianceStartDate: startDate,
         complianceEndDate: endDate,
@@ -450,7 +520,7 @@ export class ImprovedTaskScheduler {
         nextToDo: templateTask.nextToDo || '',
         isRecurring: false,
         complianceFrequency: templateTask.complianceFrequency,
-        complianceYear: format(startDate, 'yyyy'),
+        complianceYear,
         complianceDuration: templateTask.complianceDuration,
         complianceStartDate: startDate,
         complianceEndDate: endDate,
