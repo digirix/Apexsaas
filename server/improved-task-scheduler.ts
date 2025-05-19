@@ -281,14 +281,52 @@ export class ImprovedTaskScheduler {
   // These are kept as-is from the original implementation
   
   private async processRecurringTask(task: Task, leadDays: number): Promise<void> {
-    // Implementation remains the same as original TaskScheduler
-    // This method would contain the original implementation code for processing recurring tasks
+    try {
+      if (!task.complianceFrequency || !task.complianceStartDate) {
+        console.log(`Task ${task.id} has no compliance frequency or start date, skipping`);
+        return;
+      }
+      
+      // Calculate next period (month, quarter, year, etc.)
+      const startDate = new Date(task.complianceStartDate);
+      let endDate: Date;
+      
+      // Default to next month if frequency not recognized
+      const nextMonth = addMonths(startDate, 1);
+      const newStartDate = startOfMonth(nextMonth);
+      endDate = endOfMonth(nextMonth);
+      
+      // Calculate compliance period string
+      const compliancePeriod = this.calculateCompliancePeriod(
+        task.complianceFrequency,
+        newStartDate
+      );
+      
+      // Check if task already exists for this period
+      const existingTasks = await this.storage.getTasks(task.tenantId);
+      const duplicateExists = existingTasks.some(existingTask => 
+        existingTask.parentTaskId === task.id && 
+        existingTask.compliancePeriod === compliancePeriod
+      );
+      
+      if (duplicateExists) {
+        console.log(`Task already exists for period ${compliancePeriod}, skipping`);
+        return;
+      }
+      
+      // Create new instance of this task
+      await this.createRecurringTaskInstance(task, newStartDate, endDate, compliancePeriod);
+    } catch (error) {
+      console.error(`Error processing recurring task ${task.id}:`, error);
+    }
   }
   
   private doesPeriodExist(task: Task, startDate: Date, endDate: Date, existingTasks: Task[]): boolean {
-    // Implementation remains the same as original TaskScheduler
-    // This method would contain the original implementation code for checking if a period exists
-    return false;
+    const period = this.calculateCompliancePeriod(task.complianceFrequency || "", startDate);
+    return existingTasks.some(existingTask => 
+      existingTask.parentTaskId === task.id && 
+      existingTask.compliancePeriod === period
+    );
   }
   
   private calculateDueDate(endDate: Date): Date {
@@ -298,23 +336,137 @@ export class ImprovedTaskScheduler {
     return subDays(endDate, daysBeforeEnd);
   }
   
-  private calculateNextCompliancePeriod(
-    frequency: string, 
-    duration: string,
-    referenceDate: Date
-  ): { startDate: Date, endDate: Date } | null {
-    // Implementation remains the same as original TaskScheduler
-    // This method would contain the original implementation code for calculating the next compliance period
-    return null;
+  /**
+   * Calculate compliance period based on frequency and start date
+   */
+  private calculateCompliancePeriod(frequency: string, startDate: Date): string {
+    if (!frequency || !startDate) {
+      return "";
+    }
+
+    const frequencyLower = frequency.toLowerCase();
+    
+    // Calculate compliance period based on frequency
+    if (frequencyLower.includes('month')) {
+      // Monthly format: "May 2025"
+      return format(startDate, 'MMMM yyyy');
+    } else if (frequencyLower.includes('quarter')) {
+      // Quarterly format: "Q2 2025"
+      const quarter = Math.floor(startDate.getMonth() / 3) + 1;
+      return `Q${quarter} ${startDate.getFullYear()}`;
+    } else if (frequencyLower.includes('annual') || frequencyLower.includes('year')) {
+      if (frequencyLower.includes('5')) {
+        // 5-year format: "2025-2029"
+        const startYear = startDate.getFullYear();
+        return `${startYear}-${startYear + 4}`;
+      } else if (frequencyLower.includes('4')) {
+        // 4-year format: "2025-2028"
+        const startYear = startDate.getFullYear();
+        return `${startYear}-${startYear + 3}`;
+      } else if (frequencyLower.includes('3')) {
+        // 3-year format: "2025-2027"
+        const startYear = startDate.getFullYear();
+        return `${startYear}-${startYear + 2}`;
+      } else if (frequencyLower.includes('2')) {
+        // 2-year format: "2025-2026"
+        const startYear = startDate.getFullYear();
+        return `${startYear}-${startYear + 1}`;
+      } else {
+        // Standard annual: "2025"
+        return `${startDate.getFullYear()}`;
+      }
+    } else if (frequencyLower.includes('semi') || frequencyLower.includes('bi-annual')) {
+      // Semi-annual format: "H1 2025" or "H2 2025"
+      const half = startDate.getMonth() < 6 ? 1 : 2;
+      return `H${half} ${startDate.getFullYear()}`;
+    } else if (frequencyLower.includes('one time') || frequencyLower.includes('once')) {
+      // One-time format: "May 2025 (One-time)"
+      return `${format(startDate, 'MMMM yyyy')} (One-time)`;
+    } else {
+      // Default format for unknown frequencies
+      return format(startDate, 'MMMM yyyy');
+    }
   }
   
   private async createRecurringTaskInstance(
     templateTask: Task, 
     startDate: Date, 
     endDate: Date,
-    dueDate: Date
+    compliancePeriod: string
   ): Promise<void> {
-    // Implementation remains the same as original TaskScheduler
-    // This method would contain the original implementation code for creating a recurring task instance
+    try {
+      // Find "New" status 
+      const statuses = await this.storage.getTaskStatuses(templateTask.tenantId);
+      const newStatus = statuses.find(status => status.name.toLowerCase() === 'new' || status.rank === 1);
+      
+      if (!newStatus) {
+        console.error(`No "New" status found for tenant ${templateTask.tenantId}`);
+        return;
+      }
+      
+      // Calculate due date (few days before end of period)
+      const dueDate = this.calculateDueDate(endDate);
+      
+      console.log(`Creating task with data: ${JSON.stringify({
+        tenantId: templateTask.tenantId,
+        isAdmin: templateTask.isAdmin,
+        taskType: templateTask.taskType,
+        clientId: templateTask.clientId,
+        entityId: templateTask.entityId,
+        serviceTypeId: templateTask.serviceTypeId,
+        taskCategoryId: templateTask.taskCategoryId,
+        assigneeId: templateTask.assigneeId,
+        dueDate,
+        statusId: newStatus.id,
+        taskDetails: templateTask.taskDetails,
+        nextToDo: templateTask.nextToDo || '',
+        isRecurring: false,
+        complianceFrequency: templateTask.complianceFrequency,
+        complianceYear: format(startDate, 'yyyy'),
+        complianceDuration: templateTask.complianceDuration,
+        complianceStartDate: startDate,
+        complianceEndDate: endDate,
+        compliancePeriod,
+        currency: templateTask.currency,
+        serviceRate: templateTask.serviceRate,
+        parentTaskId: templateTask.id,
+        isAutoGenerated: true,
+        needsApproval: true
+      }, null, 2)}`);
+      
+      // Create new task from template
+      const newTaskData: InsertTask = {
+        tenantId: templateTask.tenantId,
+        isAdmin: templateTask.isAdmin,
+        taskType: templateTask.taskType,
+        clientId: templateTask.clientId,
+        entityId: templateTask.entityId,
+        serviceTypeId: templateTask.serviceTypeId,
+        taskCategoryId: templateTask.taskCategoryId,
+        assigneeId: templateTask.assigneeId,
+        dueDate,
+        statusId: newStatus.id,
+        taskDetails: templateTask.taskDetails,
+        nextToDo: templateTask.nextToDo || '',
+        isRecurring: false,
+        complianceFrequency: templateTask.complianceFrequency,
+        complianceYear: format(startDate, 'yyyy'),
+        complianceDuration: templateTask.complianceDuration,
+        complianceStartDate: startDate,
+        complianceEndDate: endDate,
+        compliancePeriod,
+        currency: templateTask.currency,
+        serviceRate: templateTask.serviceRate,
+        parentTaskId: templateTask.id,
+        isAutoGenerated: true,
+        needsApproval: true
+      };
+      
+      console.log(`Inserting task with filtered fields: ${JSON.stringify(newTaskData, null, 2)}`);
+      await this.storage.createTask(newTaskData);
+      console.log(`Created new task for period ${compliancePeriod}`);
+    } catch (error) {
+      console.error(`Error creating recurring task instance:`, error);
+    }
   }
 }
