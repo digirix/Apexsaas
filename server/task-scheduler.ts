@@ -4,6 +4,8 @@ import { format, addMonths, startOfMonth, endOfMonth } from "date-fns";
 
 /**
  * Class that handles task scheduling and approval using a single-table approach
+ * All tasks (regular and auto-generated) are stored in a single tasks table
+ * with flags to differentiate them
  */
 export class TaskScheduler {
   private storage: IStorage;
@@ -117,8 +119,6 @@ export class TaskScheduler {
     }
   }
   
-
-  
   /**
    * Calculate compliance period based on frequency and start date
    */
@@ -191,9 +191,15 @@ export class TaskScheduler {
   
   /**
    * Approve a task - sets needsApproval to false and manages isRecurring flag
+   * This is the main method for approving auto-generated tasks in the single-table approach
+   * @param taskId The ID of the task to approve
+   * @param tenantId The tenant ID for security checks
+   * @returns true if approval is successful, false otherwise
    */
   public async approveTask(taskId: number, tenantId: number): Promise<boolean> {
     try {
+      console.log(`Attempting to approve task ${taskId} for tenant ${tenantId}`);
+      
       // Get the task to approve
       const task = await this.storage.getTask(taskId, tenantId);
       
@@ -250,6 +256,7 @@ export class TaskScheduler {
             }
           }
           
+          console.log(`Task ${taskId} has been approved successfully`);
           return true;
         }
       }
@@ -260,6 +267,7 @@ export class TaskScheduler {
         updatedAt: new Date()
       });
       
+      console.log(`Task ${taskId} has been approved successfully (without parent task)`);
       return true;
     } catch (error) {
       console.error(`Error approving task ${taskId}:`, error);
@@ -268,10 +276,16 @@ export class TaskScheduler {
   }
   
   /**
-   * Reject a task (delete it)
+   * Reject a task - mark it as canceled
+   * This implements the reject functionality for auto-generated tasks
+   * @param taskId The ID of the task to reject
+   * @param tenantId The tenant ID for security checks
+   * @returns true if rejection is successful, false otherwise
    */
   public async rejectTask(taskId: number, tenantId: number): Promise<boolean> {
     try {
+      console.log(`Attempting to reject task ${taskId} for tenant ${tenantId}`);
+      
       const task = await this.storage.getTask(taskId, tenantId);
       
       if (!task) {
@@ -284,7 +298,15 @@ export class TaskScheduler {
         return false;
       }
       
-      return await this.storage.deleteTask(taskId, tenantId);
+      // Mark as canceled instead of deleting
+      await this.storage.updateTask(taskId, {
+        isCanceled: true,
+        canceledAt: new Date(),
+        updatedAt: new Date()
+      });
+      
+      console.log(`Task ${taskId} has been rejected successfully`);
+      return true;
     } catch (error) {
       console.error(`Error rejecting task ${taskId}:`, error);
       return false;
