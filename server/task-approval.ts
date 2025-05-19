@@ -1,201 +1,216 @@
-/**
- * Task Approval Handler
- * 
- * This module handles the approval of auto-generated tasks and their conversion
- * to regular tasks with proper compliance period handling and parent-child relationships.
- */
-
-import { IStorage } from "./storage";
-import { format } from "date-fns";
+import { IStorage } from './storage';
+import { format } from 'date-fns';
 
 /**
- * Calculates compliance period text based on frequency and dates
- * @param frequency The compliance frequency type (monthly, quarterly, etc.)
- * @param startDate The compliance start date
+ * This module handles approval of auto-generated tasks
+ * using a single-table approach where all tasks (including auto-generated ones) 
+ * are stored in a single 'tasks' table
  */
-export function calculateCompliancePeriod(frequency: string, startDate: Date): string {
-  if (!frequency || !startDate) {
-    return "";
+export class TaskApproval {
+  private storage: IStorage;
+
+  constructor(storage: IStorage) {
+    this.storage = storage;
   }
 
-  const frequencyLower = frequency.toLowerCase();
-  
-  // Calculate compliance period based on frequency
-  if (frequencyLower.includes('month')) {
-    // Monthly format: "May 2025"
-    return format(startDate, 'MMMM yyyy');
-  } else if (frequencyLower.includes('quarter')) {
-    // Quarterly format: "Q2 2025"
-    const quarter = Math.floor(startDate.getMonth() / 3) + 1;
-    return `Q${quarter} ${startDate.getFullYear()}`;
-  } else if (frequencyLower.includes('annual') || frequencyLower.includes('year')) {
-    if (frequencyLower.includes('5')) {
-      // 5-year format: "2025-2029"
-      const startYear = startDate.getFullYear();
-      return `${startYear}-${startYear + 4}`;
-    } else if (frequencyLower.includes('4')) {
-      // 4-year format: "2025-2028"
-      const startYear = startDate.getFullYear();
-      return `${startYear}-${startYear + 3}`;
-    } else if (frequencyLower.includes('3')) {
-      // 3-year format: "2025-2027"
-      const startYear = startDate.getFullYear();
-      return `${startYear}-${startYear + 2}`;
-    } else if (frequencyLower.includes('2')) {
-      // 2-year format: "2025-2026"
-      const startYear = startDate.getFullYear();
-      return `${startYear}-${startYear + 1}`;
+  /**
+   * Calculate compliance period based on frequency and start date
+   */
+  public calculateCompliancePeriod(frequency: string, startDate: Date): string {
+    if (!frequency || !startDate) {
+      return "";
+    }
+
+    const frequencyLower = frequency.toLowerCase();
+    
+    // Calculate compliance period based on frequency
+    if (frequencyLower.includes('month')) {
+      // Monthly format: "May 2025"
+      return format(startDate, 'MMMM yyyy');
+    } else if (frequencyLower.includes('quarter')) {
+      // Quarterly format: "Q2 2025"
+      const quarter = Math.floor(startDate.getMonth() / 3) + 1;
+      return `Q${quarter} ${startDate.getFullYear()}`;
+    } else if (frequencyLower.includes('annual') || frequencyLower.includes('year')) {
+      if (frequencyLower.includes('5')) {
+        // 5-year format: "2025-2029"
+        const startYear = startDate.getFullYear();
+        return `${startYear}-${startYear + 4}`;
+      } else if (frequencyLower.includes('4')) {
+        // 4-year format: "2025-2028"
+        const startYear = startDate.getFullYear();
+        return `${startYear}-${startYear + 3}`;
+      } else if (frequencyLower.includes('3')) {
+        // 3-year format: "2025-2027"
+        const startYear = startDate.getFullYear();
+        return `${startYear}-${startYear + 2}`;
+      } else if (frequencyLower.includes('2')) {
+        // 2-year format: "2025-2026"
+        const startYear = startDate.getFullYear();
+        return `${startYear}-${startYear + 1}`;
+      } else {
+        // Standard annual: "2025"
+        return `${startDate.getFullYear()}`;
+      }
+    } else if (frequencyLower.includes('semi') || frequencyLower.includes('bi-annual')) {
+      // Semi-annual format: "H1 2025" or "H2 2025"
+      const half = startDate.getMonth() < 6 ? 1 : 2;
+      return `H${half} ${startDate.getFullYear()}`;
+    } else if (frequencyLower.includes('one time') || frequencyLower.includes('once')) {
+      // One-time format: "May 2025 (One-time)"
+      return `${format(startDate, 'MMMM yyyy')} (One-time)`;
     } else {
-      // Standard annual: "2025"
-      return `${startDate.getFullYear()}`;
+      // Default format for unknown frequencies
+      return format(startDate, 'MMMM yyyy');
     }
-  } else if (frequencyLower.includes('semi') || frequencyLower.includes('bi-annual')) {
-    // Semi-annual format: "H1 2025" or "H2 2025"
-    const half = startDate.getMonth() < 6 ? 1 : 2;
-    return `H${half} ${startDate.getFullYear()}`;
-  } else if (frequencyLower.includes('one time') || frequencyLower.includes('once')) {
-    // One-time format: "May 2025 (One-time)"
-    return `${format(startDate, 'MMMM yyyy')} (One-time)`;
-  } else {
-    // Default format for unknown frequencies
-    return format(startDate, 'MMMM yyyy');
   }
-}
 
-/**
- * Converts a date to start of day (00:00:00.001)
- * @param date The date to convert
- */
-export function setStartOfDay(date: Date): Date {
-  const newDate = new Date(date);
-  newDate.setHours(0, 0, 0, 1); // 00:00:00.001
-  return newDate;
-}
+  /**
+   * Get all tasks that need approval
+   * Uses the single table approach by filtering for tasks with needsApproval=true
+   */
+  public async getTasksNeedingApproval(tenantId: number) {
+    const tasks = await this.storage.getTasks(tenantId);
+    return tasks.filter(task => 
+      task.isAutoGenerated === true && 
+      task.needsApproval === true);
+  }
 
-/**
- * Converts a date to end of day (23:59:59.999)
- * @param date The date to convert
- */
-export function setEndOfDay(date: Date): Date {
-  const newDate = new Date(date);
-  newDate.setHours(23, 59, 59, 999); // 23:59:59.999
-  return newDate;
-}
-
-/**
- * Approves an auto-generated task and creates a regular task
- * 
- * This function handles:
- * 1. Converting an auto-generated task to a regular task
- * 2. Setting up proper parent-child relationships
- * 3. Handling the isRecurring flag properly (only latest task should have isRecurring=true)
- * 4. Calculating and storing compliance periods
- * 
- * @param storage The storage interface
- * @param autoGenTaskId The ID of the auto-generated task to approve
- * @param tenantId The tenant ID
- */
-export async function approveTask(storage: IStorage, autoGenTaskId: number, tenantId: number): Promise<boolean> {
-  try {
-    // Get the auto-generated task
-    const autoGenTask = await storage.getAutoGeneratedTask(autoGenTaskId, tenantId);
-    if (!autoGenTask) {
-      console.error(`Auto-generated task with ID ${autoGenTaskId} not found for tenant ${tenantId}`);
-      return false;
-    }
-
-    // Check if the task requires approval
-    if (!autoGenTask.needsApproval) {
-      console.error(`Auto-generated task with ID ${autoGenTaskId} does not require approval`);
-      return false;
-    }
-
-    // Create the compliance period based on frequency and dates
-    let compliancePeriod = "";
-    if (autoGenTask.compliance_frequency && autoGenTask.compliance_start_date) {
-      compliancePeriod = calculateCompliancePeriod(
-        autoGenTask.compliance_frequency,
-        new Date(autoGenTask.compliance_start_date)
-      );
-    }
-
-    // Fix date handling for compliance start and end dates
-    let complianceStartDate = autoGenTask.compliance_start_date 
-      ? setStartOfDay(new Date(autoGenTask.compliance_start_date))
-      : undefined;
-    
-    let complianceEndDate = autoGenTask.compliance_end_date
-      ? setEndOfDay(new Date(autoGenTask.compliance_end_date))
-      : undefined;
-
-    // Determine if this is the latest recurring task
-    // Only the latest compliance period task should have isRecurring=true
-    let isLatestRecurringTask = false;
-    
-    if (autoGenTask.is_recurring) {
-      // Find all auto-generated tasks with the same parent_task_id to determine if this is the latest
-      const relatedAutoTasks = await storage.getAutoGeneratedTasks(
-        tenantId,
-        autoGenTask.client_id,
-        autoGenTask.entity_id
-      );
+  /**
+   * Approve a task (makes it a regular task)
+   * When approved, changes needsApproval to false
+   * and keeps track of original template task
+   */
+  public async approveTask(taskId: number, tenantId: number): Promise<boolean> {
+    try {
+      // Get the auto-generated task
+      const task = await this.storage.getTaskById(taskId);
       
-      // Filter to tasks with the same parent task id (tasks in the same series)
-      // This ensures we're only comparing tasks that are part of the same recurring series
-      const sameParentTasks = relatedAutoTasks.filter(t => 
-        t.parent_task_id === autoGenTask.parent_task_id
-      );
+      if (!task || task.tenantId !== tenantId) {
+        console.error(`Task ${taskId} not found or doesn't belong to tenant ${tenantId}`);
+        return false;
+      }
       
-      // Sort by compliance start date to find the latest
-      const sortedTasks = sameParentTasks.sort((a, b) => {
-        const dateA = a.compliance_start_date ? new Date(a.compliance_start_date).getTime() : 0;
-        const dateB = b.compliance_start_date ? new Date(b.compliance_start_date).getTime() : 0;
-        return dateB - dateA; // descending order
+      if (!task.isAutoGenerated || !task.needsApproval) {
+        console.error(`Task ${taskId} is not an auto-generated task pending approval`);
+        return false;
+      }
+      
+      // For the parent (template) task, find if this is the latest approval and toggle isRecurring flag accordingly
+      if (task.parentTaskId) {
+        const templateTask = await this.storage.getTaskById(task.parentTaskId);
+        
+        if (templateTask) {
+          // Find all generated tasks from this template
+          const allTasks = await this.storage.getTasks(tenantId);
+          const childTasks = allTasks.filter(t => t.parentTaskId === templateTask.id);
+          
+          // Find the latest child task by compliance period (assuming chronological ordering)
+          let latestChild = task;
+          for (const childTask of childTasks) {
+            if (childTask.id !== task.id && childTask.complianceStartDate) {
+              if (!latestChild.complianceStartDate || 
+                  new Date(childTask.complianceStartDate) > new Date(latestChild.complianceStartDate)) {
+                latestChild = childTask;
+              }
+            }
+          }
+          
+          // If this is the latest child, set isRecurring to true, 
+          // otherwise ensure isRecurring is false to maintain one-to-one relationship
+          const isLatest = latestChild.id === task.id;
+          
+          // Update template task (keep recurring flag on template)
+          await this.storage.updateTask(templateTask.id, {
+            updatedAt: new Date()
+          });
+          
+          // Update this task
+          await this.storage.updateTask(task.id, {
+            isRecurring: isLatest, // Only the latest task should be recurring
+            needsApproval: false,  // Approved
+            updatedAt: new Date()
+          });
+          
+          // Update other child tasks to ensure only one is recurring
+          if (isLatest) {
+            for (const childTask of childTasks) {
+              if (childTask.id !== task.id && childTask.isRecurring) {
+                await this.storage.updateTask(childTask.id, {
+                  isRecurring: false,
+                  updatedAt: new Date()
+                });
+              }
+            }
+          }
+          
+          console.log(`Approved auto-generated task ${taskId}, set as ${isLatest ? '' : 'non-'}recurring`);
+          return true;
+        }
+      }
+      
+      // Fallback if parent task not found
+      await this.storage.updateTask(task.id, {
+        needsApproval: false,
+        updatedAt: new Date()
       });
       
-      // Check if current task is the latest
-      isLatestRecurringTask = sortedTasks.length > 0 && sortedTasks[0].id === autoGenTask.id;
-      
-      console.log(`Task ${autoGenTask.id} isLatestRecurringTask: ${isLatestRecurringTask}`);
-      console.log(`Found ${sameParentTasks.length} tasks with same parent_task_id: ${autoGenTask.parent_task_id}`);
+      console.log(`Approved auto-generated task ${taskId}`);
+      return true;
+    } catch (error) {
+      console.error(`Error approving task ${taskId}:`, error);
+      return false;
     }
+  }
 
-    // Create the regular task
-    const newTask = await storage.createTask({
-      tenantId: autoGenTask.tenant_id,
-      isAdmin: autoGenTask.is_admin,
-      taskType: autoGenTask.task_type,
-      clientId: autoGenTask.client_id || null,
-      entityId: autoGenTask.entity_id || null,
-      serviceTypeId: autoGenTask.service_type_id || null,
-      taskCategoryId: autoGenTask.task_category_id || null,
-      assigneeId: autoGenTask.assignee_id,
-      dueDate: new Date(autoGenTask.due_date),
-      statusId: autoGenTask.status_id,
-      taskDetails: autoGenTask.task_details || null,
-      nextToDo: autoGenTask.next_to_do || null,
-      isRecurring: isLatestRecurringTask, // Only set to true if this is the latest recurring task
-      complianceFrequency: autoGenTask.compliance_frequency || null,
-      complianceYear: autoGenTask.compliance_year || null,
-      complianceDuration: autoGenTask.compliance_duration || null,
-      complianceStartDate: complianceStartDate,
-      complianceEndDate: complianceEndDate,
-      compliancePeriod: compliancePeriod || null,
-      currency: autoGenTask.currency || null,
-      serviceRate: autoGenTask.service_rate || null,
-      invoiceId: autoGenTask.invoice_id || null,
-      parentTaskId: autoGenTask.parent_task_id || null,
-    });
+  /**
+   * Approve all pending tasks for a tenant
+   */
+  public async approveAllPendingTasks(tenantId: number): Promise<number> {
+    try {
+      // Find all auto-generated tasks that need approval
+      const pendingTasks = await this.getTasksNeedingApproval(tenantId);
+      let approvedCount = 0;
+      
+      // Approve them one by one to maintain proper recurring flags
+      for (const task of pendingTasks) {
+        const approved = await this.approveTask(task.id, tenantId);
+        if (approved) {
+          approvedCount++;
+        }
+      }
+      
+      console.log(`Approved ${approvedCount} pending tasks for tenant ${tenantId}`);
+      return approvedCount;
+    } catch (error) {
+      console.error(`Error approving all pending tasks for tenant ${tenantId}:`, error);
+      return 0;
+    }
+  }
 
-    // Mark the auto-generated task as approved (not needing approval anymore)
-    await storage.updateAutoGeneratedTask(autoGenTask.id, {
-      needs_approval: false
-    });
-
-    console.log(`Successfully approved task with ID ${autoGenTaskId} and created regular task with ID ${newTask.id}`);
-    return true;
-  } catch (error) {
-    console.error('Error in approveTask:', error);
-    return false;
+  /**
+   * Reject a task (delete it)
+   */
+  public async rejectTask(taskId: number, tenantId: number): Promise<boolean> {
+    try {
+      const task = await this.storage.getTaskById(taskId);
+      
+      if (!task || task.tenantId !== tenantId) {
+        console.error(`Task ${taskId} not found or doesn't belong to tenant ${tenantId}`);
+        return false;
+      }
+      
+      if (!task.isAutoGenerated || !task.needsApproval) {
+        console.error(`Task ${taskId} is not an auto-generated task pending approval`);
+        return false;
+      }
+      
+      await this.storage.deleteTask(taskId);
+      console.log(`Rejected and deleted auto-generated task ${taskId}`);
+      return true;
+    } catch (error) {
+      console.error(`Error rejecting task ${taskId}:`, error);
+      return false;
+    }
   }
 }
