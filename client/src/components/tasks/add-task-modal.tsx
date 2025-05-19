@@ -360,14 +360,8 @@ export function AddTaskModal({ isOpen, onClose, taskType, preselectedClientId }:
       // Ensure dueDate is sent as a Date object
       if (data.dueDate) {
         payload.dueDate = new Date(data.dueDate);
-        
-        // For admin tasks, set a simple compliance period based on the due date month/year
-        // This ensures all tasks have a compliance period for consistent handling
-        payload.compliancePeriod = format(new Date(data.dueDate), 'MMMM yyyy');
       }
 
-      console.log("Admin task creation payload:", payload);
-      
       const response = await apiRequest("POST", "/api/v1/tasks", payload);
       return response.json();
     },
@@ -444,11 +438,6 @@ export function AddTaskModal({ isOpen, onClose, taskType, preselectedClientId }:
       
       if (data.complianceStartDate) {
         payload.complianceStartDate = new Date(data.complianceStartDate);
-        
-        // Calculate and include the compliance period in the payload
-        if (data.complianceFrequency) {
-          payload.compliancePeriod = calculateCompliancePeriod(data.complianceFrequency, new Date(data.complianceStartDate));
-        }
       }
       
       if (data.complianceEndDate) {

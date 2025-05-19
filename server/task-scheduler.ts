@@ -341,9 +341,10 @@ export class TaskScheduler {
           task.entityId === templateTask.entityId &&
           task.complianceFrequency === templateTask.complianceFrequency;
             
-        if (regularTaskMatch) {
-          console.log(`Found existing regular task: ${task.id} for period ${taskMonthYear}`);
-          return true;
+          if (regularTaskMatch) {
+            console.log(`Found existing regular task: ${task.id} for period ${taskMonthYear}`);
+            return true;
+          }
         }
         
         return false;
