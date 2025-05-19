@@ -2935,10 +2935,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Unauthorized: Admin access required" });
       }
       
+      // Import the ImprovedTaskScheduler implementation that has the proper method
+      const { ImprovedTaskScheduler } = await import('./improved-task-scheduler');
+      
       // Create a task scheduler with special override for manual generation
       // This ensures tasks will be created regardless of lead time
       // by passing 0 as the lead days override parameter
-      const taskScheduler = new TaskScheduler(storage, 0); // Pass 0 to override lead days and force generation
+      const taskScheduler = new ImprovedTaskScheduler(storage, 0); // Pass 0 to override lead days and force generation
       
       // If tenant ID is provided, generate for that tenant only
       if (req.body.tenantId) {
@@ -3005,11 +3008,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const taskId = parseInt(req.params.id);
       
-      // Create a task scheduler instance
-      const taskScheduler = new TaskScheduler(storage);
+      // Import the fixed approveTask function from our task-approval module
+      const { approveTask } = await import('./task-approval');
       
-      // Call the approveTask method from our TaskScheduler class
-      const success = await taskScheduler.approveTask(taskId, tenantId);
+      // Call our fixed approve task function that properly handles the "passing the baton" pattern
+      console.log(`Processing approval request for task ${taskId} from tenant ${tenantId}`);
+      const success = await approveTask(storage, taskId, tenantId);
       
       if (success) {
         res.json({ message: "Task approved successfully" });
