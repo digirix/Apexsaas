@@ -3,8 +3,8 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { DatabaseStorage } from "./database-storage";
-// Import the improved TaskScheduler implementation
-import { TaskScheduler } from "./task-scheduler-new";
+// Import the fixed TaskScheduler implementation
+import { TaskScheduler } from "./task-scheduler";
 import { registerChatbotRoutes } from "./api/chatbot-routes";
 import { registerAiReportingRoutes } from "./api/ai-reporting-routes";
 import { registerAICustomizationRoutes } from "./api/ai-customization-routes";
