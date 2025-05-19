@@ -1,0 +1,25 @@
+The issue of creating new tasks on approval and incorrect is_recurring flags persists. The problem is NOT an external conflicting file anymore. It's within the core approval logic, likely in TaskScheduler.approveTask() or a database update function it calls.
+Please implement the following logic PRECISELY within the TaskScheduler.approveTask(id, tenantId) method (or the equivalent function now responsible for approval):
+Fetch the Approved Task:
+const approvedTask = await this.storage.getTaskById(id, tenantId);
+If !approvedTask or !approvedTask.parent_task_id, then error/return (this task isn't an auto-generated child we expect).
+Fetch its Parent Task:
+const parentTask = await this.storage.getTaskById(approvedTask.parent_task_id, tenantId);
+If !parentTask, then error/return (parent is missing).
+Prepare Updates for the Approved Task:
+const approvedTaskUpdates = {
+is_recurring: true,
+is_auto_generated: false,
+needs_approval: false,
+// Potentially update status_id to an 'Active' status here as well
+};
+Perform the Update on the Approved Task (IN PLACE):
+await this.storage.updateTask(id, tenantId, approvedTaskUpdates);
+CRITICAL: Ensure this.storage.updateTask genuinely performs an SQL UPDATE on the existing record with id and does NOT create a new record.
+Prepare Updates for the Parent Task:
+const parentTaskUpdates = { is_recurring: false };
+Perform the Update on the Parent Task (IN PLACE):
+await this.storage.updateTask(parentTask.id, tenantId, parentTaskUpdates);
+No new task records should be created by TaskScheduler.approveTask() or any function it directly calls for this approval process.
+If this.storage.updateTask() cannot be guaranteed to update in place and might create new records under some conditions, then you must show me the code for this.storage.updateTask() (from database-storage.ts) so we can fix that specific database interaction method.
+The problem is that a new task (like 232) is still being created with parent_task_id pointing to the approved task (230), and both 216 (original parent) and 232 (newest) have incorrect is_recurring flags
