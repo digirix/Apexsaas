@@ -3035,8 +3035,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const taskId = parseInt(req.params.id);
       
-      const taskScheduler = new TaskScheduler(storage);
-      const success = await taskScheduler.rejectTask(taskId, tenantId);
+      // Import the fixed rejectTask function from our task-approval module
+      const { rejectTask } = await import('./task-approval');
+      
+      console.log(`Processing rejection request for task ${taskId} from tenant ${tenantId}`);
+      const success = await rejectTask(storage, taskId, tenantId);
       
       if (success) {
         res.json({ message: "Task rejected successfully" });
