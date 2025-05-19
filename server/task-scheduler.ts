@@ -214,60 +214,97 @@ export class TaskScheduler {
         return false;
       }
       
-      // Find the parent task and related tasks
-      if (task.parentTaskId) {
-        const parentTask = await this.storage.getTask(task.parentTaskId, tenantId);
-        
-        if (parentTask) {
-          // Get all child tasks from this parent
-          const allTasks = await this.storage.getTasks(tenantId);
-          const childTasks = allTasks.filter(t => t.parentTaskId === parentTask.id);
+      console.log(`Processing approval for auto-generated task ${taskId}`);
+      
+      if (task.clientId && task.entityId && task.serviceTypeId && task.complianceFrequency) {
+        console.log(`Task details: client: ${task.clientId}, entity: ${task.entityId}, service: ${task.serviceTypeId}, frequency: ${task.complianceFrequency}`);
+      }
+      
+      if (task.complianceStartDate && task.complianceEndDate) {
+        console.log(`Compliance period: ${new Date(task.complianceStartDate).toISOString().split('T')[0]} to ${new Date(task.complianceEndDate).toISOString().split('T')[0]}`);
+      }
+
+      // Find the parent task
+      if (!task.parentTaskId) {
+        console.error(`Task ${taskId} has no parent task ID`);
+        return false;
+      }
+      
+      const parentTask = await this.storage.getTask(task.parentTaskId, tenantId);
+      if (!parentTask) {
+        console.error(`Parent task ${task.parentTaskId} not found`);
+        return false;
+      }
+      
+      // Get all tasks in this series (siblings and the task itself)
+      const allTasks = await this.storage.getTasks(tenantId);
+      const siblingTasks = allTasks.filter(t => t.parentTaskId === parentTask.id);
+      
+      // Find the latest task by compliance date
+      let latestTask = task;
+      for (const siblingTask of siblingTasks) {
+        if (siblingTask.complianceStartDate && latestTask.complianceStartDate) {
+          const siblingDate = new Date(siblingTask.complianceStartDate);
+          const latestDate = new Date(latestTask.complianceStartDate);
           
-          // Find the latest child task by compliance date
-          let latestChild = task;
-          for (const childTask of childTasks) {
-            if (childTask.id !== task.id && childTask.complianceStartDate) {
-              if (!latestChild.complianceStartDate || 
-                  new Date(childTask.complianceStartDate) > new Date(latestChild.complianceStartDate)) {
-                latestChild = childTask;
-              }
-            }
+          if (siblingDate > latestDate) {
+            latestTask = siblingTask;
           }
-          
-          // Determine if this is the latest child
-          const isLatest = latestChild.id === task.id;
-          
-          // Update this task
-          await this.storage.updateTask(task.id, {
-            isRecurring: isLatest, // Only the latest should be recurring
-            needsApproval: false,  // Approved
-            updatedAt: new Date()
-          });
-          
-          // Update other child tasks to ensure only one is recurring
-          if (isLatest) {
-            for (const childTask of childTasks) {
-              if (childTask.id !== task.id && childTask.isRecurring) {
-                await this.storage.updateTask(childTask.id, {
-                  isRecurring: false,
-                  updatedAt: new Date()
-                });
-              }
-            }
-          }
-          
-          console.log(`Task ${taskId} has been approved successfully`);
-          return true;
         }
       }
       
-      // Fallback if parent not found
-      await this.storage.updateTask(task.id, {
-        needsApproval: false,
-        updatedAt: new Date()
-      });
+      // Determine if this task is the latest
+      const isLatest = latestTask.id === task.id;
       
-      console.log(`Task ${taskId} has been approved successfully (without parent task)`);
+      if (isLatest) {
+        console.log(`This task (period ending ${task.complianceEndDate}) is the latest compliance period`);
+      } else if (latestTask.complianceEndDate) {
+        console.log(`This task (period ending ${task.complianceEndDate}) is not the latest - found newer period: ${latestTask.complianceEndDate}`);
+        console.log("This task is not the latest compliance period");
+      }
+      
+      // Ensure proper end date format (YYYY-MM-DDT23:59:59.999Z)
+      let fixedEndDate = task.complianceEndDate;
+      if (fixedEndDate && !fixedEndDate.toString().includes("23:59:59")) {
+        const endDate = new Date(fixedEndDate);
+        endDate.setHours(23, 59, 59, 999);
+        fixedEndDate = endDate;
+        console.log(`Fixed compliance end date: ${endDate.toISOString().split('T')[0]} 23:59:59.999`);
+      }
+      
+      // CRITICAL CHANGE: When approving, modify the auto-generated task itself
+      // 1. Update the auto-generated task being approved
+      const updateData: any = {
+        // If this is the latest task in the series, make it the new recurring source
+        isRecurring: isLatest,
+        // No longer auto-generated once approved
+        isAutoGenerated: false,
+        // No longer needs approval
+        needsApproval: false,
+        // Update timestamp
+        updatedAt: new Date()
+      };
+      
+      // Only set the compliance end date if it's not null
+      if (fixedEndDate) {
+        updateData.complianceEndDate = fixedEndDate;
+      }
+      
+      console.log(`Updating auto-generated task ${taskId} with data:`, updateData);
+      
+      // Update the task
+      await this.storage.updateTask(taskId, updateData);
+      
+      // 2. If this is the latest task, set the parent's isRecurring to false
+      if (isLatest && parentTask.isRecurring) {
+        console.log(`Setting parent task ${parentTask.id} isRecurring to false (passing the baton)`);
+        await this.storage.updateTask(parentTask.id, {
+          isRecurring: false,
+          updatedAt: new Date()
+        });
+      }
+      
+      console.log(`Task ${taskId} has been approved successfully`);
       return true;
     } catch (error) {
       console.error(`Error approving task ${taskId}:`, error);
@@ -298,10 +335,14 @@ export class TaskScheduler {
         return false;
       }
       
-      // Mark as canceled instead of deleting
+      console.log(`Processing rejection for auto-generated task ${taskId}`);
+      
+      // Simply mark as canceled and update flags
+      // We're not creating any new tasks when rejecting
       await this.storage.updateTask(taskId, {
         isCanceled: true,
         canceledAt: new Date(),
+        needsApproval: false, // No longer needs approval since it's rejected
         updatedAt: new Date()
       });
       
