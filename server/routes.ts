@@ -2806,11 +2806,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid task ID" });
       }
       
-      // Import the improved task approval function directly
-      const { approveTask } = await import('./task-approval');
+      // Use the TaskScheduler implementation for approval
+      const taskScheduler = new TaskScheduler(storage);
       
-      // Use the dedicated approval function that properly handles auto-generated tasks
-      const success = await approveTask(storage, taskId, tenantId);
+      // Use the TaskScheduler.approveTask method to handle approval properly
+      const success = await taskScheduler.approveTask(taskId, tenantId);
       
       if (!success) {
         return res.status(404).json({ error: "Task not found or not eligible for approval" });
