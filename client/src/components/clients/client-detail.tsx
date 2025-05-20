@@ -26,6 +26,7 @@ import { EditClientModal } from "./edit-client-modal";
 import { TaskDetails } from "@/components/tasks/task-details";
 import { AddTaskModal } from "@/components/tasks/add-task-modal";
 import { InvoiceDetails } from "@/components/finance/invoice-details";
+import { ClientPortalAccessTab } from "./client-portal-access-tab";
 
 
 interface ClientDetailProps {
@@ -786,7 +787,7 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
         </TabsContent>
         
         <TabsContent value="portal-access" className="pt-4">
-          <Card>
+          <ClientPortalAccessTab clientId={clientId} tenantId={client?.tenantId || 0} />
             <CardHeader>
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                 <div>
