@@ -118,48 +118,77 @@ export function setupAuth(app: Express) {
   passport.deserializeUser(async (serialized: { id: number, type: string }, done) => {
     try {
       if (serialized.type === 'client-portal') {
-        // For client portal users, fetch from clientPortalAccess and clients tables
-        const accessRecord = await db
-          .select()
-          .from(clientPortalAccess)
-          .where(eq(clientPortalAccess.id, serialized.id))
-          .limit(1);
+        try {
+          // For client portal users, fetch from clientPortalAccess and clients tables
+          console.log(`Deserializing client portal user with ID: ${serialized.id}`);
           
-        if (!accessRecord || accessRecord.length === 0) {
-          return done(null, false);
-        }
-        
-        const clientResult = await db
-          .select()
-          .from(clients)
-          .where(and(
-            eq(clients.id, accessRecord[0].clientId),
-            eq(clients.tenantId, accessRecord[0].tenantId)
-          ))
-          .limit(1);
+          const accessRecords = await db
+            .select()
+            .from(clientPortalAccess)
+            .where(eq(clientPortalAccess.id, serialized.id));
+            
+          if (!accessRecords || accessRecords.length === 0) {
+            console.log(`No client portal access record found for ID: ${serialized.id}`);
+            return done(null, false);
+          }
           
-        if (!clientResult || clientResult.length === 0) {
-          return done(null, false);
+          const accessRecord = accessRecords[0];
+          console.log(`Found access record for client: ${accessRecord.clientId}`);
+          
+          const clientResults = await db
+            .select()
+            .from(clients)
+            .where(and(
+              eq(clients.id, accessRecord.clientId),
+              eq(clients.tenantId, accessRecord.tenantId)
+            ));
+            
+          if (!clientResults || clientResults.length === 0) {
+            console.log(`No client found for ID: ${accessRecord.clientId}`);
+            return done(null, false);
+          }
+          
+          const client = clientResults[0];
+          console.log(`Found client: ${client.displayName}`);
+          
+          // Create client portal user with necessary information
+          const user = {
+            id: accessRecord.id,
+            clientId: client.id,
+            tenantId: client.tenantId,
+            username: accessRecord.username,
+            displayName: client.displayName,
+            email: client.email || '',
+            passwordResetRequired: accessRecord.passwordResetRequired,
+            isClientPortalUser: true,
+            // Add these properties to match the User interface requirements
+            password: '', // This is a placeholder, we never send the actual password
+            designationId: null,
+            departmentId: null,
+            isSuperAdmin: false,
+            isActive: true,
+            createdAt: accessRecord.createdAt
+          } as any; // Use type assertion to bypass type checking
+          
+          console.log(`Deserialized client portal user: ${user.username}`);
+          return done(null, user);
+        } catch (error) {
+          console.error('Error deserializing client portal user:', error);
+          return done(error);
         }
-        
-        const clientPortalUser = {
-          id: accessRecord[0].id,
-          clientId: clientResult[0].id,
-          tenantId: clientResult[0].tenantId,
-          username: accessRecord[0].username,
-          displayName: clientResult[0].displayName,
-          email: clientResult[0].email,
-          passwordResetRequired: accessRecord[0].passwordResetRequired,
-          isClientPortalUser: true,
-        };
-        
-        return done(null, clientPortalUser);
       } else {
         // For regular staff users
-        const user = await storage.getUser(serialized.id);
-        done(null, user);
+        try {
+          console.log(`Deserializing staff user with ID: ${serialized.id}`);
+          const user = await storage.getUser(serialized.id);
+          return done(null, user);
+        } catch (error) {
+          console.error('Error deserializing staff user:', error);
+          return done(error);
+        }
       }
     } catch (err) {
+      console.error('Deserialize error:', err);
       done(err);
     }
   });

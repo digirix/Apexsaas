@@ -45,9 +45,11 @@ export function registerClientPortalRoutes(app: Express) {
     try {
       const { username, password, tenantId } = req.body;
       
-      if (!username || !password) {
-        return res.status(400).json({ message: 'Username and password are required' });
+      if (!username || !password || !tenantId) {
+        return res.status(400).json({ message: 'Username, password, and tenant ID are required' });
       }
+      
+      console.log(`Client portal login attempt for username: ${username}, tenantId: ${tenantId}`);
       
       // Get client portal access record
       const accessRecords = await db
@@ -59,20 +61,25 @@ export function registerClientPortalRoutes(app: Express) {
         ));
       
       if (!accessRecords || accessRecords.length === 0) {
+        console.log('Client portal login failed: User not found');
         return res.status(401).json({ message: 'Invalid username or password' });
       }
       
       const accessRecord = accessRecords[0];
+      console.log('Access record found:', { id: accessRecord.id, isActive: accessRecord.isActive });
       
       // Check if account is active
       if (!accessRecord.isActive) {
+        console.log('Client portal login failed: Account inactive');
         return res.status(401).json({ message: 'Account is inactive. Please contact your accountant.' });
       }
       
       // Verify password
       const passwordMatch = await comparePasswords(password, accessRecord.password);
+      console.log('Password match:', passwordMatch);
       
       if (!passwordMatch) {
+        console.log('Client portal login failed: Invalid password');
         return res.status(401).json({ message: 'Invalid username or password' });
       }
       
@@ -86,10 +93,12 @@ export function registerClientPortalRoutes(app: Express) {
         ));
       
       if (!clientResults || clientResults.length === 0) {
+        console.log('Client portal login failed: Client not found');
         return res.status(404).json({ message: 'Client account not found' });
       }
       
       const client = clientResults[0];
+      console.log('Client found:', { id: client.id, displayName: client.displayName });
       
       // Update last login time
       await db
@@ -112,15 +121,25 @@ export function registerClientPortalRoutes(app: Express) {
         isClientPortalUser: true,  // Flag to differentiate from regular users
       };
       
-      // Login the user
+      console.log('Client portal login successful, creating session');
+      
+      // Login the user with client portal session
       req.login(clientPortalUser, (err) => {
         if (err) {
+          console.error('Error during client login:', err);
           return next(err);
         }
         
-        return res.json({ 
-          user: clientPortalUser,
-          passwordResetRequired: accessRecord.passwordResetRequired
+        console.log('Login session created successfully');
+        return res.status(200).json({ 
+          message: 'Login successful',
+          user: {
+            clientId: clientPortalUser.clientId,
+            displayName: clientPortalUser.displayName,
+            email: clientPortalUser.email,
+            tenantId: clientPortalUser.tenantId,
+            passwordResetRequired: clientPortalUser.passwordResetRequired,
+          }
         });
       });
     } catch (error) {
