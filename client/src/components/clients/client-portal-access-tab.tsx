@@ -1,27 +1,53 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { 
+  Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle 
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { 
-  Check, Copy, Key, Lock, LockKeyhole, ShieldAlert, User, 
-  UserCheck, UserX, RefreshCw, Trash2, ClipboardCopy 
-} from "lucide-react";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
+  Alert,
+  AlertTitle,
+  AlertDescription,
+} from "@/components/ui/alert";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { 
+  Key, Edit, Trash2, AlertTriangle, RefreshCw, 
+  Shield, ShieldOff, InfoIcon, EyeIcon, EyeOffIcon, 
+  Copy, Check, User, UserPlus 
+} from "lucide-react";
+import { DeleteConfirmationDialog } from "../ui/delete-confirmation-dialog";
 
-// Create a schema for portal access form
+// Schema for client portal access
 const portalAccessSchema = z.object({
-  username: z.string().min(4, { message: "Username must be at least 4 characters" }),
-  password: z.string().min(8, { message: "Password must be at least 8 characters" }),
+  username: z.string().min(4, "Username must be at least 4 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
   passwordResetRequired: z.boolean().default(true),
   isActive: z.boolean().default(true),
 });
@@ -35,16 +61,34 @@ interface ClientPortalAccessTabProps {
 
 export function ClientPortalAccessTab({ clientId, tenantId }: ClientPortalAccessTabProps) {
   const { toast } = useToast();
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [hasExistingAccess, setHasExistingAccess] = useState(false);
-  const [accessData, setAccessData] = useState<any>(null);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
-  const [passwordCopied, setPasswordCopied] = useState(false);
-  const [usernameCopied, setUsernameCopied] = useState(false);
-  
-  // Form configuration
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isPasswordCopied, setIsPasswordCopied] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch client portal access data
+  const { 
+    data: portalAccess, 
+    isLoading: isPortalAccessLoading,
+    error: portalAccessError,
+    refetch: refetchPortalAccess
+  } = useQuery({
+    queryKey: [`/api/v1/clients/${clientId}/portal-access`],
+    enabled: !!clientId,
+  });
+
+  // Fetch client data to get the hasPortalAccess property
+  const { 
+    data: client,
+    refetch: refetchClient
+  } = useQuery({
+    queryKey: [`/api/v1/clients/${clientId}`],
+    enabled: !!clientId,
+  });
+
+  // Form for creating/editing portal access
   const form = useForm<PortalAccessFormData>({
     resolver: zodResolver(portalAccessSchema),
     defaultValues: {
@@ -54,425 +98,588 @@ export function ClientPortalAccessTab({ clientId, tenantId }: ClientPortalAccess
       isActive: true,
     },
   });
-  
-  // Fetch client portal access data
-  const { data: portalAccess, isLoading, isError, refetch } = useQuery({
-    queryKey: [`/api/v1/clients/${clientId}/portal-access`],
-    enabled: !!clientId,
-    retry: false,
-    staleTime: 30000,
-    gcTime: 60000,
-    onSuccess: (data) => {
-      setHasExistingAccess(!!data);
-      setAccessData(data);
-    },
-    onError: () => {
-      setHasExistingAccess(false);
-      setAccessData(null);
+
+  // Reset form when the modal is opened
+  useEffect(() => {
+    if (isCreateModalOpen) {
+      form.reset({
+        username: "",
+        password: "",
+        passwordResetRequired: true,
+        isActive: true,
+      });
     }
-  });
-  
+  }, [isCreateModalOpen, form]);
+
+  // Set form values when editing existing portal access
+  useEffect(() => {
+    if (isEditModalOpen && portalAccess) {
+      form.reset({
+        username: portalAccess.username,
+        password: "", // Don't show existing password
+        passwordResetRequired: portalAccess.passwordResetRequired,
+        isActive: portalAccess.isActive,
+      });
+    }
+  }, [isEditModalOpen, portalAccess, form]);
+
   // Create portal access mutation
   const createPortalAccessMutation = useMutation({
     mutationFn: async (data: PortalAccessFormData) => {
-      const response = await apiRequest("POST", `/api/v1/clients/${clientId}/portal-access`, data);
-      return await response.json();
+      const response = await apiRequest(
+        "POST",
+        `/api/v1/clients/${clientId}/portal-access`,
+        data
+      );
+      
+      return response.json();
     },
     onSuccess: () => {
       toast({
         title: "Portal access created",
         description: "Client portal access has been created successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/v1/clients/${clientId}/portal-access`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/v1/clients/${clientId}`] });
-      refetch();
+      setIsCreateModalOpen(false);
+      refetchPortalAccess();
+      refetchClient();
     },
     onError: (error: Error) => {
       toast({
-        title: "Error creating portal access",
-        description: error.message || "There was an error creating client portal access.",
+        title: "Failed to create portal access",
+        description: error.message,
         variant: "destructive",
       });
     },
   });
-  
-  // Toggle portal access active status
-  const togglePortalStatusMutation = useMutation({
-    mutationFn: async (isActive: boolean) => {
+
+  // Update portal access mutation
+  const updatePortalAccessMutation = useMutation({
+    mutationFn: async (data: Partial<PortalAccessFormData>) => {
       const response = await apiRequest(
-        "PATCH", 
-        `/api/v1/clients/${clientId}/portal-access`, 
-        { isActive }
+        "PATCH",
+        `/api/v1/clients/${clientId}/portal-access`,
+        data
       );
-      return await response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: `Portal access ${data.isActive ? 'activated' : 'deactivated'}`,
-        description: `Client portal access has been ${data.isActive ? 'activated' : 'deactivated'} successfully.`,
-      });
-      queryClient.invalidateQueries({ queryKey: [`/api/v1/clients/${clientId}/portal-access`] });
-      setAccessData(data);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error updating portal access",
-        description: error.message || "There was an error updating client portal access.",
-        variant: "destructive",
-      });
-    },
-  });
-  
-  // Reset password mutation
-  const resetPasswordMutation = useMutation({
-    mutationFn: async ({ password, passwordResetRequired }: { password: string, passwordResetRequired: boolean }) => {
-      const response = await apiRequest(
-        "POST", 
-        `/api/v1/clients/${clientId}/portal-access/reset-password`, 
-        { password, passwordResetRequired }
-      );
-      return await response.json();
+      
+      return response.json();
     },
     onSuccess: () => {
       toast({
-        title: "Password reset",
-        description: "Client portal password has been reset successfully.",
+        title: "Portal access updated",
+        description: "Client portal access has been updated successfully.",
       });
-      setIsResetDialogOpen(false);
-      refetch();
+      setIsEditModalOpen(false);
+      refetchPortalAccess();
     },
     onError: (error: Error) => {
       toast({
-        title: "Error resetting password",
-        description: error.message || "There was an error resetting the password.",
+        title: "Failed to update portal access",
+        description: error.message,
         variant: "destructive",
       });
     },
   });
-  
+
+  // Toggle portal access status mutation
+  const togglePortalAccessStatusMutation = useMutation({
+    mutationFn: async (isActive: boolean) => {
+      const response = await apiRequest(
+        "PATCH",
+        `/api/v1/clients/${clientId}/portal-access`,
+        { isActive }
+      );
+      
+      return response.json();
+    },
+    onSuccess: (_, isActive) => {
+      toast({
+        title: isActive ? "Portal access activated" : "Portal access deactivated",
+        description: `Client portal access has been ${isActive ? "activated" : "deactivated"} successfully.`,
+      });
+      refetchPortalAccess();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to update portal access status",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Delete portal access mutation
   const deletePortalAccessMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest(
-        "DELETE", 
-        `/api/v1/clients/${clientId}/portal-access`
+        "DELETE",
+        `/api/v1/clients/${clientId}/portal-access`,
+        {}
       );
-      return await response.json();
+      
+      return response.status === 204 ? true : response.json();
     },
     onSuccess: () => {
       toast({
         title: "Portal access deleted",
         description: "Client portal access has been deleted successfully.",
       });
-      setIsDeleteDialogOpen(false);
-      setHasExistingAccess(false);
-      setAccessData(null);
-      queryClient.invalidateQueries({ queryKey: [`/api/v1/clients/${clientId}`] });
-      refetch();
+      setIsDeleteModalOpen(false);
+      refetchPortalAccess();
+      refetchClient();
     },
     onError: (error: Error) => {
       toast({
-        title: "Error deleting portal access",
-        description: error.message || "There was an error deleting client portal access.",
+        title: "Failed to delete portal access",
+        description: error.message,
         variant: "destructive",
       });
     },
   });
-  
-  // Form submission handler
-  function onSubmit(data: PortalAccessFormData) {
-    createPortalAccessMutation.mutate(data);
-  }
-  
-  // Toggle portal active status
-  function handleStatusToggle(isActive: boolean) {
-    togglePortalStatusMutation.mutate(isActive);
-  }
-  
-  // Password reset handler
-  function handlePasswordReset() {
-    const newRandomPassword = generateRandomPassword();
-    setNewPassword(newRandomPassword);
-    setIsResetDialogOpen(true);
-  }
-  
-  // Generate random password
-  function generateRandomPassword() {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+";
+
+  // Reset password mutation
+  const resetPasswordMutation = useMutation({
+    mutationFn: async (newPassword: string) => {
+      const response = await apiRequest(
+        "PATCH",
+        `/api/v1/clients/${clientId}/portal-access/reset-password`,
+        { password: newPassword, passwordResetRequired: true }
+      );
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Password reset",
+        description: "Client portal password has been reset successfully.",
+      });
+      refetchPortalAccess();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to reset password",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handler for form submission
+  const onSubmit = async (data: PortalAccessFormData) => {
+    setLoading(true);
+    
+    try {
+      if (isCreateModalOpen) {
+        await createPortalAccessMutation.mutateAsync(data);
+      } else if (isEditModalOpen) {
+        // Only include password if it's changed (not empty)
+        const updateData: Partial<PortalAccessFormData> = {
+          username: data.username,
+          isActive: data.isActive,
+          passwordResetRequired: data.passwordResetRequired,
+        };
+        
+        if (data.password.trim() !== "") {
+          updateData.password = data.password;
+        }
+        
+        await updatePortalAccessMutation.mutateAsync(updateData);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Generate a random password
+  const generateRandomPassword = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
     let password = "";
     for (let i = 0; i < 12; i++) {
       password += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    return password;
-  }
-  
-  // Generate username based on client name
-  function generateUsername() {
-    // Get client name from the form
-    const clientName = form.getValues().username || "";
-    
-    if (clientName.trim() === "") {
-      return "";
-    }
-    
-    // Convert to lowercase, remove special characters, replace spaces with dots
-    const username = clientName.toLowerCase()
-      .replace(/[^\w\s]/gi, "")
-      .replace(/\s+/g, ".")
-      .trim();
-    
-    form.setValue("username", username);
-  }
-  
-  // Generate a password and set it in the form
-  function handleGeneratePassword() {
-    const newRandomPassword = generateRandomPassword();
-    form.setValue("password", newRandomPassword);
-    // Make the password visible temporarily
-    setIsPasswordVisible(true);
-    setTimeout(() => setIsPasswordVisible(false), 10000); // Hide after 10 seconds
-  }
-  
-  // Delete portal access handler
-  function handleDeletePortalAccess() {
-    setIsDeleteDialogOpen(true);
-  }
-  
-  // Copy text to clipboard
-  const copyToClipboard = (text: string, field: 'username' | 'password') => {
-    navigator.clipboard.writeText(text).then(
-      () => {
-        if (field === 'username') {
-          setUsernameCopied(true);
-          setTimeout(() => setUsernameCopied(false), 2000);
-        } else {
-          setPasswordCopied(true);
-          setTimeout(() => setPasswordCopied(false), 2000);
-        }
-        
-        toast({
-          title: "Copied to clipboard",
-          description: `${field.charAt(0).toUpperCase() + field.slice(1)} has been copied to clipboard.`,
-        });
-      },
-      (err) => {
-        toast({
-          title: "Failed to copy",
-          description: "Could not copy to clipboard. Please try again.",
-          variant: "destructive",
-        });
-      }
-    );
+    form.setValue("password", password);
+    setShowPassword(true);
   };
-  
+
+  // Copy password to clipboard
+  const copyPassword = (password: string) => {
+    navigator.clipboard.writeText(password);
+    setIsPasswordCopied(true);
+    setTimeout(() => setIsPasswordCopied(false), 3000);
+    toast({
+      title: "Password copied",
+      description: "Password has been copied to clipboard.",
+    });
+  };
+
+  const getPortalUrl = () => {
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/client-portal/login`;
+  };
+
+  // Copy portal URL to clipboard
+  const copyPortalUrl = () => {
+    navigator.clipboard.writeText(getPortalUrl());
+    toast({
+      title: "URL copied",
+      description: "Portal URL has been copied to clipboard.",
+    });
+  };
+
+  // Format date for display
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "Never";
+    return new Date(dateString).toLocaleString();
+  };
+
   return (
     <div className="space-y-6">
-      {isLoading ? (
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-8 w-1/3" />
-            <Skeleton className="h-4 w-2/3" />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          </CardContent>
-        </Card>
-      ) : hasExistingAccess && accessData ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <UserCheck className="h-5 w-5 text-blue-500" />
-                <span>Client Portal Access</span>
-              </div>
-              <Badge variant={accessData.isActive ? "success" : "destructive"}>
-                {accessData.isActive ? "Active" : "Inactive"}
-              </Badge>
-            </CardTitle>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Client Portal Access</CardTitle>
             <CardDescription>
-              Manage client's secure access to the client portal
+              Manage this client's access to the portal
             </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-slate-500">Username</div>
-                <div className="flex items-center gap-2">
-                  <div className="bg-slate-100 p-2 rounded flex-1 font-mono text-sm">
-                    {accessData.username}
+          </div>
+          {portalAccess ? (
+            <div className="flex items-center space-x-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditModalOpen(true)}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Access
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Edit portal credentials</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsDeleteModalOpen(true)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Access
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Remove portal access</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          ) : (
+            <Button onClick={() => setIsCreateModalOpen(true)}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Create Portal Access
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent>
+          {isPortalAccessLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+            </div>
+          ) : portalAccessError ? (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>
+                Failed to load portal access information.
+              </AlertDescription>
+            </Alert>
+          ) : !portalAccess ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <User className="h-16 w-16 text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium mb-2">No Portal Access</h3>
+              <p className="text-gray-500 mb-6 max-w-md">
+                This client doesn't have access to the portal yet. Create portal access credentials to allow them to log in and view their information.
+              </p>
+              <Button onClick={() => setIsCreateModalOpen(true)}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Create Portal Access
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="flex flex-col space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <div>
+                      <h4 className="font-medium text-sm text-gray-500">Username</h4>
+                      <p className="font-medium">{portalAccess.username}</p>
+                    </div>
+                    
+                    <div>
+                      <h4 className="font-medium text-sm text-gray-500">Status</h4>
+                      <div className="flex items-center mt-1">
+                        <Badge variant={portalAccess.isActive ? "success" : "destructive"}>
+                          {portalAccess.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                        <div className="ml-4">
+                          <Switch
+                            checked={portalAccess.isActive}
+                            onCheckedChange={(checked) => {
+                              togglePortalAccessStatusMutation.mutate(checked);
+                            }}
+                            disabled={togglePortalAccessStatusMutation.isPending}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h4 className="font-medium text-sm text-gray-500">Password Reset Required</h4>
+                      <Badge variant={portalAccess.passwordResetRequired ? "warning" : "outline"} className="mt-1">
+                        {portalAccess.passwordResetRequired ? "Yes" : "No"}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <h4 className="font-medium text-sm text-gray-500">Created At</h4>
+                      <p>{formatDate(portalAccess.createdAt)}</p>
+                    </div>
+                    
+                    <div>
+                      <h4 className="font-medium text-sm text-gray-500">Last Login</h4>
+                      <p>{formatDate(portalAccess.lastLogin)}</p>
+                    </div>
+                    
+                    <div>
+                      <h4 className="font-medium text-sm text-gray-500">Last Updated</h4>
+                      <p>{formatDate(portalAccess.updatedAt)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="border rounded-md p-4 bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Key className="h-4 w-4 text-gray-500" />
+                    <span className="font-medium">Client Portal URL</span>
                   </div>
                   <Button 
                     variant="ghost" 
-                    size="icon"
-                    onClick={() => copyToClipboard(accessData.username, 'username')}
+                    size="sm" 
+                    onClick={copyPortalUrl}
+                    className="h-8"
                   >
-                    {usernameCopied ? <Check className="h-4 w-4" /> : <ClipboardCopy className="h-4 w-4" />}
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy
                   </Button>
                 </div>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-slate-500">Last Login</div>
-                <div className="bg-slate-100 p-2 rounded font-mono text-sm">
-                  {accessData.lastLogin 
-                    ? new Date(accessData.lastLogin).toLocaleString() 
-                    : "Never logged in"}
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-slate-500">Access Status</div>
-                <div className="flex items-center gap-2">
-                  <Switch 
-                    checked={accessData.isActive} 
-                    onCheckedChange={handleStatusToggle}
-                    disabled={togglePortalStatusMutation.isPending}
+                <div className="mt-2">
+                  <Input 
+                    value={getPortalUrl()}
+                    readOnly
+                    onClick={(e) => e.currentTarget.select()}
+                    className="bg-white font-mono text-sm"
                   />
-                  <span className="text-sm">
-                    {accessData.isActive ? "Active" : "Inactive"}
-                  </span>
                 </div>
               </div>
               
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-slate-500">Password Reset Required</div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={accessData.passwordResetRequired ? "outline" : "secondary"}>
-                    {accessData.passwordResetRequired 
-                      ? "Reset Required" 
-                      : "No Reset Required"}
-                  </Badge>
-                </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Reset Password
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Reset Client Password</DialogTitle>
+                      <DialogDescription>
+                        This will generate a new password for the client. You'll need to provide this password to them.
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="new-password">New Password</Label>
+                        <div className="flex space-x-2">
+                          <div className="relative flex-1">
+                            <Input
+                              id="new-password"
+                              type={showPassword ? "text" : "password"}
+                              placeholder="Enter new password"
+                              value={form.watch("password")}
+                              onChange={(e) => form.setValue("password", e.target.value)}
+                              className="pr-10"
+                            />
+                            <button
+                              type="button"
+                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                              onClick={() => setShowPassword(!showPassword)}
+                            >
+                              {showPassword ? (
+                                <EyeOffIcon className="h-4 w-4" />
+                              ) : (
+                                <EyeIcon className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                          <Button type="button" variant="outline" onClick={generateRandomPassword}>
+                            Generate
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="password-reset-required"
+                          checked={form.watch("passwordResetRequired")}
+                          onCheckedChange={(checked) => 
+                            form.setValue("passwordResetRequired", checked === true)
+                          }
+                        />
+                        <label
+                          htmlFor="password-reset-required"
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          Require password change on next login
+                        </label>
+                      </div>
+                      
+                      <Alert>
+                        <InfoIcon className="h-4 w-4" />
+                        <AlertTitle>Important</AlertTitle>
+                        <AlertDescription>
+                          Make sure to securely share this password with the client. They'll need it to log in to the portal.
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+                    
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline">Cancel</Button>
+                      </DialogClose>
+                      <Button
+                        type="button"
+                        onClick={() => resetPasswordMutation.mutate(form.watch("password"))}
+                        disabled={!form.watch("password") || resetPasswordMutation.isPending}
+                      >
+                        {resetPasswordMutation.isPending ? "Resetting..." : "Reset Password"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                
+                <Button 
+                  variant={portalAccess.isActive ? "destructive" : "default"}
+                  onClick={() => togglePortalAccessStatusMutation.mutate(!portalAccess.isActive)}
+                  disabled={togglePortalAccessStatusMutation.isPending}
+                >
+                  {portalAccess.isActive ? (
+                    <>
+                      <ShieldOff className="h-4 w-4 mr-2" />
+                      Deactivate Access
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="h-4 w-4 mr-2" />
+                      Activate Access
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button
-              variant="outline"
-              onClick={handlePasswordReset}
-              disabled={resetPasswordMutation.isPending}
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Reset Password
-            </Button>
-            
-            <Button
-              variant="destructive"
-              onClick={handleDeletePortalAccess}
-              disabled={deletePortalAccessMutation.isPending}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete Access
-            </Button>
-          </CardFooter>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <LockKeyhole className="h-5 w-5 text-blue-500" />
-              Create Client Portal Access
-            </CardTitle>
-            <CardDescription>
-              Create secure access credentials for this client to use the portal
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="username"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Username</FormLabel>
-                      <div className="flex gap-2">
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* Create Portal Access Modal */}
+      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Portal Access</DialogTitle>
+            <DialogDescription>
+              Create login credentials for this client to access the portal.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Username</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter username" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <div className="flex space-x-2">
+                      <div className="relative flex-1">
                         <FormControl>
-                          <Input placeholder="client.username" {...field} />
-                        </FormControl>
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          onClick={generateUsername}
-                          className="shrink-0"
-                        >
-                          <User className="h-4 w-4 mr-2" />
-                          Generate
-                        </Button>
-                      </div>
-                      <FormDescription>
-                        The username the client will use to log in
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <div className="flex gap-2">
-                        <FormControl>
-                          <Input 
-                            type={isPasswordVisible ? "text" : "password"} 
-                            placeholder="••••••••••••"
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Enter password"
                             {...field}
+                            className="pr-10"
                           />
                         </FormControl>
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          onClick={() => setIsPasswordVisible(!isPasswordVisible)}
-                          className="shrink-0"
+                        <button
+                          type="button"
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                          onClick={() => setShowPassword(!showPassword)}
                         >
-                          {isPasswordVisible ? (
-                            <ShieldAlert className="h-4 w-4" />
+                          {showPassword ? (
+                            <EyeOffIcon className="h-4 w-4" />
                           ) : (
-                            <Key className="h-4 w-4" />
+                            <EyeIcon className="h-4 w-4" />
                           )}
-                        </Button>
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          onClick={handleGeneratePassword}
-                          className="shrink-0"
-                        >
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Generate
-                        </Button>
+                        </button>
                       </div>
-                      <FormDescription>
-                        The initial password for the client
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
+                      <Button type="button" variant="outline" onClick={generateRandomPassword}>
+                        Generate
+                      </Button>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="flex flex-col space-y-4">
                 <FormField
                   control={form.control}
                   name="passwordResetRequired"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                      <div className="space-y-0.5">
-                        <FormLabel>Require Password Reset</FormLabel>
-                        <FormDescription>
-                          Client will be required to change their password on first login
-                        </FormDescription>
-                      </div>
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
                       <FormControl>
-                        <Switch
+                        <Checkbox
                           checked={field.value}
                           onCheckedChange={field.onChange}
                         />
                       </FormControl>
+                      <FormLabel className="font-normal">
+                        Require password change on first login
+                      </FormLabel>
                     </FormItem>
                   )}
                 />
@@ -481,167 +688,170 @@ export function ClientPortalAccessTab({ clientId, tenantId }: ClientPortalAccess
                   control={form.control}
                   name="isActive"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                      <div className="space-y-0.5">
-                        <FormLabel>Active Status</FormLabel>
-                        <FormDescription>
-                          Enable or disable client's access to the portal
-                        </FormDescription>
-                      </div>
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
                       <FormControl>
-                        <Switch
+                        <Checkbox
                           checked={field.value}
                           onCheckedChange={field.onChange}
                         />
                       </FormControl>
+                      <FormLabel className="font-normal">
+                        Account is active
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsCreateModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? "Creating..." : "Create Access"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Portal Access Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Portal Access</DialogTitle>
+            <DialogDescription>
+              Update the portal access settings for this client.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Username</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter username" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Password {" "}
+                      <span className="text-sm font-normal text-gray-500">
+                        (Leave blank to keep current password)
+                      </span>
+                    </FormLabel>
+                    <div className="flex space-x-2">
+                      <div className="relative flex-1">
+                        <FormControl>
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Enter new password"
+                            {...field}
+                            className="pr-10"
+                          />
+                        </FormControl>
+                        <button
+                          type="button"
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? (
+                            <EyeOffIcon className="h-4 w-4" />
+                          ) : (
+                            <EyeIcon className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                      <Button type="button" variant="outline" onClick={generateRandomPassword}>
+                        Generate
+                      </Button>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="flex flex-col space-y-4">
+                <FormField
+                  control={form.control}
+                  name="passwordResetRequired"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Require password change on next login
+                      </FormLabel>
                     </FormItem>
                   )}
                 />
                 
-                <Button 
-                  type="submit" 
-                  className="w-full"
-                  disabled={createPortalAccessMutation.isPending}
-                >
-                  {createPortalAccessMutation.isPending ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Creating Access...
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="h-4 w-4 mr-2" />
-                      Create Portal Access
-                    </>
+                <FormField
+                  control={form.control}
+                  name="isActive"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">
+                        Account is active
+                      </FormLabel>
+                    </FormItem>
                   )}
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-      )}
-      
-      {/* Password Reset Dialog */}
-      <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reset Client Password</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will reset the client's portal password to the new password below.
-              The client will be required to change their password on next login.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          
-          <div className="my-4 space-y-4">
-            <div className="space-y-2">
-              <div className="text-sm font-medium">New Password</div>
-              <div className="relative">
-                <div className="flex">
-                  <Input
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    type={isPasswordVisible ? "text" : "password"}
-                    className="pr-24 font-mono"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => setIsPasswordVisible(!isPasswordVisible)}
-                  >
-                    {isPasswordVisible ? "Hide" : "Show"}
-                  </Button>
-                </div>
+                />
               </div>
-              <div className="flex justify-between">
+              
+              <DialogFooter>
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
-                  onClick={() => setNewPassword(generateRandomPassword())}
+                  onClick={() => setIsEditModalOpen(false)}
                 >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Regenerate
+                  Cancel
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => copyToClipboard(newPassword, 'password')}
-                >
-                  {passwordCopied ? (
-                    <Check className="h-4 w-4 mr-2" />
-                  ) : (
-                    <Copy className="h-4 w-4 mr-2" />
-                  )}
-                  Copy
+                <Button type="submit" disabled={loading}>
+                  {loading ? "Updating..." : "Update Access"}
                 </Button>
-              </div>
-            </div>
-          </div>
-          
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={resetPasswordMutation.isPending}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={resetPasswordMutation.isPending || !newPassword}
-              onClick={(e) => {
-                e.preventDefault();
-                resetPasswordMutation.mutate({ 
-                  password: newPassword, 
-                  passwordResetRequired: true 
-                });
-              }}
-            >
-              {resetPasswordMutation.isPending ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Resetting...
-                </>
-              ) : (
-                "Reset Password"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
       
-      {/* Delete Portal Access Dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Portal Access</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently remove the client's access to the portal.
-              They will no longer be able to log in or access any information.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletePortalAccessMutation.isPending}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={deletePortalAccessMutation.isPending}
-              onClick={(e) => {
-                e.preventDefault();
-                deletePortalAccessMutation.mutate();
-              }}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {deletePortalAccessMutation.isPending ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete Access"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={() => deletePortalAccessMutation.mutate()}
+        isLoading={deletePortalAccessMutation.isPending}
+        title="Delete Portal Access"
+        description="Are you sure you want to delete this client's portal access? This action cannot be undone."
+      />
     </div>
   );
 }
