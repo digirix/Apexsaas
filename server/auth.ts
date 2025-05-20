@@ -5,7 +5,9 @@ import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
-import { User as SelectUser } from "@shared/schema";
+import { User as SelectUser, clientPortalAccess, clients } from "@shared/schema";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
 
 declare global {
   namespace Express {
@@ -105,13 +107,58 @@ export function setupAuth(app: Express) {
   ));
 
   passport.serializeUser((user, done) => {
-    done(null, user.id);
+    // Add user type to prevent conflicts between regular users and client portal users
+    if ((user as any).isClientPortalUser) {
+      done(null, { id: user.id, type: 'client-portal' });
+    } else {
+      done(null, { id: user.id, type: 'staff' });
+    }
   });
 
-  passport.deserializeUser(async (id: number, done) => {
+  passport.deserializeUser(async (serialized: { id: number, type: string }, done) => {
     try {
-      const user = await storage.getUser(id);
-      done(null, user);
+      if (serialized.type === 'client-portal') {
+        // For client portal users, fetch from clientPortalAccess and clients tables
+        const accessRecord = await db
+          .select()
+          .from(clientPortalAccess)
+          .where(eq(clientPortalAccess.id, serialized.id))
+          .limit(1);
+          
+        if (!accessRecord || accessRecord.length === 0) {
+          return done(null, false);
+        }
+        
+        const clientResult = await db
+          .select()
+          .from(clients)
+          .where(and(
+            eq(clients.id, accessRecord[0].clientId),
+            eq(clients.tenantId, accessRecord[0].tenantId)
+          ))
+          .limit(1);
+          
+        if (!clientResult || clientResult.length === 0) {
+          return done(null, false);
+        }
+        
+        const clientPortalUser = {
+          id: accessRecord[0].id,
+          clientId: clientResult[0].id,
+          tenantId: clientResult[0].tenantId,
+          username: accessRecord[0].username,
+          displayName: clientResult[0].displayName,
+          email: clientResult[0].email,
+          passwordResetRequired: accessRecord[0].passwordResetRequired,
+          isClientPortalUser: true,
+        };
+        
+        return done(null, clientPortalUser);
+      } else {
+        // For regular staff users
+        const user = await storage.getUser(serialized.id);
+        done(null, user);
+      }
     } catch (err) {
       done(err);
     }

@@ -29,8 +29,43 @@ async function comparePasswords(supplied: string, stored: string) {
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 
+// Define a type for client portal users
+export interface ClientPortalUser {
+  id: number;
+  clientId: number;
+  tenantId: number;
+  username: string;
+  displayName: string;
+  email: string;
+  passwordResetRequired: boolean;
+  isClientPortalUser: true;
+}
+
+// This will help passport distinguish between regular users and client portal users
+export function isClientPortalUser(user: any): user is ClientPortalUser {
+  return user && user.isClientPortalUser === true;
+}
+
 export function setupClientPortalAuth(app: Express) {
   console.log("Setting up client portal authentication...");
+  
+  // Set up a separate session for client portal
+  const clientPortalSessionSettings: session.SessionOptions = {
+    secret: process.env.CLIENT_PORTAL_SESSION_SECRET || process.env.SESSION_SECRET || 'client-portal-dev-secret',
+    resave: false,
+    saveUninitialized: false,
+    name: 'client-portal.sid', // Use a different cookie name from the main application
+    cookie: {
+      maxAge: 24 * 60 * 60 * 1000, // 1 day
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+    }
+  };
+  
+  // Apply the client portal session middleware to client portal routes only
+  app.use('/api/client-portal', session(clientPortalSessionSettings));
+  app.use('/api/client-portal', passport.initialize());
+  app.use('/api/client-portal', passport.session());
   
   // Use a separate strategy name for client portal authentication
   passport.use("client-portal-local", new LocalStrategy({
@@ -97,7 +132,7 @@ export function setupClientPortalAuth(app: Express) {
         .where(eq(clientPortalAccess.id, accessRecord.id));
       
       // Create client portal user object with combined information
-      const clientPortalUser = {
+      const clientPortalUser: ClientPortalUser = {
         id: accessRecord.id,
         clientId: client.id,
         tenantId: client.tenantId,
@@ -114,16 +149,200 @@ export function setupClientPortalAuth(app: Express) {
     }
   }));
   
-  // Already defined in the main auth.ts
-  // passport.serializeUser and passport.deserializeUser
+  // Client portal login endpoint
+  app.post('/api/client-portal/login', (req, res, next) => {
+    passport.authenticate('client-portal-local', (err, user, info) => {
+      if (err) {
+        return next(err);
+      }
+      
+      if (!user) {
+        return res.status(401).json({ message: info.message || 'Invalid username or password' });
+      }
+      
+      req.login(user, (loginErr) => {
+        if (loginErr) {
+          return next(loginErr);
+        }
+        
+        return res.status(200).json({
+          message: 'Login successful',
+          user: {
+            clientId: user.clientId,
+            displayName: user.displayName,
+            email: user.email,
+            tenantId: user.tenantId,
+            passwordResetRequired: user.passwordResetRequired,
+          }
+        });
+      });
+    })(req, res, next);
+  });
+  
+  // Client portal logout endpoint
+  app.post('/api/client-portal/logout', (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        return res.status(500).json({ message: 'Error during logout' });
+      }
+      return res.status(200).json({ message: 'Logout successful' });
+    });
+  });
+  
+  // Client profile endpoint
+  app.get('/api/client-portal/profile', isClientAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as ClientPortalUser;
+      
+      // Get detailed client information
+      const clientResult = await db
+        .select()
+        .from(clients)
+        .where(and(
+          eq(clients.id, user.clientId),
+          eq(clients.tenantId, user.tenantId)
+        ));
+      
+      if (!clientResult || clientResult.length === 0) {
+        return res.status(404).json({ message: 'Client not found' });
+      }
+      
+      // TODO: Get account manager information when that feature is implemented
+      
+      res.status(200).json({
+        client: {
+          id: clientResult[0].id,
+          displayName: clientResult[0].displayName,
+          email: clientResult[0].email,
+          status: clientResult[0].status,
+        },
+        accountManager: {
+          name: "Your Account Manager",
+          email: "accountmanager@example.com",
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching client profile:', error);
+      res.status(500).json({ message: 'Error fetching client profile' });
+    }
+  });
+  
+  // Client tasks endpoint
+  app.get('/api/client-portal/tasks', isClientAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as ClientPortalUser;
+      
+      // Placeholder for now - will implement actual task fetching later
+      const mockTasks = [
+        {
+          id: 1,
+          title: "Annual Tax Filing",
+          description: "Submit your annual tax return",
+          status: "In Progress",
+          dueDate: new Date().toISOString(),
+          completedDate: null,
+        },
+        {
+          id: 2,
+          title: "Quarterly GST/HST Filing",
+          description: "Submit your quarterly GST/HST return",
+          status: "Completed",
+          dueDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString(),
+          completedDate: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString(),
+        },
+        {
+          id: 3,
+          title: "Financial Statement Review",
+          description: "Review your financial statements",
+          status: "Not Started",
+          dueDate: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString(),
+          completedDate: null,
+        }
+      ];
+      
+      res.status(200).json(mockTasks);
+    } catch (error) {
+      console.error('Error fetching client tasks:', error);
+      res.status(500).json({ message: 'Error fetching client tasks' });
+    }
+  });
+  
+  // Client documents endpoint
+  app.get('/api/client-portal/documents', isClientAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as ClientPortalUser;
+      
+      // Placeholder for now - will implement actual document fetching later
+      const mockDocuments = [
+        {
+          id: 1,
+          name: "2024 Tax Return",
+          type: "Tax Return",
+          description: "Your completed tax return for the 2024 tax year",
+          date: new Date(new Date().setDate(new Date().getDate() - 45)).toISOString(),
+        },
+        {
+          id: 2,
+          name: "Q2 Financial Statements",
+          type: "Financial Statement",
+          description: "Financial statements for Q2 2024",
+          date: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString(),
+        },
+        {
+          id: 3,
+          name: "Business Registration",
+          type: "Document",
+          description: "Your business registration documents",
+          date: new Date(new Date().setDate(new Date().getDate() - 180)).toISOString(),
+        }
+      ];
+      
+      res.status(200).json(mockDocuments);
+    } catch (error) {
+      console.error('Error fetching client documents:', error);
+      res.status(500).json({ message: 'Error fetching client documents' });
+    }
+  });
   
   // Function to check if a request is from a client portal user
   function isClientAuthenticated(req: Request, res: Response, next: NextFunction) {
-    if (req.isAuthenticated() && (req.user as any).isClientPortalUser) {
+    if (req.isAuthenticated() && isClientPortalUser(req.user)) {
       return next();
     }
     res.status(401).json({ message: 'Unauthorized' });
   }
+  
+  // Password reset endpoint (will be implemented later)
+  app.post('/api/client-portal/reset-password', async (req, res) => {
+    try {
+      const { password, token, tenantId, clientId } = req.body;
+      
+      if (!password || !tenantId || !clientId) {
+        return res.status(400).json({ message: 'Missing required fields' });
+      }
+      
+      // For now, just update the password directly
+      // In a production app, you'd validate a reset token here
+      const hashedPassword = await hashPassword(password);
+      
+      await db
+        .update(clientPortalAccess)
+        .set({ 
+          password: hashedPassword,
+          passwordResetRequired: false,
+          updatedAt: new Date()
+        })
+        .where(and(
+          eq(clientPortalAccess.clientId, clientId),
+          eq(clientPortalAccess.tenantId, tenantId)
+        ));
+      
+      res.status(200).json({ message: 'Password reset successful' });
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      res.status(500).json({ message: 'Error resetting password' });
+    }
+  });
   
   console.log("Client portal authentication setup successful");
   
