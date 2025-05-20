@@ -1,450 +1,683 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Loader2, LogOut, User, FileText, CreditCard, Calendar } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiRequest } from "@/lib/queryClient";
-
-interface ClientPortalUser {
-  id: number;
-  clientId: number;
-  tenantId: number;
-  username: string;
-  displayName: string;
-  email: string;
-  isClientPortalUser: boolean;
-}
+import { useToast } from "@/hooks/use-toast";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { 
+  AlertCircle, 
+  FileText, 
+  LogOut, 
+  User, 
+  Calendar, 
+  Clock, 
+  CheckCircle, 
+  FileBox, 
+  BarChart, 
+  Mail, 
+  Building 
+} from "lucide-react";
+import {
+  Alert,
+  AlertTitle,
+  AlertDescription,
+} from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 export default function ClientPortalDashboardPage() {
-  const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const [location, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
-
-  // Fetch client user data
-  const { data: userData, isLoading, error } = useQuery({
-    queryKey: ["/api/client-portal/me"],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/client-portal/me");
-      if (!response.ok) {
-        throw new Error("Failed to fetch user data");
-      }
-      const data = await response.json();
-      return data.user as ClientPortalUser;
-    },
-    retry: false,
+  
+  // Fetch client profile
+  const { 
+    data: clientProfile, 
+    isLoading: isProfileLoading,
+    error: profileError,
+    refetch: refetchProfile
+  } = useQuery({
+    queryKey: ["/api/client-portal/profile"],
   });
-
-  // Fetch client entities
-  const { data: entities = [] } = useQuery({
-    queryKey: ["/api/client-portal/entities"],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/client-portal/entities");
-      if (!response.ok) {
-        throw new Error("Failed to fetch entities");
-      }
-      return response.json();
-    },
-    enabled: !!userData,
-  });
-
-  // Fetch invoices
-  const { data: invoices = [] } = useQuery({
-    queryKey: ["/api/client-portal/invoices"],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/client-portal/invoices");
-      if (!response.ok) {
-        throw new Error("Failed to fetch invoices");
-      }
-      return response.json();
-    },
-    enabled: !!userData,
-  });
-
-  // Fetch documents
-  const { data: documents = [] } = useQuery({
-    queryKey: ["/api/client-portal/documents"],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/client-portal/documents");
-      if (!response.ok) {
-        throw new Error("Failed to fetch documents");
-      }
-      return response.json();
-    },
-    enabled: !!userData,
-  });
-
-  // Fetch upcoming tasks
-  const { data: tasks = [] } = useQuery({
+  
+  // Fetch client tasks
+  const { 
+    data: clientTasks = [], 
+    isLoading: isTasksLoading,
+    error: tasksError,
+  } = useQuery({
     queryKey: ["/api/client-portal/tasks"],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/client-portal/tasks");
-      if (!response.ok) {
-        throw new Error("Failed to fetch tasks");
-      }
-      return response.json();
-    },
-    enabled: !!userData,
+    enabled: !!clientProfile
   });
-
-  // Handle logout
+  
+  // Fetch client documents
+  const { 
+    data: clientDocuments = [], 
+    isLoading: isDocumentsLoading,
+    error: documentsError,
+  } = useQuery({
+    queryKey: ["/api/client-portal/documents"],
+    enabled: !!clientProfile
+  });
+  
+  // Logout the client
   const handleLogout = async () => {
     try {
-      await apiRequest("POST", "/api/client-portal/logout");
-      navigate("/client-portal/login");
+      const response = await apiRequest("POST", "/api/client-portal/logout", {});
+      
+      if (response.ok) {
+        toast({
+          title: "Logout successful",
+          description: "You have been logged out of the client portal",
+        });
+        
+        // Redirect to login page
+        setLocation("/client-portal/login");
+      } else {
+        toast({
+          title: "Logout failed",
+          description: "There was an error logging out",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
-      console.error("Logout failed:", error);
+      console.error("Error during logout:", error);
+      toast({
+        title: "Logout error",
+        description: "An error occurred during logout",
+        variant: "destructive",
+      });
     }
   };
-
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (error) {
-      navigate("/client-portal/login");
+  
+  // Format dates
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+  
+  // Get task status badge variant
+  const getTaskStatusVariant = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "completed":
+        return "success";
+      case "in progress":
+        return "default";
+      case "not started":
+        return "secondary";
+      case "overdue":
+        return "destructive";
+      default:
+        return "outline";
     }
-  }, [error, navigate]);
-
-  if (isLoading) {
+  };
+  
+  // Get document type icon
+  const getDocumentIcon = (type: string) => {
+    switch (type.toLowerCase()) {
+      case "tax return":
+        return <FileText className="h-5 w-5 text-blue-500" />;
+      case "financial statement":
+        return <BarChart className="h-5 w-5 text-green-500" />;
+      case "report":
+        return <FileBox className="h-5 w-5 text-purple-500" />;
+      default:
+        return <FileText className="h-5 w-5 text-gray-500" />;
+    }
+  };
+  
+  // Calculate task completion rate
+  const getTaskCompletionRate = () => {
+    if (!clientTasks || clientTasks.length === 0) return 0;
+    
+    const completedTasks = clientTasks.filter(
+      (task: any) => task.status.toLowerCase() === "completed"
+    ).length;
+    
+    return Math.round((completedTasks / clientTasks.length) * 100);
+  };
+  
+  // If the user is not authenticated, redirect to login
+  useEffect(() => {
+    if (profileError) {
+      toast({
+        title: "Authentication error",
+        description: "You need to log in to access the client portal",
+        variant: "destructive",
+      });
+      setLocation("/client-portal/login");
+    }
+  }, [profileError, setLocation, toast]);
+  
+  // Loading state
+  if (isProfileLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
       </div>
     );
   }
-
+  
+  // Error state (if not redirected)
+  if (profileError && !clientProfile) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+        <Alert variant="destructive" className="max-w-md mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Authentication Error</AlertTitle>
+          <AlertDescription>
+            You need to log in to access the client portal
+          </AlertDescription>
+        </Alert>
+        <Button onClick={() => setLocation("/client-portal/login")}>
+          Go to Login
+        </Button>
+      </div>
+    );
+  }
+  
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">Client Portal</h1>
-          <div className="flex items-center space-x-4">
-            <span className="text-sm text-gray-600 hidden md:inline-block">
-              Welcome, {userData?.displayName}
-            </span>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
+      <header className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center">
+              <Building className="h-8 w-8 text-blue-500 mr-3" />
+              <div>
+                <h1 className="text-lg font-bold text-slate-900">Client Portal</h1>
+                <p className="text-sm text-slate-500">
+                  {clientProfile?.client?.displayName || "Client Dashboard"}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="text-right hidden sm:block">
+                <p className="text-sm font-medium text-slate-900">
+                  {clientProfile?.client?.displayName}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {clientProfile?.client?.email}
+                </p>
+              </div>
+              <Avatar className="h-9 w-9 bg-blue-100 text-blue-600">
+                <AvatarFallback>
+                  {clientProfile?.client?.displayName
+                    ?.split(" ")
+                    .map((n: string) => n[0])
+                    .join("")
+                    .toUpperCase()
+                    .substring(0, 2) || "CL"}
+                </AvatarFallback>
+              </Avatar>
+              <Button variant="outline" size="sm" onClick={handleLogout}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
       </header>
-
-      {/* Main content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="invoices">Invoices</TabsTrigger>
-            <TabsTrigger value="documents">Documents</TabsTrigger>
-            <TabsTrigger value="tasks">Upcoming Tasks</TabsTrigger>
-          </TabsList>
-
+          <div className="flex justify-between items-center mb-6">
+            <TabsList>
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="tasks">Tasks</TabsTrigger>
+              <TabsTrigger value="documents">Documents</TabsTrigger>
+            </TabsList>
+          </div>
+          
           {/* Overview Tab */}
-          <TabsContent value="overview">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6 mt-6">
-              {/* Profile Card */}
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center">
-                    <User className="mr-2 h-5 w-5" />
-                    Profile
+                  <CardTitle className="text-sm font-medium text-slate-500">
+                    Pending Tasks
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <dl className="space-y-2">
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Name</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{userData?.displayName}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Email</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{userData?.email}</dd>
-                    </div>
-                    <div className="pt-2">
-                      <Button variant="outline" size="sm" className="w-full">
-                        Update Profile
-                      </Button>
-                    </div>
-                  </dl>
+                  <div className="text-2xl font-bold">
+                    {clientTasks
+                      ? clientTasks.filter(
+                          (task: any) => task.status.toLowerCase() !== "completed"
+                        ).length
+                      : "0"}
+                  </div>
+                  <div className="mt-2">
+                    <Progress value={getTaskCompletionRate()} className="h-2" />
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2">
+                    {getTaskCompletionRate()}% tasks completed
+                  </p>
                 </CardContent>
               </Card>
-
-              {/* Invoices Summary Card */}
+              
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center">
-                    <CreditCard className="mr-2 h-5 w-5" />
-                    Invoices
+                  <CardTitle className="text-sm font-medium text-slate-500">
+                    Recent Documents
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <dl className="space-y-2">
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Total Invoices</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{invoices.length || 0}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Open Invoices</dt>
-                      <dd className="mt-1 text-sm text-gray-900">
-                        {invoices.filter((i: any) => i.status === 'sent' || i.status === 'overdue').length || 0}
-                      </dd>
-                    </div>
-                    <div className="pt-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="w-full"
-                        onClick={() => setActiveTab("invoices")}
-                      >
-                        View All Invoices
-                      </Button>
-                    </div>
-                  </dl>
+                  <div className="text-2xl font-bold">
+                    {clientDocuments ? clientDocuments.length : "0"}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2">
+                    {clientDocuments && clientDocuments.length > 0
+                      ? `Last updated: ${formatDate(clientDocuments[0].date)}`
+                      : "No documents available"}
+                  </p>
                 </CardContent>
               </Card>
-
-              {/* Documents Summary Card */}
+              
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center">
-                    <FileText className="mr-2 h-5 w-5" />
-                    Documents
+                  <CardTitle className="text-sm font-medium text-slate-500">
+                    Account Manager
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <dl className="space-y-2">
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Total Documents</dt>
-                      <dd className="mt-1 text-sm text-gray-900">{documents.length || 0}</dd>
+                <CardContent className="flex items-start space-x-4">
+                  <Avatar className="h-10 w-10 bg-blue-100 text-blue-600">
+                    <AvatarFallback>
+                      {clientProfile?.accountManager?.name
+                        ?.split(" ")
+                        .map((n: string) => n[0])
+                        .join("")
+                        .toUpperCase()
+                        .substring(0, 2) || "AM"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="font-medium">
+                      {clientProfile?.accountManager?.name || "Not Assigned"}
                     </div>
-                    <div>
-                      <dt className="text-sm font-medium text-gray-500">Recent Uploads</dt>
-                      <dd className="mt-1 text-sm text-gray-900">
-                        {documents.filter((d: any) => {
-                          const uploadDate = new Date(d.uploadedAt);
-                          const thirtyDaysAgo = new Date();
-                          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                          return uploadDate > thirtyDaysAgo;
-                        }).length || 0}
-                      </dd>
-                    </div>
-                    <div className="pt-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="w-full"
-                        onClick={() => setActiveTab("documents")}
-                      >
-                        View All Documents
-                      </Button>
-                    </div>
-                  </dl>
+                    <p className="text-sm text-slate-500">
+                      {clientProfile?.accountManager?.email || "Contact your firm for details"}
+                    </p>
+                    {clientProfile?.accountManager?.phone && (
+                      <p className="text-sm text-slate-500">
+                        {clientProfile.accountManager.phone}
+                      </p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </div>
-
-            {/* Upcoming Tasks Summary */}
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Calendar className="mr-2 h-5 w-5" />
-                  Upcoming Tasks
-                </CardTitle>
-                <CardDescription>
-                  Your upcoming deadlines and required actions
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {tasks.length === 0 ? (
-                  <p className="text-sm text-gray-500">No upcoming tasks</p>
-                ) : (
-                  <div className="space-y-4">
-                    {tasks.slice(0, 3).map((task: any) => (
-                      <div key={task.id} className="border-l-4 border-blue-500 pl-4 py-2">
-                        <h3 className="text-sm font-medium">{task.title}</h3>
-                        <p className="text-xs text-gray-500">Due: {new Date(task.dueDate).toLocaleDateString()}</p>
-                        <p className="text-xs text-gray-500 mt-1">{task.description}</p>
-                      </div>
-                    ))}
-                    {tasks.length > 3 && (
-                      <Button 
-                        variant="link" 
-                        size="sm" 
-                        className="px-0"
-                        onClick={() => setActiveTab("tasks")}
-                      >
-                        View all {tasks.length} tasks
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Entities List */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Your Entities</CardTitle>
-                <CardDescription>
-                  Companies and other business entities managed by your accountant
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {entities.length === 0 ? (
-                  <p className="text-sm text-gray-500">No entities found</p>
-                ) : (
-                  <div className="space-y-4">
-                    {entities.map((entity: any) => (
-                      <div key={entity.id} className="p-4 border rounded-md">
-                        <h3 className="font-medium">{entity.name}</h3>
-                        <p className="text-sm text-gray-500">{entity.entityType}</p>
-                        <Separator className="my-2" />
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>
-                            <span className="text-gray-500">Tax ID:</span> {entity.businessTaxId || 'N/A'}
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Upcoming Tasks</CardTitle>
+                  <CardDescription>
+                    Your upcoming tax and accounting deadlines
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isTasksLoading ? (
+                    <div className="flex justify-center py-6">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                    </div>
+                  ) : tasksError ? (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Error</AlertTitle>
+                      <AlertDescription>
+                        Failed to load tasks. Please try again later.
+                      </AlertDescription>
+                    </Alert>
+                  ) : clientTasks.length === 0 ? (
+                    <div className="text-center py-6 text-slate-500">
+                      No upcoming tasks
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {clientTasks
+                        .filter((task: any) => task.status.toLowerCase() !== "completed")
+                        .slice(0, 3)
+                        .map((task: any) => (
+                          <div key={task.id} className="flex items-start space-x-3">
+                            <div className="flex-shrink-0 mt-1">
+                              <Clock className="h-5 w-5 text-slate-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-slate-900 truncate">
+                                {task.title}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                Due: {formatDate(task.dueDate)}
+                              </p>
+                            </div>
+                            <div>
+                              <Badge variant={getTaskStatusVariant(task.status)}>
+                                {task.status}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      
+                      {clientTasks.filter(
+                        (task: any) => task.status.toLowerCase() !== "completed"
+                      ).length > 3 && (
+                        <div className="text-center pt-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => setActiveTab("tasks")}
+                          >
+                            View all tasks
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Documents</CardTitle>
+                  <CardDescription>
+                    Your recently uploaded financial documents
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isDocumentsLoading ? (
+                    <div className="flex justify-center py-6">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                    </div>
+                  ) : documentsError ? (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Error</AlertTitle>
+                      <AlertDescription>
+                        Failed to load documents. Please try again later.
+                      </AlertDescription>
+                    </Alert>
+                  ) : clientDocuments.length === 0 ? (
+                    <div className="text-center py-6 text-slate-500">
+                      No documents available
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {clientDocuments.slice(0, 3).map((doc: any) => (
+                        <div key={doc.id} className="flex items-start space-x-3">
+                          <div className="flex-shrink-0 mt-1">
+                            {getDocumentIcon(doc.type)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-900 truncate">
+                              {doc.name}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {formatDate(doc.date)} • {doc.type}
+                            </p>
                           </div>
                           <div>
-                            <span className="text-gray-500">VAT Registered:</span> {entity.isVatRegistered ? 'Yes' : 'No'}
+                            <Button variant="ghost" size="sm">
+                              View
+                            </Button>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      ))}
+                      
+                      {clientDocuments.length > 3 && (
+                        <div className="text-center pt-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => setActiveTab("documents")}
+                          >
+                            View all documents
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
-
-          {/* Invoices Tab */}
-          <TabsContent value="invoices">
-            <Card className="mt-6">
+          
+          {/* Tasks Tab */}
+          <TabsContent value="tasks" className="space-y-6">
+            <Card>
               <CardHeader>
-                <CardTitle>Your Invoices</CardTitle>
+                <CardTitle>Your Tasks & Deadlines</CardTitle>
                 <CardDescription>
-                  View and pay your outstanding invoices
+                  Track your tax and accounting requirements
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {invoices.length === 0 ? (
-                  <p className="text-sm text-gray-500">No invoices found</p>
+                {isTasksLoading ? (
+                  <div className="flex justify-center py-6">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  </div>
+                ) : tasksError ? (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>
+                      Failed to load tasks. Please try again later.
+                    </AlertDescription>
+                  </Alert>
+                ) : clientTasks.length === 0 ? (
+                  <div className="text-center py-6 text-slate-500">
+                    No tasks found
+                  </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                      <thead className="bg-gray-50 text-xs uppercase">
-                        <tr>
-                          <th className="px-6 py-3">Invoice #</th>
-                          <th className="px-6 py-3">Date</th>
-                          <th className="px-6 py-3">Amount</th>
-                          <th className="px-6 py-3">Status</th>
-                          <th className="px-6 py-3">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {invoices.map((invoice: any) => (
-                          <tr key={invoice.id} className="bg-white border-b hover:bg-gray-50">
-                            <td className="px-6 py-4 font-medium">{invoice.invoiceNumber}</td>
-                            <td className="px-6 py-4">{new Date(invoice.issueDate).toLocaleDateString()}</td>
-                            <td className="px-6 py-4">{invoice.totalAmount}</td>
-                            <td className="px-6 py-4">
-                              <span className={`px-2 py-1 rounded-full text-xs ${
-                                invoice.status === 'paid' ? 'bg-green-100 text-green-800' :
-                                invoice.status === 'overdue' ? 'bg-red-100 text-red-800' :
-                                'bg-yellow-100 text-yellow-800'
-                              }`}>
-                                {invoice.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <Button variant="outline" size="sm">View</Button>
-                              {(invoice.status === 'sent' || invoice.status === 'overdue') && (
-                                <Button variant="default" size="sm" className="ml-2">Pay</Button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="space-y-6">
+                    {/* Pending Tasks */}
+                    <div>
+                      <h3 className="text-lg font-medium mb-4">Pending Tasks</h3>
+                      <div className="space-y-4">
+                        {clientTasks
+                          .filter((task: any) => task.status.toLowerCase() !== "completed")
+                          .map((task: any) => (
+                            <div key={task.id} className="flex items-start p-4 border rounded-md">
+                              <div className="flex-shrink-0 mt-1 mr-4">
+                                <Clock className="h-5 w-5 text-slate-400" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between">
+                                  <p className="text-sm font-medium text-slate-900">
+                                    {task.title}
+                                  </p>
+                                  <Badge variant={getTaskStatusVariant(task.status)}>
+                                    {task.status}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-slate-500 mt-1">
+                                  {task.description}
+                                </p>
+                                <div className="mt-2 flex items-center text-xs text-slate-500">
+                                  <Calendar className="h-3 w-3 mr-1" />
+                                  Due: {formatDate(task.dueDate)}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        
+                        {clientTasks.filter(
+                          (task: any) => task.status.toLowerCase() !== "completed"
+                        ).length === 0 && (
+                          <div className="text-center py-4 text-slate-500 border rounded-md">
+                            No pending tasks
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Completed Tasks */}
+                    <div>
+                      <h3 className="text-lg font-medium mb-4">Completed Tasks</h3>
+                      <div className="space-y-4">
+                        {clientTasks
+                          .filter((task: any) => task.status.toLowerCase() === "completed")
+                          .map((task: any) => (
+                            <div key={task.id} className="flex items-start p-4 border rounded-md bg-gray-50">
+                              <div className="flex-shrink-0 mt-1 mr-4">
+                                <CheckCircle className="h-5 w-5 text-green-500" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between">
+                                  <p className="text-sm font-medium text-slate-900">
+                                    {task.title}
+                                  </p>
+                                  <Badge variant="success">
+                                    Completed
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-slate-500 mt-1">
+                                  {task.description}
+                                </p>
+                                <div className="mt-2 flex items-center text-xs text-slate-500">
+                                  <Calendar className="h-3 w-3 mr-1" />
+                                  Completed on: {formatDate(task.completedDate || task.updatedAt || task.dueDate)}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        
+                        {clientTasks.filter(
+                          (task: any) => task.status.toLowerCase() === "completed"
+                        ).length === 0 && (
+                          <div className="text-center py-4 text-slate-500 border rounded-md">
+                            No completed tasks
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
               </CardContent>
             </Card>
           </TabsContent>
-
+          
           {/* Documents Tab */}
-          <TabsContent value="documents">
-            <Card className="mt-6">
+          <TabsContent value="documents" className="space-y-6">
+            <Card>
               <CardHeader>
                 <CardTitle>Your Documents</CardTitle>
                 <CardDescription>
-                  Access and download your financial documents
+                  Access your financial statements, tax returns, and other documents
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {documents.length === 0 ? (
-                  <p className="text-sm text-gray-500">No documents found</p>
-                ) : (
-                  <div className="space-y-4">
-                    {documents.map((doc: any) => (
-                      <div key={doc.id} className="flex items-center justify-between border-b pb-4">
-                        <div>
-                          <h3 className="font-medium">{doc.fileName}</h3>
-                          <p className="text-sm text-gray-500">
-                            Uploaded: {new Date(doc.uploadedAt).toLocaleDateString()}
-                          </p>
-                          <p className="text-xs text-gray-500">{doc.fileSize}</p>
-                        </div>
-                        <Button variant="outline" size="sm">
-                          Download
-                        </Button>
-                      </div>
-                    ))}
+                {isDocumentsLoading ? (
+                  <div className="flex justify-center py-6">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Tasks Tab */}
-          <TabsContent value="tasks">
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle>Upcoming Tasks</CardTitle>
-                <CardDescription>
-                  Your upcoming deadlines and required actions
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {tasks.length === 0 ? (
-                  <p className="text-sm text-gray-500">No upcoming tasks</p>
+                ) : documentsError ? (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>
+                      Failed to load documents. Please try again later.
+                    </AlertDescription>
+                  </Alert>
+                ) : clientDocuments.length === 0 ? (
+                  <div className="text-center py-6 text-slate-500">
+                    No documents available
+                  </div>
                 ) : (
                   <div className="space-y-6">
-                    {tasks.map((task: any) => (
-                      <div key={task.id} className="border rounded-lg p-4 bg-white shadow-sm">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="font-medium text-lg">{task.title}</h3>
-                            <p className="text-sm text-gray-500">
-                              Due: {new Date(task.dueDate).toLocaleDateString()}
-                            </p>
+                    {/* Group documents by type */}
+                    {["Tax Return", "Financial Statement", "Report"].map((type) => {
+                      const docs = clientDocuments.filter(
+                        (doc: any) => doc.type.toLowerCase() === type.toLowerCase()
+                      );
+                      
+                      if (docs.length === 0) return null;
+                      
+                      return (
+                        <div key={type}>
+                          <h3 className="text-lg font-medium mb-4">{type}s</h3>
+                          <div className="space-y-4">
+                            {docs.map((doc: any) => (
+                              <div key={doc.id} className="flex items-start p-4 border rounded-md">
+                                <div className="flex-shrink-0 mt-1 mr-4">
+                                  {getDocumentIcon(doc.type)}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex justify-between items-center">
+                                    <p className="text-sm font-medium text-slate-900">
+                                      {doc.name}
+                                    </p>
+                                    <Button variant="outline" size="sm">
+                                      Download
+                                    </Button>
+                                  </div>
+                                  <p className="text-sm text-slate-500 mt-1">
+                                    {doc.description}
+                                  </p>
+                                  <div className="mt-2 flex items-center text-xs text-slate-500">
+                                    <Calendar className="h-3 w-3 mr-1" />
+                                    Uploaded: {formatDate(doc.date)}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            new Date(task.dueDate) < new Date() ? 'bg-red-100 text-red-800' :
-                            'bg-blue-100 text-blue-800'
-                          }`}>
-                            {new Date(task.dueDate) < new Date() ? 'Overdue' : 'Upcoming'}
-                          </span>
                         </div>
-                        <Separator className="my-3" />
-                        <p className="text-sm">{task.description}</p>
-                        <div className="mt-4 flex justify-end">
-                          <Button variant="outline" size="sm">
-                            View Details
-                          </Button>
+                      );
+                    })}
+                    
+                    {/* Other documents */}
+                    {clientDocuments.filter(
+                      (doc: any) => !["Tax Return", "Financial Statement", "Report"].includes(doc.type)
+                    ).length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-medium mb-4">Other Documents</h3>
+                        <div className="space-y-4">
+                          {clientDocuments
+                            .filter(
+                              (doc: any) => !["Tax Return", "Financial Statement", "Report"].includes(doc.type)
+                            )
+                            .map((doc: any) => (
+                              <div key={doc.id} className="flex items-start p-4 border rounded-md">
+                                <div className="flex-shrink-0 mt-1 mr-4">
+                                  {getDocumentIcon(doc.type)}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex justify-between items-center">
+                                    <p className="text-sm font-medium text-slate-900">
+                                      {doc.name}
+                                    </p>
+                                    <Button variant="outline" size="sm">
+                                      Download
+                                    </Button>
+                                  </div>
+                                  <p className="text-sm text-slate-500 mt-1">
+                                    {doc.description}
+                                  </p>
+                                  <div className="mt-2 flex items-center text-xs text-slate-500">
+                                    <Calendar className="h-3 w-3 mr-1" />
+                                    Uploaded: {formatDate(doc.date)}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
                         </div>
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -452,6 +685,30 @@ export default function ClientPortalDashboardPage() {
           </TabsContent>
         </Tabs>
       </main>
+      
+      {/* Footer */}
+      <footer className="bg-white border-t mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="mb-4 md:mb-0">
+              <p className="text-sm text-slate-500">
+                &copy; {new Date().getFullYear()} AccFirm Management System
+              </p>
+            </div>
+            <div className="flex space-x-6">
+              <button className="text-sm text-slate-500 hover:text-slate-700">
+                Privacy Policy
+              </button>
+              <button className="text-sm text-slate-500 hover:text-slate-700">
+                Terms of Service
+              </button>
+              <button className="text-sm text-slate-500 hover:text-slate-700">
+                Contact Support
+              </button>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

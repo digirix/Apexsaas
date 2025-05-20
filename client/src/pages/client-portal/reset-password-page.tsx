@@ -1,223 +1,268 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { useLocation } from "wouter";
-import { Loader2 } from "lucide-react";
 import { z } from "zod";
+import { useLocation, useSearch } from "wouter";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, CheckCircle } from "lucide-react";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { 
+  Alert,
+  AlertTitle,
+  AlertDescription,
+} from "@/components/ui/alert";
+import { AlertCircle, KeyRound, CheckCircle, Building } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
-// Password reset schema
-const passwordResetSchema = z.object({
-  currentPassword: z.string().min(1, { message: "Current password is required" }),
-  newPassword: z.string().min(8, { message: "Password must be at least 8 characters" }),
-  confirmPassword: z.string().min(8, { message: "Confirm password is required" }),
-}).refine(data => data.newPassword === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
+// Define schema for reset password form
+const resetPasswordSchema = z.object({
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .max(100, "Password must be less than 100 characters"),
+  confirmPassword: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .max(100, "Password must be less than 100 characters"),
+})
+.refine(data => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"], 
 });
 
-type PasswordResetFormData = z.infer<typeof passwordResetSchema>;
+type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
 export default function ResetPasswordPage() {
-  const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const [location, setLocation] = useLocation();
+  const search = useSearch();
+  const params = new URLSearchParams(search);
+  const token = params.get('token');
+  const tenantId = params.get('tenantId');
+  const clientId = params.get('clientId');
+  
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<boolean>(false);
-
-  // Fetch client user data
-  const { data: userData, isLoading: isUserLoading, error: userError } = useQuery({
-    queryKey: ["/api/client-portal/me"],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/client-portal/me");
-      if (!response.ok) {
-        throw new Error("Failed to fetch user data");
-      }
-      const data = await response.json();
-      return data.user;
-    },
-    retry: false,
-  });
-
-  // Initialize form with validation
-  const form = useForm<PasswordResetFormData>({
-    resolver: zodResolver(passwordResetSchema),
+  const [success, setSuccess] = useState(false);
+  
+  // Initialize form with react-hook-form
+  const form = useForm<ResetPasswordFormData>({
+    resolver: zodResolver(resetPasswordSchema),
     defaultValues: {
-      currentPassword: "",
-      newPassword: "",
+      password: "",
       confirmPassword: "",
     },
   });
-
-  // Change password mutation
-  const changePasswordMutation = useMutation({
-    mutationFn: async (data: PasswordResetFormData) => {
-      setError(null);
-      const res = await apiRequest("POST", "/api/client-portal/change-password", {
-        currentPassword: data.currentPassword,
-        newPassword: data.newPassword,
-      });
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Failed to change password");
-      }
-      
-      return await res.json();
-    },
-    onSuccess: () => {
-      setSuccess(true);
-      
-      // Redirect to dashboard after successful password change
-      setTimeout(() => {
-        navigate("/client-portal/dashboard");
-      }, 3000);
-    },
-    onError: (error: Error) => {
-      console.error("Password change error:", error);
-      setError(error.message);
-    },
-  });
-
+  
   // Handle form submission
-  function onSubmit(data: PasswordResetFormData) {
-    changePasswordMutation.mutate(data);
-  }
-
-  // Redirect if not authenticated
-  if (userError) {
-    navigate("/client-portal/login");
-    return null;
-  }
-
-  if (isUserLoading) {
+  const onSubmit = async (data: ResetPasswordFormData) => {
+    if (!token || !tenantId || !clientId) {
+      setError("Missing required parameters. Please use the link provided in your email.");
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const response = await apiRequest(
+        "POST",
+        "/api/client-portal/reset-password",
+        {
+          password: data.password,
+          token,
+          tenantId: parseInt(tenantId, 10),
+          clientId: parseInt(clientId, 10),
+        }
+      );
+      
+      if (response.ok) {
+        setSuccess(true);
+        toast({
+          title: "Password reset successful",
+          description: "Your password has been reset. You can now log in with your new password.",
+        });
+      } else {
+        const responseData = await response.json();
+        setError(responseData.message || "Password reset failed. The link may have expired or is invalid.");
+      }
+    } catch (error) {
+      setError("An error occurred during password reset. Please try again later.");
+      console.error("Password reset error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // If no token is provided, show an error
+  if (!token || !tenantId || !clientId) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Change Your Password
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Please set a new secure password for your account
-        </p>
-      </div>
-
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <Card className="shadow-lg">
+      <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center p-4">
+        <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Password Reset</CardTitle>
-            <CardDescription>
-              Your password must be at least 8 characters
+            <div className="mb-4 flex justify-center">
+              <div className="h-14 w-14 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertCircle className="h-8 w-8 text-red-500" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl text-center">Invalid Reset Link</CardTitle>
+            <CardDescription className="text-center">
+              The password reset link is invalid or has expired.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            {success ? (
-              <Alert className="bg-green-50 border-green-200">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-700">
-                  Password changed successfully! Redirecting to dashboard...
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                {/* Show any errors */}
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="currentPassword">Current Password</Label>
-                  <Input
-                    id="currentPassword"
-                    type="password"
-                    {...form.register("currentPassword")}
-                    disabled={changePasswordMutation.isPending}
-                  />
-                  {form.formState.errors.currentPassword && (
-                    <p className="text-sm text-red-500">
-                      {form.formState.errors.currentPassword.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="newPassword">New Password</Label>
-                  <Input
-                    id="newPassword"
-                    type="password"
-                    {...form.register("newPassword")}
-                    disabled={changePasswordMutation.isPending}
-                  />
-                  {form.formState.errors.newPassword && (
-                    <p className="text-sm text-red-500">
-                      {form.formState.errors.newPassword.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    {...form.register("confirmPassword")}
-                    disabled={changePasswordMutation.isPending}
-                  />
-                  {form.formState.errors.confirmPassword && (
-                    <p className="text-sm text-red-500">
-                      {form.formState.errors.confirmPassword.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="pt-4">
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={changePasswordMutation.isPending}
-                  >
-                    {changePasswordMutation.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Changing password...
-                      </>
-                    ) : (
-                      "Change Password"
-                    )}
-                  </Button>
-                </div>
-              </form>
-            )}
-          </CardContent>
-          <CardFooter className="flex justify-center">
-            <p className="text-sm text-gray-500">
-              This is a secure area. Your password will be encrypted.
+          <CardContent className="space-y-4">
+            <p className="text-center text-sm text-slate-500">
+              Please contact your accountant to request a new password reset link.
             </p>
+          </CardContent>
+          <CardFooter>
+            <Button 
+              className="w-full" 
+              onClick={() => setLocation("/client-portal/login")}
+            >
+              Return to Login
+            </Button>
           </CardFooter>
         </Card>
       </div>
+    );
+  }
+  
+  // If password reset was successful, show success message
+  if (success) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <div className="mb-4 flex justify-center">
+              <div className="h-14 w-14 rounded-full bg-green-100 flex items-center justify-center">
+                <CheckCircle className="h-8 w-8 text-green-500" />
+              </div>
+            </div>
+            <CardTitle className="text-2xl text-center">Password Reset Successful</CardTitle>
+            <CardDescription className="text-center">
+              Your password has been reset successfully.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-center text-sm text-slate-500">
+              You can now log in to your account using your new password.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button 
+              className="w-full" 
+              onClick={() => setLocation("/client-portal/login")}
+            >
+              Go to Login
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <div className="mb-4 flex justify-center">
+            <div className="h-14 w-14 rounded-full bg-blue-100 flex items-center justify-center">
+              <Building className="h-8 w-8 text-blue-500" />
+            </div>
+          </div>
+          <CardTitle className="text-2xl text-center">Reset Your Password</CardTitle>
+          <CardDescription className="text-center">
+            Please enter a new password for your account
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {error && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>New Password</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="password" 
+                        placeholder="Enter your new password" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm Password</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="password" 
+                        placeholder="Confirm your new password" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <span className="flex items-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Resetting password...
+                  </span>
+                ) : (
+                  <span className="flex items-center">
+                    <KeyRound className="mr-2 h-4 w-4" />
+                    Reset Password
+                  </span>
+                )}
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+        <CardFooter className="flex justify-center">
+          <Button 
+            variant="ghost" 
+            onClick={() => setLocation("/client-portal/login")}
+          >
+            Back to Login
+          </Button>
+        </CardFooter>
+      </Card>
     </div>
   );
 }
