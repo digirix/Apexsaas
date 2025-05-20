@@ -1,305 +1,956 @@
 import { IStorage } from "./storage";
-import { Task, InsertTask } from "../shared/schema";
-import { format, addMonths, startOfMonth, endOfMonth } from "date-fns";
+import { Task, InsertTask } from "@shared/schema";
+import { 
+  addMonths, addDays, format, 
+  startOfMonth, endOfMonth, 
+  startOfQuarter, endOfQuarter, 
+  subDays, isBefore, isAfter,
+  differenceInMonths, differenceInQuarters,
+  addQuarters, differenceInYears, addYears,
+  isEqual, differenceInWeeks, addWeeks
+} from "date-fns";
+
+const DEFAULT_LEAD_DAYS = 14; // Default lead time for generating recurring tasks
 
 /**
- * Class that handles task scheduling and approval using a single-table approach
- * All tasks (regular and auto-generated) are stored in a single tasks table
- * with flags to differentiate them
+ * TaskScheduler is responsible for generating recurring tasks
+ * based on their frequency and compliance periods
  */
 export class TaskScheduler {
   private storage: IStorage;
+  private leadDaysOverride: number | null;
   
-  constructor(storage: IStorage) {
+  constructor(storage: IStorage, leadDaysOverride: number | null = null) {
     this.storage = storage;
+    this.leadDaysOverride = leadDaysOverride;
   }
   
   /**
-   * Generate upcoming recurring tasks for all tenants (called periodically)
-   * This is the main entry point for the task generation process
+   * Generate upcoming recurring tasks for all tenants
+   * This should be run periodically (e.g., daily) to create tasks for upcoming periods
    */
   public async generateUpcomingRecurringTasks(): Promise<void> {
     try {
-      console.log("Starting to generate upcoming recurring tasks for all tenants");
-      // Get all tasks with isRecurring=true
-      const tasks = await this.storage.getTasks(0); // 0 means all tenants
-      const recurringTasks = tasks.filter(task => task.isRecurring === true);
+      // Get all tenants
+      const tenants = Array.from(await this.getAllTenants());
       
-      console.log(`Found ${recurringTasks.length} recurring tasks`);
-      
-      // Process each recurring task
-      for (const task of recurringTasks) {
-        await this.generateTasksFromTemplate(task);
+      for (const tenant of tenants) {
+        await this.generateRecurringTasksForTenant(tenant.id);
       }
       
-      console.log("Finished generating upcoming recurring tasks");
+      console.log(`Recurring task generation completed for ${tenants.length} tenants`);
     } catch (error) {
-      console.error("Error generating upcoming recurring tasks:", error);
+      console.error("Error generating recurring tasks:", error);
     }
   }
   
   /**
-   * Generate a new task instance from a recurring template
+   * Generate recurring tasks for a specific tenant
    */
-  private async generateTasksFromTemplate(templateTask: Task): Promise<void> {
+  public async generateRecurringTasksForTenant(tenantId: number): Promise<void> {
     try {
-      if (!templateTask.complianceFrequency || !templateTask.complianceStartDate) {
-        console.log(`Task ${templateTask.id} has no compliance frequency or start date, skipping`);
-        return;
+      // If we have a lead days override (for manual generation), use that value
+      // Otherwise get the auto generate days setting or use default
+      let leadDays: number;
+      
+      if (this.leadDaysOverride !== null) {
+        // Use the override (typically 0 for manual generation to force immediate creation)
+        leadDays = this.leadDaysOverride;
+        console.log(`Using override lead days: ${leadDays} for tenant ${tenantId}`);
+      } else {
+        // Get setting from database
+        const autoGenerateSetting = await this.storage.getTenantSetting(tenantId, "auto_generate_task_days");
+        leadDays = autoGenerateSetting ? parseInt(autoGenerateSetting.value) : DEFAULT_LEAD_DAYS;
+        console.log(`Using configured lead days: ${leadDays} for tenant ${tenantId}`);
       }
       
-      // Calculate next period (month, quarter, year, etc.)
-      const startDate = new Date(templateTask.complianceStartDate);
-      let endDate: Date;
+      // Get all recurring tasks for this tenant
+      const allTasks = await this.storage.getTasks(tenantId);
+      const recurringTasks = allTasks.filter(task => task.isRecurring);
       
-      // Default to next month if frequency not recognized
-      const nextMonth = addMonths(startDate, 1);
-      const newStartDate = startOfMonth(nextMonth);
-      endDate = endOfMonth(nextMonth);
+      if (recurringTasks.length === 0) {
+        console.log(`No recurring tasks found for tenant ${tenantId}`);
+      } else {
+        console.log(`Found ${recurringTasks.length} recurring tasks for tenant ${tenantId}`);
+      }
       
-      // Calculate compliance period string
-      const compliancePeriod = this.calculateCompliancePeriod(
-        templateTask.complianceFrequency,
-        newStartDate
+      // Process existing tasks to generate periods up to current month
+      for (const task of recurringTasks) {
+        try {
+          // Process regular recurring tasks (for past to current periods)
+          await this.processRecurringTask(task, leadDays);
+        } catch (error) {
+          console.error(`Error processing recurring task ${task.id}:`, error);
+          // Continue with next task instead of stopping the entire process
+        }
+      }
+      
+      // We no longer generate future tasks here
+      // All tasks will be generated strictly up to the current month
+      // Users will need to explicitly approve tasks to generate the next month
+      
+      console.log(`Generated recurring tasks for tenant ${tenantId}`);
+    } catch (error) {
+      console.error(`Error generating recurring tasks for tenant ${tenantId}:`, error);
+    }
+  }
+  
+  /**
+   * Process a single recurring task and create new instances if needed
+   */
+  private async processRecurringTask(task: Task, leadDays: number): Promise<void> {
+    // Skip processing if task doesn't have compliance frequency
+    if (!task.complianceFrequency) {
+      console.log(`Skipping task ${task.id} - Missing frequency. Frequency: ${task.complianceFrequency}, Duration: ${task.complianceDuration}`);
+      return;
+    }
+    
+    // Skip one-time tasks - they don't need recurring generation
+    if (task.complianceFrequency.toLowerCase() === 'one time' || 
+        task.complianceFrequency.toLowerCase() === 'once') {
+      console.log(`Skipping one-time task ${task.id} - Not eligible for recurring generation`);
+      return;
+    }
+    
+    // Skip auto-generated tasks (they should not generate further tasks)
+    if (task.isAutoGenerated) {
+      console.log(`Skipping auto-generated task ${task.id} - Auto-generated tasks don't spawn new tasks`);
+      return;
+    }
+    
+    // Initialize duration to empty string if not provided
+    const duration = task.complianceDuration || '';
+    
+    console.log(`Processing recurring task ${task.id}: ${task.taskDetails || 'No details'}. Frequency: ${task.complianceFrequency}, Start: ${task.complianceStartDate}, End: ${task.complianceEndDate}`);
+    
+    // Get the existing tasks for this tenant/client/entity to check for existing periods
+    const existingTasks = await this.storage.getTasks(
+      task.tenantId,
+      task.clientId || undefined,
+      task.entityId || undefined,
+      task.isAdmin
+    );
+    
+    // Get original period - require compliance dates
+    if (!task.complianceStartDate || !task.complianceEndDate) {
+      console.log(`Skipping task ${task.id} - Missing compliance dates`);
+      return;
+    }
+    
+    // Determine the starting reference date (end of original compliance period)
+    const originalEndDate = new Date(task.complianceEndDate);
+    let referenceDate = originalEndDate;
+    
+    // Get current date as the upper limit (for future tasks, we'll check lead time)
+    const now = new Date();
+    
+    // Collection to store all periods that need to be generated
+    let periodsToGenerate: { startDate: Date, endDate: Date, dueDate: Date }[] = [];
+    
+    // Track the current period start date
+    let currentPeriodStart = referenceDate;
+    
+    // Generate sequence of periods from original to current month
+    console.log(`Generating periods from ${format(originalEndDate, 'yyyy-MM')} to current month ${format(now, 'yyyy-MM')}`);
+    
+    // Limit to 24 iterations to prevent infinite loops
+    for (let i = 0; i < 24; i++) {
+      // Calculate the next period after the reference date
+      const nextPeriod = this.calculateNextCompliancePeriod(
+        task.complianceFrequency,
+        duration,
+        currentPeriodStart
       );
       
-      // Check if task already exists for this period
-      const existingTasks = await this.storage.getTasks(templateTask.tenantId);
-      const duplicateExists = existingTasks.some(task => 
-        task.parentTaskId === templateTask.id && 
-        task.compliancePeriod === compliancePeriod
+      if (!nextPeriod) {
+        console.log(`Could not calculate period after ${currentPeriodStart.toISOString()} for task ${task.id}`);
+        break;
+      }
+      
+      const { startDate, endDate } = nextPeriod;
+      
+      // Ensure start date is first day of month at 00:00:00
+      const firstDayOfMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+      firstDayOfMonth.setHours(0, 0, 0, 0);
+      
+      // Ensure end date is last day of month at 23:59:59
+      const lastDayOfMonth = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0);
+      lastDayOfMonth.setHours(23, 59, 59, 999);
+      
+      // Calculate due date (usually a few days before end date)
+      const dueDate = this.calculateDueDate(lastDayOfMonth);
+      
+      // Compare month/year of this period with current month/year
+      const periodMonthYear = format(firstDayOfMonth, 'yyyy-MM');
+      const nowMonthYear = format(now, 'yyyy-MM');
+      
+      // Only generate tasks up to the current month, not future months
+      // Future months will be generated based on lead time
+      if (isAfter(firstDayOfMonth, now)) {
+        console.log(`Stopping at period ${periodMonthYear} as it's beyond current month`);
+        break;
+      }
+      
+      // Check if this period already exists
+      const periodExists = this.doesPeriodExist(task, firstDayOfMonth, lastDayOfMonth, existingTasks);
+      
+      if (!periodExists) {
+        // Only add to generation queue if period doesn't already exist
+        periodsToGenerate.push({ 
+          startDate: firstDayOfMonth, 
+          endDate: lastDayOfMonth, 
+          dueDate 
+        });
+      }
+      
+      // Move to the next period
+      currentPeriodStart = lastDayOfMonth;
+    }
+    
+    console.log(`Found ${periodsToGenerate.length} periods to generate for task ${task.id}`);
+    
+    // Generate tasks for all missing periods
+    for (const period of periodsToGenerate) {
+      const { startDate, endDate, dueDate } = period;
+      
+      // For manual generation (leadDays = 0), always generate all periods
+      if (leadDays === 0) {
+        console.log(`Generating task for period ${format(startDate, 'yyyy-MM-dd')} to ${format(endDate, 'yyyy-MM-dd')} (manual mode)`);
+        await this.createRecurringTaskInstance(task, startDate, endDate, dueDate);
+        continue;
+      }
+      
+      // All periods are in the past or current month at this point
+      // (future periods were filtered out earlier)
+      console.log(`Generating task for period ${format(startDate, 'yyyy-MM-dd')} to ${format(endDate, 'yyyy-MM-dd')}`);
+      await this.createRecurringTaskInstance(task, startDate, endDate, dueDate);
+    }
+  }
+  
+  /**
+   * Check if a task already exists for a specific compliance period
+   */
+  private doesPeriodExist(task: Task, startDate: Date, endDate: Date, existingTasks: Task[]): boolean {
+    // Convert dates to month/year format for easier comparison (e.g., "2025-05")
+    const periodMonthYear = format(startDate, 'yyyy-MM');
+    
+    return existingTasks.some(existingTask => {
+      // Skip tasks without compliance dates
+      if (!existingTask.complianceStartDate || !existingTask.complianceEndDate) {
+        return false;
+      }
+      
+      const existingStartDate = new Date(existingTask.complianceStartDate);
+      const existingPeriodMonthYear = format(existingStartDate, 'yyyy-MM');
+      
+      // Match by month/year rather than exact date
+      // This ensures we don't generate multiple tasks for the same month
+      const periodMatch = existingPeriodMonthYear === periodMonthYear;
+      
+      if (!periodMatch) {
+        return false;
+      }
+      
+      // Check that other critical fields match
+      const basicFieldsMatch = 
+        existingTask.clientId === task.clientId &&
+        existingTask.entityId === task.entityId &&
+        existingTask.serviceTypeId === task.serviceTypeId &&
+        existingTask.taskCategoryId === task.taskCategoryId;
+      
+      if (!basicFieldsMatch) {
+        return false;
+      }
+      
+      // Consider a period to exist if:
+      const statusMatch = (
+        // It's an auto-generated task waiting for approval
+        (existingTask.isAutoGenerated && existingTask.needsApproval) ||
+        // Or it's an approved auto-generated task (in history)
+        (existingTask.isAutoGenerated && !existingTask.needsApproval) ||
+        // Or it's a regular task for this period with a parent task ID
+        (!existingTask.isAutoGenerated && existingTask.parentTaskId !== null) ||
+        // Or it's a regular task with the same compliance period (even without parent task)
+        (!existingTask.isAutoGenerated && existingTask.complianceFrequency === task.complianceFrequency)
       );
+      
+      if (statusMatch) {
+        console.log(`Task already exists for period ${format(startDate, 'yyyy-MM-dd')} to ${format(endDate, 'yyyy-MM-dd')} - Task ID: ${existingTask.id}`);
+      }
+      
+      return statusMatch;
+    });
+  }
+  
+  /**
+   * Create a new instance of a recurring task for a specific period
+   */
+  private async createRecurringTaskInstance(
+    templateTask: Task, 
+    startDate: Date, 
+    endDate: Date,
+    dueDate: Date
+  ): Promise<void> {
+    try {
+      // Ensure the dates are properly formatted with consistent time components
+      // Start date: First day of month at 00:00:00
+      const complianceStartDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+      complianceStartDate.setHours(0, 0, 0, 0);
+      
+      // End date: Last day of month at 23:59:59.999
+      const complianceEndDate = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0);
+      complianceEndDate.setHours(23, 59, 59, 999);
+      
+      // Format as month/year for logging and validation
+      const periodMonthYear = format(complianceStartDate, 'yyyy-MM');
+      
+      // First, check if a task already exists for this exact month/year to avoid duplication
+      const existingTasks = await this.storage.getTasks(
+        templateTask.tenantId,
+        templateTask.clientId || undefined,
+        templateTask.entityId || undefined
+      );
+      
+      // Only check auto-generated tasks that match the exact month/year
+      const duplicateExists = existingTasks.some(task => {
+        if (!task.isAutoGenerated || !task.complianceStartDate) {
+          return false;
+        }
+        
+        const taskMonthYear = format(new Date(task.complianceStartDate), 'yyyy-MM');
+        return taskMonthYear === periodMonthYear && 
+               task.parentTaskId === templateTask.id &&
+               task.serviceTypeId === templateTask.serviceTypeId;
+      });
       
       if (duplicateExists) {
-        console.log(`Task already exists for period ${compliancePeriod}, skipping`);
+        console.log(`Skipping creation - Task already exists for period ${periodMonthYear}`);
         return;
       }
       
-      // Find "New" status 
+      // Get the "New" status (rank 1) for this tenant
       const statuses = await this.storage.getTaskStatuses(templateTask.tenantId);
-      const newStatus = statuses.find(status => status.name.toLowerCase() === 'new' || status.rank === 1);
+      const newStatus = statuses.find(status => status.rank === 1);
       
       if (!newStatus) {
-        console.error(`No "New" status found for tenant ${templateTask.tenantId}`);
+        console.error(`No "New" status (rank 1) found for tenant ${templateTask.tenantId}`);
         return;
       }
       
-      // Create new task from template
+      // Check if auto-approval setting is enabled
+      const autoApproveTasksSetting = await this.storage.getTenantSetting(
+        templateTask.tenantId, 
+        "auto_approve_recurring_tasks"
+      );
+      
+      const needsApproval = !autoApproveTasksSetting || 
+                            autoApproveTasksSetting.value.toLowerCase() !== "true";
+      
+      // Set a descriptive task name based on the compliance period
+      let taskDetails = templateTask.taskDetails || '';
+      
+      // If no task details exist, generate a default description
+      if (!taskDetails) {
+        const serviceName = templateTask.serviceTypeId 
+          ? (await this.getServiceName(templateTask.tenantId, templateTask.serviceTypeId)) || 'Service'
+          : 'Task';
+        
+        taskDetails = `${serviceName} - ${templateTask.complianceFrequency} compliance for period ${format(complianceStartDate, 'MMM yyyy')}`;
+      }
+      
+      // Determine if this is a one-time task
+      const isOneTime = templateTask.complianceFrequency?.toLowerCase() === 'one time' || 
+                       templateTask.complianceFrequency?.toLowerCase() === 'once';
+      
+      // Prepare the new task data
       const newTaskData: InsertTask = {
         tenantId: templateTask.tenantId,
         isAdmin: templateTask.isAdmin,
         taskType: templateTask.taskType,
-        clientId: templateTask.clientId,
-        entityId: templateTask.entityId,
-        serviceTypeId: templateTask.serviceTypeId,
-        taskCategoryId: templateTask.taskCategoryId,
+        clientId: templateTask.clientId || undefined,
+        entityId: templateTask.entityId || undefined,
+        serviceTypeId: templateTask.serviceTypeId || undefined,
+        taskCategoryId: templateTask.taskCategoryId || undefined,
         assigneeId: templateTask.assigneeId,
-        dueDate: endDate,
+        dueDate: dueDate,
         statusId: newStatus.id,
-        taskDetails: templateTask.taskDetails,
-        nextToDo: templateTask.nextToDo || '',
-        isRecurring: false,
+        taskDetails: taskDetails,
+        nextToDo: templateTask.nextToDo,
+        isRecurring: false, // Auto-generated tasks are never recurring themselves
         complianceFrequency: templateTask.complianceFrequency,
-        complianceYear: format(newStartDate, 'yyyy'),
+        complianceYear: format(complianceStartDate, 'yyyy'),
         complianceDuration: templateTask.complianceDuration,
-        complianceStartDate: newStartDate,
-        complianceEndDate: endDate,
-        compliancePeriod: compliancePeriod,
+        complianceStartDate: complianceStartDate,
+        complianceEndDate: complianceEndDate,
         currency: templateTask.currency,
         serviceRate: templateTask.serviceRate,
-        parentTaskId: templateTask.id,
+        // New tracking fields
         isAutoGenerated: true,
-        needsApproval: true
+        parentTaskId: templateTask.id,
+        needsApproval: needsApproval,
+        updatedAt: new Date(), // Track when the auto-generated task was created
       };
       
+      // Create the new task
       await this.storage.createTask(newTaskData);
-      console.log(`Created new task for period ${compliancePeriod}`);
+      console.log(`Created recurring task instance for period ${format(complianceStartDate, 'yyyy-MM-dd')} to ${format(complianceEndDate, 'yyyy-MM-dd')} ${needsApproval ? '(needs approval)' : '(auto-approved)'}`);
     } catch (error) {
-      console.error(`Error generating task from template ${templateTask.id}:`, error);
+      console.error("Error creating recurring task instance:", error);
     }
   }
   
   /**
-   * Calculate compliance period based on frequency and start date
+   * Retrieve service name for better task descriptions
    */
-  public calculateCompliancePeriod(frequency: string, startDate: Date): string {
-    if (!frequency || !startDate) {
-      return "";
-    }
-
-    const frequencyLower = frequency.toLowerCase();
-    
-    // Calculate compliance period based on frequency
-    if (frequencyLower.includes('month')) {
-      // Monthly format: "May 2025"
-      return format(startDate, 'MMMM yyyy');
-    } else if (frequencyLower.includes('quarter')) {
-      // Quarterly format: "Q2 2025"
-      const quarter = Math.floor(startDate.getMonth() / 3) + 1;
-      return `Q${quarter} ${startDate.getFullYear()}`;
-    } else if (frequencyLower.includes('annual') || frequencyLower.includes('year')) {
-      if (frequencyLower.includes('5')) {
-        // 5-year format: "2025-2029"
-        const startYear = startDate.getFullYear();
-        return `${startYear}-${startYear + 4}`;
-      } else if (frequencyLower.includes('4')) {
-        // 4-year format: "2025-2028"
-        const startYear = startDate.getFullYear();
-        return `${startYear}-${startYear + 3}`;
-      } else if (frequencyLower.includes('3')) {
-        // 3-year format: "2025-2027"
-        const startYear = startDate.getFullYear();
-        return `${startYear}-${startYear + 2}`;
-      } else if (frequencyLower.includes('2')) {
-        // 2-year format: "2025-2026"
-        const startYear = startDate.getFullYear();
-        return `${startYear}-${startYear + 1}`;
-      } else {
-        // Standard annual: "2025"
-        return `${startDate.getFullYear()}`;
-      }
-    } else if (frequencyLower.includes('semi') || frequencyLower.includes('bi-annual')) {
-      // Semi-annual format: "H1 2025" or "H2 2025"
-      const half = startDate.getMonth() < 6 ? 1 : 2;
-      return `H${half} ${startDate.getFullYear()}`;
-    } else if (frequencyLower.includes('one time') || frequencyLower.includes('once')) {
-      // One-time format: "May 2025 (One-time)"
-      return `${format(startDate, 'MMMM yyyy')} (One-time)`;
-    } else {
-      // Default format for unknown frequencies
-      return format(startDate, 'MMMM yyyy');
+  private async getServiceName(tenantId: number, serviceTypeId: number): Promise<string | undefined> {
+    try {
+      const service = await this.storage.getServiceType(serviceTypeId, tenantId);
+      return service?.name;
+    } catch (error) {
+      console.error("Error fetching service name:", error);
+      return undefined;
     }
   }
   
   /**
-   * Get tasks that need approval (using the single-table approach)
+   * Get all tasks that need approval (generated tasks marked as needing approval)
    */
   public async getTasksNeedingApproval(tenantId: number): Promise<Task[]> {
     try {
-      // Get all tasks for this tenant
       const allTasks = await this.storage.getTasks(tenantId);
-      
-      // Filter for auto-generated tasks that need approval
-      return allTasks.filter(task => {
-        return task.isAutoGenerated === true && task.needsApproval === true;
-      });
+      return allTasks.filter(task => task.isAutoGenerated && task.needsApproval);
     } catch (error) {
-      console.error('Error getting tasks needing approval:', error);
+      console.error("Error fetching tasks needing approval:", error);
       return [];
     }
   }
   
   /**
-   * Approve a task - sets needsApproval to false and manages isRecurring flag
-   * This is the main method for approving auto-generated tasks in the single-table approach
-   * @param taskId The ID of the task to approve
-   * @param tenantId The tenant ID for security checks
-   * @returns true if approval is successful, false otherwise
+   * Get task history (previously approved auto-generated tasks)
+   */
+  public async getTaskHistory(tenantId: number): Promise<Task[]> {
+    try {
+      const allTasks = await this.storage.getTasks(tenantId);
+      return allTasks.filter(task => 
+        task.isAutoGenerated && 
+        !task.needsApproval && 
+        task.parentTaskId !== null
+      );
+    } catch (error) {
+      console.error("Error fetching task history:", error);
+      return [];
+    }
+  }
+  
+  /**
+   * Approve a generated task (remove approval flag)
+   * When approved, creates a regular task in the Tasks module
+   * and marks the original parent task as non-recurring
    */
   public async approveTask(taskId: number, tenantId: number): Promise<boolean> {
     try {
-      console.log(`*** FIXED IMPLEMENTATION: Approving task ${taskId} for tenant ${tenantId} ***`);
+      const task = await this.storage.getTask(taskId, tenantId);
       
-      // Fetch the Approved Task
-      const approvedTask = await this.storage.getTask(taskId, tenantId);
-      
-      if (!approvedTask) {
-        console.error(`Task ${taskId} not found for tenant ${tenantId}`);
+      if (!task || !task.isAutoGenerated || !task.needsApproval) {
+        console.log(`Task ${taskId} not eligible for approval (Not auto-generated or not needing approval)`);
         return false;
       }
       
-      if (!approvedTask.parentTaskId) {
-        console.error(`Task ${taskId} has no parent task ID - this task isn't an auto-generated child we expect`);
-        return false;
-      }
-      
-      // Verify this is an auto-generated task that needs approval
-      if (approvedTask.isAutoGenerated !== true || approvedTask.needsApproval !== true) {
-        console.error(`Task ${taskId} is not an auto-generated task pending approval`);
-        return false;
-      }
-      
-      // Fetch its Parent Task
-      const parentTask = await this.storage.getTask(approvedTask.parentTaskId, tenantId);
-      
-      if (!parentTask) {
-        console.error(`Parent task ${approvedTask.parentTaskId} not found`);
-        return false;
-      }
-      
-      console.log(`Processing approval for auto-generated task ${taskId} with parent ${parentTask.id}`);
-      console.log(`Task flags before approval: isAutoGenerated=${approvedTask.isAutoGenerated}, isRecurring=${approvedTask.isRecurring}, needsApproval=${approvedTask.needsApproval}`);
-      console.log(`Parent flags before approval: isAutoGenerated=${parentTask.isAutoGenerated}, isRecurring=${parentTask.isRecurring}`);
-      
-      // Prepare Updates for the Approved Task
-      const approvedTaskUpdates = {
-        isRecurring: true,
-        isAutoGenerated: false,
+      // First, update the auto-generated task to no longer need approval
+      const update = {
         needsApproval: false,
-        updatedAt: new Date()
+        updatedAt: new Date() // Set updatedAt to track when the task was approved
       };
       
-      // Perform the Update on the Approved Task (IN PLACE)
-      console.log(`Updating approved task ${taskId} with data:`, approvedTaskUpdates);
-      await this.storage.updateTask(taskId, approvedTaskUpdates);
+      const updated = await this.storage.updateTask(taskId, update);
       
-      // Prepare Updates for the Parent Task
-      const parentTaskUpdates = { 
-        isRecurring: false,
-        updatedAt: new Date()
+      if (!updated) {
+        console.log(`Failed to update task ${taskId} approval status`);
+        return false;
+      }
+      
+      // Check if a task for this period already exists in the main Tasks module
+      // Do a thorough check to really prevent duplicate tasks
+      const existingTasks = await this.storage.getTasks(
+        task.tenantId,
+        task.clientId || undefined,
+        task.entityId || undefined
+      );
+      
+      // Check for any regular tasks with this task as parent OR with matching period/details
+      const regularTaskExists = existingTasks.some(existingTask => {
+        // If there's a direct parent relationship
+        if (!existingTask.isAutoGenerated && existingTask.parentTaskId === task.id) {
+          console.log(`Found existing regular task (parent link): ${existingTask.id}`);
+          return true;
+        }
+        
+        // Or if it has the same compliance period and other key details
+        if (!existingTask.isAutoGenerated && 
+            existingTask.clientId === task.clientId &&
+            existingTask.entityId === task.entityId &&
+            existingTask.serviceTypeId === task.serviceTypeId &&
+            existingTask.taskCategoryId === task.taskCategoryId &&
+            existingTask.complianceStartDate && task.complianceStartDate) {
+            
+          // Compare the month/year for the compliance periods
+          const existingStartMonth = format(new Date(existingTask.complianceStartDate), 'yyyy-MM');
+          const taskStartMonth = format(new Date(task.complianceStartDate), 'yyyy-MM');
+          
+          if (existingStartMonth === taskStartMonth) {
+            console.log(`Found existing regular task (matching period): ${existingTask.id}`);
+            return true;
+          }
+        }
+        
+        return false;
+      });
+      
+      // Don't create a new task if one already exists for this approved task
+      if (regularTaskExists) {
+        console.log(`Regular task already exists for auto-generated task ${task.id}. Not creating duplicate.`);
+        return true;
+      }
+      
+      console.log(`Creating new regular task for approved auto-generated task ${task.id}`);
+      
+      // Properly format compliance dates for the regular task with proper month end date
+      // This fixes issues with compliance end dates not being the last day of month
+      let startDate: Date | undefined;
+      let endDate: Date | undefined;
+      
+      if (task.complianceStartDate) {
+        // Get year and month from the start date
+        const startObj = new Date(task.complianceStartDate);
+        const year = startObj.getFullYear();
+        const month = startObj.getMonth();
+        
+        // First day of month at 00:00:00
+        startDate = new Date(year, month, 1);
+        startDate.setHours(0, 0, 0, 0);
+        
+        console.log(`Formatted start date: ${startDate.toISOString()}`);
+      }
+      
+      if (task.complianceEndDate) {
+        // Get year and month from the end date
+        const endObj = new Date(task.complianceEndDate);
+        const year = endObj.getFullYear();
+        const month = endObj.getMonth();
+        
+        // Last day of month: new Date(year, month + 1, 0)
+        endDate = new Date(year, month + 1, 0);
+        endDate.setHours(23, 59, 59, 999);
+        
+        console.log(`Formatted end date: ${endDate.toISOString()} (last day of month)`);
+      }
+      
+      // Check if this is a one-time task
+      const isOneTime = task.complianceFrequency?.toLowerCase() === 'one time' || 
+                       task.complianceFrequency?.toLowerCase() === 'once';
+      
+      const regularTaskData: InsertTask = {
+        tenantId: task.tenantId,
+        isAdmin: task.isAdmin,
+        taskType: task.taskType,
+        clientId: task.clientId || undefined,
+        entityId: task.entityId || undefined,
+        serviceTypeId: task.serviceTypeId || undefined,
+        taskCategoryId: task.taskCategoryId || undefined,
+        assigneeId: task.assigneeId,
+        dueDate: new Date(task.dueDate), // Ensure this is a Date object
+        statusId: task.statusId,
+        taskDetails: task.taskDetails || '',
+        nextToDo: task.nextToDo || '',
+        // Only set as recurring if it's not a one-time task
+        isRecurring: !isOneTime,
+        complianceFrequency: task.complianceFrequency || '',
+        complianceYear: task.complianceYear || '',
+        complianceDuration: task.complianceDuration || '',
+        // Use properly formatted dates
+        complianceStartDate: startDate,
+        complianceEndDate: endDate,
+        currency: task.currency || '',
+        serviceRate: task.serviceRate || 0,
+        isAutoGenerated: false, // This is now a regular task
+        parentTaskId: task.id, // Link to the auto-generated task for history
+        updatedAt: new Date(), // Set initial updatedAt timestamp for the regular task
       };
       
-      // Perform the Update on the Parent Task (IN PLACE)
-      console.log(`Setting parent task ${parentTask.id} isRecurring to false (passing the baton)`);
-      await this.storage.updateTask(parentTask.id, parentTaskUpdates);
+      await this.storage.createTask(regularTaskData);
+      console.log(`Created regular task for approved auto-generated task ${task.id}`);
       
-      console.log(`Task ${taskId} has been approved successfully`);
+      // NOTE: We no longer generate the next recurring task automatically here
+      // This is part of the fix to prevent duplicate tasks
+      // Next tasks will be generated during the regular scheduled runs
+      
       return true;
     } catch (error) {
-      console.error(`Error approving task ${taskId}:`, error);
+      console.error("Error approving task:", error);
       return false;
     }
   }
   
   /**
-   * Reject a task - mark it as canceled
-   * This implements the reject functionality for auto-generated tasks
-   * @param taskId The ID of the task to reject
-   * @param tenantId The tenant ID for security checks
-   * @returns true if rejection is successful, false otherwise
+   * Approve all pending tasks for a tenant
+   */
+  public async approveAllPendingTasks(tenantId: number): Promise<number> {
+    try {
+      const pendingTasks = await this.getTasksNeedingApproval(tenantId);
+      let approvedCount = 0;
+      
+      for (const task of pendingTasks) {
+        const success = await this.approveTask(task.id, tenantId);
+        if (success) approvedCount++;
+      }
+      
+      return approvedCount;
+    } catch (error) {
+      console.error("Error approving all pending tasks:", error);
+      return 0;
+    }
+  }
+  
+  /**
+   * Reject a generated task (delete it)
    */
   public async rejectTask(taskId: number, tenantId: number): Promise<boolean> {
     try {
-      console.log(`Attempting to reject task ${taskId} for tenant ${tenantId}`);
-      
       const task = await this.storage.getTask(taskId, tenantId);
       
-      if (!task) {
-        console.error(`Task ${taskId} not found for tenant ${tenantId}`);
+      if (!task || !task.isAutoGenerated || !task.needsApproval) {
         return false;
       }
       
-      if (task.isAutoGenerated !== true || task.needsApproval !== true) {
-        console.error(`Task ${taskId} is not an auto-generated task pending approval`);
-        return false;
-      }
-      
-      console.log(`Processing rejection for auto-generated task ${taskId}`);
-      
-      // Simply mark as canceled and update flags
-      // We're not creating any new tasks when rejecting
-      await this.storage.updateTask(taskId, {
-        isCanceled: true,
-        canceledAt: new Date(),
-        needsApproval: false, // No longer needs approval since it's rejected
-        updatedAt: new Date()
-      });
-      
-      console.log(`Task ${taskId} has been rejected successfully`);
-      return true;
+      // Delete the task
+      return await this.storage.deleteTask(taskId, tenantId);
     } catch (error) {
-      console.error(`Error rejecting task ${taskId}:`, error);
+      console.error("Error rejecting task:", error);
       return false;
     }
   }
+  
+  /**
+   * Set a task to active (sets activatedAt timestamp)
+   */
+  public async activateTask(taskId: number, tenantId: number): Promise<boolean> {
+    try {
+      const task = await this.storage.getTask(taskId, tenantId);
+      
+      if (!task || !task.isAutoGenerated) {
+        return false;
+      }
+      
+      // Get the "In Progress" status for this tenant (typically rank 2 or 3)
+      const statuses = await this.storage.getTaskStatuses(tenantId);
+      const inProgressStatus = statuses.find(status => status.name.toLowerCase().includes('progress') || status.rank === 2);
+      
+      if (!inProgressStatus) {
+        console.error(`No suitable "In Progress" status found for tenant ${tenantId}`);
+        return false;
+      }
+      
+      // Update the task to be active and change its status
+      const update = {
+        isCanceled: false,
+        activatedAt: new Date(),
+        // Use undefined instead of null for Date field to avoid type errors
+        canceledAt: undefined,
+        statusId: inProgressStatus.id,
+        updatedAt: new Date() // Set updatedAt to track status change
+      };
+      
+      const updated = await this.storage.updateTask(taskId, update);
+      return !!updated;
+    } catch (error) {
+      console.error("Error activating task:", error);
+      return false;
+    }
+  }
+  
+  /**
+   * Cancel a task (sets isCanceled flag and canceledAt timestamp)
+   */
+  public async cancelTask(taskId: number, tenantId: number): Promise<boolean> {
+    try {
+      const task = await this.storage.getTask(taskId, tenantId);
+      
+      if (!task || !task.isAutoGenerated) {
+        return false;
+      }
+      
+      // Get the "Canceled" status for this tenant
+      const statuses = await this.storage.getTaskStatuses(tenantId);
+      const canceledStatus = statuses.find(status => 
+        status.name.toLowerCase().includes('cancel') || 
+        status.name.toLowerCase().includes('archived')
+      );
+      
+      if (!canceledStatus) {
+        console.error(`No "Canceled" status found for tenant ${tenantId}`);
+        return false;
+      }
+      
+      // Update the task to be canceled and change its status
+      const update = {
+        isCanceled: true,
+        canceledAt: new Date(),
+        statusId: canceledStatus.id,
+        updatedAt: new Date() // Set updatedAt to track status change
+      };
+      
+      const updated = await this.storage.updateTask(taskId, update);
+      return !!updated;
+    } catch (error) {
+      console.error("Error canceling task:", error);
+      return false;
+    }
+  }
+  
+  /**
+   * Resume a previously canceled task
+   */
+  public async resumeTask(taskId: number, tenantId: number): Promise<boolean> {
+    try {
+      const task = await this.storage.getTask(taskId, tenantId);
+      
+      if (!task || !task.isAutoGenerated || !task.isCanceled) {
+        return false;
+      }
+      
+      // Get the "In Progress" status for this tenant
+      const statuses = await this.storage.getTaskStatuses(tenantId);
+      const inProgressStatus = statuses.find(status => status.name.toLowerCase().includes('progress') || status.rank === 2);
+      
+      if (!inProgressStatus) {
+        console.error(`No suitable "In Progress" status found for tenant ${tenantId}`);
+        return false;
+      }
+      
+      // Update the task to be no longer canceled and change its status
+      const update = {
+        isCanceled: false,
+        canceledAt: undefined, // Use undefined instead of null for Date field
+        activatedAt: new Date(),
+        statusId: inProgressStatus.id,
+        updatedAt: new Date() // Set updatedAt to track status change
+      };
+      
+      const updated = await this.storage.updateTask(taskId, update);
+      return !!updated;
+    } catch (error) {
+      console.error("Error resuming task:", error);
+      return false;
+    }
+  }
+  
+  /**
+   * Permanently delete a task
+   */
+  public async deleteTask(taskId: number, tenantId: number): Promise<boolean> {
+    try {
+      const task = await this.storage.getTask(taskId, tenantId);
+      
+      if (!task || !task.isAutoGenerated) {
+        return false;
+      }
+      
+      // Delete the task
+      return await this.storage.deleteTask(taskId, tenantId);
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      return false;
+    }
+  }
+  
+  /**
+   * Calculate the next compliance period based on frequency and duration
+   */
+  private calculateNextCompliancePeriod(
+    frequency: string, 
+    duration: string,
+    referenceDate: Date
+  ): { startDate: Date; endDate: Date } | null {
+    try {
+      // Common reference values used across multiple cases
+      const refYear = referenceDate.getFullYear();
+      const refMonth = referenceDate.getMonth();
+      
+      console.log(`Calculating next period for frequency: ${frequency}, duration: ${duration}, reference date: ${referenceDate.toISOString()}`);
+      
+      let startDate: Date, endDate: Date;
+      
+      switch (frequency.toLowerCase()) {
+        case 'daily':
+          // For daily, the next period is tomorrow
+          const nextDay = addDays(referenceDate, 1);
+          startDate = new Date(nextDay.setHours(0, 0, 0, 0));
+          // End date is the same day at 23:59:59.999
+          endDate = new Date(startDate);
+          endDate.setHours(23, 59, 59, 999);
+          break;
+          
+        case 'weekly':
+          // For weekly, the next period is the next 7 days
+          const tomorrow = addDays(referenceDate, 1);
+          startDate = new Date(tomorrow.setHours(0, 0, 0, 0));
+          // End date is the 6th day after start (7 days total) at 23:59:59.999
+          endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + 6);
+          endDate.setHours(23, 59, 59, 999);
+          break;
+          
+        case 'biweekly':
+          // For biweekly, the next period is the next 14 days
+          const dayAfterTomorrow = addDays(referenceDate, 1);
+          startDate = new Date(dayAfterTomorrow.setHours(0, 0, 0, 0));
+          // End date is the 13th day after start (14 days total) at 23:59:59.999
+          endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + 13);
+          endDate.setHours(23, 59, 59, 999);
+          break;
+          
+        case 'monthly':
+          // For monthly, always calculate the NEXT month after the reference date
+          // This ensures we're always advancing forward in time and not stuck on the current month
+          
+          // Always calculate the next month after the reference date
+          const nextMonthIdx = (refMonth + 1) % 12; // 0-11 for Jan-Dec
+          const nextMonthYear = nextMonthIdx === 0 ? refYear + 1 : refYear; // Increment year if month rolls over
+          
+          // First day of next month
+          startDate = new Date(nextMonthYear, nextMonthIdx, 1);
+          startDate.setHours(0, 0, 0, 0);
+          
+          // Last day of next month
+          endDate = new Date(nextMonthYear, nextMonthIdx + 1, 0);
+          endDate.setHours(23, 59, 59, 999);
+          
+          console.log(`Monthly task - Next month is: ${startDate.toDateString()} to ${endDate.toDateString()}`);
+          break;
+          
+        case 'quarterly':
+          // For quarterly, always move to the next quarter after the reference date
+          const refQuarter = Math.floor(refMonth / 3); // 0-3 for Q1-Q4
+          
+          // Calculate next quarter (0-3) and year
+          const nextQuarter = (refQuarter + 1) % 4;
+          const nextQuarterYear = refQuarter === 3 ? refYear + 1 : refYear; // Increment year if moving from Q4 to Q1
+          
+          // First month of next quarter (0, 3, 6, or 9)
+          const nextQuarterStartMonth = nextQuarter * 3; 
+          
+          // First day of next quarter at 00:00:00
+          startDate = new Date(nextQuarterYear, nextQuarterStartMonth, 1);
+          startDate.setHours(0, 0, 0, 0);
+          
+          // Last day of next quarter at 23:59:59.999
+          // Add 3 months to the start date, then go back 1 day
+          endDate = new Date(nextQuarterYear, nextQuarterStartMonth + 3, 0);
+          endDate.setHours(23, 59, 59, 999);
+          break;
+          
+        case 'semi-annual':
+        case 'biannual':
+          // For semi-annual, move to the next 6-month period after the reference date
+          // Split the year into 2 periods: Jan-Jun and Jul-Dec
+          
+          // Determine which half of the year the reference date falls in
+          const refHalf = refMonth < 6 ? 0 : 1; // 0 = Jan-Jun, 1 = Jul-Dec
+          
+          // Calculate next half and year
+          const nextHalf = (refHalf + 1) % 2; // Toggle between 0 and 1
+          // If we're moving from second half to first half, increment the year
+          const nextHalfYear = nextHalf === 0 ? refYear + 1 : refYear;
+          
+          // Start month is either January (0) or July (6)
+          const nextHalfStartMonth = nextHalf * 6;
+          
+          // First day of next 6-month period
+          startDate = new Date(nextHalfYear, nextHalfStartMonth, 1);
+          startDate.setHours(0, 0, 0, 0);
+          
+          // Last day of the 6-month period (June 30 or December 31)
+          endDate = new Date(nextHalfYear, nextHalfStartMonth + 6, 0);
+          endDate.setHours(23, 59, 59, 999);
+          
+          console.log(`Semi-annual task - Next period: ${startDate.toDateString()} to ${endDate.toDateString()}`);
+          break;
+          
+        case 'yearly':
+        case 'annual':
+          // For yearly compliance, handle special cases based on the duration
+          if (duration.toLowerCase() === 'fy' || duration.toLowerCase() === 'fiscal year') {
+            // Fiscal year - assuming fiscal year starts in July
+            // This can be customized based on the country or organization's fiscal year
+            const currentFY = refMonth >= 6 ? refYear : refYear - 1;
+            const nextFY = currentFY + 1;
+            
+            // July 1st of next fiscal year
+            startDate = new Date(nextFY, 6, 1);
+            startDate.setHours(0, 0, 0, 0);
+            
+            // June 30th of year after next fiscal year at 23:59:59.999
+            endDate = new Date(nextFY + 1, 6, 0);
+            endDate.setHours(23, 59, 59, 999);
+          } else {
+            // Calendar year (default)
+            // January 1st of next year
+            startDate = new Date(refYear + 1, 0, 1);
+            startDate.setHours(0, 0, 0, 0);
+            
+            // December 31st of next year at 23:59:59.999
+            endDate = new Date(refYear + 1, 11, 31);
+            endDate.setHours(23, 59, 59, 999);
+          }
+          break;
+          
+        default:
+          console.warn(`Unsupported frequency: ${frequency}`);
+          return null;
+      }
+      
+      return { startDate, endDate };
+    } catch (error) {
+      console.error("Error calculating next compliance period:", error);
+      return null;
+    }
+  }
+  
+  /**
+   * Calculate due date (typically end of period or slightly before)
+   */
+  private calculateDueDate(endDate: Date): Date {
+    // Due date is typically a few days before the end of the period
+    // This can be customized based on business rules
+    return subDays(endDate, 5);
+  }
+  
+  /**
+   * Helper to get all tenants from storage
+   */
+  private async getAllTenants(): Promise<Tenant[]> {
+    // This is a simplification - in a real implementation,
+    // we would need a method to retrieve all tenants
+    const result: Tenant[] = [];
+    
+    // Start with tenant ID 1 and try incrementing
+    // This is a workaround since our storage interface doesn't
+    // provide a way to get all tenants
+    for (let i = 1; i <= 100; i++) {
+      const tenant = await this.storage.getTenant(i);
+      if (tenant) {
+        result.push(tenant);
+      }
+    }
+    
+    return result;
+  }
+}
+
+// Helper type for Tenant since we're using it internally
+interface Tenant {
+  id: number;
+  name: string;
+  createdAt: Date;
 }

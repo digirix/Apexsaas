@@ -1,12 +1,12 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Client, User, TaskCategory, TaskStatus, Entity, ServiceType, TenantSetting } from "@shared/schema";
-import { addMonths, addYears, addQuarters, format } from "date-fns";
+import { addMonths, addYears, addQuarters } from "date-fns";
 import { 
   Dialog, 
   DialogContent, 
@@ -38,58 +38,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CalendarIcon, Loader2, PlusCircle, Calendar as CalendarIcon2 } from "lucide-react";
-
-// Utility function to calculate compliance period based on frequency and start date
-const calculateCompliancePeriod = (frequency: string, startDate: Date): string => {
-  if (!frequency || !startDate) {
-    return "";
-  }
-
-  const frequencyLower = frequency.toLowerCase();
-  
-  // Calculate compliance period based on frequency
-  if (frequencyLower.includes('month')) {
-    // Monthly format: "May 2025"
-    return format(startDate, 'MMMM yyyy');
-  } else if (frequencyLower.includes('quarter')) {
-    // Quarterly format: "Q2 2025"
-    const quarter = Math.floor(startDate.getMonth() / 3) + 1;
-    return `Q${quarter} ${startDate.getFullYear()}`;
-  } else if (frequencyLower.includes('annual') || frequencyLower.includes('year')) {
-    if (frequencyLower.includes('5')) {
-      // 5-year format: "2025-2029"
-      const startYear = startDate.getFullYear();
-      return `${startYear}-${startYear + 4}`;
-    } else if (frequencyLower.includes('4')) {
-      // 4-year format: "2025-2028"
-      const startYear = startDate.getFullYear();
-      return `${startYear}-${startYear + 3}`;
-    } else if (frequencyLower.includes('3')) {
-      // 3-year format: "2025-2027"
-      const startYear = startDate.getFullYear();
-      return `${startYear}-${startYear + 2}`;
-    } else if (frequencyLower.includes('2')) {
-      // 2-year format: "2025-2026"
-      const startYear = startDate.getFullYear();
-      return `${startYear}-${startYear + 1}`;
-    } else {
-      // Standard annual: "2025"
-      return `${startDate.getFullYear()}`;
-    }
-  } else if (frequencyLower.includes('semi') || frequencyLower.includes('bi-annual')) {
-    // Semi-annual format: "H1 2025" or "H2 2025"
-    const half = startDate.getMonth() < 6 ? 1 : 2;
-    return `H${half} ${startDate.getFullYear()}`;
-  } else if (frequencyLower.includes('one time') || frequencyLower.includes('once')) {
-    // One-time format: "May 2025 (One-time)"
-    return `${format(startDate, 'MMMM yyyy')} (One-time)`;
-  } else {
-    // Default format for unknown frequencies
-    return format(startDate, 'MMMM yyyy');
-  }
-};
+import { CalendarIcon, Loader2, PlusCircle } from "lucide-react";
+import { format } from "date-fns";
 
 interface AddTaskModalProps {
   isOpen: boolean;
@@ -174,7 +124,6 @@ type RevenueTaskFormValues = z.infer<typeof revenueTaskSchema>;
 export function AddTaskModal({ isOpen, onClose, taskType, preselectedClientId }: AddTaskModalProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("basic");
-  const [calculatedCompliancePeriod, setCalculatedCompliancePeriod] = useState<string>("");
   
   // Admin task form
   const adminTaskForm = useForm<AdminTaskFormValues>({
@@ -193,7 +142,7 @@ export function AddTaskModal({ isOpen, onClose, taskType, preselectedClientId }:
     resolver: zodResolver(revenueTaskSchema),
     defaultValues: {
       // Basic Information Tab
-      clientId: preselectedClientId || "",
+      clientId: "",
       entityId: "",
       serviceId: "",
       taskCategoryId: "",
@@ -490,10 +439,6 @@ export function AddTaskModal({ isOpen, onClose, taskType, preselectedClientId }:
     const startDate = revenueTaskForm.watch("complianceStartDate");
     
     if (frequency && startDate) {
-      // Calculate and set the compliance period for display
-      const period = calculateCompliancePeriod(frequency, startDate);
-      setCalculatedCompliancePeriod(period);
-      
       let endDate;
       
       // Make a copy of the start date to avoid modifying the original
@@ -1188,13 +1133,6 @@ export function AddTaskModal({ isOpen, onClose, taskType, preselectedClientId }:
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {calculatedCompliancePeriod && (
-                        <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                          <p className="text-blue-700 font-medium">
-                            Compliance Period: <span className="font-bold">{calculatedCompliancePeriod}</span>
-                          </p>
-                        </div>
-                      )}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
                           control={revenueTaskForm.control}

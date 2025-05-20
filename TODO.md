@@ -10,7 +10,7 @@ This document outlines the remaining tasks and future enhancements for the Accou
 - Finance Module: 98% complete (invoice-task integration complete, auto-posting journal entries fixed, financial reports now working correctly with actual data)
 - AI Features: 75% complete (chatbot with database analysis implemented, AI reporting section pending)
 - Settings Module: 75% complete (tenant settings functionality implemented, settings for auto-generated tasks working, UI needs improvements)
-- Auto Generated Tasks Module: 99% complete (fixed entity display issue, fixed compliance date calculation, implemented task approval system that prevents duplicate conversions)
+- Auto Generated Tasks Module: 95% complete (fixed generation logic for current month only, improved compliance period date handling, fixed duplicate task creation during approval)
 
 ## Current Priority
 1. ✓ Fix the Journal Entry source document bug (currently causing 500 error)
@@ -44,16 +44,13 @@ This document outlines the remaining tasks and future enhancements for the Accou
    - ✓ Improved compliance end date calculation to use last day of month (23:59:59.999)
    - ✓ Fixed duplicate task creation issue during approval process
    - ✓ Enhanced date handling for consistent compliance period calculation
-23. ✓ Added standardized compliance_period field for consistent period tracking
-24. ✓ Fixed approval process to ensure only specific approved task moves to Tasks Module
-25. ✓ Implemented exact task matching by ID to prevent converting multiple tasks at once
-26. Improve Settings UI with better controls and visual feedback
-27. Add settings section for AI customization (model selection, API key management)
-28. Add invoice settings and template capabilities for more flexibility
-29. Improve task template capabilities for easier recurring task setup
-30. Implement batch approval/rejection for multiple auto-generated tasks
-31. Create dedicated AI reporting section with customizable reports and visualizations
-32. Fix remaining type errors in storage interface implementation
+23. Improve Settings UI with better controls and visual feedback
+24. Add settings section for AI customization (model selection, API key management)
+25. Add invoice settings and template capabilities for more flexibility
+26. Improve task template capabilities for easier recurring task setup
+27. Implement batch approval/rejection for multiple auto-generated tasks
+28. Create dedicated AI reporting section with customizable reports and visualizations
+29. Fix remaining type errors in storage interface implementation
 
 ## Priority 1: Critical System Improvements
 
@@ -75,12 +72,6 @@ This document outlines the remaining tasks and future enhancements for the Accou
 - [x] Fix compliance period calculations for all frequency types (monthly, quarterly, etc.)
 - [x] Add detailed logging throughout task generation process
 - [x] Implement force generation capability for manually triggered generation
-- [x] Fix approval process to ensure only specific approved task (by ID) moves to Tasks Module
-- [x] Implement standardized compliance period tracking with consistent formatting
-- [x] Add exact task matching to prevent converting multiple tasks with the same period
-- [x] Fix entity name display issue in Auto Generated Tasks list
-- [x] Fix compliance end date to always be the last day of month at 23:59:59.999
-- [x] Ensure type-safe handling of dates in task approval process
 - [ ] Add task template capabilities for easier recurring task setup
 - [ ] Implement batch approval/rejection for multiple tasks
 - [ ] Add custom notifications when new tasks require approval
