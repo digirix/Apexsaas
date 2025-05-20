@@ -307,6 +307,7 @@ export const clients = pgTable("clients", {
   email: text("email").notNull(),
   mobile: text("mobile").notNull(),
   status: text("status").notNull().default("Active"),
+  hasPortalAccess: boolean("has_portal_access").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => {
   return {
@@ -322,6 +323,33 @@ export const insertClientSchema = createInsertSchema(clients).pick({
   email: true,
   mobile: true,
   status: true,
+  hasPortalAccess: true,
+});
+
+// Client Portal Access table
+export const clientPortalAccess = pgTable("client_portal_access", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  clientId: integer("client_id").notNull().references(() => clients.id),
+  username: text("username").notNull(),
+  password: text("password").notNull(),
+  lastLogin: timestamp("last_login"),
+  passwordResetRequired: boolean("password_reset_required").default(false).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+}, (table) => {
+  return {
+    tenantClientIdUnique: unique().on(table.tenantId, table.clientId),
+    tenantUsernameUnique: unique().on(table.tenantId, table.username),
+  };
+});
+
+export const insertClientPortalAccessSchema = createInsertSchema(clientPortalAccess).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastLogin: true,
 });
 
 // Entities table (linked to clients)
