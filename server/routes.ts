@@ -7,6 +7,8 @@ import { TaskScheduler } from "./task-scheduler";
 import { registerChatbotRoutes } from "./api/chatbot-routes";
 import { registerAiReportingRoutes } from "./api/ai-reporting-routes";
 import { registerAICustomizationRoutes } from "./api/ai-customization-routes";
+import { registerClientPortalRoutes } from "./routes/client-portal-routes";
+import { setupClientPortalAuth } from "./client-portal-auth";
 import { 
   insertCountrySchema, insertCurrencySchema, insertStateSchema, 
   insertEntityTypeSchema, insertTaskStatusSchema, insertTaskCategorySchema, insertServiceTypeSchema,
@@ -53,11 +55,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Setup authentication
   console.log("Setting up authentication...");
-  let isAuthenticated: any, hasTenantAccess: any;
+  let isAuthenticated: any, hasTenantAccess: any, isClientAuthenticated: any;
   try {
+    // Set up regular firm authentication
     const authMiddleware = setupAuth(app);
     isAuthenticated = authMiddleware.isAuthenticated;
     hasTenantAccess = authMiddleware.hasTenantAccess;
+    
+    // Set up client portal authentication
+    try {
+      const clientPortalMiddleware = setupClientPortalAuth(app);
+      console.log("Client portal authentication setup successful");
+    } catch (clientError) {
+      console.error("Error setting up client portal authentication:", clientError);
+    }
+    
+    // Register client portal routes
+    try {
+      const clientPortalRoutes = registerClientPortalRoutes(app);
+      isClientAuthenticated = clientPortalRoutes.isClientAuthenticated;
+      console.log("Client portal routes registered successfully");
+    } catch (routesError) {
+      console.error("Error registering client portal routes:", routesError);
+    }
+    
     console.log("Authentication setup successful");
   } catch (error) {
     console.error("Error setting up authentication:", error);
