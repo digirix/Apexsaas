@@ -1231,3 +1231,16 @@ export type InsertAiInteraction = z.infer<typeof insertAiInteractionSchema>;
 
 export type AiAssistantCustomization = typeof aiAssistantCustomizations.$inferSelect;
 export type InsertAiAssistantCustomization = z.infer<typeof insertAiAssistantCustomizationSchema>;
+
+// Client Portal types
+export type ClientPortalAccess = typeof clientPortalAccess.$inferSelect;
+export type InsertClientPortalAccess = z.infer<typeof insertClientPortalAccessSchema>;
+
+// Client portal auth schemas
+export const clientPortalLoginSchema = z.object({
+  username: z.string().min(1, { message: "Username is required" }),
+  password: z.string().min(1, { message: "Password is required" }),
+  tenantId: z.number(),
+});
+
+export type ClientPortalLoginData = z.infer<typeof clientPortalLoginSchema>;
