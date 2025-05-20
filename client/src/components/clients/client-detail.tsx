@@ -788,7 +788,7 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
         
         <TabsContent value="portal-access" className="pt-4">
           <ClientPortalAccessTab clientId={clientId} tenantId={client?.tenantId || 0} />
-            <CardHeader>
+        </TabsContent>
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                 <div>
                   <CardTitle>Portal Access</CardTitle>
