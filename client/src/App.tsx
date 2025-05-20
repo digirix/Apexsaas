@@ -8,6 +8,9 @@ import { ChatWidget } from "@/components/chatbot/chat-widget";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import DashboardPage from "@/pages/dashboard-page";
+import ClientPortalLoginPage from "@/pages/client-portal/login-page";
+import ClientPortalDashboardPage from "@/pages/client-portal/dashboard-page";
+import ResetPasswordPage from "@/pages/client-portal/reset-password-page";
 import ClientsPage from "@/pages/clients-page";
 import ClientDetailPage from "@/pages/client-detail-page";
 import SetupPage from "@/pages/setup-page";
@@ -39,6 +42,7 @@ import TaxSummaryPage from "@/pages/finance/reports/tax-summary";
 function Router() {
   return (
     <Switch>
+      {/* Main application routes */}
       <ProtectedRoute path="/" component={DashboardPage} />
       <ProtectedRoute path="/clients" component={ClientsPage} />
       <ProtectedRoute path="/clients/:id" component={ClientDetailPage} />
@@ -50,6 +54,11 @@ function Router() {
       <ProtectedRoute path="/compliance-calendar" component={ComplianceCalendarPage} />
       <ProtectedRoute path="/ai-reporting" component={AiReportingPage} />
       <ProtectedRoute path="/finance" component={FinancePage} />
+      
+      {/* Client Portal routes */}
+      <Route path="/client-portal/login" component={ClientPortalLoginPage} />
+      <Route path="/client-portal/dashboard" component={ClientPortalDashboardPage} />
+      <Route path="/client-portal/reset-password" component={ResetPasswordPage} />
       {/* Direct invoice creation disabled - invoices are now created only through tasks */}
       {/* <ProtectedRoute path="/finance/invoices/create" component={CreateInvoicePage} /> */}
       <ProtectedRoute path="/finance/invoices/from-task" component={CreateInvoiceFromTaskPage} />
