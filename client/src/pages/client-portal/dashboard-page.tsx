@@ -301,7 +301,7 @@ export default function ClientPortalDashboardPage() {
                                     {entity.name}
                                   </h3>
                                   <p className="text-sm text-slate-500">
-                                    {entity.entityType} • {entity.countryName}
+                                    {entity.entityType} • {entity.countryName || 'Unknown'}
                                     {entity.stateName ? `, ${entity.stateName}` : ''}
                                   </p>
                                 </div>

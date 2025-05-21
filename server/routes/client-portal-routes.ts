@@ -336,19 +336,23 @@ export function registerClientPortalRoutes(app: Express) {
         const entityType = entityTypeResult.rows[0]?.entityType || 'Unknown';
         
         // Get country and state information
-        const locationResult = await db
-          .execute(sql`
-            SELECT 
-              c.name as "countryName", 
-              c.code as "countryCode",
-              s.name as "stateName"
-            FROM countries c
-            LEFT JOIN states s ON s.id = ${entity.stateId} AND s.country_id = c.id
-            WHERE c.id = ${entity.countryId}
-          `);
+        let locationResult;
+        try {
+          locationResult = await db
+            .execute(sql`
+              SELECT 
+                c.name as "countryName",
+                s.name as "stateName"
+              FROM countries c
+              LEFT JOIN states s ON s.id = ${entity.stateId} AND s.country_id = c.id
+              WHERE c.id = ${entity.countryId}
+            `);
+        } catch (error) {
+          console.error(`Error getting location info for entity ${entity.id}:`, error);
+          locationResult = { rows: [] };
+        }
         
         const countryName = locationResult.rows[0]?.countryName || 'Unknown';
-        const countryCode = locationResult.rows[0]?.countryCode || '';
         const stateName = locationResult.rows[0]?.stateName || '';
         
         // Count tasks for this entity
@@ -372,7 +376,6 @@ export function registerClientPortalRoutes(app: Express) {
           ...entity,
           entityType: entityType,
           countryName,
-          countryCode,
           stateName,
           stats: {
             taskCount: parseInt(taskCount.rows[0]?.count || '0'),
