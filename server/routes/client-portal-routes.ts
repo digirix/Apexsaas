@@ -1,324 +1,400 @@
-import { Express, Request, Response, NextFunction } from "express";
-import { pool } from "../db";
+import { Express, Request, Response } from 'express';
+import { db } from '../db';
+import { eq, and, desc, sql } from 'drizzle-orm';
+import { 
+  clientPortalAccess, 
+  clients, 
+  entities, 
+  invoices, 
+  payments, 
+  tasks
+} from '@shared/schema';
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { ClientPortalUser, isClientPortalUser } from "../client-portal-auth";
 
-// For password hashing
+// Promisify scrypt
 const scryptAsync = promisify(scrypt);
 
-// Middleware to check if the user is authenticated as a client
-function isClientAuthenticated(req: Request, res: Response, next: NextFunction) {
-  if (req.isAuthenticated() && req.user && isClientPortalUser(req.user)) {
-    return next();
-  }
-  res.status(401).json({ message: "Unauthorized" });
+// Helper functions for password management
+async function hashPassword(password: string) {
+  const salt = randomBytes(16).toString("hex");
+  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${buf.toString("hex")}.${salt}`;
 }
 
-// Register all client portal routes
+async function comparePasswords(supplied: string, stored: string) {
+  const [hashed, salt] = stored.split(".");
+  const hashedBuf = Buffer.from(hashed, "hex");
+  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+  return timingSafeEqual(hashedBuf, suppliedBuf);
+}
+
+// Check if client is authenticated
+function isClientAuthenticated(req: Request, res: Response, next: Function) {
+  if (req.isAuthenticated() && (req.user as any).isClientPortalUser) {
+    return next();
+  }
+  res.status(401).json({ message: 'Unauthorized' });
+}
+
 export function registerClientPortalRoutes(app: Express) {
-  // Client authentication status
-  app.get("/api/client-portal/auth/me", (req, res) => {
-    if (req.isAuthenticated() && req.user && isClientPortalUser(req.user)) {
-      res.json({ user: req.user });
-    } else {
-      res.status(401).json({ message: "Not authenticated" });
-    }
-  });
+  // Client Portal Authentication Routes
   
-  // Login for client portal
+  // Client login endpoint
   app.post("/api/client-portal/login", async (req, res, next) => {
     try {
-      const { username, password } = req.body;
+      const { username, password, tenantId } = req.body;
       
-      if (!username || !password) {
-        return res.status(400).json({ message: "Username and password are required" });
+      if (!username || !password || !tenantId) {
+        return res.status(400).json({ message: 'Username, password, and tenant ID are required' });
       }
       
-      // Find client portal user in the database
-      const userResult = await pool.query(`
-        SELECT 
-          cpa.id, 
-          cpa.client_id as "clientId",
-          c.tenant_id as "tenantId",
-          cpa.username,
-          cpa.password,
-          cpa.display_name as "displayName",
-          cpa.email,
-          cpa.password_reset_required as "passwordResetRequired"
-        FROM client_portal_access cpa
-        JOIN clients c ON cpa.client_id = c.id
-        WHERE cpa.username = $1 AND cpa.is_active = true
-      `, [username]);
+      console.log(`Client portal login attempt for username: ${username}, tenantId: ${tenantId}`);
       
-      if (userResult.rowCount === 0) {
-        return res.status(401).json({ message: "Invalid credentials" });
+      // Get client portal access record
+      const accessRecords = await db
+        .select()
+        .from(clientPortalAccess)
+        .where(and(
+          eq(clientPortalAccess.username, username),
+          eq(clientPortalAccess.tenantId, tenantId)
+        ));
+      
+      if (!accessRecords || accessRecords.length === 0) {
+        console.log('Client portal login failed: User not found');
+        return res.status(401).json({ message: 'Invalid username or password' });
       }
       
-      const user = userResult.rows[0];
+      const accessRecord = accessRecords[0];
+      console.log('Access record found:', { id: accessRecord.id, isActive: accessRecord.isActive });
+      
+      // Check if account is active
+      if (!accessRecord.isActive) {
+        console.log('Client portal login failed: Account inactive');
+        return res.status(401).json({ message: 'Account is inactive. Please contact your accountant.' });
+      }
       
       // Verify password
-      try {
-        const [hashedPassword, salt] = user.password.split(".");
-        const hashedBuf = Buffer.from(hashedPassword, "hex");
-        const suppliedBuf = (await scryptAsync(password, salt, 64)) as Buffer;
-        
-        if (!timingSafeEqual(hashedBuf, suppliedBuf)) {
-          return res.status(401).json({ message: "Invalid credentials" });
-        }
-      } catch (err) {
-        console.error("Password verification error:", err);
-        return res.status(401).json({ message: "Invalid credentials" });
+      const passwordMatch = await comparePasswords(password, accessRecord.password);
+      console.log('Password match:', passwordMatch);
+      
+      if (!passwordMatch) {
+        console.log('Client portal login failed: Invalid password');
+        return res.status(401).json({ message: 'Invalid username or password' });
       }
       
-      // Create client portal user object
+      // Get client information
+      const clientResults = await db
+        .select()
+        .from(clients)
+        .where(and(
+          eq(clients.id, accessRecord.clientId),
+          eq(clients.tenantId, accessRecord.tenantId)
+        ));
+      
+      if (!clientResults || clientResults.length === 0) {
+        console.log('Client portal login failed: Client not found');
+        return res.status(404).json({ message: 'Client account not found' });
+      }
+      
+      const client = clientResults[0];
+      console.log('Client found:', { id: client.id, displayName: client.displayName });
+      
+      // Update last login time
+      await db
+        .update(clientPortalAccess)
+        .set({ 
+          lastLogin: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(clientPortalAccess.id, accessRecord.id));
+      
+      // Create client portal user object with combined information
       const clientPortalUser = {
-        id: user.id,
-        clientId: user.clientId,
-        tenantId: user.tenantId,
-        username: user.username,
-        displayName: user.displayName,
-        email: user.email,
-        passwordResetRequired: user.passwordResetRequired,
-        isClientPortalUser: true
+        id: accessRecord.id,
+        clientId: client.id,
+        tenantId: client.tenantId,
+        username: accessRecord.username,
+        displayName: client.displayName,
+        email: client.email,
+        passwordResetRequired: accessRecord.passwordResetRequired,
+        isClientPortalUser: true,  // Flag to differentiate from regular users
       };
       
-      // Log in the user using Passport.js
-      req.login(clientPortalUser, async (err) => {
-        if (err) return next(err);
-        
-        // Get client information
-        try {
-          const clientResult = await pool.query(`
-            SELECT 
-              c.id, 
-              c.display_name as "displayName",
-              c.short_name as "shortName",
-              c.email,
-              c.phone,
-              c.address,
-              c.city,
-              c.state,
-              c.zip,
-              c.country,
-              c.website,
-              c.notes,
-              c.account_manager_id as "accountManagerId",
-              u.display_name as "accountManagerName",
-              u.email as "accountManagerEmail",
-              u.profile_image as "accountManagerImage",
-              u.phone as "accountManagerPhone"
-            FROM clients c
-            LEFT JOIN users u ON c.account_manager_id = u.id
-            WHERE c.id = $1 AND c.tenant_id = $2
-          `, [clientPortalUser.clientId, clientPortalUser.tenantId]);
-          
-          // Return user with client information
-          res.json({
-            user: clientPortalUser,
-            client: clientResult.rowCount > 0 ? clientResult.rows[0] : null
-          });
-        } catch (dbError) {
-          console.error("Error fetching client information:", dbError);
-          // Still return user information even if client details fail
-          res.json({ user: clientPortalUser });
+      console.log('Client portal login successful, creating session');
+      
+      // Login the user with client portal session
+      req.login(clientPortalUser, (err) => {
+        if (err) {
+          console.error('Error during client login:', err);
+          return next(err);
         }
+        
+        console.log('Login session created successfully');
+        return res.status(200).json({ 
+          message: 'Login successful',
+          user: {
+            clientId: clientPortalUser.clientId,
+            displayName: clientPortalUser.displayName,
+            email: clientPortalUser.email,
+            tenantId: clientPortalUser.tenantId,
+            passwordResetRequired: clientPortalUser.passwordResetRequired,
+          }
+        });
       });
     } catch (error) {
-      console.error("Login error:", error);
-      res.status(500).json({ message: "An error occurred during login" });
+      console.error('Client login error:', error);
+      res.status(500).json({ message: 'An error occurred during login' });
     }
   });
   
-  // Logout from client portal
+  // Client logout endpoint
   app.post("/api/client-portal/logout", (req, res) => {
     req.logout((err) => {
       if (err) {
-        return res.status(500).json({ message: "An error occurred during logout" });
+        return res.status(500).json({ message: 'Logout failed' });
       }
-      res.json({ message: "Logged out successfully" });
+      res.json({ message: 'Logged out successfully' });
     });
   });
   
-  // Reset password
-  app.post("/api/client-portal/reset-password", isClientAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as ClientPortalUser;
-      const { currentPassword, newPassword } = req.body;
-      
-      if (!currentPassword || !newPassword) {
-        return res.status(400).json({ message: "Current password and new password are required" });
-      }
-      
-      // Get current hashed password
-      const userResult = await pool.query(`
-        SELECT password FROM client_portal_access
-        WHERE id = $1
-      `, [user.id]);
-      
-      if (userResult.rowCount === 0) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      const dbUser = userResult.rows[0];
-      
-      // Verify current password
-      try {
-        const [hashedPassword, salt] = dbUser.password.split(".");
-        const hashedBuf = Buffer.from(hashedPassword, "hex");
-        const suppliedBuf = (await scryptAsync(currentPassword, salt, 64)) as Buffer;
-        
-        if (!timingSafeEqual(hashedBuf, suppliedBuf)) {
-          return res.status(401).json({ message: "Current password is incorrect" });
-        }
-      } catch (err) {
-        console.error("Password verification error:", err);
-        return res.status(401).json({ message: "Current password is incorrect" });
-      }
-      
-      // Hash the new password
-      const newSalt = randomBytes(16).toString("hex");
-      const newHashedBuf = (await scryptAsync(newPassword, newSalt, 64)) as Buffer;
-      const newHashedPassword = `${newHashedBuf.toString("hex")}.${newSalt}`;
-      
-      // Update the password in the database
-      await pool.query(`
-        UPDATE client_portal_access
-        SET password = $1, password_reset_required = false
-        WHERE id = $2
-      `, [newHashedPassword, user.id]);
-      
-      // Update the user in the session
-      const updatedUser = { ...user, passwordResetRequired: false };
-      req.login(updatedUser, (err) => {
-        if (err) {
-          return res.status(500).json({ message: "Error updating session" });
-        }
-        res.json({ message: "Password reset successfully" });
-      });
-    } catch (error) {
-      console.error("Password reset error:", error);
-      res.status(500).json({ message: "An error occurred during password reset" });
-    }
+  // Get current client user
+  app.get("/api/client-portal/me", isClientAuthenticated, (req, res) => {
+    res.json({ user: req.user });
   });
   
-  // Get client profile
+  // Get client profile with detailed information
   app.get("/api/client-portal/profile", isClientAuthenticated, async (req, res) => {
     try {
-      const user = req.user as ClientPortalUser;
+      const user = req.user as any;
+      console.log(`Fetching profile for client ${user.clientId} in tenant ${user.tenantId}`);
       
-      // Get client information with account manager details
-      const clientResult = await pool.query(`
-        SELECT 
-          c.id, 
-          c.display_name as "displayName",
-          c.short_name as "shortName",
-          c.email,
-          c.phone,
-          c.address,
-          c.city,
-          c.state,
-          c.zip,
-          c.country,
-          c.website,
-          c.notes,
-          c.account_manager_id as "accountManagerId",
-          u.display_name as "accountManagerName",
-          u.email as "accountManagerEmail",
-          u.profile_image as "accountManagerImage",
-          u.phone as "accountManagerPhone"
-        FROM clients c
-        LEFT JOIN users u ON c.account_manager_id = u.id
-        WHERE c.id = $1 AND c.tenant_id = $2
-      `, [user.clientId, user.tenantId]);
+      // Get client details
+      const clientResults = await db
+        .select()
+        .from(clients)
+        .where(and(
+          eq(clients.id, user.clientId),
+          eq(clients.tenantId, user.tenantId)
+        ));
       
-      if (clientResult.rowCount === 0) {
-        return res.status(404).json({ message: "Client not found" });
+      if (!clientResults || clientResults.length === 0) {
+        return res.status(404).json({ message: 'Client not found' });
       }
       
+      const client = clientResults[0];
+      
+      // Get associated entities for this client
+      const entityResults = await db
+        .select()
+        .from(entities)
+        .where(and(
+          eq(entities.clientId, user.clientId),
+          eq(entities.tenantId, user.tenantId)
+        ));
+      
+      // Count open tasks for the client
+      const openTaskCount = await db.execute(sql`
+        SELECT COUNT(*) as count
+        FROM tasks
+        WHERE 
+          client_id = ${user.clientId}
+          AND tenant_id = ${user.tenantId}
+          AND is_completed = false
+      `);
+      
+      // Count upcoming invoices
+      const upcomingInvoiceCount = await db.execute(sql`
+        SELECT COUNT(*) as count
+        FROM invoices
+        WHERE 
+          client_id = ${user.clientId}
+          AND tenant_id = ${user.tenantId}
+          AND status IN ('draft', 'sent', 'overdue')
+      `);
+      
+      // Get latest task
+      const latestTaskResult = await db.execute(sql`
+        SELECT 
+          id, 
+          title, 
+          description, 
+          due_date as "dueDate", 
+          is_completed as "isCompleted"
+        FROM tasks
+        WHERE 
+          client_id = ${user.clientId}
+          AND tenant_id = ${user.tenantId}
+        ORDER BY created_at DESC
+        LIMIT 1
+      `);
+      
+      // Return combined client profile data
       res.json({
-        user,
-        client: clientResult.rows[0]
+        client: client,
+        entities: entityResults,
+        stats: {
+          openTaskCount: parseInt(openTaskCount.rows[0]?.count || '0'),
+          upcomingInvoiceCount: parseInt(upcomingInvoiceCount.rows[0]?.count || '0'),
+          entityCount: entityResults.length
+        },
+        latestTask: latestTaskResult.rows[0] || null
       });
     } catch (error) {
-      console.error("Error fetching client profile:", error);
-      res.status(500).json({ message: "Failed to fetch profile" });
+      console.error('Error fetching client profile:', error);
+      res.status(500).json({ message: 'Failed to fetch client profile' });
     }
   });
   
-  // Get client entities
+  // Change password endpoint
+  app.post("/api/client-portal/change-password", isClientAuthenticated, async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const user = req.user as any;
+      
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: 'Current and new password are required' });
+      }
+      
+      // Get portal access record
+      const accessRecords = await db
+        .select()
+        .from(clientPortalAccess)
+        .where(eq(clientPortalAccess.id, user.id));
+      
+      if (!accessRecords || accessRecords.length === 0) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+      
+      const accessRecord = accessRecords[0];
+      
+      // Verify current password
+      const passwordMatch = await comparePasswords(currentPassword, accessRecord.password);
+      if (!passwordMatch) {
+        return res.status(401).json({ message: 'Current password is incorrect' });
+      }
+      
+      // Hash new password
+      const hashedPassword = await hashPassword(newPassword);
+      
+      // Update password
+      await db
+        .update(clientPortalAccess)
+        .set({ 
+          password: hashedPassword,
+          passwordResetRequired: false,
+          updatedAt: new Date()
+        })
+        .where(eq(clientPortalAccess.id, user.id));
+      
+      res.json({ message: 'Password changed successfully' });
+    } catch (error) {
+      console.error('Error changing password:', error);
+      res.status(500).json({ message: 'Failed to change password' });
+    }
+  });
+  
+  // Client Portal Data Routes
+  
+  // Get client entities with detailed information
   app.get("/api/client-portal/entities", isClientAuthenticated, async (req, res) => {
     try {
-      const user = req.user as ClientPortalUser;
+      const user = req.user as any;
       console.log(`Fetching entities for client ${user.clientId} in tenant ${user.tenantId}`);
       
-      // Query the database for actual client entities
-      const entityResults = await pool.query(`
-        SELECT 
-          e.id,
-          e.name,
-          e.entity_type as "entityType",
-          e.tax_id as "taxId",
-          e.vat_id as "vatId",
-          e.address,
-          e.city,
-          e.state,
-          e.country,
-          e.fiscal_year_start as "fiscalYearStart",
-          e.status
-        FROM entities e
-        WHERE 
-          e.client_id = $1
-          AND e.tenant_id = $2
-        ORDER BY e.name
-      `, [user.clientId, user.tenantId]);
+      const entityResults = await db
+        .select()
+        .from(entities)
+        .where(and(
+          eq(entities.clientId, user.clientId),
+          eq(entities.tenantId, user.tenantId)
+        ));
       
-      const entities = entityResults.rows || [];
+      if (!entityResults || entityResults.length === 0) {
+        console.log('No entities found for client');
+        return res.json([]);
+      }
       
-      // For each entity, get task count, document count and other stats
-      const entitiesWithStats = await Promise.all(entities.map(async (entity) => {
-        // Get task count
-        const taskCountResult = await pool.query(`
-          SELECT COUNT(*) as task_count 
-          FROM tasks 
-          WHERE entity_id = $1 AND tenant_id = $2
-        `, [entity.id, user.tenantId]);
+      console.log(`Found ${entityResults.length} entities for client`);
+      
+      // Get entity types for each entity along with additional metadata
+      const enrichedEntities = await Promise.all(entityResults.map(async (entity) => {
+        // Get entity type information
+        let entityTypeResult;
+        try {
+          entityTypeResult = await db
+            .execute(sql`
+              SELECT et.name as "entityType"
+              FROM entity_types et 
+              WHERE et.id = ${entity.entityTypeId} AND et.tenant_id = ${user.tenantId}
+            `);
+        } catch (error) {
+          console.error(`Error getting entity type for entity ${entity.id}:`, error);
+          entityTypeResult = { rows: [] };
+        }
         
-        // Get document count
-        const docCountResult = await pool.query(`
-          SELECT COUNT(*) as doc_count 
-          FROM documents 
-          WHERE entity_id = $1 AND tenant_id = $2
-        `, [entity.id, user.tenantId]);
+        const entityType = entityTypeResult.rows[0]?.entityType || 'Unknown';
         
-        // Get invoice count
-        const invoiceCountResult = await pool.query(`
-          SELECT COUNT(*) as invoice_count 
-          FROM invoices 
-          WHERE entity_id = $1 AND tenant_id = $2
-        `, [entity.id, user.tenantId]);
+        // Get country and state information
+        let locationResult;
+        try {
+          locationResult = await db
+            .execute(sql`
+              SELECT 
+                c.name as "countryName",
+                s.name as "stateName"
+              FROM countries c
+              LEFT JOIN states s ON s.id = ${entity.stateId} AND s.country_id = c.id
+              WHERE c.id = ${entity.countryId}
+            `);
+        } catch (error) {
+          console.error(`Error getting location info for entity ${entity.id}:`, error);
+          locationResult = { rows: [] };
+        }
         
+        const countryName = locationResult.rows[0]?.countryName || 'Unknown';
+        const stateName = locationResult.rows[0]?.stateName || '';
+        
+        // Count tasks for this entity
+        const taskCount = await db
+          .execute(sql`
+            SELECT COUNT(*) as count
+            FROM tasks
+            WHERE entity_id = ${entity.id} AND tenant_id = ${user.tenantId}
+          `);
+        
+        // Count invoices for this entity
+        const invoiceCount = await db
+          .execute(sql`
+            SELECT COUNT(*) as count
+            FROM invoices
+            WHERE entity_id = ${entity.id} AND tenant_id = ${user.tenantId}
+          `);
+        
+        // Return enriched entity data
         return {
           ...entity,
+          entityType: entityType,
+          countryName,
+          stateName,
           stats: {
-            taskCount: parseInt(taskCountResult.rows[0]?.task_count || '0'),
-            documentCount: parseInt(docCountResult.rows[0]?.doc_count || '0'),
-            transactionCount: parseInt(invoiceCountResult.rows[0]?.invoice_count || '0'),
+            taskCount: parseInt(taskCount.rows[0]?.count || '0'),
+            invoiceCount: parseInt(invoiceCount.rows[0]?.count || '0')
           }
         };
       }));
       
-      res.json(entitiesWithStats);
+      res.json(enrichedEntities);
     } catch (error) {
       console.error('Error fetching client entities:', error);
       res.status(500).json({ message: 'Failed to fetch entities' });
     }
   });
   
-  // Get client invoices
+  // Get all client invoices or invoices for a specific entity
   app.get("/api/client-portal/invoices", isClientAuthenticated, async (req, res) => {
     try {
-      const user = req.user as ClientPortalUser;
+      const user = req.user as any;
       const entityId = req.query.entityId ? parseInt(req.query.entityId as string) : null;
       
       if (entityId) {
@@ -327,8 +403,18 @@ export function registerClientPortalRoutes(app: Express) {
         console.log(`Fetching all invoices for client ${user.clientId} in tenant ${user.tenantId}`);
       }
       
-      // Use direct PostgreSQL query with the actual column names from the database
-      const invoiceQueryText = `
+      // Build WHERE clause based on whether entityId is provided
+      let whereClause = `
+        i.client_id = ${user.clientId}
+        AND i.tenant_id = ${user.tenantId}
+      `;
+      
+      if (entityId) {
+        whereClause += ` AND i.entity_id = ${entityId}`;
+      }
+      
+      // Query the invoices table with joins to get detailed information
+      const invoiceResults = await db.execute(sql`
         SELECT 
           i.id,
           i.tenant_id as "tenantId",
@@ -348,183 +434,135 @@ export function registerClientPortalRoutes(app: Express) {
           i.status,
           i.notes,
           i.created_at as "createdAt",
-          i.updated_at as "updatedAt"
+          i.updated_at as "updatedAt" 
         FROM invoices i
-        JOIN entities e ON i.entity_id = e.id AND i.tenant_id = e.tenant_id
-        WHERE i.tenant_id = $1 AND i.client_id = $2
-        ${entityId ? 'AND i.entity_id = $3' : ''}
+        LEFT JOIN entities e ON i.entity_id = e.id AND i.tenant_id = e.tenant_id
+        WHERE 
+          ${sql.raw(whereClause)}
         ORDER BY i.issue_date DESC
-      `;
+      `);
       
-      const params = entityId ? [user.tenantId, user.clientId, entityId] : [user.tenantId, user.clientId];
-      const invoiceResults = await pool.query(invoiceQueryText, params);
-      
-      const invoices = invoiceResults.rows || [];
-      
-      // Handle the case where no actual invoices exist
-      if (invoices.length === 0) {
-        // Get the entities to create some sample invoice data
-        const entitiesResult = await pool.query(`
-          SELECT id, name FROM entities 
-          WHERE tenant_id = $1 AND client_id = $2
-          ${entityId ? 'AND id = $3' : ''}
-        `, entityId ? [user.tenantId, user.clientId, entityId] : [user.tenantId, user.clientId]);
-        
-        const entities = entitiesResult.rows || [];
-        
-        if (entities.length > 0) {
-          // Insert a sample invoice for each entity to show how the feature works
-          try {
-            for (const entity of entities) {
-              const insertResult = await pool.query(`
-                INSERT INTO invoices (
-                  tenant_id, entity_id, invoice_number, issue_date, due_date, 
-                  currency_code, subtotal, tax_amount, discount_amount, total_amount, 
-                  amount_paid, amount_due, status, notes, created_at, updated_at
-                ) VALUES (
-                  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW()
-                ) RETURNING id
-              `, [
-                user.tenantId,
-                entity.id,
-                `INV-${entity.id}-001`,
-                new Date(),
-                new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-                'USD',
-                1000.00,
-                100.00,
-                0.00,
-                1100.00,
-                0.00,
-                1100.00,
-                'Pending',
-                'Sample invoice for entity services'
-              ]);
-              
-              if (insertResult.rowCount > 0) {
-                const invoiceId = insertResult.rows[0].id;
-                
-                // Add a line item
-                await pool.query(`
-                  INSERT INTO invoice_line_items (
-                    invoice_id, tenant_id, description, quantity, unit_price, 
-                    tax_rate, tax_amount, discount_amount, total_amount
-                  ) VALUES (
-                    $1, $2, $3, $4, $5, $6, $7, $8, $9
-                  )
-                `, [
-                  invoiceId,
-                  user.tenantId,
-                  'Professional services',
-                  1,
-                  1000.00,
-                  0.10,
-                  100.00,
-                  0.00,
-                  1100.00
-                ]);
-              }
-            }
-            
-            // Fetch the newly created invoices
-            const newInvoiceResults = await pool.query(invoiceQueryText, params);
-            const newInvoices = newInvoiceResults.rows || [];
-            
-            if (newInvoices.length > 0) {
-              // Get the invoice IDs to fetch line items
-              const invoiceIds = newInvoices.map((invoice: any) => invoice.id);
-              
-              // Fetch line items for these invoices
-              const lineItemResults = await pool.query(`
-                SELECT 
-                  id,
-                  invoice_id as "invoiceId",
-                  description,
-                  quantity,
-                  unit_price as "unitPrice",
-                  tax_rate as "taxRate",
-                  tax_amount as "taxAmount",
-                  discount_amount as "discountAmount",
-                  total_amount as "totalAmount"
-                FROM invoice_line_items
-                WHERE invoice_id = ANY($1)
-              `, [invoiceIds]);
-              
-              const lineItems = lineItemResults.rows || [];
-              
-              // Format and attach line items to their invoices
-              const invoicesWithLineItems = newInvoices.map((invoice: any) => {
-                return {
-                  ...invoice,
-                  // Format dates
-                  issueDate: invoice.issueDate ? new Date(invoice.issueDate).toISOString() : null,
-                  dueDate: invoice.dueDate ? new Date(invoice.dueDate).toISOString() : null,
-                  createdAt: invoice.createdAt ? new Date(invoice.createdAt).toISOString() : null,
-                  updatedAt: invoice.updatedAt ? new Date(invoice.updatedAt).toISOString() : null,
-                  // Attach line items
-                  lineItems: lineItems.filter((item: any) => item.invoiceId === invoice.id)
-                };
-              });
-              
-              console.log(`Created and returning ${invoicesWithLineItems.length} new invoices`);
-              return res.json(invoicesWithLineItems);
-            }
-          } catch (insertError) {
-            console.error('Error creating sample invoices:', insertError);
-          }
+      // If there are no invoices, return empty array
+      if (invoiceResults.rowCount === 0) {
+        if (entityId) {
+          console.log(`No invoices found for client's entity ${entityId}`);
+        } else {
+          console.log('No invoices found for client');
         }
-      }
-      
-      // Get line items for existing invoices
-      const invoiceIds = invoices.map((invoice: any) => invoice.id);
-      let lineItems: any[] = [];
-      
-      if (invoiceIds.length > 0) {
-        // Fetch line items
-        const lineItemResults = await pool.query(`
-          SELECT 
-            id,
-            invoice_id as "invoiceId",
-            description,
-            quantity,
-            unit_price as "unitPrice",
-            tax_rate as "taxRate",
-            tax_amount as "taxAmount",
-            discount_amount as "discountAmount",
-            total_amount as "totalAmount"
-          FROM invoice_line_items
-          WHERE invoice_id = ANY($1)
-        `, [invoiceIds]);
         
-        lineItems = lineItemResults.rows || [];
+        return res.json([]);
       }
       
-      // Format invoices and attach line items
-      const formattedInvoices = invoices.map((invoice: any) => {
-        return {
-          ...invoice,
-          // Format dates
-          issueDate: invoice.issueDate ? new Date(invoice.issueDate).toISOString() : null,
-          dueDate: invoice.dueDate ? new Date(invoice.dueDate).toISOString() : null,
-          createdAt: invoice.createdAt ? new Date(invoice.createdAt).toISOString() : null,
-          updatedAt: invoice.updatedAt ? new Date(invoice.updatedAt).toISOString() : null,
-          // Attach line items
-          lineItems: lineItems.filter((item: any) => item.invoiceId === invoice.id)
-        };
+      console.log(`Found ${invoiceResults.rowCount} invoices for client`);
+      
+      // Get invoice line items for all retrieved invoices
+      const invoiceIds = invoiceResults.rows
+        .filter(invoice => invoice && typeof invoice.id === 'number')
+        .map(invoice => invoice.id);
+        
+      // Only fetch line items if we have invoices
+      let invoiceLineItemsResults = { rows: [] };
+      if (invoiceIds.length > 0) {
+        invoiceLineItemsResults = await db.execute(sql`
+          SELECT 
+            il.id,
+            il.invoice_id as "invoiceId",
+            il.description,
+            il.quantity,
+            il.unit_price as "unitPrice",
+            il.tax_rate as "taxRate",
+            il.tax_amount as "taxAmount",
+            il.discount_amount as "discountAmount",
+            (il.quantity * il.unit_price - COALESCE(il.discount_amount, 0) + COALESCE(il.tax_amount, 0)) as "totalAmount"
+          FROM invoice_line_items il
+          WHERE il.invoice_id IN (${sql.raw(invoiceIds.join(','))})
+        `);
+      }
+      
+      // Group line items by invoice ID
+      const lineItemsByInvoiceId: Record<number, any[]> = {};
+      invoiceLineItemsResults.rows.forEach(lineItem => {
+        if (lineItem && typeof lineItem.invoiceId === 'number') {
+          if (!lineItemsByInvoiceId[lineItem.invoiceId]) {
+            lineItemsByInvoiceId[lineItem.invoiceId] = [];
+          }
+          lineItemsByInvoiceId[lineItem.invoiceId].push(lineItem);
+        }
       });
       
-      console.log(`Returning ${formattedInvoices.length} invoices`);
-      return res.json(formattedInvoices);
+      // Add line items to invoices
+      const enrichedInvoices = invoiceResults.rows.map(invoice => {
+        if (invoice && typeof invoice.id === 'number') {
+          return {
+            ...invoice,
+            lineItems: lineItemsByInvoiceId[invoice.id] || []
+          };
+        }
+        return { ...invoice, lineItems: [] };
+      });
+      
+      res.json(enrichedInvoices);
     } catch (error) {
       console.error('Error fetching client invoices:', error);
       res.status(500).json({ message: 'Failed to fetch invoices' });
     }
   });
   
-  // Get client tasks
+  // Get client documents
+  app.get("/api/client-portal/documents", isClientAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      console.log(`Fetching documents for client ${user.clientId} in tenant ${user.tenantId}`);
+      
+      // Query the database for actual client documents
+      const documentResults = await db.execute(sql`
+        SELECT 
+          d.id,
+          d.name,
+          d.description,
+          d.file_path as "filePath",
+          d.document_type as "documentType",
+          d.created_at as "createdAt",
+          d.file_size as "fileSize",
+          d.status
+        FROM documents d
+        WHERE 
+          d.client_id = ${user.clientId}
+          AND d.tenant_id = ${user.tenantId}
+        ORDER BY d.created_at DESC
+      `);
+      
+      // If there are no documents, add an initial document for demo purposes
+      if (documentResults.rowCount === 0) {
+        const currentYear = new Date().getFullYear();
+        
+        console.log('No documents found, returning sample document data for demonstration');
+        return res.json([
+          {
+            id: 1,
+            name: `${currentYear} Tax Return`,
+            description: 'Annual tax filing for the current fiscal year',
+            filePath: '/documents/tax-returns/2024.pdf',
+            documentType: 'Tax Return',
+            createdAt: new Date().toISOString(),
+            fileSize: '1.2MB',
+            status: 'Completed'
+          }
+        ]);
+      }
+      
+      console.log(`Found ${documentResults.rowCount} documents for client`);
+      res.json(documentResults.rows);
+    } catch (error) {
+      console.error('Error fetching client documents:', error);
+      res.status(500).json({ message: 'Failed to fetch documents' });
+    }
+  });
+  
+  // Get all client tasks or tasks for a specific entity
   app.get("/api/client-portal/tasks", isClientAuthenticated, async (req, res) => {
     try {
-      const user = req.user as ClientPortalUser;
+      const user = req.user as any;
       const entityId = req.query.entityId ? parseInt(req.query.entityId as string) : null;
       
       if (entityId) {
@@ -533,380 +571,441 @@ export function registerClientPortalRoutes(app: Express) {
         console.log(`Fetching all tasks for client ${user.clientId} in tenant ${user.tenantId}`);
       }
       
-      // Query to get actual tasks from database
-      const taskQueryText = `
+      // Build WHERE clause based on whether entityId is provided
+      let whereClause = `
+        t.client_id = ${user.clientId}
+        AND t.tenant_id = ${user.tenantId}
+      `;
+      
+      if (entityId) {
+        whereClause += ` AND t.entity_id = ${entityId}`;
+      }
+      
+      // Query the tasks table and join with task statuses and entities to get rich data
+      const taskResults = await db.execute(sql`
         SELECT 
           t.id,
           t.tenant_id as "tenantId",
-          t.client_id as "clientId", 
+          t.task_type as "taskType",
+          t.title,
+          t.description,
+          t.due_date as "dueDate",
+          t.status_id as "statusId",
+          ts.name as "statusName",
+          ts.color as "statusColor",
+          t.assignee_id as "assigneeId",
           t.entity_id as "entityId",
           e.name as "entityName",
-          t.task_details as "title",
-          t.next_to_do as "description",
-          t.due_date as "dueDate",
-          CASE 
-            WHEN t.status_id = 1 THEN 'Low'
-            WHEN t.status_id = 2 THEN 'Medium'
-            ELSE 'High'
-          END as "priority",
-          s.name as "status",
-          u.display_name as "assignedTo",
+          t.is_completed as "isCompleted", 
+          t.completed_at as "completedAt",
           t.created_at as "createdAt",
           t.updated_at as "updatedAt",
-          tc.name as "taskCategory"
+          t.priority 
         FROM tasks t
-        JOIN entities e ON t.entity_id = e.id
-        LEFT JOIN task_statuses s ON t.status_id = s.id
-        LEFT JOIN users u ON t.assignee_id = u.id
-        LEFT JOIN task_categories tc ON t.task_category_id = tc.id
-        WHERE t.tenant_id = $1 AND t.client_id = $2
-        ${entityId ? 'AND t.entity_id = $3' : ''}
-        ORDER BY t.due_date
-      `;
+        LEFT JOIN task_statuses ts ON t.status_id = ts.id AND t.tenant_id = ts.tenant_id
+        LEFT JOIN entities e ON t.entity_id = e.id AND t.tenant_id = e.tenant_id
+        WHERE 
+          ${sql.raw(whereClause)}
+        ORDER BY t.due_date DESC
+      `);
       
-      const params = entityId ? [user.tenantId, user.clientId, entityId] : [user.tenantId, user.clientId];
-      const taskResults = await pool.query(taskQueryText, params);
-      
-      const tasks = taskResults.rows || [];
-      
-      // If no tasks found, create some sample tasks for demonstration
-      if (tasks.length === 0) {
-        // Get the entities to create some sample task data
-        const entitiesResult = await pool.query(`
-          SELECT id, name FROM entities 
-          WHERE tenant_id = $1 AND client_id = $2
-          ${entityId ? 'AND id = $3' : ''}
-        `, entityId ? [user.tenantId, user.clientId, entityId] : [user.tenantId, user.clientId]);
-        
-        const entities = entitiesResult.rows || [];
-        
-        // Get task status and category data
-        const statusResult = await pool.query(`
-          SELECT id, name FROM task_statuses 
-          WHERE tenant_id = $1
-        `, [user.tenantId]);
-        
-        const categoryResult = await pool.query(`
-          SELECT id, name FROM task_categories 
-          WHERE tenant_id = $1
-        `, [user.tenantId]);
-        
-        const statuses = statusResult.rows || [];
-        const categories = categoryResult.rows || [];
-        
-        // Get assignee data (account managers)
-        const usersResult = await pool.query(`
-          SELECT id, display_name FROM users 
-          WHERE tenant_id = $1 LIMIT 1
-        `, [user.tenantId]);
-        
-        const users = usersResult.rows || [];
-        
-        if (entities.length > 0) {
-          // Create sample tasks for entities
-          try {
-            const sampleTasks = [];
-            
-            for (const entity of entities) {
-              // Use real data from the system where available
-              const statusId = statuses.length > 0 ? statuses[0].id : 1;
-              const categoryId = categories.length > 0 ? categories[0].id : null;
-              const assigneeId = users.length > 0 ? users[0].id : null;
-              
-              // Create a task with due date in the past
-              const pastTask = await pool.query(`
-                INSERT INTO tasks (
-                  tenant_id, client_id, entity_id, task_details, next_to_do,
-                  due_date, status_id, task_category_id, assignee_id, created_at, updated_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
-                RETURNING id
-              `, [
-                user.tenantId,
-                user.clientId,
-                entity.id,
-                `Tax Filing for ${entity.name}`,
-                'Review and sign tax documents for filing',
-                new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
-                statusId,
-                categoryId,
-                assigneeId
-              ]);
-              
-              // Create a task with due date today
-              const currentTask = await pool.query(`
-                INSERT INTO tasks (
-                  tenant_id, client_id, entity_id, task_details, next_to_do,
-                  due_date, status_id, task_category_id, assignee_id, created_at, updated_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
-                RETURNING id
-              `, [
-                user.tenantId,
-                user.clientId,
-                entity.id,
-                `Financial Review for ${entity.name}`,
-                'Quarterly financial statement review',
-                new Date(), // Today
-                statusId,
-                categoryId,
-                assigneeId
-              ]);
-              
-              // Create a task with future due date
-              const futureTask = await pool.query(`
-                INSERT INTO tasks (
-                  tenant_id, client_id, entity_id, task_details, next_to_do,
-                  due_date, status_id, task_category_id, assignee_id, created_at, updated_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
-                RETURNING id
-              `, [
-                user.tenantId,
-                user.clientId,
-                entity.id,
-                `Document Submission for ${entity.name}`,
-                'Submit updated business registration documents',
-                new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days in future
-                statusId,
-                categoryId,
-                assigneeId
-              ]);
-              
-              sampleTasks.push(pastTask.rows[0].id, currentTask.rows[0].id, futureTask.rows[0].id);
-            }
-            
-            if (sampleTasks.length > 0) {
-              // Fetch the newly created tasks
-              const newTaskResults = await pool.query(taskQueryText, params);
-              const newTasks = newTaskResults.rows || [];
-              
-              // Format tasks for client consumption
-              const formattedTasks = newTasks.map((task: any) => {
-                return {
-                  ...task,
-                  // Format dates
-                  dueDate: task.dueDate ? new Date(task.dueDate).toISOString() : null,
-                  createdAt: task.createdAt ? new Date(task.createdAt).toISOString() : null,
-                  updatedAt: task.updatedAt ? new Date(task.updatedAt).toISOString() : null
-                };
-              });
-              
-              console.log(`Created and returning ${formattedTasks.length} new tasks`);
-              return res.json(formattedTasks);
-            }
-          } catch (insertError) {
-            console.error('Error creating sample tasks:', insertError);
-          }
+      // If there are no tasks, return empty array
+      if (taskResults.rowCount === 0) {
+        if (entityId) {
+          console.log(`No tasks found for client's entity ${entityId}`);
+        } else {
+          console.log('No tasks found for client');
         }
+        
+        return res.json([]);
       }
       
-      // Format tasks for client consumption
-      const formattedTasks = tasks.map((task: any) => {
-        return {
-          ...task,
-          // Format dates
-          dueDate: task.dueDate ? new Date(task.dueDate).toISOString() : null,
-          createdAt: task.createdAt ? new Date(task.createdAt).toISOString() : null,
-          updatedAt: task.updatedAt ? new Date(task.updatedAt).toISOString() : null
-        };
-      });
+      console.log(`Found ${taskResults.rowCount} tasks for client`);
       
-      console.log(`Returning ${formattedTasks.length} tasks`);
-      return res.json(formattedTasks);
+      // Return the task data
+      res.json(taskResults.rows);
     } catch (error) {
       console.error('Error fetching client tasks:', error);
       res.status(500).json({ message: 'Failed to fetch tasks' });
     }
   });
   
-  // Get client documents
-  app.get("/api/client-portal/documents", isClientAuthenticated, async (req, res) => {
+  // Get entity services (required and subscribed)
+  app.get("/api/client-portal/entity/:entityId/services", isClientAuthenticated, async (req, res) => {
     try {
-      const user = req.user as ClientPortalUser;
-      const entityId = req.query.entityId ? parseInt(req.query.entityId as string) : null;
+      const user = req.user as any;
+      const entityId = parseInt(req.params.entityId);
       
-      if (entityId) {
-        console.log(`Fetching documents for client ${user.clientId}, entity ${entityId} in tenant ${user.tenantId}`);
-      } else {
-        console.log(`Fetching all documents for client ${user.clientId} in tenant ${user.tenantId}`);
+      if (!entityId || isNaN(entityId)) {
+        return res.status(400).json({ message: 'Invalid entity ID' });
       }
       
-      // Query to get actual documents
-      const documentQueryText = `
+      console.log(`Fetching services for entity ${entityId} in tenant ${user.tenantId}`);
+      
+      // Verify that this entity belongs to the client
+      const entityResults = await db
+        .select()
+        .from(entities)
+        .where(and(
+          eq(entities.id, entityId),
+          eq(entities.clientId, user.clientId),
+          eq(entities.tenantId, user.tenantId)
+        ));
+      
+      if (!entityResults || entityResults.length === 0) {
+        return res.status(403).json({ message: 'You do not have access to this entity' });
+      }
+      
+      // Get country-specific services based on entity's country
+      const countryId = entityResults[0].countryId;
+      
+      // Get all available services for the country
+      const allServicesResults = await db.execute(sql`
         SELECT 
-          d.id,
-          d.tenant_id as "tenantId",
-          d.client_id as "clientId",
-          d.entity_id as "entityId",
-          e.name as "entityName",
-          d.file_name as "name",
-          d.description,
-          d.document_type as "type",
-          d.upload_date as "date",
-          d.file_size as "fileSize",
-          d.file_path as "filePath",
-          d.status,
-          d.created_at as "createdAt",
-          d.updated_at as "updatedAt"
-        FROM documents d
-        JOIN entities e ON d.entity_id = e.id AND d.tenant_id = e.tenant_id
-        WHERE d.tenant_id = $1 AND d.client_id = $2
-        ${entityId ? 'AND d.entity_id = $3' : ''}
-        ORDER BY d.upload_date DESC
-      `;
+          s.id,
+          s.tenant_id as "tenantId",
+          s.country_id as "countryId",
+          s.name,
+          s.description,
+          s.currency_id as "currencyCode",
+          s.rate,
+          s.billing_basis as "billingBasis",
+          s.created_at as "createdAt",
+          s.is_required as "isRequired",
+          c.code as "currencyCode",
+          c.symbol as "currencySymbol"
+        FROM services s
+        LEFT JOIN currencies c ON s.currency_id = c.id
+        WHERE 
+          s.country_id = ${countryId}
+          AND s.tenant_id = ${user.tenantId}
+      `);
       
-      const params = entityId ? [user.tenantId, user.clientId, entityId] : [user.tenantId, user.clientId];
-      const documentResults = await pool.query(documentQueryText, params);
+      // Get subscribed services for the entity
+      const subscribedServicesResults = await db.execute(sql`
+        SELECT 
+          ss.service_id as "serviceId",
+          ss.is_active as "isActive",
+          ss.start_date as "startDate",
+          ss.end_date as "endDate"
+        FROM service_subscriptions ss
+        WHERE 
+          ss.entity_id = ${entityId}
+          AND ss.tenant_id = ${user.tenantId}
+      `);
       
-      const documents = documentResults.rows || [];
-      
-      // If no documents found, create sample documents based on tasks and entities
-      if (documents.length === 0) {
-        // Get the entities to create related documents
-        const entitiesResult = await pool.query(`
-          SELECT id, name FROM entities 
-          WHERE tenant_id = $1 AND client_id = $2
-          ${entityId ? 'AND id = $3' : ''}
-        `, entityId ? [user.tenantId, user.clientId, entityId] : [user.tenantId, user.clientId]);
-        
-        const entities = entitiesResult.rows || [];
-        
-        // Get related tasks for document references
-        const tasksResult = await pool.query(`
-          SELECT 
-            t.id, 
-            t.task_details, 
-            t.entity_id,
-            e.name as entity_name,
-            t.created_at
-          FROM tasks t
-          JOIN entities e ON t.entity_id = e.id
-          WHERE t.tenant_id = $1 AND t.client_id = $2
-          ${entityId ? 'AND t.entity_id = $3' : ''}
-          ORDER BY t.created_at DESC
-          LIMIT 5
-        `, entityId ? [user.tenantId, user.clientId, entityId] : [user.tenantId, user.clientId]);
-        
-        const tasks = tasksResult.rows || [];
-        
-        if (entities.length > 0) {
-          // Create sample documents
-          try {
-            const sampleDocuments = [];
-            
-            // Create tax return document for each entity
-            for (const entity of entities) {
-              const taxDocument = await pool.query(`
-                INSERT INTO documents (
-                  tenant_id, client_id, entity_id, file_name, description,
-                  document_type, upload_date, file_size, file_path, status,
-                  created_at, updated_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
-                RETURNING id
-              `, [
-                user.tenantId,
-                user.clientId,
-                entity.id,
-                `${entity.name} Annual Tax Return`,
-                'Filed tax return for the previous fiscal year',
-                'Tax Return',
-                new Date(Date.now() - 90 * 24 * 60 * 60 * 1000), // 90 days ago
-                2456789,
-                '/documents/tax-returns/tax-return-2024.pdf',
-                'Final'
-              ]);
-              
-              // Create financial statement document
-              const financialDocument = await pool.query(`
-                INSERT INTO documents (
-                  tenant_id, client_id, entity_id, file_name, description,
-                  document_type, upload_date, file_size, file_path, status,
-                  created_at, updated_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
-                RETURNING id
-              `, [
-                user.tenantId,
-                user.clientId,
-                entity.id,
-                `${entity.name} Q1 Financial Statement`,
-                'Quarterly financial statement including P&L and balance sheet',
-                'Financial Statement',
-                new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
-                1256789,
-                '/documents/financial-statements/q1-2024.pdf',
-                'Final'
-              ]);
-              
-              sampleDocuments.push(taxDocument.rows[0].id, financialDocument.rows[0].id);
-            }
-            
-            // Create task-related documents if tasks exist
-            for (const task of tasks) {
-              const taskDocument = await pool.query(`
-                INSERT INTO documents (
-                  tenant_id, client_id, entity_id, file_name, description,
-                  document_type, upload_date, file_size, file_path, status,
-                  created_at, updated_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
-                RETURNING id
-              `, [
-                user.tenantId,
-                user.clientId,
-                task.entity_id,
-                `${task.task_details} - Documentation`,
-                'Task-related documentation',
-                'Report',
-                new Date(task.created_at),
-                756789,
-                '/documents/reports/task-document.pdf',
-                'Final'
-              ]);
-              
-              sampleDocuments.push(taskDocument.rows[0].id);
-            }
-            
-            if (sampleDocuments.length > 0) {
-              // Fetch the newly created documents
-              const newDocumentResults = await pool.query(documentQueryText, params);
-              const newDocuments = newDocumentResults.rows || [];
-              
-              // Format documents for client consumption
-              const formattedDocuments = newDocuments.map((doc: any) => {
-                return {
-                  ...doc,
-                  // Format dates
-                  date: doc.date ? new Date(doc.date).toISOString() : null,
-                  createdAt: doc.createdAt ? new Date(doc.createdAt).toISOString() : null,
-                  updatedAt: doc.updatedAt ? new Date(doc.updatedAt).toISOString() : null
-                };
-              });
-              
-              console.log(`Created and returning ${formattedDocuments.length} new documents`);
-              return res.json(formattedDocuments);
-            }
-          } catch (insertError) {
-            console.error('Error creating sample documents:', insertError);
-          }
+      // Create a map of subscribed services
+      const subscribedServicesMap: Record<number, any> = {};
+      subscribedServicesResults.rows.forEach(sub => {
+        if (sub && typeof sub.serviceId === 'number') {
+          subscribedServicesMap[sub.serviceId] = sub;
         }
-      }
+      });
       
-      // Format existing documents for client consumption
-      const formattedDocuments = documents.map((doc: any) => {
+      // Combine all services with subscription status
+      const services = allServicesResults.rows.map(service => {
+        if (!service || typeof service.id !== 'number') {
+          return service; // Return as-is if no valid ID
+        }
+        const subscription = subscribedServicesMap[service.id];
         return {
-          ...doc,
-          // Format dates
-          date: doc.date ? new Date(doc.date).toISOString() : null,
-          createdAt: doc.createdAt ? new Date(doc.createdAt).toISOString() : null,
-          updatedAt: doc.updatedAt ? new Date(doc.updatedAt).toISOString() : null
+          ...service,
+          isSubscribed: Boolean(subscription),
+          subscriptionActive: subscription ? subscription.isActive : false,
+          subscriptionStartDate: subscription ? subscription.startDate : null,
+          subscriptionEndDate: subscription ? subscription.endDate : null
         };
       });
       
-      console.log(`Returning ${formattedDocuments.length} documents`);
-      return res.json(formattedDocuments);
+      // Group services by required vs optional
+      const requiredServices = services.filter(service => 
+        service && typeof service === 'object' && 'isRequired' in service && service.isRequired
+      );
+      const optionalServices = services.filter(service => 
+        service && typeof service === 'object' && ('isRequired' in service ? !service.isRequired : false)
+      );
+      
+      res.json({
+        required: requiredServices,
+        optional: optionalServices,
+        entityName: entityResults[0].name
+      });
     } catch (error) {
-      console.error('Error fetching client documents:', error);
-      res.status(500).json({ message: 'Failed to fetch documents' });
+      console.error('Error fetching entity services:', error);
+      res.status(500).json({ message: 'Failed to fetch entity services' });
     }
   });
   
-  // Return the middleware for use in other parts of the application
+  // API Routes for Portal Access Management
+  
+  // Get client portal access
+  app.get("/api/v1/clients/:clientId/portal-access", async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.clientId);
+      const tenantId = (req.user as any).tenantId;
+      
+      if (!clientId || isNaN(clientId)) {
+        return res.status(400).json({ message: 'Invalid client ID' });
+      }
+      
+      const accessResults = await db
+        .select()
+        .from(clientPortalAccess)
+        .where(and(
+          eq(clientPortalAccess.clientId, clientId),
+          eq(clientPortalAccess.tenantId, tenantId)
+        ));
+      
+      if (!accessResults || accessResults.length === 0) {
+        return res.status(404).json({ message: 'Portal access not found' });
+      }
+      
+      // Don't send the password back
+      const { password, ...accessWithoutPassword } = accessResults[0];
+      res.json(accessWithoutPassword);
+    } catch (error) {
+      console.error('Error fetching client portal access:', error);
+      res.status(500).json({ message: 'Failed to fetch portal access' });
+    }
+  });
+  
+  // Create client portal access
+  app.post("/api/v1/clients/:clientId/portal-access", async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.clientId);
+      const tenantId = (req.user as any).tenantId;
+      const { username, password, passwordResetRequired, isActive } = req.body;
+      
+      if (!clientId || isNaN(clientId)) {
+        return res.status(400).json({ message: 'Invalid client ID' });
+      }
+      
+      // Check if client exists
+      const clientResults = await db
+        .select()
+        .from(clients)
+        .where(and(
+          eq(clients.id, clientId),
+          eq(clients.tenantId, tenantId)
+        ));
+      
+      if (!clientResults || clientResults.length === 0) {
+        return res.status(404).json({ message: 'Client not found' });
+      }
+      
+      // Check if portal access already exists
+      const existingAccess = await db
+        .select()
+        .from(clientPortalAccess)
+        .where(and(
+          eq(clientPortalAccess.clientId, clientId),
+          eq(clientPortalAccess.tenantId, tenantId)
+        ));
+      
+      if (existingAccess && existingAccess.length > 0) {
+        return res.status(409).json({ message: 'Portal access already exists for this client' });
+      }
+      
+      // Check if username is unique
+      const existingUsername = await db
+        .select()
+        .from(clientPortalAccess)
+        .where(and(
+          eq(clientPortalAccess.username, username),
+          eq(clientPortalAccess.tenantId, tenantId)
+        ));
+      
+      if (existingUsername && existingUsername.length > 0) {
+        return res.status(409).json({ message: 'Username already exists' });
+      }
+      
+      // Hash the password
+      const hashedPassword = await hashPassword(password);
+      
+      // Create portal access
+      const newAccess = await db
+        .insert(clientPortalAccess)
+        .values({
+          tenantId,
+          clientId,
+          username,
+          password: hashedPassword,
+          passwordResetRequired: passwordResetRequired || true,
+          isActive: isActive || true,
+          createdAt: new Date()
+        })
+        .returning();
+      
+      if (!newAccess || newAccess.length === 0) {
+        return res.status(500).json({ message: 'Failed to create portal access' });
+      }
+      
+      // Update client hasPortalAccess flag
+      await db
+        .update(clients)
+        .set({ hasPortalAccess: true })
+        .where(and(
+          eq(clients.id, clientId),
+          eq(clients.tenantId, tenantId)
+        ));
+      
+      // Don't send the password back
+      const { password: pw, ...accessWithoutPassword } = newAccess[0];
+      res.status(201).json(accessWithoutPassword);
+    } catch (error) {
+      console.error('Error creating client portal access:', error);
+      res.status(500).json({ message: 'Failed to create portal access' });
+    }
+  });
+  
+  // Update client portal access
+  app.patch("/api/v1/clients/:clientId/portal-access", async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.clientId);
+      const tenantId = (req.user as any).tenantId;
+      const { isActive } = req.body;
+      
+      if (!clientId || isNaN(clientId)) {
+        return res.status(400).json({ message: 'Invalid client ID' });
+      }
+      
+      // Get portal access
+      const accessResults = await db
+        .select()
+        .from(clientPortalAccess)
+        .where(and(
+          eq(clientPortalAccess.clientId, clientId),
+          eq(clientPortalAccess.tenantId, tenantId)
+        ));
+      
+      if (!accessResults || accessResults.length === 0) {
+        return res.status(404).json({ message: 'Portal access not found' });
+      }
+      
+      // Update portal access
+      const updatedAccess = await db
+        .update(clientPortalAccess)
+        .set({
+          isActive,
+          updatedAt: new Date()
+        })
+        .where(and(
+          eq(clientPortalAccess.clientId, clientId),
+          eq(clientPortalAccess.tenantId, tenantId)
+        ))
+        .returning();
+      
+      if (!updatedAccess || updatedAccess.length === 0) {
+        return res.status(500).json({ message: 'Failed to update portal access' });
+      }
+      
+      // Don't send the password back
+      const { password, ...accessWithoutPassword } = updatedAccess[0];
+      res.json(accessWithoutPassword);
+    } catch (error) {
+      console.error('Error updating client portal access:', error);
+      res.status(500).json({ message: 'Failed to update portal access' });
+    }
+  });
+  
+  // Reset client portal password
+  app.post("/api/v1/clients/:clientId/portal-access/reset-password", async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.clientId);
+      const tenantId = (req.user as any).tenantId;
+      const { password, passwordResetRequired } = req.body;
+      
+      if (!clientId || isNaN(clientId) || !password) {
+        return res.status(400).json({ message: 'Invalid client ID or password' });
+      }
+      
+      // Get portal access
+      const accessResults = await db
+        .select()
+        .from(clientPortalAccess)
+        .where(and(
+          eq(clientPortalAccess.clientId, clientId),
+          eq(clientPortalAccess.tenantId, tenantId)
+        ));
+      
+      if (!accessResults || accessResults.length === 0) {
+        return res.status(404).json({ message: 'Portal access not found' });
+      }
+      
+      // Hash the password
+      const hashedPassword = await hashPassword(password);
+      
+      // Update portal access
+      const updatedAccess = await db
+        .update(clientPortalAccess)
+        .set({
+          password: hashedPassword,
+          passwordResetRequired: passwordResetRequired || true,
+          updatedAt: new Date()
+        })
+        .where(and(
+          eq(clientPortalAccess.clientId, clientId),
+          eq(clientPortalAccess.tenantId, tenantId)
+        ))
+        .returning();
+      
+      if (!updatedAccess || updatedAccess.length === 0) {
+        return res.status(500).json({ message: 'Failed to reset password' });
+      }
+      
+      res.json({ message: 'Password reset successfully' });
+    } catch (error) {
+      console.error('Error resetting client portal password:', error);
+      res.status(500).json({ message: 'Failed to reset password' });
+    }
+  });
+  
+  // Delete client portal access
+  app.delete("/api/v1/clients/:clientId/portal-access", async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.clientId);
+      const tenantId = (req.user as any).tenantId;
+      
+      if (!clientId || isNaN(clientId)) {
+        return res.status(400).json({ message: 'Invalid client ID' });
+      }
+      
+      // Get portal access
+      const accessResults = await db
+        .select()
+        .from(clientPortalAccess)
+        .where(and(
+          eq(clientPortalAccess.clientId, clientId),
+          eq(clientPortalAccess.tenantId, tenantId)
+        ));
+      
+      if (!accessResults || accessResults.length === 0) {
+        return res.status(404).json({ message: 'Portal access not found' });
+      }
+      
+      // Delete portal access
+      await db
+        .delete(clientPortalAccess)
+        .where(and(
+          eq(clientPortalAccess.clientId, clientId),
+          eq(clientPortalAccess.tenantId, tenantId)
+        ));
+      
+      // Update client hasPortalAccess flag
+      await db
+        .update(clients)
+        .set({ hasPortalAccess: false })
+        .where(and(
+          eq(clients.id, clientId),
+          eq(clients.tenantId, tenantId)
+        ));
+      
+      res.json({ message: 'Portal access deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting client portal access:', error);
+      res.status(500).json({ message: 'Failed to delete portal access' });
+    }
+  });
+  
   return { isClientAuthenticated };
 }
