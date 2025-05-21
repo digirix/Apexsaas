@@ -330,52 +330,22 @@ export default function ClientPortalDashboardPage() {
                           <div className="p-5">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
                               <div className="flex flex-col">
-                                <span className="text-sm text-slate-500 mb-1">Registration</span>
+                                <span className="text-sm text-slate-500 mb-1">Business Tax ID</span>
                                 <span className="font-medium">
-                                  {entity.registrationNumber || "Not specified"}
+                                  {entity.business_tax_id || "Not specified"}
                                 </span>
                               </div>
                               <div className="flex flex-col">
-                                <span className="text-sm text-slate-500 mb-1">Tax Number</span>
+                                <span className="text-sm text-slate-500 mb-1">VAT Registered</span>
                                 <span className="font-medium">
-                                  {entity.taxNumber || "Not specified"}
+                                  {entity.is_vat_registered ? "Yes" : "No"}
                                 </span>
                               </div>
                               <div className="flex flex-col">
-                                <span className="text-sm text-slate-500 mb-1">Incorporation Date</span>
+                                <span className="text-sm text-slate-500 mb-1">VAT ID</span>
                                 <span className="font-medium">
-                                  {entity.incorporationDate 
-                                    ? formatDate(entity.incorporationDate) 
-                                    : "Not specified"}
+                                  {entity.vat_id || "Not specified"}
                                 </span>
-                              </div>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-                              <div className="flex flex-col">
-                                <span className="text-sm text-slate-500 mb-1">Fiscal Year End</span>
-                                <span className="font-medium">
-                                  {entity.fiscalYearEnd || "Not specified"}
-                                </span>
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="text-sm text-slate-500 mb-1">Contact</span>
-                                <div className="flex flex-col">
-                                  {entity.email && <span className="text-sm">{entity.email}</span>}
-                                  {entity.phone && <span className="text-sm">{entity.phone}</span>}
-                                  {entity.website && (
-                                    <a 
-                                      href={entity.website.startsWith('http') 
-                                        ? entity.website 
-                                        : `https://${entity.website}`} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="text-sm text-blue-500 hover:underline"
-                                    >
-                                      {entity.website}
-                                    </a>
-                                  )}
-                                </div>
                               </div>
                             </div>
                             
@@ -383,17 +353,29 @@ export default function ClientPortalDashboardPage() {
                               <div className="flex flex-col">
                                 <span className="text-sm text-slate-500 mb-1">Address</span>
                                 <address className="not-italic">
-                                  {entity.addressLine1}
-                                  {entity.addressLine2 && <span>, {entity.addressLine2}</span>}
+                                  {entity.address || "No address specified"}
                                   <br />
-                                  {entity.city}
-                                  {entity.stateProvince && <span>, {entity.stateProvince}</span>}
-                                  {entity.postalCode && <span> {entity.postalCode}</span>}
-                                  <br />
+                                  {entity.stateName && <span>{entity.stateName}, </span>}
                                   {entity.countryName}
                                 </address>
                               </div>
                             </div>
+                            
+                            {entity.file_access_link && (
+                              <div className="grid grid-cols-1 gap-5 mb-5">
+                                <div className="flex flex-col">
+                                  <span className="text-sm text-slate-500 mb-1">Documents</span>
+                                  <a 
+                                    href={entity.file_access_link} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-blue-500 hover:underline"
+                                  >
+                                    Access Entity Documents
+                                  </a>
+                                </div>
+                              </div>
+                            )}
                             
                             <div className="border-t pt-5 mt-5">
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
