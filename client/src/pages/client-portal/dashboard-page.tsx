@@ -293,99 +293,105 @@ export default function ClientPortalDashboardPage() {
                     <div className="space-y-8">
                       {clientEntities.map((entity: any) => (
                         <div key={entity.id} className="border rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow duration-200">
-                          <div className="bg-gradient-to-r from-blue-50 to-slate-50 px-5 py-4 border-b">
+                          <div className="bg-gradient-to-r from-blue-50 to-slate-50 px-3 py-2 border-b">
                             <div className="flex justify-between items-center">
-                              <div className="flex items-center space-x-3">
-                                <div className="bg-blue-100 rounded-full p-2">
-                                  <Building2 className="h-5 w-5 text-blue-600" />
+                              <div className="flex items-center space-x-2">
+                                <div className="bg-blue-100 rounded-full p-1.5">
+                                  <Building2 className="h-4 w-4 text-blue-600" />
                                 </div>
                                 <div>
-                                  <h3 className="text-lg font-semibold text-slate-900">
+                                  <h3 className="text-sm font-semibold text-slate-900">
                                     {entity.name}
                                   </h3>
-                                  <p className="text-sm text-slate-500">
+                                  <p className="text-xs text-slate-500">
                                     {entity.entityType} • {entity.countryName || 'Unknown'}
                                     {entity.stateName ? `, ${entity.stateName}` : ''}
                                   </p>
                                 </div>
                               </div>
-                              <div className="flex items-center space-x-2">
+                              <div className="flex items-center space-x-1">
                                 <Button 
                                   variant="ghost" 
-                                  size="sm"
+                                  size="xs"
                                   className="hover:bg-blue-50 text-slate-600 hover:text-blue-600"
-                                  onClick={() => setActiveTab("documents")}
+                                  onClick={() => {
+                                    setSelectedEntityId(entity.id);
+                                    setActiveTab("documents");
+                                  }}
                                 >
-                                  <FileText className="h-4 w-4 mr-1" />
-                                  Documents
+                                  <FileText className="h-3 w-3 mr-1" />
+                                  Docs
                                 </Button>
                                 <Button 
                                   variant="ghost" 
-                                  size="sm"
+                                  size="xs"
                                   className="hover:bg-blue-50 text-slate-600 hover:text-blue-600"
                                   onClick={() => {
-                                    // Store selected entity ID in state for filtering
                                     setSelectedEntityId(entity.id);
-                                    // Navigate to tasks tab
                                     setActiveTab("tasks");
                                   }}
                                 >
-                                  <Clock className="h-4 w-4 mr-1" />
+                                  <Clock className="h-3 w-3 mr-1" />
                                   Tasks
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="xs"
+                                  className="hover:bg-blue-50 text-slate-600 hover:text-blue-600"
+                                  onClick={() => {
+                                    setSelectedEntityId(entity.id);
+                                    setActiveTab("invoices");
+                                  }}
+                                >
+                                  <Receipt className="h-3 w-3 mr-1" />
+                                  Invoices
                                 </Button>
                               </div>
                             </div>
                           </div>
                           
-                          <div className="p-5">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+                          <div className="p-2">
+                            <div className="grid grid-cols-3 gap-2 text-xs">
                               <div className="flex flex-col">
-                                <span className="text-sm text-slate-500 mb-1">Business Tax ID</span>
-                                <span className="font-medium">
-                                  {entity.business_tax_id || "Not specified"}
+                                <span className="text-slate-500">Tax ID</span>
+                                <span className="font-medium truncate">
+                                  {entity.business_tax_id || "N/A"}
                                 </span>
                               </div>
                               <div className="flex flex-col">
-                                <span className="text-sm text-slate-500 mb-1">VAT Registered</span>
+                                <span className="text-slate-500">VAT Status</span>
                                 <span className="font-medium">
-                                  {entity.is_vat_registered ? "Yes" : "No"}
+                                  {entity.is_vat_registered ? "Registered" : "Not Reg."}
                                 </span>
                               </div>
                               <div className="flex flex-col">
-                                <span className="text-sm text-slate-500 mb-1">VAT ID</span>
-                                <span className="font-medium">
-                                  {entity.vat_id || "Not specified"}
+                                <span className="text-slate-500">VAT ID</span>
+                                <span className="font-medium truncate">
+                                  {entity.vat_id || "N/A"}
                                 </span>
                               </div>
                             </div>
                             
-                            <div className="grid grid-cols-1 gap-5 mb-5">
-                              <div className="flex flex-col">
-                                <span className="text-sm text-slate-500 mb-1">Address</span>
-                                <address className="not-italic">
-                                  {entity.address || "No address specified"}
-                                  <br />
-                                  {entity.stateName && <span>{entity.stateName}, </span>}
-                                  {entity.countryName}
-                                </address>
-                              </div>
+                            {/* Streamlined address and document link */}
+                            <div className="mt-1 border-t border-slate-100 pt-1 flex justify-between items-center text-xs">
+                              <span className="text-slate-500 truncate max-w-[70%]">
+                                {entity.address ? 
+                                  `${entity.address}, ${entity.stateName || ''} ${entity.countryName || ''}` : 
+                                  "No address specified"}
+                              </span>
+                              
+                              {entity.file_access_link && (
+                                <a 
+                                  href={entity.file_access_link} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-blue-500 hover:underline flex items-center"
+                                >
+                                  <ExternalLink className="h-3 w-3 mr-1" />
+                                  <span>Docs</span>
+                                </a>
+                              )}
                             </div>
-                            
-                            {entity.file_access_link && (
-                              <div className="grid grid-cols-1 gap-5 mb-5">
-                                <div className="flex flex-col">
-                                  <span className="text-sm text-slate-500 mb-1">Documents</span>
-                                  <a 
-                                    href={entity.file_access_link} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-sm text-blue-500 hover:underline"
-                                  >
-                                    Access Entity Documents
-                                  </a>
-                                </div>
-                              </div>
-                            )}
                             
                             <div className="border-t pt-5 mt-5">
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
