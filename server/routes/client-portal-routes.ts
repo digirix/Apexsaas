@@ -265,12 +265,8 @@ export function registerClientPortalRoutes(app: Express) {
           e.state,
           e.country,
           e.fiscal_year_start as "fiscalYearStart",
-          e.status,
-          c.name as "countryName",
-          s.name as "stateName"
+          e.status
         FROM entities e
-        LEFT JOIN ref_countries c ON e.country = c.code
-        LEFT JOIN ref_states s ON e.state = s.code AND e.country = s.country_code
         WHERE 
           e.client_id = $1
           AND e.tenant_id = $2
@@ -331,12 +327,12 @@ export function registerClientPortalRoutes(app: Express) {
         console.log(`Fetching all invoices for client ${user.clientId} in tenant ${user.tenantId}`);
       }
       
-      // Use direct PostgreSQL query
+      // Use direct PostgreSQL query with the actual column names from the database
       const invoiceQueryText = `
         SELECT 
           i.id,
           i.tenant_id as "tenantId",
-          e.client_id as "clientId",
+          i.client_id as "clientId",
           i.entity_id as "entityId",
           e.name as "entityName",
           i.invoice_number as "invoiceNumber",
@@ -355,7 +351,7 @@ export function registerClientPortalRoutes(app: Express) {
           i.updated_at as "updatedAt"
         FROM invoices i
         JOIN entities e ON i.entity_id = e.id AND i.tenant_id = e.tenant_id
-        WHERE i.tenant_id = $1 AND e.client_id = $2
+        WHERE i.tenant_id = $1 AND i.client_id = $2
         ${entityId ? 'AND i.entity_id = $3' : ''}
         ORDER BY i.issue_date DESC
       `;
