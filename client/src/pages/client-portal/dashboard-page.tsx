@@ -46,6 +46,7 @@ export default function ClientPortalDashboardPage() {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
+  const [selectedEntityId, setSelectedEntityId] = useState<number | null>(null);
   
   // Fetch client profile
   const { 
@@ -291,11 +292,13 @@ export default function ClientPortalDashboardPage() {
                   ) : (
                     <div className="space-y-8">
                       {clientEntities.map((entity: any) => (
-                        <div key={entity.id} className="border rounded-lg overflow-hidden">
-                          <div className="bg-slate-50 px-5 py-4 border-b">
+                        <div key={entity.id} className="border rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow duration-200">
+                          <div className="bg-gradient-to-r from-blue-50 to-slate-50 px-5 py-4 border-b">
                             <div className="flex justify-between items-center">
                               <div className="flex items-center space-x-3">
-                                <Building2 className="h-6 w-6 text-blue-500" />
+                                <div className="bg-blue-100 rounded-full p-2">
+                                  <Building2 className="h-5 w-5 text-blue-600" />
+                                </div>
                                 <div>
                                   <h3 className="text-lg font-semibold text-slate-900">
                                     {entity.name}
@@ -308,17 +311,24 @@ export default function ClientPortalDashboardPage() {
                               </div>
                               <div className="flex items-center space-x-2">
                                 <Button 
-                                  variant="outline" 
+                                  variant="ghost" 
                                   size="sm"
+                                  className="hover:bg-blue-50 text-slate-600 hover:text-blue-600"
                                   onClick={() => setActiveTab("documents")}
                                 >
                                   <FileText className="h-4 w-4 mr-1" />
                                   Documents
                                 </Button>
                                 <Button 
-                                  variant="outline" 
+                                  variant="ghost" 
                                   size="sm"
-                                  onClick={() => setActiveTab("tasks")}
+                                  className="hover:bg-blue-50 text-slate-600 hover:text-blue-600"
+                                  onClick={() => {
+                                    // Store selected entity ID in state for filtering
+                                    setSelectedEntityId(entity.id);
+                                    // Navigate to tasks tab
+                                    setActiveTab("tasks");
+                                  }}
                                 >
                                   <Clock className="h-4 w-4 mr-1" />
                                   Tasks
@@ -641,11 +651,27 @@ export default function ClientPortalDashboardPage() {
           {/* Tasks Tab */}
           <TabsContent value="tasks" className="space-y-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Your Tasks & Deadlines</CardTitle>
-                <CardDescription>
-                  Track your tax and accounting requirements
-                </CardDescription>
+              <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
+                <div>
+                  <CardTitle>
+                    {selectedEntityId ? 'Entity Tasks' : 'Your Tasks & Deadlines'}
+                  </CardTitle>
+                  <CardDescription>
+                    {selectedEntityId 
+                      ? `Tasks for ${clientEntities?.find((e: any) => e.id === selectedEntityId)?.name || 'selected entity'}`
+                      : 'Track your tax and accounting requirements'
+                    }
+                  </CardDescription>
+                </div>
+                {selectedEntityId && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setSelectedEntityId(null)}
+                  >
+                    View All Tasks
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
                 {isTasksLoading ? (
