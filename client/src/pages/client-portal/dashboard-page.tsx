@@ -29,7 +29,10 @@ import {
   Briefcase,
   Globe,
   Map,
-  MapPin 
+  MapPin,
+  Receipt,
+  ExternalLink,
+  ChevronRight
 } from "lucide-react";
 import {
   Alert,
@@ -312,8 +315,8 @@ export default function ClientPortalDashboardPage() {
                               <div className="flex items-center space-x-1">
                                 <Button 
                                   variant="ghost" 
-                                  size="xs"
-                                  className="hover:bg-blue-50 text-slate-600 hover:text-blue-600"
+                                  size="sm"
+                                  className="h-7 text-xs px-2 py-1 hover:bg-blue-50 text-slate-600 hover:text-blue-600"
                                   onClick={() => {
                                     setSelectedEntityId(entity.id);
                                     setActiveTab("documents");
@@ -324,8 +327,8 @@ export default function ClientPortalDashboardPage() {
                                 </Button>
                                 <Button 
                                   variant="ghost" 
-                                  size="xs"
-                                  className="hover:bg-blue-50 text-slate-600 hover:text-blue-600"
+                                  size="sm"
+                                  className="h-7 text-xs px-2 py-1 hover:bg-blue-50 text-slate-600 hover:text-blue-600"
                                   onClick={() => {
                                     setSelectedEntityId(entity.id);
                                     setActiveTab("tasks");
