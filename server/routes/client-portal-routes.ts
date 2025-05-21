@@ -473,7 +473,7 @@ export function registerClientPortalRoutes(app: Express) {
             il.tax_rate as "taxRate",
             il.tax_amount as "taxAmount",
             il.discount_amount as "discountAmount",
-            il.total_amount as "totalAmount"
+            (il.quantity * il.unit_price - COALESCE(il.discount_amount, 0) + COALESCE(il.tax_amount, 0)) as "totalAmount"
           FROM invoice_line_items il
           WHERE il.invoice_id IN (${sql.raw(invoiceIds.join(','))})
         `);

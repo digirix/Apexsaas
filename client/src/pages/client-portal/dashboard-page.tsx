@@ -81,6 +81,16 @@ export default function ClientPortalDashboardPage() {
     enabled: !!clientProfile
   });
   
+  // Fetch client invoices
+  const {
+    data: clientInvoices = [],
+    isLoading: isInvoicesLoading,
+    error: invoicesError,
+  } = useQuery({
+    queryKey: ["/api/client-portal/invoices"],
+    enabled: !!clientProfile
+  });
+
   // Fetch client entities
   const {
     data: clientEntities = [],
@@ -339,8 +349,8 @@ export default function ClientPortalDashboardPage() {
                                 </Button>
                                 <Button 
                                   variant="ghost" 
-                                  size="xs"
-                                  className="hover:bg-blue-50 text-slate-600 hover:text-blue-600"
+                                  size="sm"
+                                  className="h-7 text-xs px-2 py-1 hover:bg-blue-50 text-slate-600 hover:text-blue-600"
                                   onClick={() => {
                                     setSelectedEntityId(entity.id);
                                     setActiveTab("invoices");
