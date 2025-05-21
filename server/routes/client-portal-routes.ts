@@ -296,10 +296,11 @@ export function registerClientPortalRoutes(app: Express) {
   
   // Client Portal Data Routes
   
-  // Get client entities
+  // Get client entities with detailed information
   app.get("/api/client-portal/entities", isClientAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
+      console.log(`Fetching entities for client ${user.clientId} in tenant ${user.tenantId}`);
       
       const entityResults = await db
         .select()
@@ -309,22 +310,70 @@ export function registerClientPortalRoutes(app: Express) {
           eq(entities.tenantId, user.tenantId)
         ));
       
-      // Get entity types for each entity
+      if (!entityResults || entityResults.length === 0) {
+        console.log('No entities found for client');
+        return res.json([]);
+      }
+      
+      console.log(`Found ${entityResults.length} entities for client`);
+      
+      // Get entity types for each entity along with additional metadata
       const enrichedEntities = await Promise.all(entityResults.map(async (entity) => {
-        // You would normally join with entityTypes here, but we're doing it manually
-        // since we're not setting up a proper join in this example
+        // Get entity type information
         const entityTypeResult = await db
           .execute(sql`
-            SELECT et.name as "entityType" 
+            SELECT et.name as "entityType", et.description as "entityTypeDescription"
             FROM entity_types et 
             WHERE et.id = ${entity.entityTypeId} AND et.tenant_id = ${user.tenantId}
           `);
         
         const entityType = entityTypeResult.rows[0]?.entityType || 'Unknown';
+        const entityTypeDescription = entityTypeResult.rows[0]?.entityTypeDescription || '';
         
+        // Get country and state information
+        const locationResult = await db
+          .execute(sql`
+            SELECT 
+              c.name as "countryName", 
+              c.code as "countryCode",
+              s.name as "stateName"
+            FROM countries c
+            LEFT JOIN states s ON s.id = ${entity.stateId} AND s.country_id = c.id
+            WHERE c.id = ${entity.countryId}
+          `);
+        
+        const countryName = locationResult.rows[0]?.countryName || 'Unknown';
+        const countryCode = locationResult.rows[0]?.countryCode || '';
+        const stateName = locationResult.rows[0]?.stateName || '';
+        
+        // Count tasks for this entity
+        const taskCount = await db
+          .execute(sql`
+            SELECT COUNT(*) as count
+            FROM tasks
+            WHERE entity_id = ${entity.id} AND tenant_id = ${user.tenantId}
+          `);
+        
+        // Count invoices for this entity
+        const invoiceCount = await db
+          .execute(sql`
+            SELECT COUNT(*) as count
+            FROM invoices
+            WHERE entity_id = ${entity.id} AND tenant_id = ${user.tenantId}
+          `);
+        
+        // Return enriched entity data
         return {
           ...entity,
-          entityType
+          entityType,
+          entityTypeDescription,
+          countryName,
+          countryCode,
+          stateName,
+          stats: {
+            taskCount: parseInt(taskCount.rows[0]?.count || '0'),
+            invoiceCount: parseInt(invoiceCount.rows[0]?.count || '0')
+          }
         };
       }));
       
@@ -335,21 +384,117 @@ export function registerClientPortalRoutes(app: Express) {
     }
   });
   
-  // Get client invoices
+  // Get all client invoices or invoices for a specific entity
   app.get("/api/client-portal/invoices", isClientAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
+      const entityId = req.query.entityId ? parseInt(req.query.entityId as string) : null;
       
-      const invoiceResults = await db
-        .select()
-        .from(invoices)
-        .where(and(
-          eq(invoices.clientId, user.clientId),
-          eq(invoices.tenantId, user.tenantId)
-        ))
-        .orderBy(desc(invoices.issueDate));
+      if (entityId) {
+        console.log(`Fetching invoices for client ${user.clientId}, entity ${entityId} in tenant ${user.tenantId}`);
+      } else {
+        console.log(`Fetching all invoices for client ${user.clientId} in tenant ${user.tenantId}`);
+      }
       
-      res.json(invoiceResults);
+      // Build WHERE clause based on whether entityId is provided
+      let whereClause = `
+        i.client_id = ${user.clientId}
+        AND i.tenant_id = ${user.tenantId}
+      `;
+      
+      if (entityId) {
+        whereClause += ` AND i.entity_id = ${entityId}`;
+      }
+      
+      // Query the invoices table with joins to get detailed information
+      const invoiceResults = await db.execute(sql`
+        SELECT 
+          i.id,
+          i.tenant_id as "tenantId",
+          i.client_id as "clientId",
+          i.entity_id as "entityId",
+          e.name as "entityName",
+          i.invoice_number as "invoiceNumber",
+          i.issue_date as "issueDate",
+          i.due_date as "dueDate",
+          i.currency_code as "currencyCode",
+          i.subtotal,
+          i.tax_amount as "taxAmount",
+          i.discount_amount as "discountAmount",
+          i.total_amount as "totalAmount",
+          i.amount_paid as "amountPaid",
+          i.amount_due as "amountDue",
+          i.status,
+          i.notes,
+          i.created_at as "createdAt",
+          i.updated_at as "updatedAt" 
+        FROM invoices i
+        LEFT JOIN entities e ON i.entity_id = e.id AND i.tenant_id = e.tenant_id
+        WHERE 
+          ${sql.raw(whereClause)}
+        ORDER BY i.issue_date DESC
+      `);
+      
+      // If there are no invoices, return empty array
+      if (invoiceResults.rowCount === 0) {
+        if (entityId) {
+          console.log(`No invoices found for client's entity ${entityId}`);
+        } else {
+          console.log('No invoices found for client');
+        }
+        
+        return res.json([]);
+      }
+      
+      console.log(`Found ${invoiceResults.rowCount} invoices for client`);
+      
+      // Get invoice line items for all retrieved invoices
+      const invoiceIds = invoiceResults.rows
+        .filter(invoice => invoice && typeof invoice.id === 'number')
+        .map(invoice => invoice.id);
+        
+      // Only fetch line items if we have invoices
+      let invoiceLineItemsResults = { rows: [] };
+      if (invoiceIds.length > 0) {
+        invoiceLineItemsResults = await db.execute(sql`
+          SELECT 
+            il.id,
+            il.invoice_id as "invoiceId",
+            il.description,
+            il.quantity,
+            il.unit_price as "unitPrice",
+            il.tax_rate as "taxRate",
+            il.tax_amount as "taxAmount",
+            il.discount_amount as "discountAmount",
+            il.total_amount as "totalAmount"
+          FROM invoice_line_items il
+          WHERE il.invoice_id IN (${sql.raw(invoiceIds.join(','))})
+        `);
+      }
+      
+      // Group line items by invoice ID
+      const lineItemsByInvoiceId: Record<number, any[]> = {};
+      invoiceLineItemsResults.rows.forEach(lineItem => {
+        if (lineItem && typeof lineItem.invoiceId === 'number') {
+          if (!lineItemsByInvoiceId[lineItem.invoiceId]) {
+            lineItemsByInvoiceId[lineItem.invoiceId] = [];
+          }
+          lineItemsByInvoiceId[lineItem.invoiceId].push(lineItem);
+        }
+      });
+      
+      // Add line items to invoices
+      const enrichedInvoices = invoiceResults.rows.map(invoice => {
+        if (invoice && typeof invoice.id === 'number') {
+          return {
+            ...invoice,
+            lineItems: lineItemsByInvoiceId[invoice.id] || []
+          };
+        }
+        return { ...invoice, lineItems: [] };
+      });
+      
+      res.json(enrichedInvoices);
     } catch (error) {
       console.error('Error fetching client invoices:', error);
       res.status(500).json({ message: 'Failed to fetch invoices' });
@@ -407,13 +552,29 @@ export function registerClientPortalRoutes(app: Express) {
     }
   });
   
-  // Get client tasks
+  // Get all client tasks or tasks for a specific entity
   app.get("/api/client-portal/tasks", isClientAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      console.log(`Fetching tasks for client ${user.clientId} in tenant ${user.tenantId}`);
+      const entityId = req.query.entityId ? parseInt(req.query.entityId as string) : null;
       
-      // Query the tasks table and join with task statuses to get rich data
+      if (entityId) {
+        console.log(`Fetching tasks for client ${user.clientId}, entity ${entityId} in tenant ${user.tenantId}`);
+      } else {
+        console.log(`Fetching all tasks for client ${user.clientId} in tenant ${user.tenantId}`);
+      }
+      
+      // Build WHERE clause based on whether entityId is provided
+      let whereClause = `
+        t.client_id = ${user.clientId}
+        AND t.tenant_id = ${user.tenantId}
+      `;
+      
+      if (entityId) {
+        whereClause += ` AND t.entity_id = ${entityId}`;
+      }
+      
+      // Query the tasks table and join with task statuses and entities to get rich data
       const taskResults = await db.execute(sql`
         SELECT 
           t.id,
@@ -426,6 +587,8 @@ export function registerClientPortalRoutes(app: Express) {
           ts.name as "statusName",
           ts.color as "statusColor",
           t.assignee_id as "assigneeId",
+          t.entity_id as "entityId",
+          e.name as "entityName",
           t.is_completed as "isCompleted", 
           t.completed_at as "completedAt",
           t.created_at as "createdAt",
@@ -433,18 +596,20 @@ export function registerClientPortalRoutes(app: Express) {
           t.priority 
         FROM tasks t
         LEFT JOIN task_statuses ts ON t.status_id = ts.id AND t.tenant_id = ts.tenant_id
+        LEFT JOIN entities e ON t.entity_id = e.id AND t.tenant_id = e.tenant_id
         WHERE 
-          t.client_id = ${user.clientId}
-          AND t.tenant_id = ${user.tenantId}
+          ${sql.raw(whereClause)}
         ORDER BY t.due_date DESC
       `);
       
       // If there are no tasks, return empty array
       if (taskResults.rowCount === 0) {
-        console.log('No tasks found for client');
+        if (entityId) {
+          console.log(`No tasks found for client's entity ${entityId}`);
+        } else {
+          console.log('No tasks found for client');
+        }
         
-        // Optional: We could add some sample tasks for demonstration, but following
-        // the data integrity policy, we'll return an empty array instead
         return res.json([]);
       }
       
@@ -455,6 +620,112 @@ export function registerClientPortalRoutes(app: Express) {
     } catch (error) {
       console.error('Error fetching client tasks:', error);
       res.status(500).json({ message: 'Failed to fetch tasks' });
+    }
+  });
+  
+  // Get entity services (required and subscribed)
+  app.get("/api/client-portal/entity/:entityId/services", isClientAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const entityId = parseInt(req.params.entityId);
+      
+      if (!entityId || isNaN(entityId)) {
+        return res.status(400).json({ message: 'Invalid entity ID' });
+      }
+      
+      console.log(`Fetching services for entity ${entityId} in tenant ${user.tenantId}`);
+      
+      // Verify that this entity belongs to the client
+      const entityResults = await db
+        .select()
+        .from(entities)
+        .where(and(
+          eq(entities.id, entityId),
+          eq(entities.clientId, user.clientId),
+          eq(entities.tenantId, user.tenantId)
+        ));
+      
+      if (!entityResults || entityResults.length === 0) {
+        return res.status(403).json({ message: 'You do not have access to this entity' });
+      }
+      
+      // Get country-specific services based on entity's country
+      const countryId = entityResults[0].countryId;
+      
+      // Get all available services for the country
+      const allServicesResults = await db.execute(sql`
+        SELECT 
+          s.id,
+          s.tenant_id as "tenantId",
+          s.country_id as "countryId",
+          s.name,
+          s.description,
+          s.currency_id as "currencyCode",
+          s.rate,
+          s.billing_basis as "billingBasis",
+          s.created_at as "createdAt",
+          s.is_required as "isRequired",
+          c.code as "currencyCode",
+          c.symbol as "currencySymbol"
+        FROM services s
+        LEFT JOIN currencies c ON s.currency_id = c.id
+        WHERE 
+          s.country_id = ${countryId}
+          AND s.tenant_id = ${user.tenantId}
+      `);
+      
+      // Get subscribed services for the entity
+      const subscribedServicesResults = await db.execute(sql`
+        SELECT 
+          ss.service_id as "serviceId",
+          ss.is_active as "isActive",
+          ss.start_date as "startDate",
+          ss.end_date as "endDate"
+        FROM service_subscriptions ss
+        WHERE 
+          ss.entity_id = ${entityId}
+          AND ss.tenant_id = ${user.tenantId}
+      `);
+      
+      // Create a map of subscribed services
+      const subscribedServicesMap: Record<number, any> = {};
+      subscribedServicesResults.rows.forEach(sub => {
+        if (sub && typeof sub.serviceId === 'number') {
+          subscribedServicesMap[sub.serviceId] = sub;
+        }
+      });
+      
+      // Combine all services with subscription status
+      const services = allServicesResults.rows.map(service => {
+        if (!service || typeof service.id !== 'number') {
+          return service; // Return as-is if no valid ID
+        }
+        const subscription = subscribedServicesMap[service.id];
+        return {
+          ...service,
+          isSubscribed: Boolean(subscription),
+          subscriptionActive: subscription ? subscription.isActive : false,
+          subscriptionStartDate: subscription ? subscription.startDate : null,
+          subscriptionEndDate: subscription ? subscription.endDate : null
+        };
+      });
+      
+      // Group services by required vs optional
+      const requiredServices = services.filter(service => 
+        service && typeof service === 'object' && 'isRequired' in service && service.isRequired
+      );
+      const optionalServices = services.filter(service => 
+        service && typeof service === 'object' && ('isRequired' in service ? !service.isRequired : false)
+      );
+      
+      res.json({
+        required: requiredServices,
+        optional: optionalServices,
+        entityName: entityResults[0].name
+      });
+    } catch (error) {
+      console.error('Error fetching entity services:', error);
+      res.status(500).json({ message: 'Failed to fetch entity services' });
     }
   });
   
