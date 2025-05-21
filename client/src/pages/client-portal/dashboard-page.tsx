@@ -261,6 +261,189 @@ export default function ClientPortalDashboardPage() {
             </TabsList>
           </div>
           
+          {/* Entities Tab */}
+          <TabsContent value="entities" className="space-y-6">
+            <div className="grid grid-cols-1 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Your Business Entities</CardTitle>
+                  <CardDescription>
+                    View and manage your registered businesses
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {isEntitiesLoading ? (
+                    <div className="flex justify-center py-6">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                    </div>
+                  ) : entitiesError ? (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Error</AlertTitle>
+                      <AlertDescription>
+                        Failed to load entities. Please try again later.
+                      </AlertDescription>
+                    </Alert>
+                  ) : clientEntities.length === 0 ? (
+                    <div className="text-center py-6 text-slate-500">
+                      No registered business entities
+                    </div>
+                  ) : (
+                    <div className="space-y-8">
+                      {clientEntities.map((entity: any) => (
+                        <div key={entity.id} className="border rounded-lg overflow-hidden">
+                          <div className="bg-slate-50 px-5 py-4 border-b">
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center space-x-3">
+                                <Building2 className="h-6 w-6 text-blue-500" />
+                                <div>
+                                  <h3 className="text-lg font-semibold text-slate-900">
+                                    {entity.name}
+                                  </h3>
+                                  <p className="text-sm text-slate-500">
+                                    {entity.entityType} • {entity.countryName}
+                                    {entity.stateName ? `, ${entity.stateName}` : ''}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => setActiveTab("documents")}
+                                >
+                                  <FileText className="h-4 w-4 mr-1" />
+                                  Documents
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => setActiveTab("tasks")}
+                                >
+                                  <Clock className="h-4 w-4 mr-1" />
+                                  Tasks
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="p-5">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+                              <div className="flex flex-col">
+                                <span className="text-sm text-slate-500 mb-1">Registration</span>
+                                <span className="font-medium">
+                                  {entity.registrationNumber || "Not specified"}
+                                </span>
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-sm text-slate-500 mb-1">Tax Number</span>
+                                <span className="font-medium">
+                                  {entity.taxNumber || "Not specified"}
+                                </span>
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-sm text-slate-500 mb-1">Incorporation Date</span>
+                                <span className="font-medium">
+                                  {entity.incorporationDate 
+                                    ? formatDate(entity.incorporationDate) 
+                                    : "Not specified"}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                              <div className="flex flex-col">
+                                <span className="text-sm text-slate-500 mb-1">Fiscal Year End</span>
+                                <span className="font-medium">
+                                  {entity.fiscalYearEnd || "Not specified"}
+                                </span>
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-sm text-slate-500 mb-1">Contact</span>
+                                <div className="flex flex-col">
+                                  {entity.email && <span className="text-sm">{entity.email}</span>}
+                                  {entity.phone && <span className="text-sm">{entity.phone}</span>}
+                                  {entity.website && (
+                                    <a 
+                                      href={entity.website.startsWith('http') 
+                                        ? entity.website 
+                                        : `https://${entity.website}`} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-sm text-blue-500 hover:underline"
+                                    >
+                                      {entity.website}
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 gap-5 mb-5">
+                              <div className="flex flex-col">
+                                <span className="text-sm text-slate-500 mb-1">Address</span>
+                                <address className="not-italic">
+                                  {entity.addressLine1}
+                                  {entity.addressLine2 && <span>, {entity.addressLine2}</span>}
+                                  <br />
+                                  {entity.city}
+                                  {entity.stateProvince && <span>, {entity.stateProvince}</span>}
+                                  {entity.postalCode && <span> {entity.postalCode}</span>}
+                                  <br />
+                                  {entity.countryName}
+                                </address>
+                              </div>
+                            </div>
+                            
+                            <div className="border-t pt-5 mt-5">
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                                <div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium">Tasks</span>
+                                    <Badge>{entity.stats?.taskCount || 0}</Badge>
+                                  </div>
+                                  <Progress 
+                                    value={entity.stats?.taskCount ? Math.min(entity.stats.taskCount * 10, 100) : 0} 
+                                    className="h-2 mt-2" 
+                                  />
+                                </div>
+                                <div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium">Invoices</span>
+                                    <Badge>{entity.stats?.invoiceCount || 0}</Badge>
+                                  </div>
+                                  <Progress 
+                                    value={entity.stats?.invoiceCount ? Math.min(entity.stats.invoiceCount * 10, 100) : 0} 
+                                    className="h-2 mt-2" 
+                                  />
+                                </div>
+                                <div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium">Services</span>
+                                    <Badge>View</Badge>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="w-full mt-2"
+                                    onClick={() => window.location.href = `/client-portal/entity/${entity.id}/services`}
+                                  >
+                                    <CircleDollarSign className="h-4 w-4 mr-2" />
+                                    Manage Services
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+          
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -320,12 +320,18 @@ export function registerClientPortalRoutes(app: Express) {
       // Get entity types for each entity along with additional metadata
       const enrichedEntities = await Promise.all(entityResults.map(async (entity) => {
         // Get entity type information
-        const entityTypeResult = await db
-          .execute(sql`
-            SELECT et.name as "entityType"
-            FROM entity_types et 
-            WHERE et.id = ${entity.entityTypeId} AND et.tenant_id = ${user.tenantId}
-          `);
+        let entityTypeResult;
+        try {
+          entityTypeResult = await db
+            .execute(sql`
+              SELECT et.name as "entityType"
+              FROM entity_types et 
+              WHERE et.id = ${entity.entityTypeId} AND et.tenant_id = ${user.tenantId}
+            `);
+        } catch (error) {
+          console.error(`Error getting entity type for entity ${entity.id}:`, error);
+          entityTypeResult = { rows: [] };
+        }
         
         const entityType = entityTypeResult.rows[0]?.entityType || 'Unknown';
         
@@ -364,8 +370,7 @@ export function registerClientPortalRoutes(app: Express) {
         // Return enriched entity data
         return {
           ...entity,
-          entityType,
-          entityTypeDescription,
+          entityType: entityType,
           countryName,
           countryCode,
           stateName,
