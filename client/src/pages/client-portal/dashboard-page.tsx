@@ -686,93 +686,136 @@ export default function ClientPortalDashboardPage() {
                       Failed to load tasks. Please try again later.
                     </AlertDescription>
                   </Alert>
-                ) : clientTasks.length === 0 ? (
-                  <div className="text-center py-6 text-slate-500">
-                    No tasks found
-                  </div>
                 ) : (
                   <div className="space-y-6">
-                    {/* Pending Tasks */}
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Pending Tasks</h3>
-                      <div className="space-y-4">
-                        {clientTasks
-                          .filter((task: any) => task.status.toLowerCase() !== "completed")
-                          .map((task: any) => (
-                            <div key={task.id} className="flex items-start p-4 border rounded-md">
-                              <div className="flex-shrink-0 mt-1 mr-4">
-                                <Clock className="h-5 w-5 text-slate-400" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex justify-between">
-                                  <p className="text-sm font-medium text-slate-900">
-                                    {task.title}
-                                  </p>
-                                  <Badge variant={getTaskStatusVariant(task.status)}>
-                                    {task.status}
-                                  </Badge>
-                                </div>
-                                <p className="text-sm text-slate-500 mt-1">
-                                  {task.description}
-                                </p>
-                                <div className="mt-2 flex items-center text-xs text-slate-500">
-                                  <Calendar className="h-3 w-3 mr-1" />
-                                  Due: {formatDate(task.dueDate)}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        
-                        {clientTasks.filter(
-                          (task: any) => task.status.toLowerCase() !== "completed"
-                        ).length === 0 && (
-                          <div className="text-center py-4 text-slate-500 border rounded-md">
-                            No pending tasks
-                          </div>
-                        )}
+                    {/* Check if any tasks exist */}
+                    {!clientTasks || clientTasks.length === 0 ? (
+                      <div className="text-center py-6 text-slate-500">
+                        No tasks found
                       </div>
-                    </div>
-                    
-                    {/* Completed Tasks */}
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Completed Tasks</h3>
-                      <div className="space-y-4">
-                        {clientTasks
-                          .filter((task: any) => task.status.toLowerCase() === "completed")
-                          .map((task: any) => (
-                            <div key={task.id} className="flex items-start p-4 border rounded-md bg-gray-50">
-                              <div className="flex-shrink-0 mt-1 mr-4">
-                                <CheckCircle className="h-5 w-5 text-green-500" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex justify-between">
-                                  <p className="text-sm font-medium text-slate-900">
-                                    {task.title}
-                                  </p>
-                                  <Badge variant="success">
-                                    Completed
-                                  </Badge>
+                    ) : (
+                      <>
+                        {/* Pending Tasks Section */}
+                        <div>
+                          <h3 className="text-lg font-medium mb-4">Pending Tasks</h3>
+                          <div className="space-y-4">
+                            {(() => {
+                              // Safely filter tasks based on entity and status
+                              const pendingTasks = clientTasks.filter((task: any) => {
+                                // Filter by entity if selected
+                                if (selectedEntityId && task.entityId !== selectedEntityId) {
+                                  return false;
+                                }
+                                // Only pending tasks
+                                return task.status.toLowerCase() !== "completed";
+                              });
+                              
+                              // Show message if no pending tasks
+                              if (pendingTasks.length === 0) {
+                                return (
+                                  <div className="text-center py-4 text-slate-500 border rounded-md">
+                                    {selectedEntityId ? 'No pending tasks for this entity' : 'No pending tasks'}
+                                  </div>
+                                );
+                              }
+                              
+                              // Display pending tasks
+                              return pendingTasks.map((task: any) => (
+                                <div key={task.id} className="flex items-start p-4 border rounded-md">
+                                  <div className="flex-shrink-0 mt-1 mr-4">
+                                    <Clock className="h-5 w-5 text-slate-400" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex justify-between">
+                                      <p className="text-sm font-medium text-slate-900">
+                                        {task.title}
+                                      </p>
+                                      <Badge variant={getTaskStatusVariant(task.status)}>
+                                        {task.status}
+                                      </Badge>
+                                    </div>
+                                    <p className="text-sm text-slate-500 mt-1">
+                                      {task.description}
+                                    </p>
+                                    <div className="mt-2 flex items-center text-xs text-slate-500">
+                                      <Calendar className="h-3 w-3 mr-1" />
+                                      Due: {formatDate(task.dueDate)}
+                                    </div>
+                                    {!selectedEntityId && task.entityId && clientEntities && (
+                                      <div className="mt-2">
+                                        <Badge variant="outline" className="text-xs">
+                                          {clientEntities.find((e: any) => e.id === task.entityId)?.name || 'Entity'}
+                                        </Badge>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                                <p className="text-sm text-slate-500 mt-1">
-                                  {task.description}
-                                </p>
-                                <div className="mt-2 flex items-center text-xs text-slate-500">
-                                  <Calendar className="h-3 w-3 mr-1" />
-                                  Completed on: {formatDate(task.completedDate || task.updatedAt || task.dueDate)}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        
-                        {clientTasks.filter(
-                          (task: any) => task.status.toLowerCase() === "completed"
-                        ).length === 0 && (
-                          <div className="text-center py-4 text-slate-500 border rounded-md">
-                            No completed tasks
+                              ));
+                            })()}
                           </div>
-                        )}
-                      </div>
-                    </div>
+                        </div>
+                        
+                        {/* Completed Tasks Section */}
+                        <div>
+                          <h3 className="text-lg font-medium mb-4">Completed Tasks</h3>
+                          <div className="space-y-4">
+                            {(() => {
+                              // Safely filter tasks based on entity and status
+                              const completedTasks = clientTasks.filter((task: any) => {
+                                // Filter by entity if selected
+                                if (selectedEntityId && task.entityId !== selectedEntityId) {
+                                  return false;
+                                }
+                                // Only completed tasks
+                                return task.status.toLowerCase() === "completed";
+                              });
+                              
+                              // Show message if no completed tasks
+                              if (completedTasks.length === 0) {
+                                return (
+                                  <div className="text-center py-4 text-slate-500 border rounded-md">
+                                    {selectedEntityId ? 'No completed tasks for this entity' : 'No completed tasks'}
+                                  </div>
+                                );
+                              }
+                              
+                              // Display completed tasks
+                              return completedTasks.map((task: any) => (
+                                <div key={task.id} className="flex items-start p-4 border rounded-md bg-gray-50">
+                                  <div className="flex-shrink-0 mt-1 mr-4">
+                                    <CheckCircle className="h-5 w-5 text-green-500" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex justify-between">
+                                      <p className="text-sm font-medium text-slate-900">
+                                        {task.title}
+                                      </p>
+                                      <Badge variant="success">
+                                        Completed
+                                      </Badge>
+                                    </div>
+                                    <p className="text-sm text-slate-500 mt-1">
+                                      {task.description}
+                                    </p>
+                                    <div className="mt-2 flex items-center text-xs text-slate-500">
+                                      <Calendar className="h-3 w-3 mr-1" />
+                                      Completed on: {formatDate(task.completedDate || task.updatedAt || task.dueDate)}
+                                    </div>
+                                    {!selectedEntityId && task.entityId && clientEntities && (
+                                      <div className="mt-2">
+                                        <Badge variant="outline" className="text-xs">
+                                          {clientEntities.find((e: any) => e.id === task.entityId)?.name || 'Entity'}
+                                        </Badge>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ));
+                            })()}
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </CardContent>
