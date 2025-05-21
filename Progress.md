@@ -3,6 +3,38 @@
 ## Overview
 This document provides a comprehensive overview of the progress made on the Accounting Firm Management Application, a multi-tenant system designed for accounting firms to manage clients, tasks, users, permissions, and system configuration across different countries and service types.
 
+## Latest Updates (May 21, 2025)
+
+### Client Portal Implementation
+- Implemented a complete client portal system for clients to access their financial information:
+  - Created secure client portal authentication separate from staff authentication
+  - Built client portal login page with password reset capabilities 
+  - Implemented client portal user management through Portal Access tab in client details
+  - Developed client dashboard showing client-specific financial data and tasks
+  - Created entity-wise display showing real business data (tax ID, VAT status, addresses)
+  - Implemented entity-specific filtering for tasks when clicking from entity cards
+  - Added dedicated "Invoices" tab with entity-specific invoice filtering 
+  - Enhanced UI with sleeker entity cards and reduced card heights for better usability
+  - Added proper navigation between different portal sections (Tasks, Invoices, Documents)
+  - Implemented secure document access system with document type categorization
+
+### Client Portal Authentication System
+- Created a separate authentication system specifically for client portal users:
+  - Implemented client portal user schema with client and tenant relationships
+  - Added password reset functionality with secure token generation
+  - Created API endpoints for client portal authentication
+  - Implemented session management for client portal users
+  - Added middleware to protect client portal routes
+  - Created client portal credential management for staff to create/manage client access
+
+### Client-Specific Data Access
+- Implemented secure data access controls ensuring clients only see their own data:
+  - Added tenant and client filtering for all data queries
+  - Created entity-specific filtering for tasks, invoices and documents
+  - Implemented proper data loading states and error handling
+  - Added fallback UI for cases when no data is available
+  - Ensured all API endpoints enforce proper client access restrictions
+
 ## Latest Updates (May 11, 2025)
 
 ### Auto Generated Tasks Critical Fixes
