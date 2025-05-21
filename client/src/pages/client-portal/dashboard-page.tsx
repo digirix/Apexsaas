@@ -271,6 +271,7 @@ export default function ClientPortalDashboardPage() {
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="entities">Entities</TabsTrigger>
               <TabsTrigger value="tasks">Tasks</TabsTrigger>
+              <TabsTrigger value="invoices">Invoices</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
             </TabsList>
           </div>
