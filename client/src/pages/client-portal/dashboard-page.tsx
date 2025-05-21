@@ -842,6 +842,178 @@ export default function ClientPortalDashboardPage() {
             </Card>
           </TabsContent>
           
+          {/* Invoices Tab */}
+          <TabsContent value="invoices" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Your Invoices</CardTitle>
+                <CardDescription>
+                  View and manage your invoices
+                  {selectedEntityId && (
+                    <Badge className="ml-2 bg-blue-100 text-blue-800 hover:bg-blue-200">
+                      Filtered by entity
+                    </Badge>
+                  )}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isInvoicesLoading ? (
+                  <div className="flex justify-center py-6">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  </div>
+                ) : invoicesError ? (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>
+                      Failed to load invoices. Please try again later.
+                    </AlertDescription>
+                  </Alert>
+                ) : clientInvoices && clientInvoices.length === 0 ? (
+                  <div className="text-center py-6 text-slate-500">
+                    No invoices available
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Unpaid Invoices Section */}
+                    <div>
+                      <h3 className="text-lg font-medium mb-4">Unpaid Invoices</h3>
+                      <div className="space-y-4">
+                        {(() => {
+                          // Filter unpaid invoices, considering entity selection
+                          const unpaidInvoices = clientInvoices.filter((invoice: any) => {
+                            // Filter by entity if selected
+                            if (selectedEntityId && invoice.entityId !== selectedEntityId) {
+                              return false;
+                            }
+                            return invoice.status.toLowerCase() !== "paid";
+                          });
+                          
+                          // Show message if no unpaid invoices
+                          if (unpaidInvoices.length === 0) {
+                            return (
+                              <div className="text-center py-4 text-slate-500 border rounded-md">
+                                {selectedEntityId ? 'No unpaid invoices for this entity' : 'No unpaid invoices'}
+                              </div>
+                            );
+                          }
+                          
+                          // Display unpaid invoices
+                          return unpaidInvoices.map((invoice: any) => (
+                            <div key={invoice.id} className="flex items-start p-4 border rounded-md">
+                              <div className="flex-shrink-0 mt-1 mr-4">
+                                <Receipt className="h-5 w-5 text-orange-500" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-center">
+                                  <p className="text-sm font-medium text-slate-900">
+                                    Invoice #{invoice.invoiceNumber}
+                                  </p>
+                                  <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
+                                    {invoice.status}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-slate-500 mt-1">
+                                  {invoice.description || 'Services rendered'}
+                                </p>
+                                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
+                                  <div className="flex items-center">
+                                    <Calendar className="h-3 w-3 mr-1" />
+                                    Date: {formatDate(invoice.invoiceDate)}
+                                  </div>
+                                  <div className="flex items-center">
+                                    <CircleDollarSign className="h-3 w-3 mr-1" />
+                                    Amount: ${invoice.totalAmount?.toFixed(2) || '0.00'}
+                                  </div>
+                                  {invoice.entityId && (
+                                    <div className="flex items-center">
+                                      <Building2 className="h-3 w-3 mr-1" />
+                                      Entity: {clientEntities.find((e: any) => e.id === invoice.entityId)?.name || 'Unknown'}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <Button size="sm" variant="outline" className="ml-2">
+                                View Details
+                              </Button>
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    </div>
+                    
+                    {/* Paid Invoices Section */}
+                    <div>
+                      <h3 className="text-lg font-medium mb-4">Paid Invoices</h3>
+                      <div className="space-y-4">
+                        {(() => {
+                          // Filter paid invoices, considering entity selection
+                          const paidInvoices = clientInvoices.filter((invoice: any) => {
+                            // Filter by entity if selected
+                            if (selectedEntityId && invoice.entityId !== selectedEntityId) {
+                              return false;
+                            }
+                            return invoice.status.toLowerCase() === "paid";
+                          });
+                          
+                          // Show message if no paid invoices
+                          if (paidInvoices.length === 0) {
+                            return (
+                              <div className="text-center py-4 text-slate-500 border rounded-md">
+                                {selectedEntityId ? 'No paid invoices for this entity' : 'No paid invoices'}
+                              </div>
+                            );
+                          }
+                          
+                          // Display paid invoices
+                          return paidInvoices.map((invoice: any) => (
+                            <div key={invoice.id} className="flex items-start p-4 border rounded-md bg-gray-50">
+                              <div className="flex-shrink-0 mt-1 mr-4">
+                                <Receipt className="h-5 w-5 text-green-500" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-center">
+                                  <p className="text-sm font-medium text-slate-900">
+                                    Invoice #{invoice.invoiceNumber}
+                                  </p>
+                                  <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                                    Paid
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-slate-500 mt-1">
+                                  {invoice.description || 'Services rendered'}
+                                </p>
+                                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
+                                  <div className="flex items-center">
+                                    <Calendar className="h-3 w-3 mr-1" />
+                                    Date: {formatDate(invoice.invoiceDate)}
+                                  </div>
+                                  <div className="flex items-center">
+                                    <CircleDollarSign className="h-3 w-3 mr-1" />
+                                    Amount: ${invoice.totalAmount?.toFixed(2) || '0.00'}
+                                  </div>
+                                  {invoice.entityId && (
+                                    <div className="flex items-center">
+                                      <Building2 className="h-3 w-3 mr-1" />
+                                      Entity: {clientEntities.find((e: any) => e.id === invoice.entityId)?.name || 'Unknown'}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <Button size="sm" variant="outline" className="ml-2">
+                                View Details
+                              </Button>
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
           {/* Documents Tab */}
           <TabsContent value="documents" className="space-y-6">
             <Card>
