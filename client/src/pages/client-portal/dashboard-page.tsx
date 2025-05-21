@@ -592,7 +592,10 @@ export default function ClientPortalDashboardPage() {
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            onClick={() => setActiveTab("tasks")}
+                            onClick={() => {
+                              setSelectedEntityId(null); // Clear any entity filtering
+                              setActiveTab("tasks"); // Switch to tasks tab to show all tasks
+                            }}
                           >
                             View all tasks
                           </Button>
