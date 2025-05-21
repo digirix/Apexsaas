@@ -23,7 +23,13 @@ import {
   FileBox, 
   BarChart, 
   Mail, 
-  Building 
+  Building,
+  Building2,
+  CircleDollarSign,
+  Briefcase,
+  Globe,
+  Map,
+  MapPin 
 } from "lucide-react";
 import {
   Alert,
@@ -68,6 +74,16 @@ export default function ClientPortalDashboardPage() {
     error: documentsError,
   } = useQuery({
     queryKey: ["/api/client-portal/documents"],
+    enabled: !!clientProfile
+  });
+  
+  // Fetch client entities
+  const {
+    data: clientEntities = [],
+    isLoading: isEntitiesLoading,
+    error: entitiesError,
+  } = useQuery({
+    queryKey: ["/api/client-portal/entities"],
     enabled: !!clientProfile
   });
   
@@ -239,6 +255,7 @@ export default function ClientPortalDashboardPage() {
           <div className="flex justify-between items-center mb-6">
             <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="entities">Entities</TabsTrigger>
               <TabsTrigger value="tasks">Tasks</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
             </TabsList>

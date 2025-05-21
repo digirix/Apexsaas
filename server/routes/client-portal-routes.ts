@@ -322,13 +322,12 @@ export function registerClientPortalRoutes(app: Express) {
         // Get entity type information
         const entityTypeResult = await db
           .execute(sql`
-            SELECT et.name as "entityType", et.description as "entityTypeDescription"
+            SELECT et.name as "entityType"
             FROM entity_types et 
             WHERE et.id = ${entity.entityTypeId} AND et.tenant_id = ${user.tenantId}
           `);
         
         const entityType = entityTypeResult.rows[0]?.entityType || 'Unknown';
-        const entityTypeDescription = entityTypeResult.rows[0]?.entityTypeDescription || '';
         
         // Get country and state information
         const locationResult = await db
