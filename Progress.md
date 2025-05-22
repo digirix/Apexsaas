@@ -3,9 +3,38 @@
 ## Overview
 This document provides a comprehensive overview of the progress made on the Accounting Firm Management Application, a multi-tenant system designed for accounting firms to manage clients, tasks, users, permissions, and system configuration across different countries and service types.
 
-## Latest Updates (May 21, 2025)
+## Latest Updates (May 22, 2025)
 
-### Client Portal Implementation
+### WhatsApp Group Link Integration - COMPLETED
+- Fully integrated WhatsApp Group functionality across the application:
+  - **Database Schema**: Added `whatsappGroupLink` field to entities table with proper VARCHAR type
+  - **Entity Creation**: Added WhatsApp Group Link field to Add Entity modal with URL validation
+  - **Entity Editing**: Added WhatsApp Group Link field to Edit Entity modal with form reset handling
+  - **Client Portal Display**: Added WhatsApp buttons to entity cards that open WhatsApp links in new tabs
+  - **API Integration**: Updated entity APIs to handle WhatsApp link field in create/update operations
+  - **Form Validation**: Implemented proper URL validation for WhatsApp links with optional field handling
+  - **UI/UX Enhancement**: Added WhatsApp icon buttons with hover effects and proper accessibility
+
+### Client Portal Layout & Header Integration - COMPLETED
+- Integrated Client Portal Header & Footer settings with existing layout system:
+  - **Unified Layout System**: Merged client portal header/footer settings with general layout to avoid duplication
+  - **Header Configuration**: Enable/disable toggle, title, subtitle, logo text, contact info display, business hours
+  - **Footer Configuration**: Enable/disable toggle, copyright text, support email/phone, disclaimer text, additional links
+  - **Settings Integration**: Added to General Settings page under Client Portal Header & Footer section
+  - **Database Storage**: Proper tenant-specific storage of header/footer configuration
+  - **Dynamic Rendering**: Real-time updates to client portal appearance based on settings
+
+### Task Management Enhancement - COMPLETED  
+- Enhanced task visibility in Client Portal:
+  - **Assignee Display**: Added assignee name to task list in Client Portal Tasks tab
+  - **Task Information**: Shows assigned person's name for better task management visibility
+  - **User Integration**: Properly linked tasks with user assignments for client transparency
+
+### Account Manager Card Removal - COMPLETED
+- Removed Account Manager card from Client Portal dashboard as requested
+- Simplified dashboard layout focusing on entity information and direct actions
+
+### Client Portal Implementation - COMPLETED
 - Implemented a complete client portal system for clients to access their financial information:
   - Created secure client portal authentication separate from staff authentication
   - Built client portal login page with password reset capabilities 
@@ -18,7 +47,7 @@ This document provides a comprehensive overview of the progress made on the Acco
   - Added proper navigation between different portal sections (Tasks, Invoices, Documents)
   - Implemented secure document access system with document type categorization
 
-### Client Portal Authentication System
+### Client Portal Authentication System - COMPLETED
 - Created a separate authentication system specifically for client portal users:
   - Implemented client portal user schema with client and tenant relationships
   - Added password reset functionality with secure token generation
@@ -27,7 +56,7 @@ This document provides a comprehensive overview of the progress made on the Acco
   - Added middleware to protect client portal routes
   - Created client portal credential management for staff to create/manage client access
 
-### Client-Specific Data Access
+### Client-Specific Data Access - COMPLETED
 - Implemented secure data access controls ensuring clients only see their own data:
   - Added tenant and client filtering for all data queries
   - Created entity-specific filtering for tasks, invoices and documents
