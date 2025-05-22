@@ -227,45 +227,7 @@ export function setupClientPortalAuth(app: Express) {
     }
   });
   
-  // Client tasks endpoint
-  app.get('/api/client-portal/tasks', isClientAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as ClientPortalUser;
-      
-      // Placeholder for now - will implement actual task fetching later
-      const mockTasks = [
-        {
-          id: 1,
-          title: "Annual Tax Filing",
-          description: "Submit your annual tax return",
-          status: "In Progress",
-          dueDate: new Date().toISOString(),
-          completedDate: null,
-        },
-        {
-          id: 2,
-          title: "Quarterly GST/HST Filing",
-          description: "Submit your quarterly GST/HST return",
-          status: "Completed",
-          dueDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString(),
-          completedDate: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString(),
-        },
-        {
-          id: 3,
-          title: "Financial Statement Review",
-          description: "Review your financial statements",
-          status: "Not Started",
-          dueDate: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString(),
-          completedDate: null,
-        }
-      ];
-      
-      res.status(200).json(mockTasks);
-    } catch (error) {
-      console.error('Error fetching client tasks:', error);
-      res.status(500).json({ message: 'Error fetching client tasks' });
-    }
-  });
+  // Note: Client tasks endpoint is now handled in client-portal-routes.ts
   
   // Client documents endpoint
   app.get('/api/client-portal/documents', isClientAuthenticated, async (req, res) => {
