@@ -152,9 +152,11 @@ export function GeneralSettings() {
         { key: "footer_additional_links", value: footerAdditionalLinks }
       ];
       
-      // Save each setting
+      // Save each setting (only non-empty values)
       for (const setting of settingsToSave) {
-        await saveSettingMutation.mutateAsync(setting);
+        if (setting.value && setting.value.trim() !== '') {
+          await saveSettingMutation.mutateAsync(setting);
+        }
       }
       
       toast({
