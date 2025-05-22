@@ -185,7 +185,8 @@ export function GeneralSettings() {
   }
   
   return (
-    <Card className="w-full">
+    <div className="space-y-6">
+      <Card className="w-full">
       <CardHeader>
         <CardTitle>General Settings</CardTitle>
         <CardDescription>Manage your company information and branding preferences</CardDescription>
@@ -382,6 +383,211 @@ export function GeneralSettings() {
           )}
         </div>
       </CardContent>
+      </Card>
+
+      {/* Client Portal Header & Footer Configuration */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <div className="h-5 w-5 rounded bg-gradient-to-r from-blue-500 to-purple-500"></div>
+            Client Portal Header & Footer
+          </CardTitle>
+          <CardDescription>
+            Configure the header and footer that appear in your client portal. These settings will be immediately visible to your clients.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-8">
+          {/* Header Configuration */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="h-1 w-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded"></div>
+              <h3 className="text-lg font-semibold">Header Configuration</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="header-enabled"
+                    checked={headerEnabled}
+                    onCheckedChange={setHeaderEnabled}
+                  />
+                  <Label htmlFor="header-enabled" className="font-medium">Enable Header</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">Show header section in client portal</p>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="header-contact-info"
+                    checked={headerContactInfo}
+                    onCheckedChange={setHeaderContactInfo}
+                    disabled={!headerEnabled}
+                  />
+                  <Label htmlFor="header-contact-info" className="font-medium">Show Contact Info</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">Display contact information in header</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="header-title">Header Title</Label>
+                <Input
+                  id="header-title"
+                  value={headerTitle}
+                  onChange={(e) => setHeaderTitle(e.target.value)}
+                  placeholder="Welcome to Client Portal"
+                  disabled={!headerEnabled}
+                />
+                <p className="text-sm text-muted-foreground">Main title displayed in header</p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="header-subtitle">Header Subtitle</Label>
+                <Input
+                  id="header-subtitle"
+                  value={headerSubtitle}
+                  onChange={(e) => setHeaderSubtitle(e.target.value)}
+                  placeholder="Your trusted accounting partner"
+                  disabled={!headerEnabled}
+                />
+                <p className="text-sm text-muted-foreground">Subtitle or tagline</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="header-logo-text">Logo Text</Label>
+                <Input
+                  id="header-logo-text"
+                  value={headerLogoText}
+                  onChange={(e) => setHeaderLogoText(e.target.value)}
+                  placeholder="Company Logo Text"
+                  disabled={!headerEnabled}
+                />
+                <p className="text-sm text-muted-foreground">Text to display as logo</p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="header-business-hours">Business Hours</Label>
+                <Input
+                  id="header-business-hours"
+                  value={headerBusinessHours}
+                  onChange={(e) => setHeaderBusinessHours(e.target.value)}
+                  placeholder="Mon-Fri: 9AM-5PM"
+                  disabled={!headerEnabled}
+                />
+                <p className="text-sm text-muted-foreground">Business hours to display</p>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Footer Configuration */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="h-1 w-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded"></div>
+              <h3 className="text-lg font-semibold">Footer Configuration</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="footer-enabled"
+                    checked={footerEnabled}
+                    onCheckedChange={setFooterEnabled}
+                  />
+                  <Label htmlFor="footer-enabled" className="font-medium">Enable Footer</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">Show footer section in client portal</p>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="footer-company-info"
+                    checked={footerCompanyInfo}
+                    onCheckedChange={setFooterCompanyInfo}
+                    disabled={!footerEnabled}
+                  />
+                  <Label htmlFor="footer-company-info" className="font-medium">Show Company Info</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">Display company details in footer</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="footer-copyright">Copyright Text</Label>
+                <Input
+                  id="footer-copyright"
+                  value={footerCopyright}
+                  onChange={(e) => setFooterCopyright(e.target.value)}
+                  placeholder="© 2025 Your Company Name"
+                  disabled={!footerEnabled}
+                />
+                <p className="text-sm text-muted-foreground">Copyright notice</p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="footer-support-email">Support Email</Label>
+                <Input
+                  id="footer-support-email"
+                  type="email"
+                  value={footerSupportEmail}
+                  onChange={(e) => setFooterSupportEmail(e.target.value)}
+                  placeholder="support@company.com"
+                  disabled={!footerEnabled}
+                />
+                <p className="text-sm text-muted-foreground">Email for client support</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="footer-support-phone">Support Phone</Label>
+                <Input
+                  id="footer-support-phone"
+                  value={footerSupportPhone}
+                  onChange={(e) => setFooterSupportPhone(e.target.value)}
+                  placeholder="+1 (555) 123-4567"
+                  disabled={!footerEnabled}
+                />
+                <p className="text-sm text-muted-foreground">Phone number for client support</p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="footer-additional-links">Additional Links</Label>
+                <Input
+                  id="footer-additional-links"
+                  value={footerAdditionalLinks}
+                  onChange={(e) => setFooterAdditionalLinks(e.target.value)}
+                  placeholder="Privacy Policy | Terms of Service"
+                  disabled={!footerEnabled}
+                />
+                <p className="text-sm text-muted-foreground">Links separated by |</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="footer-disclaimer">Disclaimer Text</Label>
+              <Textarea
+                id="footer-disclaimer"
+                value={footerDisclaimerText}
+                onChange={(e) => setFooterDisclaimerText(e.target.value)}
+                placeholder="Professional disclaimer or legal notice for your clients..."
+                rows={3}
+                disabled={!footerEnabled}
+              />
+              <p className="text-sm text-muted-foreground">Legal disclaimer or important notice</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
       
       <CardFooter>
         <Button 
@@ -402,6 +608,6 @@ export function GeneralSettings() {
           )}
         </Button>
       </CardFooter>
-    </Card>
+    </div>
   );
 }
