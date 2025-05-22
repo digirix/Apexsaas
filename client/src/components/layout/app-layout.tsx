@@ -43,6 +43,38 @@ export function AppLayout({ children, title }: AppLayoutProps) {
     );
   }
 
+  // Elegant layout with sophisticated design
+  if (designStyle === "elegant") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100 relative">
+        {/* Elegant Background Elements */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-blue-100/30 to-purple-100/20 rounded-full blur-3xl transform translate-x-1/3 -translate-y-1/3" />
+          <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-indigo-100/25 to-blue-100/15 rounded-full blur-3xl transform -translate-x-1/4 translate-y-1/4" />
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-r from-gray-100/20 to-slate-100/10 rounded-full blur-2xl" />
+        </div>
+
+        <div className="min-h-screen flex relative z-10">
+          <div className="shadow-xl border-r border-gray-200/50">
+            <Sidebar />
+          </div>
+          
+          <div className="flex-1 flex flex-col min-h-screen md:ml-0">
+            <div className="shadow-md border-b border-gray-200/30 backdrop-blur-sm">
+              <Header title={title} />
+            </div>
+            
+            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pt-24 md:pt-6">
+              <div className="max-w-7xl mx-auto">
+                {children}
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Animated layout with stunning effects
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40 relative overflow-hidden">

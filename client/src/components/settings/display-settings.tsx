@@ -183,6 +183,15 @@ export function DisplaySettings() {
                 </div>
               </Label>
             </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="elegant" id="style-elegant" />
+              <Label htmlFor="style-elegant">
+                <div>
+                  <div className="font-medium">Elegant</div>
+                  <div className="text-sm text-muted-foreground">Sophisticated design with refined gradients, subtle shadows, and premium aesthetics</div>
+                </div>
+              </Label>
+            </div>
           </RadioGroup>
         </div>
         

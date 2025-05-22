@@ -146,6 +146,104 @@ export function Header({ title, subtitle }: HeaderProps) {
     );
   }
 
+  // Elegant header with sophisticated design
+  if (designStyle === "elegant") {
+    return (
+      <header className={cn(
+        "bg-white/95 backdrop-blur-md shadow-lg z-20 border-b border-gray-200/50",
+        "fixed top-0 left-0 right-0 md:sticky"
+      )}>
+        <div className="px-4 sm:px-6 lg:px-8 mx-auto">
+          <div className="flex justify-between h-16">
+            {/* Left side - Title (hidden on mobile) */}
+            <div className="hidden md:flex flex-col justify-center">
+              <h1 className="text-xl font-semibold bg-gradient-to-r from-gray-800 via-slate-700 to-gray-900 bg-clip-text text-transparent">
+                {title}
+              </h1>
+              {subtitle && (
+                <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>
+              )}
+            </div>
+
+            {/* Center - Search */}
+            <div className="flex-1 md:flex-initial flex items-center justify-center md:ml-8 max-w-lg">
+              <div className="relative w-full max-w-md mx-auto md:mx-0">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-4 w-4 text-gray-400" />
+                </div>
+                <Input 
+                  type="search" 
+                  placeholder="Search..." 
+                  className="pl-10 h-9 md:w-64 lg:w-72 bg-white/80 backdrop-blur-sm border border-gray-200/60 shadow-sm rounded-lg hover:bg-white/90 focus:bg-white transition-all duration-200"
+                />
+              </div>
+            </div>
+
+            {/* Right side - User actions */}
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100/60 backdrop-blur-sm rounded-lg transition-all duration-200"
+              >
+                <span className="sr-only">View notifications</span>
+                <div className="relative">
+                  <Bell className="h-5 w-5" />
+                  <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white shadow-sm"></span>
+                </div>
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="flex items-center space-x-3 focus:outline-none h-auto px-2 hover:bg-gray-100/60 backdrop-blur-sm rounded-lg transition-all duration-200"
+                  >
+                    <Avatar className="h-8 w-8 border-2 border-gray-200/60 shadow-sm">
+                      <AvatarFallback className="bg-gradient-to-br from-gray-500 to-slate-600 text-white font-medium">
+                        {user ? getInitials(user.displayName) : "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="text-left hidden md:block">
+                      <p className="text-sm font-medium text-gray-700">
+                        {user?.displayName}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {user?.isSuperAdmin ? "Super Admin" : "Member"}
+                      </p>
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-gray-400" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 bg-white/95 backdrop-blur-md border border-gray-200/50 shadow-xl rounded-lg">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="hover:bg-gray-50/80 rounded-md">
+                    <span>Profile</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="hover:bg-gray-50/80 rounded-md">
+                    <span>Settings</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="hover:bg-red-50/80 rounded-md">
+                    <span>Logout</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+          
+          {/* Mobile title - visible only on mobile */}
+          <div className="md:hidden -mt-3 pb-2">
+            <h1 className="text-lg font-semibold bg-gradient-to-r from-gray-800 to-slate-700 bg-clip-text text-transparent">
+              {title}
+            </h1>
+          </div>
+        </div>
+      </header>
+    );
+  }
+
   // Animated header with stunning effects
   return (
     <motion.header 
