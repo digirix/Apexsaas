@@ -342,18 +342,7 @@ export default function ClientPortalDashboardPage() {
                                 </div>
                               </div>
                               <div className="flex items-center space-x-1">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  className="h-7 text-xs px-2 py-1 hover:bg-blue-50 text-slate-600 hover:text-blue-600"
-                                  onClick={() => {
-                                    setSelectedEntityId(entity.id);
-                                    setActiveTab("documents");
-                                  }}
-                                >
-                                  <FileText className="h-3 w-3 mr-1" />
-                                  Docs
-                                </Button>
+
                                 <Button 
                                   variant="ghost" 
                                   size="sm"
@@ -503,17 +492,17 @@ export default function ClientPortalDashboardPage() {
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-slate-500">
-                    Recent Documents
+                    Open Invoices
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {clientDocuments ? clientDocuments.length : "0"}
+                    {clientInvoices ? clientInvoices.filter((inv: any) => inv.status !== 'Paid').length : "0"}
                   </div>
                   <p className="text-xs text-slate-500 mt-2">
-                    {clientDocuments && clientDocuments.length > 0
-                      ? `Last updated: ${formatDate(clientDocuments[0].date)}`
-                      : "No documents available"}
+                    {clientInvoices && clientInvoices.length > 0
+                      ? `Total: ${clientInvoices.length} invoices`
+                      : "No invoices available"}
                   </p>
                 </CardContent>
               </Card>
