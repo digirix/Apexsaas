@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { TenantSetting } from "@shared/schema";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Card, 
@@ -145,6 +146,41 @@ export default function ClientPortalDashboardPage() {
     queryKey: ["/api/client-portal/entities"],
     enabled: !!clientProfile
   });
+
+  // Fetch tenant settings for header and footer
+  const { data: tenantSettings = [] } = useQuery<TenantSetting[]>({
+    queryKey: ["/api/v1/tenant/settings"],
+    refetchOnWindowFocus: false
+  });
+
+  // Helper function to get setting value
+  const getSetting = (key: string) => {
+    const setting = tenantSettings.find(s => s.key === key);
+    return setting ? setting.value : "";
+  };
+
+  // Header and footer configuration
+  const headerEnabled = getSetting("header_enabled") !== "false";
+  const headerTitle = getSetting("header_title") || "Welcome to Client Portal";
+  const headerSubtitle = getSetting("header_subtitle") || "";
+  const headerLogoText = getSetting("header_logo_text") || "";
+  const headerContactInfo = getSetting("header_contact_info") !== "false";
+  const headerBusinessHours = getSetting("header_business_hours") || "";
+  
+  const footerEnabled = getSetting("footer_enabled") !== "false";
+  const footerCompanyInfo = getSetting("footer_company_info") !== "false";
+  const footerCopyright = getSetting("footer_copyright") || "";
+  const footerSupportEmail = getSetting("footer_support_email") || "";
+  const footerSupportPhone = getSetting("footer_support_phone") || "";
+  const footerDisclaimerText = getSetting("footer_disclaimer_text") || "";
+  const footerAdditionalLinks = getSetting("footer_additional_links") || "";
+
+  // Company information from settings
+  const companyName = getSetting("company_name") || "";
+  const companyEmail = getSetting("email") || "";
+  const companyPhone = getSetting("phone") || "";
+  const companyAddress = getSetting("address") || "";
+  const companyWebsite = getSetting("website") || "";
   
   // Handle logout
   const handleLogout = async () => {
@@ -251,6 +287,57 @@ export default function ClientPortalDashboardPage() {
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40 relative overflow-hidden">
+      
+      {/* Dynamic Header */}
+      {headerEnabled && (
+        <motion.div
+          initial={{ y: -50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.6 }}
+          className="bg-white/80 backdrop-blur-md border-b border-slate-200/50 shadow-sm relative z-10"
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                {headerLogoText && (
+                  <div className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    {headerLogoText}
+                  </div>
+                )}
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-800">{headerTitle}</h1>
+                  {headerSubtitle && (
+                    <p className="text-slate-600 text-sm">{headerSubtitle}</p>
+                  )}
+                </div>
+              </div>
+              
+              {headerContactInfo && (companyEmail || companyPhone || headerBusinessHours) && (
+                <div className="hidden md:flex items-center space-x-6 text-sm text-slate-600">
+                  {companyEmail && (
+                    <div className="flex items-center space-x-1">
+                      <Mail className="w-4 h-4" />
+                      <span>{companyEmail}</span>
+                    </div>
+                  )}
+                  {companyPhone && (
+                    <div className="flex items-center space-x-1">
+                      <Globe className="w-4 h-4" />
+                      <span>{companyPhone}</span>
+                    </div>
+                  )}
+                  {headerBusinessHours && (
+                    <div className="flex items-center space-x-1">
+                      <Clock className="w-4 h-4" />
+                      <span>{headerBusinessHours}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
       {/* Animated Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <motion.div
