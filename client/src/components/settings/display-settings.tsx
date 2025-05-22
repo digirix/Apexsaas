@@ -20,6 +20,7 @@ export function DisplaySettings() {
   
   // Form state
   const [themeMode, setThemeMode] = useState("system");
+  const [designStyle, setDesignStyle] = useState("classic"); // classic or animated
   const [primaryColor, setPrimaryColor] = useState("blue");
   const [fontSize, setFontSize] = useState("medium");
   const [borderRadius, setBorderRadius] = useState([8]);
@@ -57,6 +58,7 @@ export function DisplaySettings() {
       };
       
       setThemeMode(getSetting("theme_mode") || "system");
+      setDesignStyle(getSetting("design_style") || "classic");
       setPrimaryColor(getSetting("primary_color") || "blue");
       setFontSize(getSetting("font_size") || "medium");
       setBorderRadius([parseInt(getSetting("border_radius") || "8", 10)]);
@@ -73,6 +75,7 @@ export function DisplaySettings() {
       // Create array of settings to save
       const settingsToSave = [
         { key: "theme_mode", value: themeMode },
+        { key: "design_style", value: designStyle },
         { key: "primary_color", value: primaryColor },
         { key: "font_size", value: fontSize },
         { key: "border_radius", value: borderRadius[0].toString() },
@@ -151,6 +154,34 @@ export function DisplaySettings() {
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="system" id="theme-system" />
               <Label htmlFor="theme-system">System</Label>
+            </div>
+          </RadioGroup>
+        </div>
+
+        <div className="space-y-3">
+          <Label>Design Style</Label>
+          <RadioGroup 
+            value={designStyle} 
+            onValueChange={setDesignStyle}
+            className="flex flex-col space-y-1"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="classic" id="style-classic" />
+              <Label htmlFor="style-classic">
+                <div>
+                  <div className="font-medium">Classic</div>
+                  <div className="text-sm text-muted-foreground">Traditional clean interface with standard styling</div>
+                </div>
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="animated" id="style-animated" />
+              <Label htmlFor="style-animated">
+                <div>
+                  <div className="font-medium">Animated</div>
+                  <div className="text-sm text-muted-foreground">Modern interface with stunning animations and glass-morphism effects</div>
+                </div>
+              </Label>
             </div>
           </RadioGroup>
         </div>
