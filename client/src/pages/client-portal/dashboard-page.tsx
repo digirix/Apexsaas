@@ -89,15 +89,7 @@ export default function ClientPortalDashboardPage() {
     enabled: !!clientProfile
   });
   
-  // Fetch client documents
-  const { 
-    data: clientDocuments = [], 
-    isLoading: isDocumentsLoading,
-    error: documentsError,
-  } = useQuery<any[]>({
-    queryKey: ["/api/client-portal/documents"],
-    enabled: !!clientProfile
-  });
+  // Documents functionality removed as requested - not implemented in main application yet
   
   // Fetch client invoices - filter by entity if selected
   const {
@@ -299,7 +291,6 @@ export default function ClientPortalDashboardPage() {
               <TabsTrigger value="entities">Entities</TabsTrigger>
               <TabsTrigger value="tasks">Tasks</TabsTrigger>
               <TabsTrigger value="invoices">Invoices</TabsTrigger>
-              <TabsTrigger value="documents">Documents</TabsTrigger>
             </TabsList>
           </div>
           
