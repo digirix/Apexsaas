@@ -366,6 +366,7 @@ export const entities = pgTable("entities", {
   isVatRegistered: boolean("is_vat_registered").default(false).notNull(),
   vatId: text("vat_id"),
   fileAccessLink: text("file_access_link"),
+  whatsappGroupLink: text("whatsapp_group_link"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => {
   return {
@@ -385,6 +386,7 @@ export const insertEntitySchema = createInsertSchema(entities).pick({
   isVatRegistered: true,
   vatId: true,
   fileAccessLink: true,
+  whatsappGroupLink: true,
 });
 
 // Tasks table

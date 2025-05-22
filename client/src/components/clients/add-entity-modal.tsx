@@ -55,6 +55,7 @@ const formSchema = z.object({
   vatId: z.string().optional(),
   address: z.string().optional(),
   fileAccessLink: z.string().optional(),
+  whatsappGroupLink: z.string().optional(),
   tenantId: z.number().min(1, "Tenant ID is required"),
 });
 
@@ -95,6 +96,7 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
       vatId: "",
       address: "",
       fileAccessLink: "",
+      whatsappGroupLink: "",
       tenantId: user?.tenantId || 0,
     },
   });
@@ -140,6 +142,10 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
       
       if (values.fileAccessLink) {
         (data as any).fileAccessLink = values.fileAccessLink;
+      }
+      
+      if (values.whatsappGroupLink) {
+        (data as any).whatsappGroupLink = values.whatsappGroupLink;
       }
       
       const response = await apiRequest(
