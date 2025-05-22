@@ -932,7 +932,7 @@ export default function ClientPortalDashboardPage() {
                                   </div>
                                   <div className="flex items-center">
                                     <CircleDollarSign className="h-3 w-3 mr-1" />
-                                    Amount: ${invoice.totalAmount?.toFixed(2) || '0.00'}
+                                    Amount: ${formatCurrencyAmount(invoice.totalAmount)}
                                   </div>
                                   {invoice.entityId && (
                                     <div className="flex items-center">
@@ -999,7 +999,7 @@ export default function ClientPortalDashboardPage() {
                                   </div>
                                   <div className="flex items-center">
                                     <CircleDollarSign className="h-3 w-3 mr-1" />
-                                    Amount: ${invoice.totalAmount?.toFixed(2) || '0.00'}
+                                    Amount: ${formatCurrencyAmount(invoice.totalAmount)}
                                   </div>
                                   {invoice.entityId && (
                                     <div className="flex items-center">
