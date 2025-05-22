@@ -19,7 +19,7 @@ export function GeneralSettings() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   
-  // Form state
+  // Core tenant information
   const [companyName, setCompanyName] = useState("");
   const [businessType, setBusinessType] = useState("accounting_firm");
   const [email, setEmail] = useState("");
@@ -29,6 +29,8 @@ export function GeneralSettings() {
   const [taxId, setTaxId] = useState("");
   const [language, setLanguage] = useState("en");
   const [timezone, setTimezone] = useState("UTC");
+  
+  // Custom labels for branding
   const [useCustomLabels, setUseCustomLabels] = useState(false);
   const [clientsLabel, setClientsLabel] = useState("Clients");
   const [tasksLabel, setTasksLabel] = useState("Tasks");
@@ -138,7 +140,7 @@ export function GeneralSettings() {
     <Card className="w-full">
       <CardHeader>
         <CardTitle>General Settings</CardTitle>
-        <CardDescription>Manage basic company information and preferences</CardDescription>
+        <CardDescription>Manage your company information and branding preferences</CardDescription>
       </CardHeader>
       
       <CardContent className="space-y-6">
@@ -177,7 +179,7 @@ export function GeneralSettings() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="company-email">Email</Label>
+              <Label htmlFor="company-email">Company Email</Label>
               <Input 
                 id="company-email" 
                 type="email"
@@ -188,7 +190,7 @@ export function GeneralSettings() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="company-phone">Phone</Label>
+              <Label htmlFor="company-phone">Phone Number</Label>
               <Input 
                 id="company-phone" 
                 value={phone}
@@ -198,7 +200,7 @@ export function GeneralSettings() {
             </div>
             
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="company-address">Address</Label>
+              <Label htmlFor="company-address">Business Address</Label>
               <Textarea 
                 id="company-address" 
                 value={address}
@@ -233,11 +235,11 @@ export function GeneralSettings() {
         <Separator />
         
         <div className="space-y-4">
-          <h3 className="text-lg font-medium">Regional Settings</h3>
+          <h3 className="text-lg font-medium">Localization</h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="language">Language</Label>
+              <Label htmlFor="language">Default Language</Label>
               <Select 
                 value={language}
                 onValueChange={setLanguage}
@@ -278,87 +280,6 @@ export function GeneralSettings() {
                 </SelectContent>
               </Select>
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="date-format">Date Format</Label>
-              <Select 
-                value={dateFormat}
-                onValueChange={setDateFormat}
-              >
-                <SelectTrigger id="date-format">
-                  <SelectValue placeholder="Select date format" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="MM/DD/YYYY">MM/DD/YYYY (US)</SelectItem>
-                  <SelectItem value="DD/MM/YYYY">DD/MM/YYYY (Europe)</SelectItem>
-                  <SelectItem value="YYYY-MM-DD">YYYY-MM-DD (ISO)</SelectItem>
-                  <SelectItem value="MMM D, YYYY">MMM D, YYYY (Jan 1, 2025)</SelectItem>
-                  <SelectItem value="D MMM YYYY">D MMM YYYY (1 Jan 2025)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="time-format">Time Format</Label>
-              <Select 
-                value={timeFormat}
-                onValueChange={setTimeFormat}
-              >
-                <SelectTrigger id="time-format">
-                  <SelectValue placeholder="Select time format" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="12h">12-hour (1:30 PM)</SelectItem>
-                  <SelectItem value="24h">24-hour (13:30)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="currency">Currency</Label>
-              <Select 
-                value={currencyCode}
-                onValueChange={setCurrencyCode}
-              >
-                <SelectTrigger id="currency">
-                  <SelectValue placeholder="Select currency" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="USD">USD - US Dollar ($)</SelectItem>
-                  <SelectItem value="EUR">EUR - Euro (€)</SelectItem>
-                  <SelectItem value="GBP">GBP - British Pound (£)</SelectItem>
-                  <SelectItem value="CAD">CAD - Canadian Dollar (C$)</SelectItem>
-                  <SelectItem value="AUD">AUD - Australian Dollar (A$)</SelectItem>
-                  <SelectItem value="JPY">JPY - Japanese Yen (¥)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="fiscal-year">Fiscal Year Start (Month)</Label>
-              <Select 
-                value={fiscalYearStart}
-                onValueChange={setFiscalYearStart}
-              >
-                <SelectTrigger id="fiscal-year">
-                  <SelectValue placeholder="Select month" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="01">January</SelectItem>
-                  <SelectItem value="02">February</SelectItem>
-                  <SelectItem value="03">March</SelectItem>
-                  <SelectItem value="04">April</SelectItem>
-                  <SelectItem value="05">May</SelectItem>
-                  <SelectItem value="06">June</SelectItem>
-                  <SelectItem value="07">July</SelectItem>
-                  <SelectItem value="08">August</SelectItem>
-                  <SelectItem value="09">September</SelectItem>
-                  <SelectItem value="10">October</SelectItem>
-                  <SelectItem value="11">November</SelectItem>
-                  <SelectItem value="12">December</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
         </div>
         
@@ -378,54 +299,59 @@ export function GeneralSettings() {
             />
           </div>
           
-          <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${!useCustomLabels ? 'opacity-50' : ''}`}>
-            <div className="space-y-2">
-              <Label htmlFor="clients-label">Clients Label</Label>
-              <Input 
-                id="clients-label" 
-                value={clientsLabel}
-                onChange={(e) => setClientsLabel(e.target.value)}
-                placeholder="Clients"
-                disabled={!useCustomLabels}
-              />
+          {useCustomLabels && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="clients-label">Clients Label</Label>
+                <Input 
+                  id="clients-label" 
+                  value={clientsLabel}
+                  onChange={(e) => setClientsLabel(e.target.value)}
+                  placeholder="Clients"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="tasks-label">Tasks Label</Label>
+                <Input 
+                  id="tasks-label" 
+                  value={tasksLabel}
+                  onChange={(e) => setTasksLabel(e.target.value)}
+                  placeholder="Tasks"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="invoices-label">Invoices Label</Label>
+                <Input 
+                  id="invoices-label" 
+                  value={invoicesLabel}
+                  onChange={(e) => setInvoicesLabel(e.target.value)}
+                  placeholder="Invoices"
+                />
+              </div>
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="tasks-label">Tasks Label</Label>
-              <Input 
-                id="tasks-label" 
-                value={tasksLabel}
-                onChange={(e) => setTasksLabel(e.target.value)}
-                placeholder="Tasks"
-                disabled={!useCustomLabels}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="invoices-label">Invoices Label</Label>
-              <Input 
-                id="invoices-label" 
-                value={invoicesLabel}
-                onChange={(e) => setInvoicesLabel(e.target.value)}
-                placeholder="Invoices"
-                disabled={!useCustomLabels}
-              />
-            </div>
-          </div>
+          )}
         </div>
       </CardContent>
       
-      <CardFooter className="flex justify-end">
+      <CardFooter>
         <Button 
           onClick={handleSaveSettings}
           disabled={loading}
+          className="ml-auto"
         >
           {loading ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Saving...
+            </>
           ) : (
-            <Save className="h-4 w-4 mr-2" />
+            <>
+              <Save className="w-4 h-4 mr-2" />
+              Save Settings
+            </>
           )}
-          Save Changes
         </Button>
       </CardFooter>
     </Card>

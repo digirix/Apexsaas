@@ -18,8 +18,20 @@ export function AppLayout({ children, title }: AppLayoutProps) {
   const [borderRadius, setBorderRadius] = useState(8);
   const [compactMode, setCompactMode] = useState(false);
   const [enableAnimations, setEnableAnimations] = useState(true);
+  
+  // Tenant information state
+  const [companyName, setCompanyName] = useState("");
+  const [businessType, setBusinessType] = useState("");
+  const [companyEmail, setCompanyEmail] = useState("");
+  const [companyPhone, setCompanyPhone] = useState("");
+  const [companyAddress, setCompanyAddress] = useState("");
+  const [companyWebsite, setCompanyWebsite] = useState("");
+  const [useCustomLabels, setUseCustomLabels] = useState(false);
+  const [clientsLabel, setClientsLabel] = useState("Clients");
+  const [tasksLabel, setTasksLabel] = useState("Tasks");
+  const [invoicesLabel, setInvoicesLabel] = useState("Invoices");
 
-  // Fetch settings to determine all display preferences
+  // Fetch settings to determine all display preferences and tenant info
   const { data: settings = [] } = useQuery<TenantSetting[]>({
     queryKey: ["/api/v1/tenant/settings"],
     refetchOnWindowFocus: false
@@ -27,21 +39,29 @@ export function AppLayout({ children, title }: AppLayoutProps) {
 
   useEffect(() => {
     if (settings.length > 0) {
-      const styleSettings = settings.find(s => s.key === "design_style");
-      const themeModeSettings = settings.find(s => s.key === "theme_mode");
-      const primaryColorSettings = settings.find(s => s.key === "primary_color");
-      const fontSizeSettings = settings.find(s => s.key === "font_size");
-      const borderRadiusSettings = settings.find(s => s.key === "border_radius");
-      const compactModeSettings = settings.find(s => s.key === "compact_mode");
-      const animationsSettings = settings.find(s => s.key === "enable_animations");
+      // Helper function to get setting value
+      const getSetting = (key: string) => settings.find(s => s.key === key)?.value || "";
       
-      setDesignStyle(styleSettings?.value || "classic");
-      setThemeMode(themeModeSettings?.value || "light");
-      setPrimaryColor(primaryColorSettings?.value || "blue");
-      setFontSize(fontSizeSettings?.value || "medium");
-      setBorderRadius(parseInt(borderRadiusSettings?.value || "8"));
-      setCompactMode(compactModeSettings?.value === "true");
-      setEnableAnimations(animationsSettings?.value !== "false");
+      // Display settings
+      setDesignStyle(getSetting("design_style") || "classic");
+      setThemeMode(getSetting("theme_mode") || "light");
+      setPrimaryColor(getSetting("primary_color") || "blue");
+      setFontSize(getSetting("font_size") || "medium");
+      setBorderRadius(parseInt(getSetting("border_radius") || "8"));
+      setCompactMode(getSetting("compact_mode") === "true");
+      setEnableAnimations(getSetting("enable_animations") !== "false");
+      
+      // Tenant information
+      setCompanyName(getSetting("company_name"));
+      setBusinessType(getSetting("business_type"));
+      setCompanyEmail(getSetting("email"));
+      setCompanyPhone(getSetting("phone"));
+      setCompanyAddress(getSetting("address"));
+      setCompanyWebsite(getSetting("website"));
+      setUseCustomLabels(getSetting("use_custom_labels") === "true");
+      setClientsLabel(getSetting("clients_label") || "Clients");
+      setTasksLabel(getSetting("tasks_label") || "Tasks");
+      setInvoicesLabel(getSetting("invoices_label") || "Invoices");
     }
   }, [settings]);
 
