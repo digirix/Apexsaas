@@ -43,7 +43,8 @@ import {
   ArrowRight,
   Eye,
   Filter,
-  Sparkles
+  Sparkles,
+  MessageCircle
 } from "lucide-react";
 import {
   Alert,
@@ -912,6 +913,24 @@ export default function ClientPortalDashboardPage() {
                                           Invoices
                                         </Button>
                                       </motion.div>
+                                      {entity.whatsappGroupLink && (
+                                        <motion.div
+                                          whileHover={{ scale: 1.05 }}
+                                          whileTap={{ scale: 0.95 }}
+                                        >
+                                          <Button 
+                                            variant="ghost" 
+                                            size="sm"
+                                            className="h-7 text-xs px-2 py-1 hover:bg-green-50 text-slate-600 hover:text-green-600 transition-colors"
+                                            onClick={() => {
+                                              window.open(entity.whatsappGroupLink, '_blank');
+                                            }}
+                                          >
+                                            <MessageCircle className="h-3 w-3 mr-1" />
+                                            WhatsApp
+                                          </Button>
+                                        </motion.div>
+                                      )}
                                     </div>
                                   </div>
                                 </div>

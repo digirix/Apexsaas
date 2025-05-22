@@ -425,6 +425,26 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
                   </FormItem>
                 )}
               />
+              
+              <FormField
+                control={form.control}
+                name="whatsappGroupLink"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>WhatsApp Group Link (Optional)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Enter WhatsApp group link" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      WhatsApp group link for client communication
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
             
             <DialogFooter>
