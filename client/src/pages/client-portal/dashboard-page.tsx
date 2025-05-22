@@ -432,9 +432,16 @@ export default function ClientPortalDashboardPage() {
                     transition={{ type: "spring", stiffness: 300 }}
                   >
                     <Select
-                      value={selectedEntityId?.toString() || "all"}
+                      value={selectedEntityId ? selectedEntityId.toString() : "all"}
                       onValueChange={(value) => {
-                        setSelectedEntityId(value === "all" ? null : parseInt(value));
+                        if (value === "all") {
+                          setSelectedEntityId(null);
+                        } else {
+                          const entityId = parseInt(value, 10);
+                          if (!isNaN(entityId)) {
+                            setSelectedEntityId(entityId);
+                          }
+                        }
                       }}
                     >
                       <SelectTrigger className="w-48 bg-white/70 backdrop-blur-lg border border-white/30 shadow-lg rounded-xl hover:bg-white/80 transition-all duration-300">
