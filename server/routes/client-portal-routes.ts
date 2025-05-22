@@ -407,6 +407,7 @@ export function registerClientPortalRoutes(app: Express) {
       let whereClause = `
         i.client_id = ${user.clientId}
         AND i.tenant_id = ${user.tenantId}
+        AND i.is_deleted = FALSE
       `;
       
       if (entityId) {
