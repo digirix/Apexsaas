@@ -36,6 +36,22 @@ export function GeneralSettings() {
   const [tasksLabel, setTasksLabel] = useState("Tasks");
   const [invoicesLabel, setInvoicesLabel] = useState("Invoices");
   
+  // Client Portal Header & Footer
+  const [headerEnabled, setHeaderEnabled] = useState(true);
+  const [headerTitle, setHeaderTitle] = useState("");
+  const [headerSubtitle, setHeaderSubtitle] = useState("");
+  const [headerLogoText, setHeaderLogoText] = useState("");
+  const [headerContactInfo, setHeaderContactInfo] = useState(true);
+  const [headerBusinessHours, setHeaderBusinessHours] = useState("");
+  
+  const [footerEnabled, setFooterEnabled] = useState(true);
+  const [footerCompanyInfo, setFooterCompanyInfo] = useState(true);
+  const [footerCopyright, setFooterCopyright] = useState("");
+  const [footerSupportEmail, setFooterSupportEmail] = useState("");
+  const [footerSupportPhone, setFooterSupportPhone] = useState("");
+  const [footerDisclaimerText, setFooterDisclaimerText] = useState("");
+  const [footerAdditionalLinks, setFooterAdditionalLinks] = useState("");
+  
   // Fetch settings
   const { data: settings = [], isLoading } = useQuery<TenantSetting[]>({
     queryKey: ["/api/v1/tenant/settings"],
@@ -79,6 +95,22 @@ export function GeneralSettings() {
       setClientsLabel(getSetting("clients_label") || "Clients");
       setTasksLabel(getSetting("tasks_label") || "Tasks");
       setInvoicesLabel(getSetting("invoices_label") || "Invoices");
+      
+      // Client Portal Header & Footer
+      setHeaderEnabled(getSetting("header_enabled") !== "false");
+      setHeaderTitle(getSetting("header_title") || "");
+      setHeaderSubtitle(getSetting("header_subtitle") || "");
+      setHeaderLogoText(getSetting("header_logo_text") || "");
+      setHeaderContactInfo(getSetting("header_contact_info") !== "false");
+      setHeaderBusinessHours(getSetting("header_business_hours") || "");
+      
+      setFooterEnabled(getSetting("footer_enabled") !== "false");
+      setFooterCompanyInfo(getSetting("footer_company_info") !== "false");
+      setFooterCopyright(getSetting("footer_copyright") || "");
+      setFooterSupportEmail(getSetting("footer_support_email") || "");
+      setFooterSupportPhone(getSetting("footer_support_phone") || "");
+      setFooterDisclaimerText(getSetting("footer_disclaimer_text") || "");
+      setFooterAdditionalLinks(getSetting("footer_additional_links") || "");
     }
   }, [settings]);
   
@@ -101,7 +133,23 @@ export function GeneralSettings() {
         { key: "use_custom_labels", value: useCustomLabels.toString() },
         { key: "clients_label", value: clientsLabel },
         { key: "tasks_label", value: tasksLabel },
-        { key: "invoices_label", value: invoicesLabel }
+        { key: "invoices_label", value: invoicesLabel },
+        
+        // Client Portal Header & Footer
+        { key: "header_enabled", value: headerEnabled.toString() },
+        { key: "header_title", value: headerTitle },
+        { key: "header_subtitle", value: headerSubtitle },
+        { key: "header_logo_text", value: headerLogoText },
+        { key: "header_contact_info", value: headerContactInfo.toString() },
+        { key: "header_business_hours", value: headerBusinessHours },
+        
+        { key: "footer_enabled", value: footerEnabled.toString() },
+        { key: "footer_company_info", value: footerCompanyInfo.toString() },
+        { key: "footer_copyright", value: footerCopyright },
+        { key: "footer_support_email", value: footerSupportEmail },
+        { key: "footer_support_phone", value: footerSupportPhone },
+        { key: "footer_disclaimer_text", value: footerDisclaimerText },
+        { key: "footer_additional_links", value: footerAdditionalLinks }
       ];
       
       // Save each setting
