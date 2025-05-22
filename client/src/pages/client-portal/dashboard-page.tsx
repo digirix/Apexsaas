@@ -57,8 +57,36 @@ const formatCurrencyAmount = (amount: any): string => {
 export default function ClientPortalDashboardPage() {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState("overview");
+  
+  // Get active tab from URL path
+  const getActiveTabFromPath = () => {
+    if (location.includes('/tasks')) return 'tasks';
+    if (location.includes('/invoices')) return 'invoices';
+    if (location.includes('/documents')) return 'documents';
+    return 'overview';
+  };
+  
+  const [activeTab, setActiveTab] = useState(getActiveTabFromPath());
   const [selectedEntityId, setSelectedEntityId] = useState<number | null>(null);
+  
+  // Update URL when tab changes
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    switch (value) {
+      case 'tasks':
+        setLocation('/client-portal/tasks');
+        break;
+      case 'invoices':
+        setLocation('/client-portal/invoices');
+        break;
+      case 'documents':
+        setLocation('/client-portal/documents');
+        break;
+      default:
+        setLocation('/client-portal');
+        break;
+    }
+  };
   
   // Fetch client profile
   const { 
@@ -78,13 +106,11 @@ export default function ClientPortalDashboardPage() {
     refetch: refetchTasks
   } = useQuery<any[]>({
     queryKey: ["/api/client-portal/tasks", selectedEntityId],
-    queryFn: async () => {
+    queryFn: () => {
       const url = selectedEntityId 
         ? `/api/client-portal/tasks?entityId=${selectedEntityId}`
         : '/api/client-portal/tasks';
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch tasks');
-      return response.json();
+      return apiRequest(url);
     },
     enabled: !!clientProfile
   });
