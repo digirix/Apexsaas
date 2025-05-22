@@ -318,7 +318,7 @@ export default function ClientPortalDashboardPage() {
       
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <div className="flex justify-between items-center mb-6">
             <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>
