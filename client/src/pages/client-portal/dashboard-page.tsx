@@ -25,6 +25,7 @@ import {
   FileBox, 
   BarChart, 
   Mail, 
+  Phone,
   Building,
   Building2,
   CircleDollarSign,
@@ -288,56 +289,7 @@ export default function ClientPortalDashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40 relative overflow-hidden">
       
-      {/* Dynamic Header */}
-      {headerEnabled && (
-        <motion.div
-          initial={{ y: -50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.6 }}
-          className="bg-white/80 backdrop-blur-md border-b border-slate-200/50 shadow-sm relative z-10"
-        >
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                {headerLogoText && (
-                  <div className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    {headerLogoText}
-                  </div>
-                )}
-                <div>
-                  <h1 className="text-2xl font-bold text-slate-800">{headerTitle}</h1>
-                  {headerSubtitle && (
-                    <p className="text-slate-600 text-sm">{headerSubtitle}</p>
-                  )}
-                </div>
-              </div>
-              
-              {headerContactInfo && (companyEmail || companyPhone || headerBusinessHours) && (
-                <div className="hidden md:flex items-center space-x-6 text-sm text-slate-600">
-                  {companyEmail && (
-                    <div className="flex items-center space-x-1">
-                      <Mail className="w-4 h-4" />
-                      <span>{companyEmail}</span>
-                    </div>
-                  )}
-                  {companyPhone && (
-                    <div className="flex items-center space-x-1">
-                      <Globe className="w-4 h-4" />
-                      <span>{companyPhone}</span>
-                    </div>
-                  )}
-                  {headerBusinessHours && (
-                    <div className="flex items-center space-x-1">
-                      <Clock className="w-4 h-4" />
-                      <span>{headerBusinessHours}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </motion.div>
-      )}
+
       {/* Animated Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <motion.div
@@ -404,13 +356,23 @@ export default function ClientPortalDashboardPage() {
                 </div>
               </motion.div>
               <div>
+                {headerLogoText && (
+                  <motion.div 
+                    className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 1, delay: 0.3 }}
+                  >
+                    {headerLogoText}
+                  </motion.div>
+                )}
                 <motion.h1 
                   className="text-3xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 bg-clip-text text-transparent"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 1, delay: 0.5 }}
                 >
-                  Welcome, {clientProfile?.client?.displayName || "Client"}
+                  {headerTitle || `Welcome, ${clientProfile?.client?.displayName || "Client"}`}
                 </motion.h1>
                 <motion.p 
                   className="text-sm text-slate-600 flex items-center mt-1"
@@ -419,7 +381,7 @@ export default function ClientPortalDashboardPage() {
                   transition={{ duration: 1, delay: 0.7 }}
                 >
                   <Shield className="h-4 w-4 mr-2 text-green-500" />
-                  Secure Client Portal - {clientProfile?.client?.email || ""}
+                  {headerSubtitle || `Secure Client Portal - ${clientProfile?.client?.email || ""}`}
                 </motion.p>
               </div>
             </motion.div>
@@ -429,6 +391,28 @@ export default function ClientPortalDashboardPage() {
               animate={{ x: 0, opacity: 1 }}
               transition={{ duration: 0.8, delay: 0.3 }}
             >
+              {headerContactInfo && (companyEmail || companyPhone || headerBusinessHours) && (
+                <div className="hidden lg:flex items-center space-x-6 text-sm text-slate-600 mr-4">
+                  {companyEmail && (
+                    <div className="flex items-center space-x-1">
+                      <Mail className="w-4 h-4" />
+                      <span>{companyEmail}</span>
+                    </div>
+                  )}
+                  {companyPhone && (
+                    <div className="flex items-center space-x-1">
+                      <Phone className="w-4 h-4" />
+                      <span>{companyPhone}</span>
+                    </div>
+                  )}
+                  {headerBusinessHours && (
+                    <div className="flex items-center space-x-1">
+                      <Clock className="w-4 h-4" />
+                      <span>{headerBusinessHours}</span>
+                    </div>
+                  )}
+                </div>
+              )}
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -1563,41 +1547,92 @@ export default function ClientPortalDashboardPage() {
       </motion.main>
       
       {/* Footer */}
-      <motion.footer 
-        className="relative bg-white/80 backdrop-blur-xl border-t border-white/20 mt-12"
-        initial={{ opacity: 0, y: 50 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, delay: 1 }}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <motion.div 
-              className="text-sm text-slate-500"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.2 }}
-            >
-              © 2025 Client Portal. All rights reserved.
-            </motion.div>
-            <motion.div 
-              className="flex items-center space-x-4 mt-4 md:mt-0"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.4 }}
-            >
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+      {footerEnabled && (
+        <motion.footer 
+          className="relative bg-white/80 backdrop-blur-xl border-t border-white/20 mt-12"
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 1 }}
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex flex-col md:flex-row justify-between items-center">
+              <motion.div 
+                className="text-sm text-slate-500"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.2 }}
               >
-                <Button variant="ghost" size="sm" className="hover:bg-blue-50">
-                  <Mail className="h-4 w-4 mr-2" />
-                  Contact Support
-                </Button>
+                {footerCopyright || "© 2025 Client Portal. All rights reserved."}
               </motion.div>
-            </motion.div>
+              <motion.div 
+                className="flex items-center space-x-4 mt-4 md:mt-0"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.4 }}
+              >
+                {footerSupportEmail && (
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="hover:bg-blue-50"
+                      onClick={() => window.location.href = `mailto:${footerSupportEmail}`}
+                    >
+                      <Mail className="h-4 w-4 mr-2" />
+                      {footerSupportEmail}
+                    </Button>
+                  </motion.div>
+                )}
+                {footerSupportPhone && (
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="hover:bg-blue-50"
+                      onClick={() => window.location.href = `tel:${footerSupportPhone}`}
+                    >
+                      <Phone className="h-4 w-4 mr-2" />
+                      {footerSupportPhone}
+                    </Button>
+                  </motion.div>
+                )}
+              </motion.div>
+            </div>
+            
+            {/* Footer disclaimer and additional links */}
+            {(footerDisclaimerText || footerAdditionalLinks) && (
+              <div className="mt-4 pt-4 border-t border-slate-200/50">
+                {footerDisclaimerText && (
+                  <motion.p 
+                    className="text-xs text-slate-400 text-center mb-2"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1.6 }}
+                  >
+                    {footerDisclaimerText}
+                  </motion.p>
+                )}
+                {footerAdditionalLinks && (
+                  <motion.div 
+                    className="text-xs text-slate-500 text-center"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1.8 }}
+                  >
+                    {footerAdditionalLinks}
+                  </motion.div>
+                )}
+              </div>
+            )}
           </div>
-        </div>
-      </motion.footer>
+        </motion.footer>
+      )}
     </div>
   );
 }
