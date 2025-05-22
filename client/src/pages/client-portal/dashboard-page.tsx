@@ -48,10 +48,23 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 // Format currency amount safely, handling both string and number inputs
 const formatCurrencyAmount = (amount: any): string => {
   if (!amount) return '0.00';
-  // Handle both string and number inputs
-  return typeof amount === 'number' 
-    ? amount.toFixed(2)
-    : parseFloat(String(amount)).toFixed(2);
+  
+  // Convert to number if it's a string
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  
+  // Check if it's a valid number
+  if (isNaN(numAmount)) return '0.00';
+  
+  return numAmount.toFixed(2);
+};
+
+// Helper function to format date
+const formatDate = (date: string | Date) => {
+  try {
+    return new Date(date).toLocaleDateString();
+  } catch {
+    return "Invalid Date";
+  }
 };
 
 export default function ClientPortalDashboardPage() {
@@ -89,8 +102,6 @@ export default function ClientPortalDashboardPage() {
     enabled: !!clientProfile
   });
   
-  // Documents functionality removed as requested - not implemented in main application yet
-  
   // Fetch client invoices - filter by entity if selected
   const {
     data: clientInvoices = [],
@@ -109,84 +120,43 @@ export default function ClientPortalDashboardPage() {
     },
     enabled: !!clientProfile
   });
-
+  
   // Fetch client entities
-  const {
+  const { 
     data: clientEntities = [],
     isLoading: isEntitiesLoading,
     error: entitiesError,
-  } = useQuery({
+  } = useQuery<any[]>({
     queryKey: ["/api/client-portal/entities"],
     enabled: !!clientProfile
   });
   
-  // Logout the client
+  // Handle logout
   const handleLogout = async () => {
     try {
-      const response = await apiRequest("POST", "/api/client-portal/logout", {});
-      
-      if (response.ok) {
-        toast({
-          title: "Logout successful",
-          description: "You have been logged out of the client portal",
-        });
-        
-        // Redirect to login page
-        setLocation("/client-portal/login");
-      } else {
-        toast({
-          title: "Logout failed",
-          description: "There was an error logging out",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Error during logout:", error);
-      toast({
-        title: "Logout error",
-        description: "An error occurred during logout",
-        variant: "destructive",
+      await apiRequest({
+        url: "/api/client-portal/logout",
+        method: "POST",
       });
+      
+      toast({
+        title: "Logged out successfully",
+        description: "You have been safely logged out of the client portal",
+      });
+      
+      setLocation("/client-portal/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Force logout even if request fails
+      setLocation("/client-portal/login");
     }
   };
   
-  // Format dates
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-  
-  // Get task status badge variant
-  const getTaskStatusVariant = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "completed":
-        return "success";
-      case "in progress":
-        return "default";
-      case "not started":
-        return "secondary";
-      case "overdue":
-        return "destructive";
-      default:
-        return "outline";
-    }
-  };
-  
-  // Get document type icon
-  const getDocumentIcon = (type: string) => {
-    switch (type.toLowerCase()) {
-      case "tax return":
-        return <FileText className="h-5 w-5 text-blue-500" />;
-      case "financial statement":
-        return <BarChart className="h-5 w-5 text-green-500" />;
-      case "report":
-        return <FileBox className="h-5 w-5 text-purple-500" />;
-      default:
-        return <FileText className="h-5 w-5 text-gray-500" />;
-    }
+  // Get entity selection text
+  const getEntityFilterText = () => {
+    if (!selectedEntityId) return "All entities";
+    const entity = (clientEntities as any[]).find((e: any) => e.id === selectedEntityId);
+    return entity ? entity.name : "Unknown entity";
   };
   
   // Calculate task completion rate
@@ -194,7 +164,7 @@ export default function ClientPortalDashboardPage() {
     if (!clientTasks || clientTasks.length === 0) return 0;
     
     const completedTasks = clientTasks.filter(
-      (task: any) => task.status.toLowerCase() === "completed"
+      (task: any) => task.statusName?.toLowerCase().includes("completed") || task.statusName?.toLowerCase().includes("done")
     ).length;
     
     return Math.round((completedTasks / clientTasks.length) * 100);
@@ -229,7 +199,7 @@ export default function ClientPortalDashboardPage() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Authentication Error</AlertTitle>
           <AlertDescription>
-            You need to log in to access the client portal
+            Please log in to access the client portal.
           </AlertDescription>
         </Alert>
         <Button onClick={() => setLocation("/client-portal/login")}>
@@ -242,38 +212,27 @@ export default function ClientPortalDashboardPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-white border-b">
+      <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
+          <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
-              <Building className="h-8 w-8 text-blue-500 mr-3" />
+              <Building className="h-8 w-8 text-blue-600 mr-3" />
               <div>
-                <h1 className="text-lg font-bold text-slate-900">Client Portal</h1>
+                <h1 className="text-2xl font-bold text-slate-900">
+                  Welcome, {clientProfile?.client?.displayName || "Client"}
+                </h1>
                 <p className="text-sm text-slate-500">
-                  {clientProfile?.client?.displayName || "Client Dashboard"}
+                  Client Portal - {clientProfile?.client?.email || ""}
                 </p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-medium text-slate-900">
-                  {clientProfile?.client?.displayName}
-                </p>
-                <p className="text-xs text-slate-500">
-                  {clientProfile?.client?.email}
-                </p>
-              </div>
-              <Avatar className="h-9 w-9 bg-blue-100 text-blue-600">
-                <AvatarFallback>
-                  {clientProfile?.client?.displayName
-                    ?.split(" ")
-                    .map((n: string) => n[0])
-                    .join("")
-                    .toUpperCase()
-                    .substring(0, 2) || "CL"}
-                </AvatarFallback>
-              </Avatar>
-              <Button variant="outline" size="sm" onClick={handleLogout}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                className="flex items-center"
+              >
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>
@@ -317,32 +276,30 @@ export default function ClientPortalDashboardPage() {
                         Failed to load entities. Please try again later.
                       </AlertDescription>
                     </Alert>
-                  ) : clientEntities.length === 0 ? (
+                  ) : (clientEntities as any[]).length === 0 ? (
                     <div className="text-center py-6 text-slate-500">
-                      No registered business entities
+                      No entities found
                     </div>
                   ) : (
-                    <div className="space-y-8">
-                      {clientEntities.map((entity: any) => (
-                        <div key={entity.id} className="border rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow duration-200">
-                          <div className="bg-gradient-to-r from-blue-50 to-slate-50 px-3 py-2 border-b">
-                            <div className="flex justify-between items-center">
-                              <div className="flex items-center space-x-2">
-                                <div className="bg-blue-100 rounded-full p-1.5">
-                                  <Building2 className="h-4 w-4 text-blue-600" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {(clientEntities as any[]).map((entity: any) => (
+                        <Card key={entity.id} className="hover:shadow-md transition-shadow border border-slate-200">
+                          <div className="p-4">
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center space-x-3">
+                                <div className="p-2 bg-blue-100 rounded-lg">
+                                  <Building2 className="h-5 w-5 text-blue-600" />
                                 </div>
                                 <div>
-                                  <h3 className="text-sm font-semibold text-slate-900">
+                                  <h3 className="font-semibold text-slate-900 text-sm">
                                     {entity.name}
                                   </h3>
                                   <p className="text-xs text-slate-500">
-                                    {entity.entityType} • {entity.countryName || 'Unknown'}
-                                    {entity.stateName ? `, ${entity.stateName}` : ''}
+                                    {entity.entityType} • {entity.countryName}
                                   </p>
                                 </div>
                               </div>
                               <div className="flex items-center space-x-1">
-
                                 <Button 
                                   variant="ghost" 
                                   size="sm"
@@ -376,85 +333,37 @@ export default function ClientPortalDashboardPage() {
                               <div className="flex flex-col">
                                 <span className="text-slate-500">Tax ID</span>
                                 <span className="font-medium truncate">
-                                  {entity.business_tax_id || "N/A"}
+                                  {entity.businessTaxId || "N/A"}
                                 </span>
                               </div>
                               <div className="flex flex-col">
                                 <span className="text-slate-500">VAT Status</span>
                                 <span className="font-medium">
-                                  {entity.is_vat_registered ? "Registered" : "Not Reg."}
+                                  {entity.isVatRegistered ? "Registered" : "Not Reg."}
                                 </span>
                               </div>
                               <div className="flex flex-col">
                                 <span className="text-slate-500">VAT ID</span>
                                 <span className="font-medium truncate">
-                                  {entity.vat_id || "N/A"}
+                                  {entity.vatId || "N/A"}
                                 </span>
                               </div>
                             </div>
                             
-                            {/* Streamlined address and document link */}
-                            <div className="mt-1 border-t border-slate-100 pt-1 flex justify-between items-center text-xs">
-                              <span className="text-slate-500 truncate max-w-[70%]">
-                                {entity.address ? 
-                                  `${entity.address}, ${entity.stateName || ''} ${entity.countryName || ''}` : 
-                                  "No address specified"}
-                              </span>
-                              
-                              {entity.file_access_link && (
-                                <a 
-                                  href={entity.file_access_link} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-blue-500 hover:underline flex items-center"
-                                >
-                                  <ExternalLink className="h-3 w-3 mr-1" />
-                                  <span>Docs</span>
-                                </a>
-                              )}
-                            </div>
-                            
-                            <div className="border-t pt-5 mt-5">
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                                <div>
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-sm font-medium">Tasks</span>
-                                    <Badge>{entity.stats?.taskCount || 0}</Badge>
-                                  </div>
-                                  <Progress 
-                                    value={entity.stats?.taskCount ? Math.min(entity.stats.taskCount * 10, 100) : 0} 
-                                    className="h-2 mt-2" 
-                                  />
-                                </div>
-                                <div>
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-sm font-medium">Invoices</span>
-                                    <Badge>{entity.stats?.invoiceCount || 0}</Badge>
-                                  </div>
-                                  <Progress 
-                                    value={entity.stats?.invoiceCount ? Math.min(entity.stats.invoiceCount * 10, 100) : 0} 
-                                    className="h-2 mt-2" 
-                                  />
-                                </div>
-                                <div>
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-sm font-medium">Services</span>
-                                    <Badge>View</Badge>
-                                  </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="w-full mt-2"
-                                    onClick={() => window.location.href = `/client-portal/entity/${entity.id}/services`}
-                                  >
-                                    <CircleDollarSign className="h-4 w-4 mr-2" />
-                                    Manage Services
-                                  </Button>
+                            {entity.stats && (
+                              <div className="mt-3 pt-2 border-t border-slate-100">
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-slate-500">
+                                    Tasks: {entity.stats.taskCount || 0}
+                                  </span>
+                                  <span className="text-slate-500">
+                                    Invoices: {entity.stats.invoiceCount || 0}
+                                  </span>
                                 </div>
                               </div>
-                            </div>
+                            )}
                           </div>
-                        </div>
+                        </Card>
                       ))}
                     </div>
                   )}
@@ -465,27 +374,21 @@ export default function ClientPortalDashboardPage() {
           
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-slate-500">
-                    Pending Tasks
+                    Active Tasks
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {clientTasks
-                      ? clientTasks.filter(
-                          (task: any) => task.status.toLowerCase() !== "completed"
-                        ).length
-                      : "0"}
-                  </div>
-                  <div className="mt-2">
-                    <Progress value={getTaskCompletionRate()} className="h-2" />
+                    {clientTasks ? clientTasks.length : "0"}
                   </div>
                   <p className="text-xs text-slate-500 mt-2">
-                    {getTaskCompletionRate()}% tasks completed
+                    {getTaskCompletionRate()}% completed
                   </p>
+                  <Progress value={getTaskCompletionRate()} className="mt-2" />
                 </CardContent>
               </Card>
               
@@ -503,6 +406,22 @@ export default function ClientPortalDashboardPage() {
                     {clientInvoices && clientInvoices.length > 0
                       ? `Total: ${clientInvoices.length} invoices`
                       : "No invoices available"}
+                  </p>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-slate-500">
+                    Business Entities
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {clientEntities ? (clientEntities as any[]).length : "0"}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2">
+                    Registered entities
                   </p>
                 </CardContent>
               </Card>
@@ -541,75 +460,7 @@ export default function ClientPortalDashboardPage() {
               </Card>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Upcoming Tasks</CardTitle>
-                  <CardDescription>
-                    Your upcoming tax and accounting deadlines
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {isTasksLoading ? (
-                    <div className="flex justify-center py-6">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                    </div>
-                  ) : tasksError ? (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>Error</AlertTitle>
-                      <AlertDescription>
-                        Failed to load tasks. Please try again later.
-                      </AlertDescription>
-                    </Alert>
-                  ) : clientTasks.length === 0 ? (
-                    <div className="text-center py-6 text-slate-500">
-                      No upcoming tasks
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {clientTasks
-                        .filter((task: any) => task.status.toLowerCase() !== "completed")
-                        .slice(0, 3)
-                        .map((task: any) => (
-                          <div key={task.id} className="flex items-start space-x-3">
-                            <div className="flex-shrink-0 mt-1">
-                              <Clock className="h-5 w-5 text-slate-400" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-slate-900 truncate">
-                                {task.title}
-                              </p>
-                              <p className="text-xs text-slate-500">
-                                Due: {formatDate(task.dueDate)}
-                              </p>
-                            </div>
-                            <div>
-                              <Badge variant={getTaskStatusVariant(task.status)}>
-                                {task.status}
-                              </Badge>
-                            </div>
-                          </div>
-                        ))}
-                      
-                      {clientTasks.filter(
-                        (task: any) => task.status.toLowerCase() !== "completed"
-                      ).length > 3 && (
-                        <div className="text-center pt-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => setActiveTab("tasks")}
-                          >
-                            View all tasks
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-              
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Recent Activity</CardTitle>
@@ -668,25 +519,32 @@ export default function ClientPortalDashboardPage() {
             <Card>
               <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
                 <div>
-                  <CardTitle>
-                    {selectedEntityId ? 'Entity Tasks' : 'Your Tasks & Deadlines'}
-                  </CardTitle>
+                  <CardTitle>Your Tasks</CardTitle>
                   <CardDescription>
-                    {selectedEntityId 
-                      ? `Tasks for ${clientEntities?.find((e: any) => e.id === selectedEntityId)?.name || 'selected entity'}`
-                      : 'Track your tax and accounting requirements'
-                    }
+                    Track your compliance and service tasks{selectedEntityId ? ` for ${getEntityFilterText()}` : ""}
                   </CardDescription>
                 </div>
-                {selectedEntityId && (
+                <div className="flex items-center space-x-2">
+                  {selectedEntityId && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setSelectedEntityId(null);
+                        refetchTasks();
+                      }}
+                    >
+                      Show All Tasks
+                    </Button>
+                  )}
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => setSelectedEntityId(null)}
+                    onClick={() => refetchTasks()}
                   >
-                    View All Tasks
+                    Refresh
                   </Button>
-                )}
+                </div>
               </CardHeader>
               <CardContent>
                 {isTasksLoading ? (
@@ -701,136 +559,54 @@ export default function ClientPortalDashboardPage() {
                       Failed to load tasks. Please try again later.
                     </AlertDescription>
                   </Alert>
+                ) : clientTasks.length === 0 ? (
+                  <div className="text-center py-6 text-slate-500">
+                    {selectedEntityId ? "No tasks found for this entity" : "No tasks available"}
+                  </div>
                 ) : (
-                  <div className="space-y-6">
-                    {/* Check if any tasks exist */}
-                    {!clientTasks || clientTasks.length === 0 ? (
-                      <div className="text-center py-6 text-slate-500">
-                        No tasks found
-                      </div>
-                    ) : (
-                      <>
-                        {/* Pending Tasks Section */}
-                        <div>
-                          <h3 className="text-lg font-medium mb-4">Pending Tasks</h3>
-                          <div className="space-y-4">
-                            {(() => {
-                              // Safely filter tasks based on entity and status
-                              const pendingTasks = clientTasks.filter((task: any) => {
-                                // Filter by entity if selected
-                                if (selectedEntityId && task.entityId !== selectedEntityId) {
-                                  return false;
-                                }
-                                // Only pending tasks
-                                return task.status.toLowerCase() !== "completed";
-                              });
-                              
-                              // Show message if no pending tasks
-                              if (pendingTasks.length === 0) {
-                                return (
-                                  <div className="text-center py-4 text-slate-500 border rounded-md">
-                                    {selectedEntityId ? 'No pending tasks for this entity' : 'No pending tasks'}
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-4">
+                      {(() => {
+                        return clientTasks.map((task: any) => (
+                          <div key={task.id} className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-3 mb-2">
+                                  <Clock className="h-4 w-4 text-slate-400" />
+                                  <h3 className="font-medium text-slate-900">
+                                    {task.title || task.taskDetails || 'Task'}
+                                  </h3>
+                                  {task.statusName && (
+                                    <Badge variant="outline">
+                                      {task.statusName}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-slate-600 ml-7">
+                                  <div className="flex items-center">
+                                    <Calendar className="h-3 w-3 mr-1" />
+                                    Due: {formatDate(task.dueDate)}
                                   </div>
-                                );
-                              }
-                              
-                              // Display pending tasks
-                              return pendingTasks.map((task: any) => (
-                                <div key={task.id} className="flex items-start p-4 border rounded-md">
-                                  <div className="flex-shrink-0 mt-1 mr-4">
-                                    <Clock className="h-5 w-5 text-slate-400" />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex justify-between">
-                                      <p className="text-sm font-medium text-slate-900">
-                                        {task.title}
-                                      </p>
-                                      <Badge variant={getTaskStatusVariant(task.status)}>
-                                        {task.status}
-                                      </Badge>
+                                  {task.entityId && (
+                                    <div className="flex items-center">
+                                      <Building2 className="h-3 w-3 mr-1" />
+                                      Entity: {(clientEntities as any[]).find((e: any) => e.id === task.entityId)?.name || 'Unknown'}
                                     </div>
-                                    <p className="text-sm text-slate-500 mt-1">
-                                      {task.description}
-                                    </p>
-                                    <div className="mt-2 flex items-center text-xs text-slate-500">
-                                      <Calendar className="h-3 w-3 mr-1" />
-                                      Due: {formatDate(task.dueDate)}
-                                    </div>
-                                    {!selectedEntityId && task.entityId && clientEntities && (
-                                      <div className="mt-2">
-                                        <Badge variant="outline" className="text-xs">
-                                          {clientEntities.find((e: any) => e.id === task.entityId)?.name || 'Entity'}
-                                        </Badge>
-                                      </div>
-                                    )}
+                                  )}
+                                  <div className="flex items-center">
+                                    <Briefcase className="h-3 w-3 mr-1" />
+                                    Type: {task.taskType || 'Regular'}
                                   </div>
                                 </div>
-                              ));
-                            })()}
+                              </div>
+                              <Button size="sm" variant="outline" className="ml-2">
+                                View Details
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                        
-                        {/* Completed Tasks Section */}
-                        <div>
-                          <h3 className="text-lg font-medium mb-4">Completed Tasks</h3>
-                          <div className="space-y-4">
-                            {(() => {
-                              // Safely filter tasks based on entity and status
-                              const completedTasks = clientTasks.filter((task: any) => {
-                                // Filter by entity if selected
-                                if (selectedEntityId && task.entityId !== selectedEntityId) {
-                                  return false;
-                                }
-                                // Only completed tasks
-                                return task.status.toLowerCase() === "completed";
-                              });
-                              
-                              // Show message if no completed tasks
-                              if (completedTasks.length === 0) {
-                                return (
-                                  <div className="text-center py-4 text-slate-500 border rounded-md">
-                                    {selectedEntityId ? 'No completed tasks for this entity' : 'No completed tasks'}
-                                  </div>
-                                );
-                              }
-                              
-                              // Display completed tasks
-                              return completedTasks.map((task: any) => (
-                                <div key={task.id} className="flex items-start p-4 border rounded-md bg-gray-50">
-                                  <div className="flex-shrink-0 mt-1 mr-4">
-                                    <CheckCircle className="h-5 w-5 text-green-500" />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex justify-between">
-                                      <p className="text-sm font-medium text-slate-900">
-                                        {task.title}
-                                      </p>
-                                      <Badge variant="success">
-                                        Completed
-                                      </Badge>
-                                    </div>
-                                    <p className="text-sm text-slate-500 mt-1">
-                                      {task.description}
-                                    </p>
-                                    <div className="mt-2 flex items-center text-xs text-slate-500">
-                                      <Calendar className="h-3 w-3 mr-1" />
-                                      Completed on: {formatDate(task.completedDate || task.updatedAt || task.dueDate)}
-                                    </div>
-                                    {!selectedEntityId && task.entityId && clientEntities && (
-                                      <div className="mt-2">
-                                        <Badge variant="outline" className="text-xs">
-                                          {clientEntities.find((e: any) => e.id === task.entityId)?.name || 'Entity'}
-                                        </Badge>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              ));
-                            })()}
-                          </div>
-                        </div>
-                      </>
-                    )}
+                        ));
+                      })()}
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -840,16 +616,34 @@ export default function ClientPortalDashboardPage() {
           {/* Invoices Tab */}
           <TabsContent value="invoices" className="space-y-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Your Invoices</CardTitle>
-                <CardDescription>
-                  View and manage your invoices
+              <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
+                <div>
+                  <CardTitle>Your Invoices</CardTitle>
+                  <CardDescription>
+                    View and manage your billing{selectedEntityId ? ` for ${getEntityFilterText()}` : ""}
+                  </CardDescription>
+                </div>
+                <div className="flex items-center space-x-2">
                   {selectedEntityId && (
-                    <Badge className="ml-2 bg-blue-100 text-blue-800 hover:bg-blue-200">
-                      Filtered by entity
-                    </Badge>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setSelectedEntityId(null);
+                        refetchInvoices();
+                      }}
+                    >
+                      Show All Invoices
+                    </Button>
                   )}
-                </CardDescription>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => refetchInvoices()}
+                  >
+                    Refresh
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {isInvoicesLoading ? (
@@ -864,54 +658,28 @@ export default function ClientPortalDashboardPage() {
                       Failed to load invoices. Please try again later.
                     </AlertDescription>
                   </Alert>
-                ) : clientInvoices && clientInvoices.length === 0 ? (
+                ) : clientInvoices.length === 0 ? (
                   <div className="text-center py-6 text-slate-500">
-                    No invoices available
+                    {selectedEntityId ? "No invoices found for this entity" : "No invoices available"}
                   </div>
                 ) : (
-                  <div className="space-y-6">
-                    {/* Unpaid Invoices Section */}
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Unpaid Invoices</h3>
-                      <div className="space-y-4">
-                        {(() => {
-                          // Filter unpaid invoices, considering entity selection
-                          const unpaidInvoices = clientInvoices.filter((invoice: any) => {
-                            // Filter by entity if selected
-                            if (selectedEntityId && invoice.entityId !== selectedEntityId) {
-                              return false;
-                            }
-                            return invoice.status.toLowerCase() !== "paid";
-                          });
-                          
-                          // Show message if no unpaid invoices
-                          if (unpaidInvoices.length === 0) {
-                            return (
-                              <div className="text-center py-4 text-slate-500 border rounded-md">
-                                {selectedEntityId ? 'No unpaid invoices for this entity' : 'No unpaid invoices'}
-                              </div>
-                            );
-                          }
-                          
-                          // Display unpaid invoices
-                          return unpaidInvoices.map((invoice: any) => (
-                            <div key={invoice.id} className="flex items-start p-4 border rounded-md">
-                              <div className="flex-shrink-0 mt-1 mr-4">
-                                <Receipt className="h-5 w-5 text-orange-500" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-center">
-                                  <p className="text-sm font-medium text-slate-900">
-                                    Invoice #{invoice.invoiceNumber}
-                                  </p>
-                                  <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
-                                    {invoice.status}
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-4">
+                      {(() => {
+                        return clientInvoices.map((invoice: any) => (
+                          <div key={invoice.id} className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-3 mb-2">
+                                  <Receipt className="h-4 w-4 text-slate-400" />
+                                  <h3 className="font-medium text-slate-900">
+                                    Invoice #{invoice.invoiceNumber || invoice.id}
+                                  </h3>
+                                  <Badge variant={invoice.status === 'Paid' ? 'default' : 'secondary'}>
+                                    {invoice.status || 'Draft'}
                                   </Badge>
                                 </div>
-                                <p className="text-sm text-slate-500 mt-1">
-                                  {invoice.description || 'Services rendered'}
-                                </p>
-                                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-slate-600 ml-7">
                                   <div className="flex items-center">
                                     <Calendar className="h-3 w-3 mr-1" />
                                     Date: {formatDate(invoice.invoiceDate)}
@@ -923,7 +691,7 @@ export default function ClientPortalDashboardPage() {
                                   {invoice.entityId && (
                                     <div className="flex items-center">
                                       <Building2 className="h-3 w-3 mr-1" />
-                                      Entity: {clientEntities.find((e: any) => e.id === invoice.entityId)?.name || 'Unknown'}
+                                      Entity: {(clientEntities as any[]).find((e: any) => e.id === invoice.entityId)?.name || 'Unknown'}
                                     </div>
                                   )}
                                 </div>
@@ -932,76 +700,9 @@ export default function ClientPortalDashboardPage() {
                                 View Details
                               </Button>
                             </div>
-                          ));
-                        })()}
-                      </div>
-                    </div>
-                    
-                    {/* Paid Invoices Section */}
-                    <div>
-                      <h3 className="text-lg font-medium mb-4">Paid Invoices</h3>
-                      <div className="space-y-4">
-                        {(() => {
-                          // Filter paid invoices, considering entity selection
-                          const paidInvoices = clientInvoices.filter((invoice: any) => {
-                            // Filter by entity if selected
-                            if (selectedEntityId && invoice.entityId !== selectedEntityId) {
-                              return false;
-                            }
-                            return invoice.status.toLowerCase() === "paid";
-                          });
-                          
-                          // Show message if no paid invoices
-                          if (paidInvoices.length === 0) {
-                            return (
-                              <div className="text-center py-4 text-slate-500 border rounded-md">
-                                {selectedEntityId ? 'No paid invoices for this entity' : 'No paid invoices'}
-                              </div>
-                            );
-                          }
-                          
-                          // Display paid invoices
-                          return paidInvoices.map((invoice: any) => (
-                            <div key={invoice.id} className="flex items-start p-4 border rounded-md bg-gray-50">
-                              <div className="flex-shrink-0 mt-1 mr-4">
-                                <Receipt className="h-5 w-5 text-green-500" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-center">
-                                  <p className="text-sm font-medium text-slate-900">
-                                    Invoice #{invoice.invoiceNumber}
-                                  </p>
-                                  <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
-                                    Paid
-                                  </Badge>
-                                </div>
-                                <p className="text-sm text-slate-500 mt-1">
-                                  {invoice.description || 'Services rendered'}
-                                </p>
-                                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
-                                  <div className="flex items-center">
-                                    <Calendar className="h-3 w-3 mr-1" />
-                                    Date: {formatDate(invoice.invoiceDate)}
-                                  </div>
-                                  <div className="flex items-center">
-                                    <CircleDollarSign className="h-3 w-3 mr-1" />
-                                    Amount: ${formatCurrencyAmount(invoice.totalAmount)}
-                                  </div>
-                                  {invoice.entityId && (
-                                    <div className="flex items-center">
-                                      <Building2 className="h-3 w-3 mr-1" />
-                                      Entity: {clientEntities.find((e: any) => e.id === invoice.entityId)?.name || 'Unknown'}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <Button size="sm" variant="outline" className="ml-2">
-                                View Details
-                              </Button>
-                            </div>
-                          ));
-                        })()}
-                      </div>
+                          </div>
+                        ));
+                      })()}
                     </div>
                   </div>
                 )}
@@ -1009,108 +710,6 @@ export default function ClientPortalDashboardPage() {
             </Card>
           </TabsContent>
           
-          {/* Documents functionality removed - not implemented in main application yet */}
-                  <div className="flex justify-center py-6">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                  </div>
-                ) : documentsError ? (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>
-                      Failed to load documents. Please try again later.
-                    </AlertDescription>
-                  </Alert>
-                ) : clientDocuments.length === 0 ? (
-                  <div className="text-center py-6 text-slate-500">
-                    No documents available
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {/* Group documents by type */}
-                    {["Tax Return", "Financial Statement", "Report"].map((type) => {
-                      const docs = clientDocuments.filter(
-                        (doc: any) => doc.type.toLowerCase() === type.toLowerCase()
-                      );
-                      
-                      if (docs.length === 0) return null;
-                      
-                      return (
-                        <div key={type}>
-                          <h3 className="text-lg font-medium mb-4">{type}s</h3>
-                          <div className="space-y-4">
-                            {docs.map((doc: any) => (
-                              <div key={doc.id} className="flex items-start p-4 border rounded-md">
-                                <div className="flex-shrink-0 mt-1 mr-4">
-                                  {getDocumentIcon(doc.type)}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex justify-between items-center">
-                                    <p className="text-sm font-medium text-slate-900">
-                                      {doc.name}
-                                    </p>
-                                    <Button variant="outline" size="sm">
-                                      Download
-                                    </Button>
-                                  </div>
-                                  <p className="text-sm text-slate-500 mt-1">
-                                    {doc.description}
-                                  </p>
-                                  <div className="mt-2 flex items-center text-xs text-slate-500">
-                                    <Calendar className="h-3 w-3 mr-1" />
-                                    Uploaded: {formatDate(doc.date)}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    
-                    {/* Other documents */}
-                    {clientDocuments.filter(
-                      (doc: any) => !["Tax Return", "Financial Statement", "Report"].includes(doc.type)
-                    ).length > 0 && (
-                      <div>
-                        <h3 className="text-lg font-medium mb-4">Other Documents</h3>
-                        <div className="space-y-4">
-                          {clientDocuments
-                            .filter(
-                              (doc: any) => !["Tax Return", "Financial Statement", "Report"].includes(doc.type)
-                            )
-                            .map((doc: any) => (
-                              <div key={doc.id} className="flex items-start p-4 border rounded-md">
-                                <div className="flex-shrink-0 mt-1 mr-4">
-                                  {getDocumentIcon(doc.type)}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex justify-between items-center">
-                                    <p className="text-sm font-medium text-slate-900">
-                                      {doc.name}
-                                    </p>
-                                    <Button variant="outline" size="sm">
-                                      Download
-                                    </Button>
-                                  </div>
-                                  <p className="text-sm text-slate-500 mt-1">
-                                    {doc.description}
-                                  </p>
-                                  <div className="mt-2 flex items-center text-xs text-slate-500">
-                                    <Calendar className="h-3 w-3 mr-1" />
-                                    Uploaded: {formatDate(doc.date)}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
       </main>
       
@@ -1118,21 +717,14 @@ export default function ClientPortalDashboardPage() {
       <footer className="bg-white border-t mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="mb-4 md:mb-0">
-              <p className="text-sm text-slate-500">
-                &copy; {new Date().getFullYear()} AccFirm Management System
-              </p>
+            <div className="text-sm text-slate-500">
+              © 2025 Client Portal. All rights reserved.
             </div>
-            <div className="flex space-x-6">
-              <button className="text-sm text-slate-500 hover:text-slate-700">
-                Privacy Policy
-              </button>
-              <button className="text-sm text-slate-500 hover:text-slate-700">
-                Terms of Service
-              </button>
-              <button className="text-sm text-slate-500 hover:text-slate-700">
+            <div className="flex items-center space-x-4 mt-4 md:mt-0">
+              <Button variant="ghost" size="sm">
+                <Mail className="h-4 w-4 mr-2" />
                 Contact Support
-              </button>
+              </Button>
             </div>
           </div>
         </div>
