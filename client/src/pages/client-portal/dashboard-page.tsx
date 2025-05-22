@@ -434,13 +434,18 @@ export default function ClientPortalDashboardPage() {
                     <Select
                       value={selectedEntityId ? selectedEntityId.toString() : "all"}
                       onValueChange={(value) => {
-                        if (value === "all") {
-                          setSelectedEntityId(null);
-                        } else {
-                          const entityId = parseInt(value, 10);
-                          if (!isNaN(entityId)) {
-                            setSelectedEntityId(entityId);
+                        try {
+                          if (value === "all") {
+                            setSelectedEntityId(null);
+                          } else if (value && value !== "") {
+                            const entityId = parseInt(value, 10);
+                            if (!isNaN(entityId) && entityId > 0) {
+                              setSelectedEntityId(entityId);
+                            }
                           }
+                        } catch (error) {
+                          console.error("Entity filter error:", error);
+                          setSelectedEntityId(null);
                         }
                       }}
                     >
@@ -451,13 +456,13 @@ export default function ClientPortalDashboardPage() {
                         <SelectItem value="all" className="hover:bg-blue-50/80 rounded-lg">
                           All Entities
                         </SelectItem>
-                        {(clientEntities as any[]).map((entity: any) => (
+                        {clientEntities && Array.isArray(clientEntities) && clientEntities.map((entity: any) => (
                           <SelectItem 
-                            key={entity.id} 
-                            value={entity.id.toString()}
+                            key={entity?.id || Math.random()} 
+                            value={entity?.id?.toString() || ""}
                             className="hover:bg-blue-50/80 rounded-lg"
                           >
-                            {entity.name}
+                            {entity?.name || "Unknown Entity"}
                           </SelectItem>
                         ))}
                       </SelectContent>
