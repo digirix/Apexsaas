@@ -149,98 +149,169 @@ export function Header({ title, subtitle }: HeaderProps) {
   // Elegant header with sophisticated design
   if (designStyle === "elegant") {
     return (
-      <header className={cn(
-        "bg-white/95 backdrop-blur-md shadow-lg z-20 border-b border-gray-200/50",
-        "fixed top-0 left-0 right-0 md:sticky"
-      )}>
-        <div className="px-4 sm:px-6 lg:px-8 mx-auto">
-          <div className="flex justify-between h-16">
-            {/* Left side - Title (hidden on mobile) */}
-            <div className="hidden md:flex flex-col justify-center">
-              <h1 className="text-xl font-semibold bg-gradient-to-r from-gray-800 via-slate-700 to-gray-900 bg-clip-text text-transparent">
+      <motion.header 
+        className={cn(
+          "bg-white/80 backdrop-blur-xl shadow-sm z-20 border-b border-gray-100/50 font-light",
+          "fixed top-0 left-0 right-0 md:sticky"
+        )}
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
+        <div className="px-6 sm:px-8 lg:px-12 mx-auto">
+          <div className="flex justify-between h-20">
+            {/* Left side - Title with large thin font */}
+            <motion.div 
+              className="hidden md:flex flex-col justify-center"
+              initial={{ x: -30, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.7, delay: 0.2 }}
+            >
+              <motion.h1 
+                className="text-3xl font-extralight tracking-wide bg-gradient-to-r from-gray-700 via-slate-600 to-gray-800 bg-clip-text text-transparent"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 1, delay: 0.4 }}
+                whileHover={{ scale: 1.02 }}
+              >
                 {title}
-              </h1>
+              </motion.h1>
               {subtitle && (
-                <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>
+                <motion.p 
+                  className="text-sm font-light text-gray-400 mt-1 tracking-wider"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.6 }}
+                >
+                  {subtitle}
+                </motion.p>
               )}
-            </div>
+            </motion.div>
 
-            {/* Center - Search */}
-            <div className="flex-1 md:flex-initial flex items-center justify-center md:ml-8 max-w-lg">
+            {/* Center - Elegant Search */}
+            <motion.div 
+              className="flex-1 md:flex-initial flex items-center justify-center md:ml-12 max-w-lg"
+              initial={{ y: -20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+            >
               <div className="relative w-full max-w-md mx-auto md:mx-0">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-4 w-4 text-gray-400" />
-                </div>
+                <motion.div 
+                  className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"
+                  whileHover={{ scale: 1.1 }}
+                >
+                  <Search className="h-5 w-5 text-gray-300" />
+                </motion.div>
                 <Input 
                   type="search" 
-                  placeholder="Search..." 
-                  className="pl-10 h-9 md:w-64 lg:w-72 bg-white/80 backdrop-blur-sm border border-gray-200/60 shadow-sm rounded-lg hover:bg-white/90 focus:bg-white transition-all duration-200"
+                  placeholder="Search across workspace..." 
+                  className="pl-12 h-12 md:w-80 lg:w-96 bg-white/60 backdrop-blur-lg border border-gray-100/60 shadow-sm rounded-2xl hover:bg-white/80 focus:bg-white/90 transition-all duration-300 font-light text-lg placeholder:text-gray-300 placeholder:font-light"
                 />
               </div>
-            </div>
+            </motion.div>
 
-            {/* Right side - User actions */}
-            <div className="flex items-center space-x-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100/60 backdrop-blur-sm rounded-lg transition-all duration-200"
+            {/* Right side - Elegant User actions */}
+            <motion.div 
+              className="flex items-center space-x-6"
+              initial={{ x: 30, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+            >
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
-                <span className="sr-only">View notifications</span>
-                <div className="relative">
-                  <Bell className="h-5 w-5" />
-                  <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white shadow-sm"></span>
-                </div>
-              </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-gray-300 hover:text-gray-500 hover:bg-gray-50/60 backdrop-blur-lg rounded-2xl transition-all duration-300 h-12 w-12"
+                >
+                  <span className="sr-only">View notifications</span>
+                  <div className="relative">
+                    <Bell className="h-6 w-6" />
+                    <motion.span 
+                      className="absolute -top-1 -right-1 block h-3 w-3 rounded-full bg-red-400 ring-2 ring-white/80 shadow-sm"
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    />
+                  </div>
+                </Button>
+              </motion.div>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="flex items-center space-x-3 focus:outline-none h-auto px-2 hover:bg-gray-100/60 backdrop-blur-sm rounded-lg transition-all duration-200"
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                   >
-                    <Avatar className="h-8 w-8 border-2 border-gray-200/60 shadow-sm">
-                      <AvatarFallback className="bg-gradient-to-br from-gray-500 to-slate-600 text-white font-medium">
-                        {user ? getInitials(user.displayName) : "?"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="text-left hidden md:block">
-                      <p className="text-sm font-medium text-gray-700">
-                        {user?.displayName}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {user?.isSuperAdmin ? "Super Admin" : "Member"}
-                      </p>
-                    </div>
-                    <ChevronDown className="h-4 w-4 text-gray-400" />
-                  </Button>
+                    <Button
+                      variant="ghost"
+                      className="flex items-center space-x-4 focus:outline-none h-auto px-3 py-2 hover:bg-gray-50/60 backdrop-blur-lg rounded-2xl transition-all duration-300"
+                    >
+                      <motion.div
+                        whileHover={{ rotate: 3 }}
+                        transition={{ type: "spring", stiffness: 400 }}
+                      >
+                        <Avatar className="h-10 w-10 border-2 border-gray-100/60 shadow-md">
+                          <AvatarFallback className="bg-gradient-to-br from-gray-400 to-slate-500 text-white font-light text-lg">
+                            {user ? getInitials(user.displayName) : "?"}
+                          </AvatarFallback>
+                        </Avatar>
+                      </motion.div>
+                      <div className="text-left hidden md:block">
+                        <p className="text-lg font-light text-gray-600 tracking-wide">
+                          {user?.displayName}
+                        </p>
+                        <p className="text-sm font-extralight text-gray-400 tracking-wider">
+                          {user?.isSuperAdmin ? "Super Admin" : "Member"}
+                        </p>
+                      </div>
+                      <ChevronDown className="h-5 w-5 text-gray-300" />
+                    </Button>
+                  </motion.div>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-white/95 backdrop-blur-md border border-gray-200/50 shadow-xl rounded-lg">
-                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="hover:bg-gray-50/80 rounded-md">
-                    <span>Profile</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="hover:bg-gray-50/80 rounded-md">
-                    <span>Settings</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="hover:bg-red-50/80 rounded-md">
-                    <span>Logout</span>
-                  </DropdownMenuItem>
+                <DropdownMenuContent 
+                  align="end" 
+                  className="w-64 bg-white/90 backdrop-blur-xl border border-gray-100/50 shadow-xl rounded-2xl p-2 font-light"
+                  asChild
+                >
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <DropdownMenuLabel className="text-lg font-light text-gray-600 px-3 py-2">My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator className="bg-gray-100/50" />
+                    <DropdownMenuItem className="hover:bg-gray-50/80 rounded-xl text-base font-light py-3 px-3 text-gray-600">
+                      <span>Profile Settings</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="hover:bg-gray-50/80 rounded-xl text-base font-light py-3 px-3 text-gray-600">
+                      <span>Preferences</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="bg-gray-100/50" />
+                    <DropdownMenuItem onClick={handleLogout} className="hover:bg-red-50/80 rounded-xl text-base font-light py-3 px-3 text-red-500">
+                      <span>Sign Out</span>
+                    </DropdownMenuItem>
+                  </motion.div>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </div>
+            </motion.div>
           </div>
           
-          {/* Mobile title - visible only on mobile */}
-          <div className="md:hidden -mt-3 pb-2">
-            <h1 className="text-lg font-semibold bg-gradient-to-r from-gray-800 to-slate-700 bg-clip-text text-transparent">
+          {/* Mobile title with large thin font */}
+          <motion.div 
+            className="md:hidden -mt-4 pb-3"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+          >
+            <h1 className="text-2xl font-extralight tracking-wide bg-gradient-to-r from-gray-700 to-slate-600 bg-clip-text text-transparent">
               {title}
             </h1>
-          </div>
+          </motion.div>
         </div>
-      </header>
+      </motion.header>
     );
   }
 

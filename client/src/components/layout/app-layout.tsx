@@ -46,30 +46,79 @@ export function AppLayout({ children, title }: AppLayoutProps) {
   // Elegant layout with sophisticated design
   if (designStyle === "elegant") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100 relative">
-        {/* Elegant Background Elements */}
+      <div className="min-h-screen bg-gradient-to-br from-white via-slate-50/80 to-gray-100/60 relative font-light">
+        {/* Elegant Background Elements with subtle animations */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-blue-100/30 to-purple-100/20 rounded-full blur-3xl transform translate-x-1/3 -translate-y-1/3" />
-          <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-indigo-100/25 to-blue-100/15 rounded-full blur-3xl transform -translate-x-1/4 translate-y-1/4" />
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-r from-gray-100/20 to-slate-100/10 rounded-full blur-2xl" />
+          <motion.div
+            className="absolute top-0 right-0 w-[32rem] h-[32rem] bg-gradient-to-bl from-blue-50/40 to-indigo-50/30 rounded-full blur-3xl"
+            animate={{
+              scale: [1, 1.05, 1],
+              opacity: [0.3, 0.5, 0.3],
+            }}
+            transition={{
+              duration: 8,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            style={{ transform: "translate(25%, -25%)" }}
+          />
+          <motion.div
+            className="absolute bottom-0 left-0 w-[28rem] h-[28rem] bg-gradient-to-tr from-purple-50/35 to-blue-50/25 rounded-full blur-3xl"
+            animate={{
+              scale: [1.05, 1, 1.05],
+              opacity: [0.4, 0.6, 0.4],
+            }}
+            transition={{
+              duration: 10,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            style={{ transform: "translate(-25%, 25%)" }}
+          />
         </div>
 
         <div className="min-h-screen flex relative z-10">
-          <div className="shadow-xl border-r border-gray-200/50">
+          {/* Sidebar with drawer-like appearance */}
+          <motion.div
+            className="hidden md:block shadow-2xl border-r border-gray-200/40 backdrop-blur-sm bg-white/60"
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+          >
             <Sidebar />
-          </div>
+          </motion.div>
           
-          <div className="flex-1 flex flex-col min-h-screen md:ml-0">
-            <div className="shadow-md border-b border-gray-200/30 backdrop-blur-sm">
+          <motion.div 
+            className="flex-1 flex flex-col min-h-screen"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.2 }}
+          >
+            <motion.div
+              className="shadow-lg border-b border-gray-200/40 backdrop-blur-md bg-white/70"
+              initial={{ y: -10, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+            >
               <Header title={title} />
-            </div>
+            </motion.div>
             
-            <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pt-24 md:pt-6">
-              <div className="max-w-7xl mx-auto">
+            <motion.main 
+              className="flex-1 overflow-y-auto p-6 sm:p-8 lg:p-12 pt-28 md:pt-8"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+            >
+              <motion.div
+                className="max-w-7xl mx-auto"
+                initial={{ y: 30, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.5 }}
+              >
                 {children}
-              </div>
-            </main>
-          </div>
+              </motion.div>
+            </motion.main>
+          </motion.div>
         </div>
       </div>
     );
