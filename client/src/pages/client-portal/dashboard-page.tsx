@@ -70,13 +70,22 @@ export default function ClientPortalDashboardPage() {
     queryKey: ["/api/client-portal/profile"],
   });
   
-  // Fetch client tasks
+  // Fetch client tasks - filter by entity if selected
   const { 
     data: clientTasks = [], 
     isLoading: isTasksLoading,
     error: tasksError,
-  } = useQuery({
-    queryKey: ["/api/client-portal/tasks"],
+    refetch: refetchTasks
+  } = useQuery<any[]>({
+    queryKey: ["/api/client-portal/tasks", selectedEntityId],
+    queryFn: async () => {
+      const url = selectedEntityId 
+        ? `/api/client-portal/tasks?entityId=${selectedEntityId}`
+        : '/api/client-portal/tasks';
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch tasks');
+      return response.json();
+    },
     enabled: !!clientProfile
   });
   
@@ -85,18 +94,27 @@ export default function ClientPortalDashboardPage() {
     data: clientDocuments = [], 
     isLoading: isDocumentsLoading,
     error: documentsError,
-  } = useQuery({
+  } = useQuery<any[]>({
     queryKey: ["/api/client-portal/documents"],
     enabled: !!clientProfile
   });
   
-  // Fetch client invoices
+  // Fetch client invoices - filter by entity if selected
   const {
     data: clientInvoices = [],
     isLoading: isInvoicesLoading,
     error: invoicesError,
-  } = useQuery({
-    queryKey: ["/api/client-portal/invoices"],
+    refetch: refetchInvoices
+  } = useQuery<any[]>({
+    queryKey: ["/api/client-portal/invoices", selectedEntityId],
+    queryFn: async () => {
+      const url = selectedEntityId 
+        ? `/api/client-portal/invoices?entityId=${selectedEntityId}`
+        : '/api/client-portal/invoices';
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch invoices');
+      return response.json();
+    },
     enabled: !!clientProfile
   });
 
