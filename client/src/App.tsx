@@ -57,6 +57,7 @@ function Router() {
       
       {/* Client Portal routes */}
       <Route path="/client-portal/login" component={ClientPortalLoginPage} />
+      <Route path="/client-portal" component={ClientPortalDashboardPage} />
       <Route path="/client-portal/dashboard" component={ClientPortalDashboardPage} />
       <Route path="/client-portal/reset-password" component={ResetPasswordPage} />
       {/* Direct invoice creation disabled - invoices are now created only through tasks */}
