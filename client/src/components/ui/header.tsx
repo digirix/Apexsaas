@@ -25,8 +25,14 @@ interface HeaderProps {
 export function Header({ title, subtitle }: HeaderProps) {
   const { user, logoutMutation } = useAuth();
   const [designStyle, setDesignStyle] = useState("classic");
+  const [themeMode, setThemeMode] = useState("light");
+  const [primaryColor, setPrimaryColor] = useState("blue");
+  const [fontSize, setFontSize] = useState("medium");
+  const [borderRadius, setBorderRadius] = useState(8);
+  const [compactMode, setCompactMode] = useState(false);
+  const [enableAnimations, setEnableAnimations] = useState(true);
 
-  // Fetch settings to determine design style
+  // Fetch all display settings
   const { data: settings = [] } = useQuery<TenantSetting[]>({
     queryKey: ["/api/v1/tenant/settings"],
     refetchOnWindowFocus: false
@@ -35,7 +41,20 @@ export function Header({ title, subtitle }: HeaderProps) {
   useEffect(() => {
     if (settings.length > 0) {
       const styleSettings = settings.find(s => s.key === "design_style");
+      const themeModeSettings = settings.find(s => s.key === "theme_mode");
+      const primaryColorSettings = settings.find(s => s.key === "primary_color");
+      const fontSizeSettings = settings.find(s => s.key === "font_size");
+      const borderRadiusSettings = settings.find(s => s.key === "border_radius");
+      const compactModeSettings = settings.find(s => s.key === "compact_mode");
+      const animationsSettings = settings.find(s => s.key === "enable_animations");
+      
       setDesignStyle(styleSettings?.value || "classic");
+      setThemeMode(themeModeSettings?.value || "light");
+      setPrimaryColor(primaryColorSettings?.value || "blue");
+      setFontSize(fontSizeSettings?.value || "medium");
+      setBorderRadius(parseInt(borderRadiusSettings?.value || "8"));
+      setCompactMode(compactModeSettings?.value === "true");
+      setEnableAnimations(animationsSettings?.value !== "false");
     }
   }, [settings]);
 
