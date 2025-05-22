@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Card, 
   CardContent, 
@@ -32,7 +33,15 @@ import {
   MapPin,
   Receipt,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  TrendingUp,
+  Shield,
+  Star,
+  Zap,
+  ArrowRight,
+  Eye,
+  Filter,
+  Sparkles
 } from "lucide-react";
 import {
   Alert,
@@ -191,8 +200,27 @@ export default function ClientPortalDashboardPage() {
   // Loading state
   if (isProfileLoading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="text-center"
+        >
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"
+          />
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="text-slate-600 font-medium"
+          >
+            Loading your portal...
+          </motion.p>
+        </motion.div>
       </div>
     );
   }
@@ -200,729 +228,1277 @@ export default function ClientPortalDashboardPage() {
   // Error state (if not redirected)
   if (profileError && !clientProfile) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-4">
-        <Alert variant="destructive" className="max-w-md mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Authentication Error</AlertTitle>
-          <AlertDescription>
-            Please log in to access the client portal.
-          </AlertDescription>
-        </Alert>
-        <Button onClick={() => setLocation("/client-portal/login")}>
-          Go to Login
-        </Button>
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-br from-red-50 to-pink-50">
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Alert variant="destructive" className="max-w-md mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Authentication Error</AlertTitle>
+            <AlertDescription>
+              Please log in to access the client portal.
+            </AlertDescription>
+          </Alert>
+          <Button onClick={() => setLocation("/client-portal/login")}>
+            Go to Login
+          </Button>
+        </motion.div>
       </div>
     );
   }
   
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40 relative overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          className="absolute -top-4 -right-4 w-72 h-72 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl"
+          animate={{
+            scale: [1, 1.1, 1],
+            rotate: [0, 180, 360],
+          }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            ease: "linear"
+          }}
+        />
+        <motion.div
+          className="absolute -bottom-4 -left-4 w-96 h-96 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-3xl"
+          animate={{
+            scale: [1.1, 1, 1.1],
+            rotate: [360, 180, 0],
+          }}
+          transition={{
+            duration: 25,
+            repeat: Infinity,
+            ease: "linear"
+          }}
+        />
+        <motion.div
+          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-br from-green-400/10 to-blue-400/10 rounded-full blur-3xl"
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.3, 0.6, 0.3],
+          }}
+          transition={{
+            duration: 15,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+      </div>
+
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <motion.header 
+        className="relative bg-white/80 backdrop-blur-xl shadow-lg border-b border-white/20 z-10"
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-              <Building className="h-8 w-8 text-blue-600 mr-3" />
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">
-                  Welcome, {clientProfile?.client?.displayName || "Client"}
-                </h1>
-                <p className="text-sm text-slate-500">
-                  Client Portal - {clientProfile?.client?.email || ""}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLogout}
-                className="flex items-center"
+            <motion.div 
+              className="flex items-center"
+              initial={{ x: -50, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+            >
+              <motion.div
+                className="relative mr-4"
+                whileHover={{ scale: 1.05, rotate: 5 }}
+                transition={{ type: "spring", stiffness: 300 }}
               >
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </Button>
-            </div>
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-purple-600 rounded-xl blur-lg opacity-75"></div>
+                <div className="relative bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-xl">
+                  <Building className="h-8 w-8 text-white" />
+                </div>
+              </motion.div>
+              <div>
+                <motion.h1 
+                  className="text-3xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 bg-clip-text text-transparent"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 1, delay: 0.5 }}
+                >
+                  Welcome, {clientProfile?.client?.displayName || "Client"}
+                </motion.h1>
+                <motion.p 
+                  className="text-sm text-slate-600 flex items-center mt-1"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 1, delay: 0.7 }}
+                >
+                  <Shield className="h-4 w-4 mr-2 text-green-500" />
+                  Secure Client Portal - {clientProfile?.client?.email || ""}
+                </motion.p>
+              </div>
+            </motion.div>
+            <motion.div 
+              className="flex items-center space-x-4"
+              initial={{ x: 50, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+            >
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="flex items-center border-2 border-slate-200 hover:border-red-300 hover:bg-red-50 transition-all duration-300"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </Button>
+              </motion.div>
+            </motion.div>
           </div>
         </div>
-      </header>
+      </motion.header>
       
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <motion.main 
+        className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 z-10"
+        initial={{ opacity: 0, y: 50 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.4 }}
+      >
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <div className="flex justify-between items-center mb-6">
-            <TabsList>
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="entities">Entities</TabsTrigger>
-              <TabsTrigger value="tasks">Tasks</TabsTrigger>
-              <TabsTrigger value="invoices">Invoices</TabsTrigger>
-            </TabsList>
+          <motion.div 
+            className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 space-y-4 lg:space-y-0"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+          >
+            <motion.div
+              className="relative"
+              whileHover={{ scale: 1.02 }}
+              transition={{ type: "spring", stiffness: 300 }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-2xl blur-xl"></div>
+              <TabsList className="relative bg-white/60 backdrop-blur-lg border border-white/30 shadow-xl rounded-2xl p-1.5">
+                <TabsTrigger 
+                  value="overview" 
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300 rounded-xl px-6 py-2 font-medium"
+                >
+                  <BarChart className="h-4 w-4 mr-2" />
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="entities" 
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300 rounded-xl px-6 py-2 font-medium"
+                >
+                  <Building2 className="h-4 w-4 mr-2" />
+                  Entities
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="tasks" 
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300 rounded-xl px-6 py-2 font-medium"
+                >
+                  <Clock className="h-4 w-4 mr-2" />
+                  Tasks
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="invoices" 
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300 rounded-xl px-6 py-2 font-medium"
+                >
+                  <Receipt className="h-4 w-4 mr-2" />
+                  Invoices
+                </TabsTrigger>
+              </TabsList>
+            </motion.div>
             
             {/* Entity Filter - Show on tasks and invoices tabs */}
-            {(activeTab === "tasks" || activeTab === "invoices") && (
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-slate-600">Filter by Entity:</span>
-                <Select
-                  value={selectedEntityId?.toString() || "all"}
-                  onValueChange={(value) => {
-                    setSelectedEntityId(value === "all" ? null : parseInt(value));
-                  }}
+            <AnimatePresence>
+              {(activeTab === "tasks" || activeTab === "invoices") && (
+                <motion.div 
+                  className="flex items-center space-x-3"
+                  initial={{ opacity: 0, x: 20, scale: 0.9 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: 20, scale: 0.9 }}
+                  transition={{ duration: 0.3 }}
                 >
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Select entity" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Entities</SelectItem>
-                    {(clientEntities as any[]).map((entity: any) => (
-                      <SelectItem key={entity.id} value={entity.id.toString()}>
-                        {entity.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <div className="flex items-center space-x-2 bg-white/60 backdrop-blur-lg rounded-full px-4 py-2 border border-white/30 shadow-lg">
+                    <Filter className="h-4 w-4 text-slate-600" />
+                    <span className="text-sm font-medium text-slate-700">Filter by Entity:</span>
+                  </div>
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                  >
+                    <Select
+                      value={selectedEntityId?.toString() || "all"}
+                      onValueChange={(value) => {
+                        setSelectedEntityId(value === "all" ? null : parseInt(value));
+                      }}
+                    >
+                      <SelectTrigger className="w-48 bg-white/70 backdrop-blur-lg border border-white/30 shadow-lg rounded-xl hover:bg-white/80 transition-all duration-300">
+                        <SelectValue placeholder="Select entity" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white/90 backdrop-blur-xl border border-white/30 shadow-xl rounded-xl">
+                        <SelectItem value="all" className="hover:bg-blue-50/80 rounded-lg">
+                          All Entities
+                        </SelectItem>
+                        {(clientEntities as any[]).map((entity: any) => (
+                          <SelectItem 
+                            key={entity.id} 
+                            value={entity.id.toString()}
+                            className="hover:bg-blue-50/80 rounded-lg"
+                          >
+                            {entity.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+          
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-8">
+            <motion.div 
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, staggerChildren: 0.1 }}
+            >
+              {/* Active Tasks Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+                whileHover={{ y: -8, scale: 1.02 }}
+                className="group"
+              >
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-400/30 to-cyan-400/30 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+                  <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-500 overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm font-medium text-slate-600">
+                          Active Tasks
+                        </CardTitle>
+                        <motion.div 
+                          className="p-2 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl"
+                          whileHover={{ rotate: 10, scale: 1.1 }}
+                          transition={{ type: "spring", stiffness: 400 }}
+                        >
+                          <Clock className="h-4 w-4 text-white" />
+                        </motion.div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <motion.div 
+                        className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
+                      >
+                        {clientTasks ? clientTasks.length : "0"}
+                      </motion.div>
+                      <p className="text-xs text-slate-500 mt-2 flex items-center">
+                        <TrendingUp className="h-3 w-3 mr-1 text-green-500" />
+                        {getTaskCompletionRate()}% completed
+                      </p>
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: "100%" }}
+                        transition={{ duration: 1.5, delay: 0.5 }}
+                        className="mt-3"
+                      >
+                        <Progress 
+                          value={getTaskCompletionRate()} 
+                          className="h-2 bg-slate-200/50"
+                        />
+                      </motion.div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </motion.div>
+
+              {/* Open Invoices Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                whileHover={{ y: -8, scale: 1.02 }}
+                className="group"
+              >
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-400/30 to-pink-400/30 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+                  <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-500 overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-pink-500"></div>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm font-medium text-slate-600">
+                          Open Invoices
+                        </CardTitle>
+                        <motion.div 
+                          className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl"
+                          whileHover={{ rotate: -10, scale: 1.1 }}
+                          transition={{ type: "spring", stiffness: 400 }}
+                        >
+                          <Receipt className="h-4 w-4 text-white" />
+                        </motion.div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <motion.div 
+                        className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", stiffness: 200, delay: 0.3 }}
+                      >
+                        {clientInvoices ? clientInvoices.filter((inv: any) => inv.status !== 'Paid').length : "0"}
+                      </motion.div>
+                      <p className="text-xs text-slate-500 mt-2">
+                        {clientInvoices && clientInvoices.length > 0
+                          ? `Total: ${clientInvoices.length} invoices`
+                          : "No invoices available"}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </motion.div>
+
+              {/* Business Entities Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                whileHover={{ y: -8, scale: 1.02 }}
+                className="group"
+              >
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-green-400/30 to-emerald-400/30 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+                  <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-500 overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-emerald-500"></div>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm font-medium text-slate-600">
+                          Business Entities
+                        </CardTitle>
+                        <motion.div 
+                          className="p-2 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl"
+                          whileHover={{ rotate: 5, scale: 1.1 }}
+                          transition={{ type: "spring", stiffness: 400 }}
+                        >
+                          <Building2 className="h-4 w-4 text-white" />
+                        </motion.div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <motion.div 
+                        className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", stiffness: 200, delay: 0.4 }}
+                      >
+                        {clientEntities ? (clientEntities as any[]).length : "0"}
+                      </motion.div>
+                      <p className="text-xs text-slate-500 mt-2">
+                        Registered entities
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </motion.div>
+
+              {/* Account Manager Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                whileHover={{ y: -8, scale: 1.02 }}
+                className="group"
+              >
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-orange-400/30 to-red-400/30 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+                  <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-500 overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 to-red-500"></div>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium text-slate-600">
+                        Account Manager
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex items-start space-x-4">
+                      <motion.div
+                        whileHover={{ scale: 1.1, rotate: 5 }}
+                        transition={{ type: "spring", stiffness: 400 }}
+                      >
+                        <Avatar className="h-12 w-12 bg-gradient-to-br from-orange-500 to-red-500 text-white border-2 border-white/50">
+                          <AvatarFallback className="bg-gradient-to-br from-orange-500 to-red-500 text-white">
+                            {clientProfile?.accountManager?.name
+                              ?.split(" ")
+                              .map((n: string) => n[0])
+                              .join("")
+                              .toUpperCase()
+                              .substring(0, 2) || "AM"}
+                          </AvatarFallback>
+                        </Avatar>
+                      </motion.div>
+                      <div>
+                        <div className="font-medium text-slate-900">
+                          {clientProfile?.accountManager?.name || "Not Assigned"}
+                        </div>
+                        <p className="text-sm text-slate-600">
+                          {clientProfile?.accountManager?.email || "Contact your firm for details"}
+                        </p>
+                        {clientProfile?.accountManager?.phone && (
+                          <p className="text-sm text-slate-600">
+                            {clientProfile.accountManager.phone}
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </motion.div>
+            </motion.div>
+            
+            {/* Recent Activity Section */}
+            <motion.div 
+              className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.8 }}
+            >
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-2xl blur-xl"></div>
+                <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl">
+                  <CardHeader>
+                    <div className="flex items-center space-x-2">
+                      <Sparkles className="h-5 w-5 text-blue-500" />
+                      <CardTitle>Recent Activity</CardTitle>
+                    </div>
+                    <CardDescription>
+                      Latest updates on your tasks and invoices
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {clientTasks && clientTasks.slice(0, 3).map((task: any, index: number) => (
+                        <motion.div 
+                          key={task.id} 
+                          className="flex items-start space-x-3 p-3 rounded-xl bg-white/50 hover:bg-white/70 transition-all duration-300"
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.5, delay: 1 + index * 0.1 }}
+                          whileHover={{ x: 5 }}
+                        >
+                          <div className="flex-shrink-0 mt-1">
+                            <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-900 truncate">
+                              {task.title || task.taskDetails || 'Task'}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              Due: {formatDate(task.dueDate)} • {task.statusName || 'In Progress'}
+                            </p>
+                          </div>
+                          <motion.div
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                          >
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => setActiveTab("tasks")}
+                              className="text-xs h-6 px-2"
+                            >
+                              View
+                            </Button>
+                          </motion.div>
+                        </motion.div>
+                      ))}
+                      
+                      {(!clientTasks || clientTasks.length === 0) && (
+                        <motion.div 
+                          className="text-center py-6 text-slate-500"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 1 }}
+                        >
+                          <Clock className="h-8 w-8 mx-auto mb-2 text-slate-300" />
+                          No recent activity
+                        </motion.div>
+                      )}
+                      
+                      {clientTasks && clientTasks.length > 3 && (
+                        <motion.div 
+                          className="text-center pt-2"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 1.3 }}
+                        >
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => setActiveTab("tasks")}
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            View all tasks
+                            <ArrowRight className="h-3 w-3 ml-1" />
+                          </Button>
+                        </motion.div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            )}
-          </div>
+            </motion.div>
+          </TabsContent>
           
           {/* Entities Tab */}
           <TabsContent value="entities" className="space-y-6">
-            <div className="grid grid-cols-1 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Your Business Entities</CardTitle>
-                  <CardDescription>
-                    View and manage your registered businesses
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {isEntitiesLoading ? (
-                    <div className="flex justify-center py-6">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <motion.div 
+              className="grid grid-cols-1 gap-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-2xl blur-xl"></div>
+                <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl">
+                  <CardHeader>
+                    <div className="flex items-center space-x-2">
+                      <Building2 className="h-5 w-5 text-blue-500" />
+                      <CardTitle>Your Business Entities</CardTitle>
                     </div>
-                  ) : entitiesError ? (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>Error</AlertTitle>
-                      <AlertDescription>
-                        Failed to load entities. Please try again later.
-                      </AlertDescription>
-                    </Alert>
-                  ) : (clientEntities as any[]).length === 0 ? (
-                    <div className="text-center py-6 text-slate-500">
-                      No entities found
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {(clientEntities as any[]).map((entity: any) => (
-                        <Card key={entity.id} className="hover:shadow-md transition-shadow border border-slate-200">
-                          <div className="p-4">
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center space-x-3">
-                                <div className="p-2 bg-blue-100 rounded-lg">
-                                  <Building2 className="h-5 w-5 text-blue-600" />
+                    <CardDescription>
+                      View and manage your registered businesses
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {isEntitiesLoading ? (
+                      <div className="flex justify-center py-8">
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                          className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"
+                        />
+                      </div>
+                    ) : entitiesError ? (
+                      <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Error</AlertTitle>
+                        <AlertDescription>
+                          Failed to load entities. Please try again later.
+                        </AlertDescription>
+                      </Alert>
+                    ) : (clientEntities as any[]).length === 0 ? (
+                      <motion.div 
+                        className="text-center py-8 text-slate-500"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                      >
+                        <Building2 className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                        No entities found
+                      </motion.div>
+                    ) : (
+                      <motion.div 
+                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ staggerChildren: 0.1 }}
+                      >
+                        {(clientEntities as any[]).map((entity: any, index: number) => (
+                          <motion.div
+                            key={entity.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: index * 0.1 }}
+                            whileHover={{ y: -5, scale: 1.02 }}
+                            className="group"
+                          >
+                            <div className="relative">
+                              <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-xl blur-lg group-hover:blur-xl transition-all duration-300"></div>
+                              <Card className="relative bg-white/80 backdrop-blur-lg border border-white/40 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl overflow-hidden">
+                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                                <div className="p-4">
+                                  <div className="flex items-start justify-between mb-3">
+                                    <div className="flex items-center space-x-3">
+                                      <motion.div 
+                                        className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg"
+                                        whileHover={{ rotate: 10, scale: 1.1 }}
+                                        transition={{ type: "spring", stiffness: 400 }}
+                                      >
+                                        <Building2 className="h-4 w-4 text-white" />
+                                      </motion.div>
+                                      <div>
+                                        <h3 className="font-semibold text-slate-900 text-sm">
+                                          {entity.name}
+                                        </h3>
+                                        <p className="text-xs text-slate-500">
+                                          {entity.entityType} • {entity.countryName}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center space-x-1">
+                                      <motion.div
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                      >
+                                        <Button 
+                                          variant="ghost" 
+                                          size="sm"
+                                          className="h-7 text-xs px-2 py-1 hover:bg-blue-50 text-slate-600 hover:text-blue-600 transition-colors"
+                                          onClick={() => {
+                                            setSelectedEntityId(entity.id);
+                                            setActiveTab("tasks");
+                                          }}
+                                        >
+                                          <Clock className="h-3 w-3 mr-1" />
+                                          Tasks
+                                        </Button>
+                                      </motion.div>
+                                      <motion.div
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                      >
+                                        <Button 
+                                          variant="ghost" 
+                                          size="sm"
+                                          className="h-7 text-xs px-2 py-1 hover:bg-purple-50 text-slate-600 hover:text-purple-600 transition-colors"
+                                          onClick={() => {
+                                            setSelectedEntityId(entity.id);
+                                            setActiveTab("invoices");
+                                          }}
+                                        >
+                                          <Receipt className="h-3 w-3 mr-1" />
+                                          Invoices
+                                        </Button>
+                                      </motion.div>
+                                    </div>
+                                  </div>
                                 </div>
-                                <div>
-                                  <h3 className="font-semibold text-slate-900 text-sm">
-                                    {entity.name}
-                                  </h3>
-                                  <p className="text-xs text-slate-500">
-                                    {entity.entityType} • {entity.countryName}
-                                  </p>
+                                
+                                <div className="px-4 pb-4">
+                                  <div className="grid grid-cols-3 gap-2 text-xs">
+                                    <div className="flex flex-col">
+                                      <span className="text-slate-500">Tax ID</span>
+                                      <span className="font-medium truncate">
+                                        {entity.businessTaxId || "N/A"}
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-slate-500">VAT Status</span>
+                                      <span className="font-medium">
+                                        {entity.isVatRegistered ? "Registered" : "Not Reg."}
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-slate-500">VAT ID</span>
+                                      <span className="font-medium truncate">
+                                        {entity.vatId || "N/A"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  
+                                  {entity.stats && (
+                                    <div className="mt-3 pt-2 border-t border-slate-100">
+                                      <div className="flex justify-between text-xs">
+                                        <span className="text-slate-500 flex items-center">
+                                          <Clock className="h-3 w-3 mr-1" />
+                                          Tasks: {entity.stats.taskCount || 0}
+                                        </span>
+                                        <span className="text-slate-500 flex items-center">
+                                          <Receipt className="h-3 w-3 mr-1" />
+                                          Invoices: {entity.stats.invoiceCount || 0}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
-                              </div>
-                              <div className="flex items-center space-x-1">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  className="h-7 text-xs px-2 py-1 hover:bg-blue-50 text-slate-600 hover:text-blue-600"
-                                  onClick={() => {
-                                    setSelectedEntityId(entity.id);
-                                    setActiveTab("tasks");
-                                  }}
-                                >
-                                  <Clock className="h-3 w-3 mr-1" />
-                                  Tasks
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  className="h-7 text-xs px-2 py-1 hover:bg-blue-50 text-slate-600 hover:text-blue-600"
-                                  onClick={() => {
-                                    setSelectedEntityId(entity.id);
-                                    setActiveTab("invoices");
-                                  }}
-                                >
-                                  <Receipt className="h-3 w-3 mr-1" />
-                                  Invoices
-                                </Button>
-                              </div>
+                              </Card>
                             </div>
-                          </div>
-                          
-                          <div className="p-2">
-                            <div className="grid grid-cols-3 gap-2 text-xs">
-                              <div className="flex flex-col">
-                                <span className="text-slate-500">Tax ID</span>
-                                <span className="font-medium truncate">
-                                  {entity.businessTaxId || "N/A"}
-                                </span>
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="text-slate-500">VAT Status</span>
-                                <span className="font-medium">
-                                  {entity.isVatRegistered ? "Registered" : "Not Reg."}
-                                </span>
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="text-slate-500">VAT ID</span>
-                                <span className="font-medium truncate">
-                                  {entity.vatId || "N/A"}
-                                </span>
-                              </div>
-                            </div>
-                            
-                            {entity.stats && (
-                              <div className="mt-3 pt-2 border-t border-slate-100">
-                                <div className="flex justify-between text-xs">
-                                  <span className="text-slate-500">
-                                    Tasks: {entity.stats.taskCount || 0}
-                                  </span>
-                                  <span className="text-slate-500">
-                                    Invoices: {entity.stats.invoiceCount || 0}
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-          
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-500">
-                    Active Tasks
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {clientTasks ? clientTasks.length : "0"}
-                  </div>
-                  <p className="text-xs text-slate-500 mt-2">
-                    {getTaskCompletionRate()}% completed
-                  </p>
-                  <Progress value={getTaskCompletionRate()} className="mt-2" />
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-500">
-                    Open Invoices
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {clientInvoices ? clientInvoices.filter((inv: any) => inv.status !== 'Paid').length : "0"}
-                  </div>
-                  <p className="text-xs text-slate-500 mt-2">
-                    {clientInvoices && clientInvoices.length > 0
-                      ? `Total: ${clientInvoices.length} invoices`
-                      : "No invoices available"}
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-500">
-                    Business Entities
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {clientEntities ? (clientEntities as any[]).length : "0"}
-                  </div>
-                  <p className="text-xs text-slate-500 mt-2">
-                    Registered entities
-                  </p>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-500">
-                    Account Manager
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="flex items-start space-x-4">
-                  <Avatar className="h-10 w-10 bg-blue-100 text-blue-600">
-                    <AvatarFallback>
-                      {clientProfile?.accountManager?.name
-                        ?.split(" ")
-                        .map((n: string) => n[0])
-                        .join("")
-                        .toUpperCase()
-                        .substring(0, 2) || "AM"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="font-medium">
-                      {clientProfile?.accountManager?.name || "Not Assigned"}
-                    </div>
-                    <p className="text-sm text-slate-500">
-                      {clientProfile?.accountManager?.email || "Contact your firm for details"}
-                    </p>
-                    {clientProfile?.accountManager?.phone && (
-                      <p className="text-sm text-slate-500">
-                        {clientProfile.accountManager.phone}
-                      </p>
+                          </motion.div>
+                        ))}
+                      </motion.div>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>
-                    Latest updates on your tasks and invoices
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {clientTasks && clientTasks.slice(0, 3).map((task: any) => (
-                      <div key={task.id} className="flex items-start space-x-3">
-                        <div className="flex-shrink-0 mt-1">
-                          <Clock className="h-4 w-4 text-blue-500" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-900 truncate">
-                            {task.title || task.taskDetails || 'Task'}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            Due: {formatDate(task.dueDate)} • {task.statusName || 'In Progress'}
-                          </p>
-                        </div>
-                        <div>
-                          <Button variant="ghost" size="sm" onClick={() => setActiveTab("tasks")}>
-                            View
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {(!clientTasks || clientTasks.length === 0) && (
-                      <div className="text-center py-6 text-slate-500">
-                        No recent activity
-                      </div>
-                    )}
-                    
-                    {clientTasks && clientTasks.length > 3 && (
-                      <div className="text-center pt-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => setActiveTab("tasks")}
-                        >
-                          View all tasks
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </motion.div>
           </TabsContent>
           
           {/* Tasks Tab */}
           <TabsContent value="tasks" className="space-y-6">
-            <Card>
-              <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
-                <div>
-                  <CardTitle>Your Tasks</CardTitle>
-                  <CardDescription>
-                    Track your compliance and service tasks{selectedEntityId ? ` for ${getEntityFilterText()}` : ""}
-                  </CardDescription>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {selectedEntityId && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        setSelectedEntityId(null);
-                        refetchTasks();
-                      }}
-                    >
-                      Show All Tasks
-                    </Button>
-                  )}
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => refetchTasks()}
-                  >
-                    Refresh
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {isTasksLoading ? (
-                  <div className="flex justify-center py-6">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                  </div>
-                ) : tasksError ? (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>
-                      Failed to load tasks. Please try again later.
-                    </AlertDescription>
-                  </Alert>
-                ) : clientTasks.length === 0 ? (
-                  <div className="text-center py-6 text-slate-500">
-                    {selectedEntityId ? "No tasks found for this entity" : "No tasks available"}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 gap-4">
-                      {(() => {
-                        return clientTasks.map((task: any) => (
-                          <div key={task.id} className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center space-x-3 mb-2">
-                                  <Clock className="h-4 w-4 text-slate-400" />
-                                  <h3 className="font-medium text-slate-900">
-                                    {task.title || task.taskDetails || 'Task'}
-                                  </h3>
-                                  {task.statusName && (
-                                    <Badge variant="outline">
-                                      {task.statusName}
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-slate-600 ml-7">
-                                  <div className="flex items-center">
-                                    <Calendar className="h-3 w-3 mr-1" />
-                                    Due: {formatDate(task.dueDate)}
-                                  </div>
-                                  {task.entityId && (
-                                    <div className="flex items-center">
-                                      <Building2 className="h-3 w-3 mr-1" />
-                                      Entity: {(clientEntities as any[]).find((e: any) => e.id === task.entityId)?.name || 'Unknown'}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-2xl blur-xl"></div>
+                <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl">
+                  <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-5 w-5 text-blue-500" />
+                        <CardTitle>Your Tasks</CardTitle>
+                      </div>
+                      <CardDescription>
+                        Track your compliance and service tasks{selectedEntityId ? ` for ${getEntityFilterText()}` : ""}
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {selectedEntityId && (
+                        <motion.div
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedEntityId(null);
+                              refetchTasks();
+                            }}
+                            className="border-blue-200 hover:border-blue-300 hover:bg-blue-50"
+                          >
+                            Show All Tasks
+                          </Button>
+                        </motion.div>
+                      )}
+                      <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => refetchTasks()}
+                          className="border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                        >
+                          Refresh
+                        </Button>
+                      </motion.div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {isTasksLoading ? (
+                      <div className="flex justify-center py-8">
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                          className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"
+                        />
+                      </div>
+                    ) : tasksError ? (
+                      <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Error</AlertTitle>
+                        <AlertDescription>
+                          Failed to load tasks. Please try again later.
+                        </AlertDescription>
+                      </Alert>
+                    ) : clientTasks.length === 0 ? (
+                      <motion.div 
+                        className="text-center py-8 text-slate-500"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                      >
+                        <Clock className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                        {selectedEntityId ? "No tasks found for this entity" : "No tasks available"}
+                      </motion.div>
+                    ) : (
+                      <motion.div 
+                        className="space-y-4"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ staggerChildren: 0.1 }}
+                      >
+                        <div className="grid grid-cols-1 gap-4">
+                          {clientTasks.map((task: any, index: number) => (
+                            <motion.div 
+                              key={task.id} 
+                              className="relative group"
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.5, delay: index * 0.1 }}
+                              whileHover={{ y: -2 }}
+                            >
+                              <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-xl blur-lg group-hover:blur-xl transition-all duration-300"></div>
+                              <div className="relative border rounded-xl p-4 bg-white/80 backdrop-blur-lg border-white/40 hover:shadow-lg transition-all duration-300">
+                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-t-xl"></div>
+                                <div className="flex items-start justify-between pt-2">
+                                  <div className="flex-1">
+                                    <div className="flex items-center space-x-3 mb-2">
+                                      <motion.div
+                                        whileHover={{ rotate: 10, scale: 1.1 }}
+                                        transition={{ type: "spring", stiffness: 400 }}
+                                      >
+                                        <Clock className="h-4 w-4 text-blue-500" />
+                                      </motion.div>
+                                      <h3 className="font-medium text-slate-900">
+                                        {task.title || task.taskDetails || 'Task'}
+                                      </h3>
+                                      {task.statusName && (
+                                        <Badge variant="outline" className="bg-white/50">
+                                          {task.statusName}
+                                        </Badge>
+                                      )}
                                     </div>
-                                  )}
-                                  <div className="flex items-center">
-                                    <Briefcase className="h-3 w-3 mr-1" />
-                                    Type: {task.taskType || 'Regular'}
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-slate-600 ml-7">
+                                      <div className="flex items-center">
+                                        <Calendar className="h-3 w-3 mr-1" />
+                                        Due: {formatDate(task.dueDate)}
+                                      </div>
+                                      {task.entityId && (
+                                        <div className="flex items-center">
+                                          <Building2 className="h-3 w-3 mr-1" />
+                                          Entity: {(clientEntities as any[]).find((e: any) => e.id === task.entityId)?.name || 'Unknown'}
+                                        </div>
+                                      )}
+                                      <div className="flex items-center">
+                                        <Briefcase className="h-3 w-3 mr-1" />
+                                        Type: {task.taskType || 'Regular'}
+                                      </div>
+                                    </div>
                                   </div>
+                                  <motion.div
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                  >
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline" 
+                                      className="ml-2 border-blue-200 hover:border-blue-300 hover:bg-blue-50"
+                                      onClick={() => {
+                                        setSelectedTaskId(task.id);
+                                        setShowTaskDetails(true);
+                                      }}
+                                    >
+                                      <Eye className="h-3 w-3 mr-1" />
+                                      View Details
+                                    </Button>
+                                  </motion.div>
                                 </div>
                               </div>
-                              <Button size="sm" variant="outline" className="ml-2">
-                                View Details
-                              </Button>
-                            </div>
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </motion.div>
           </TabsContent>
           
           {/* Invoices Tab */}
           <TabsContent value="invoices" className="space-y-6">
-            <Card>
-              <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
-                <div>
-                  <CardTitle>Your Invoices</CardTitle>
-                  <CardDescription>
-                    View and manage your billing{selectedEntityId ? ` for ${getEntityFilterText()}` : ""}
-                  </CardDescription>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {selectedEntityId && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        setSelectedEntityId(null);
-                        refetchInvoices();
-                      }}
-                    >
-                      Show All Invoices
-                    </Button>
-                  )}
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => refetchInvoices()}
-                  >
-                    Refresh
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {isInvoicesLoading ? (
-                  <div className="flex justify-center py-6">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                  </div>
-                ) : invoicesError ? (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>
-                      Failed to load invoices. Please try again later.
-                    </AlertDescription>
-                  </Alert>
-                ) : clientInvoices.length === 0 ? (
-                  <div className="text-center py-6 text-slate-500">
-                    {selectedEntityId ? "No invoices found for this entity" : "No invoices available"}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 gap-4">
-                      {(() => {
-                        return clientInvoices.map((invoice: any) => (
-                          <div key={invoice.id} className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center space-x-3 mb-2">
-                                  <Receipt className="h-4 w-4 text-slate-400" />
-                                  <h3 className="font-medium text-slate-900">
-                                    Invoice #{invoice.invoiceNumber || invoice.id}
-                                  </h3>
-                                  <Badge variant={invoice.status === 'Paid' ? 'default' : 'secondary'}>
-                                    {invoice.status || 'Draft'}
-                                  </Badge>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-slate-600 ml-7">
-                                  <div className="flex items-center">
-                                    <Calendar className="h-3 w-3 mr-1" />
-                                    Date: {formatDate(invoice.invoiceDate)}
-                                  </div>
-                                  <div className="flex items-center">
-                                    <CircleDollarSign className="h-3 w-3 mr-1" />
-                                    Amount: ${formatCurrencyAmount(invoice.totalAmount)}
-                                  </div>
-                                  {invoice.entityId && (
-                                    <div className="flex items-center">
-                                      <Building2 className="h-3 w-3 mr-1" />
-                                      Entity: {(clientEntities as any[]).find((e: any) => e.id === invoice.entityId)?.name || 'Unknown'}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-pink-400/10 rounded-2xl blur-xl"></div>
+                <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl">
+                  <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <Receipt className="h-5 w-5 text-purple-500" />
+                        <CardTitle>Your Invoices</CardTitle>
+                      </div>
+                      <CardDescription>
+                        View and manage your billing{selectedEntityId ? ` for ${getEntityFilterText()}` : ""}
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {selectedEntityId && (
+                        <motion.div
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedEntityId(null);
+                              refetchInvoices();
+                            }}
+                            className="border-purple-200 hover:border-purple-300 hover:bg-purple-50"
+                          >
+                            Show All Invoices
+                          </Button>
+                        </motion.div>
+                      )}
+                      <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => refetchInvoices()}
+                          className="border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                        >
+                          Refresh
+                        </Button>
+                      </motion.div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {isInvoicesLoading ? (
+                      <div className="flex justify-center py-8">
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                          className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full"
+                        />
+                      </div>
+                    ) : invoicesError ? (
+                      <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Error</AlertTitle>
+                        <AlertDescription>
+                          Failed to load invoices. Please try again later.
+                        </AlertDescription>
+                      </Alert>
+                    ) : clientInvoices.length === 0 ? (
+                      <motion.div 
+                        className="text-center py-8 text-slate-500"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                      >
+                        <Receipt className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                        {selectedEntityId ? "No invoices found for this entity" : "No invoices available"}
+                      </motion.div>
+                    ) : (
+                      <motion.div 
+                        className="space-y-4"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ staggerChildren: 0.1 }}
+                      >
+                        <div className="grid grid-cols-1 gap-4">
+                          {clientInvoices.map((invoice: any, index: number) => (
+                            <motion.div 
+                              key={invoice.id} 
+                              className="relative group"
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.5, delay: index * 0.1 }}
+                              whileHover={{ y: -2 }}
+                            >
+                              <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-pink-400/10 rounded-xl blur-lg group-hover:blur-xl transition-all duration-300"></div>
+                              <div className="relative border rounded-xl p-4 bg-white/80 backdrop-blur-lg border-white/40 hover:shadow-lg transition-all duration-300">
+                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-t-xl"></div>
+                                <div className="flex items-start justify-between pt-2">
+                                  <div className="flex-1">
+                                    <div className="flex items-center space-x-3 mb-2">
+                                      <motion.div
+                                        whileHover={{ rotate: -10, scale: 1.1 }}
+                                        transition={{ type: "spring", stiffness: 400 }}
+                                      >
+                                        <Receipt className="h-4 w-4 text-purple-500" />
+                                      </motion.div>
+                                      <h3 className="font-medium text-slate-900">
+                                        Invoice #{invoice.invoiceNumber || invoice.id}
+                                      </h3>
+                                      <Badge variant={invoice.status === 'Paid' ? 'default' : 'secondary'} className="bg-white/50">
+                                        {invoice.status || 'Draft'}
+                                      </Badge>
                                     </div>
-                                  )}
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-slate-600 ml-7">
+                                      <div className="flex items-center">
+                                        <Calendar className="h-3 w-3 mr-1" />
+                                        Date: {formatDate(invoice.invoiceDate)}
+                                      </div>
+                                      <div className="flex items-center">
+                                        <CircleDollarSign className="h-3 w-3 mr-1" />
+                                        Amount: ${formatCurrencyAmount(invoice.totalAmount)}
+                                      </div>
+                                      {invoice.entityId && (
+                                        <div className="flex items-center">
+                                          <Building2 className="h-3 w-3 mr-1" />
+                                          Entity: {(clientEntities as any[]).find((e: any) => e.id === invoice.entityId)?.name || 'Unknown'}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <motion.div
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                  >
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline" 
+                                      className="ml-2 border-purple-200 hover:border-purple-300 hover:bg-purple-50"
+                                      onClick={() => {
+                                        setSelectedInvoiceId(invoice.id);
+                                        setShowInvoiceDetails(true);
+                                      }}
+                                    >
+                                      <Eye className="h-3 w-3 mr-1" />
+                                      View Details
+                                    </Button>
+                                  </motion.div>
                                 </div>
                               </div>
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                className="ml-2"
-                                onClick={() => {
-                                  setSelectedInvoiceId(invoice.id);
-                                  setShowInvoiceDetails(true);
-                                }}
-                              >
-                                View Details
-                              </Button>
-                            </div>
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </motion.div>
           </TabsContent>
           
         </Tabs>
         
         {/* Task Details Modal */}
-        <Dialog open={showTaskDetails} onOpenChange={setShowTaskDetails}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Task Details</DialogTitle>
-              <DialogDescription>
-                Complete information about your task
-              </DialogDescription>
-            </DialogHeader>
-            {selectedTaskId && (
-              <div className="space-y-4">
-                {(() => {
-                  const task = clientTasks.find((t: any) => t.id === selectedTaskId);
-                  if (!task) return <p>Task not found</p>;
-                  
-                  return (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <h4 className="font-semibold text-slate-900">Task Title</h4>
-                          <p className="text-slate-600">{task.title || task.taskDetails || 'No title available'}</p>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-slate-900">Status</h4>
-                          <Badge variant="outline">{task.statusName || 'Unknown'}</Badge>
-                        </div>
+        <AnimatePresence>
+          {showTaskDetails && (
+            <Dialog open={showTaskDetails} onOpenChange={setShowTaskDetails}>
+              <DialogContent className="max-w-2xl bg-white/95 backdrop-blur-xl border border-white/30">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <DialogHeader>
+                    <div className="flex items-center space-x-2">
+                      <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg">
+                        <Clock className="h-4 w-4 text-white" />
                       </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <h4 className="font-semibold text-slate-900">Due Date</h4>
-                          <p className="text-slate-600">{formatDate(task.dueDate)}</p>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-slate-900">Task Type</h4>
-                          <p className="text-slate-600">{task.taskType || 'Regular Task'}</p>
-                        </div>
-                      </div>
-                      
-                      {task.entityId && (
-                        <div>
-                          <h4 className="font-semibold text-slate-900">Related Entity</h4>
-                          <p className="text-slate-600">
-                            {(clientEntities as any[]).find((e: any) => e.id === task.entityId)?.name || 'Unknown Entity'}
-                          </p>
-                        </div>
-                      )}
-                      
-                      {task.description && (
-                        <div>
-                          <h4 className="font-semibold text-slate-900">Description</h4>
-                          <p className="text-slate-600">{task.description}</p>
-                        </div>
-                      )}
-                      
-                      <div className="pt-4 border-t">
-                        <h4 className="font-semibold text-slate-900 mb-2">Next Steps</h4>
-                        <p className="text-slate-600">
-                          Please contact your account manager if you need assistance with this task or have any questions.
-                        </p>
-                      </div>
+                      <DialogTitle className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        Task Details
+                      </DialogTitle>
                     </div>
-                  );
-                })()}
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+                    <DialogDescription>
+                      Complete information about your task
+                    </DialogDescription>
+                  </DialogHeader>
+                  {selectedTaskId && (
+                    <div className="space-y-4 mt-4">
+                      {(() => {
+                        const task = clientTasks.find((t: any) => t.id === selectedTaskId);
+                        if (!task) return <p>Task not found</p>;
+                        
+                        return (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="p-3 rounded-lg bg-blue-50/50 border border-blue-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Task Title</h4>
+                                <p className="text-slate-600">{task.title || task.taskDetails || 'No title available'}</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-purple-50/50 border border-purple-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Status</h4>
+                                <Badge variant="outline">{task.statusName || 'Unknown'}</Badge>
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="p-3 rounded-lg bg-green-50/50 border border-green-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Due Date</h4>
+                                <p className="text-slate-600">{formatDate(task.dueDate)}</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-orange-50/50 border border-orange-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Task Type</h4>
+                                <p className="text-slate-600">{task.taskType || 'Regular Task'}</p>
+                              </div>
+                            </div>
+                            
+                            {task.entityId && (
+                              <div className="p-3 rounded-lg bg-indigo-50/50 border border-indigo-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Related Entity</h4>
+                                <p className="text-slate-600">
+                                  {(clientEntities as any[]).find((e: any) => e.id === task.entityId)?.name || 'Unknown Entity'}
+                                </p>
+                              </div>
+                            )}
+                            
+                            {task.description && (
+                              <div className="p-3 rounded-lg bg-slate-50/50 border border-slate-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Description</h4>
+                                <p className="text-slate-600">{task.description}</p>
+                              </div>
+                            )}
+                            
+                            <div className="pt-4 border-t border-slate-200">
+                              <div className="flex items-start space-x-3 p-3 rounded-lg bg-gradient-to-br from-blue-50/50 to-purple-50/50 border border-blue-100">
+                                <Star className="h-5 w-5 text-blue-500 mt-0.5" />
+                                <div>
+                                  <h4 className="font-semibold text-slate-900 mb-1">Next Steps</h4>
+                                  <p className="text-slate-600">
+                                    Please contact your account manager if you need assistance with this task or have any questions.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </motion.div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </AnimatePresence>
         
         {/* Invoice Details Modal */}
-        <Dialog open={showInvoiceDetails} onOpenChange={setShowInvoiceDetails}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Invoice Details</DialogTitle>
-              <DialogDescription>
-                Complete information about your invoice
-              </DialogDescription>
-            </DialogHeader>
-            {selectedInvoiceId && (
-              <div className="space-y-4">
-                {(() => {
-                  const invoice = clientInvoices.find((i: any) => i.id === selectedInvoiceId);
-                  if (!invoice) return <p>Invoice not found</p>;
-                  
-                  return (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <h4 className="font-semibold text-slate-900">Invoice Number</h4>
-                          <p className="text-slate-600">{invoice.invoiceNumber || `INV-${invoice.id}`}</p>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-slate-900">Status</h4>
-                          <Badge variant={invoice.status === 'Paid' ? 'default' : 'secondary'}>
-                            {invoice.status || 'Draft'}
-                          </Badge>
-                        </div>
+        <AnimatePresence>
+          {showInvoiceDetails && (
+            <Dialog open={showInvoiceDetails} onOpenChange={setShowInvoiceDetails}>
+              <DialogContent className="max-w-2xl bg-white/95 backdrop-blur-xl border border-white/30">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <DialogHeader>
+                    <div className="flex items-center space-x-2">
+                      <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg">
+                        <Receipt className="h-4 w-4 text-white" />
                       </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <h4 className="font-semibold text-slate-900">Issue Date</h4>
-                          <p className="text-slate-600">{formatDate(invoice.issueDate || invoice.invoiceDate)}</p>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-slate-900">Due Date</h4>
-                          <p className="text-slate-600">{formatDate(invoice.dueDate)}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <h4 className="font-semibold text-slate-900">Total Amount</h4>
-                          <p className="text-lg font-semibold text-slate-900">
-                            ${formatCurrencyAmount(invoice.totalAmount)} {invoice.currencyCode || 'USD'}
-                          </p>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-slate-900">Amount Due</h4>
-                          <p className="text-lg font-semibold text-red-600">
-                            ${formatCurrencyAmount(invoice.amountDue || invoice.totalAmount)} {invoice.currencyCode || 'USD'}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      {invoice.entityId && (
-                        <div>
-                          <h4 className="font-semibold text-slate-900">Related Entity</h4>
-                          <p className="text-slate-600">
-                            {(clientEntities as any[]).find((e: any) => e.id === invoice.entityId)?.name || 'Unknown Entity'}
-                          </p>
-                        </div>
-                      )}
-                      
-                      {invoice.notes && (
-                        <div>
-                          <h4 className="font-semibold text-slate-900">Notes</h4>
-                          <p className="text-slate-600">{invoice.notes}</p>
-                        </div>
-                      )}
-                      
-                      <div className="pt-4 border-t">
-                        <h4 className="font-semibold text-slate-900 mb-2">Payment Information</h4>
-                        <p className="text-slate-600">
-                          For payment inquiries or to request payment instructions, please contact your account manager.
-                        </p>
-                      </div>
+                      <DialogTitle className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                        Invoice Details
+                      </DialogTitle>
                     </div>
-                  );
-                })()}
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-      </main>
+                    <DialogDescription>
+                      Complete information about your invoice
+                    </DialogDescription>
+                  </DialogHeader>
+                  {selectedInvoiceId && (
+                    <div className="space-y-4 mt-4">
+                      {(() => {
+                        const invoice = clientInvoices.find((i: any) => i.id === selectedInvoiceId);
+                        if (!invoice) return <p>Invoice not found</p>;
+                        
+                        return (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="p-3 rounded-lg bg-purple-50/50 border border-purple-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Invoice Number</h4>
+                                <p className="text-slate-600">{invoice.invoiceNumber || `INV-${invoice.id}`}</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-blue-50/50 border border-blue-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Status</h4>
+                                <Badge variant={invoice.status === 'Paid' ? 'default' : 'secondary'}>
+                                  {invoice.status || 'Draft'}
+                                </Badge>
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="p-3 rounded-lg bg-green-50/50 border border-green-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Issue Date</h4>
+                                <p className="text-slate-600">{formatDate(invoice.issueDate || invoice.invoiceDate)}</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-orange-50/50 border border-orange-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Due Date</h4>
+                                <p className="text-slate-600">{formatDate(invoice.dueDate)}</p>
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="p-3 rounded-lg bg-emerald-50/50 border border-emerald-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Total Amount</h4>
+                                <p className="text-lg font-semibold text-emerald-700">
+                                  ${formatCurrencyAmount(invoice.totalAmount)} {invoice.currencyCode || 'USD'}
+                                </p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-red-50/50 border border-red-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Amount Due</h4>
+                                <p className="text-lg font-semibold text-red-600">
+                                  ${formatCurrencyAmount(invoice.amountDue || invoice.totalAmount)} {invoice.currencyCode || 'USD'}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            {invoice.entityId && (
+                              <div className="p-3 rounded-lg bg-indigo-50/50 border border-indigo-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Related Entity</h4>
+                                <p className="text-slate-600">
+                                  {(clientEntities as any[]).find((e: any) => e.id === invoice.entityId)?.name || 'Unknown Entity'}
+                                </p>
+                              </div>
+                            )}
+                            
+                            {invoice.notes && (
+                              <div className="p-3 rounded-lg bg-slate-50/50 border border-slate-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Notes</h4>
+                                <p className="text-slate-600">{invoice.notes}</p>
+                              </div>
+                            )}
+                            
+                            <div className="pt-4 border-t border-slate-200">
+                              <div className="flex items-start space-x-3 p-3 rounded-lg bg-gradient-to-br from-purple-50/50 to-pink-50/50 border border-purple-100">
+                                <CircleDollarSign className="h-5 w-5 text-purple-500 mt-0.5" />
+                                <div>
+                                  <h4 className="font-semibold text-slate-900 mb-1">Payment Information</h4>
+                                  <p className="text-slate-600">
+                                    For payment inquiries or to request payment instructions, please contact your account manager.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </motion.div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </AnimatePresence>
+      </motion.main>
       
       {/* Footer */}
-      <footer className="bg-white border-t mt-12">
+      <motion.footer 
+        className="relative bg-white/80 backdrop-blur-xl border-t border-white/20 mt-12"
+        initial={{ opacity: 0, y: 50 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 1 }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="text-sm text-slate-500">
+            <motion.div 
+              className="text-sm text-slate-500"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.2 }}
+            >
               © 2025 Client Portal. All rights reserved.
-            </div>
-            <div className="flex items-center space-x-4 mt-4 md:mt-0">
-              <Button variant="ghost" size="sm">
-                <Mail className="h-4 w-4 mr-2" />
-                Contact Support
-              </Button>
-            </div>
+            </motion.div>
+            <motion.div 
+              className="flex items-center space-x-4 mt-4 md:mt-0"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.4 }}
+            >
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Button variant="ghost" size="sm" className="hover:bg-blue-50">
+                  <Mail className="h-4 w-4 mr-2" />
+                  Contact Support
+                </Button>
+              </motion.div>
+            </motion.div>
           </div>
         </div>
-      </footer>
+      </motion.footer>
     </div>
   );
 }
