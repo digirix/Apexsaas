@@ -44,6 +44,8 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // Format currency amount safely, handling both string and number inputs
 const formatCurrencyAmount = (amount: any): string => {
@@ -72,6 +74,10 @@ export default function ClientPortalDashboardPage() {
   const [location, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedEntityId, setSelectedEntityId] = useState<number | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
+  const [showTaskDetails, setShowTaskDetails] = useState(false);
+  const [showInvoiceDetails, setShowInvoiceDetails] = useState(false);
   
   // Fetch client profile
   const { 
@@ -251,6 +257,31 @@ export default function ClientPortalDashboardPage() {
               <TabsTrigger value="tasks">Tasks</TabsTrigger>
               <TabsTrigger value="invoices">Invoices</TabsTrigger>
             </TabsList>
+            
+            {/* Entity Filter - Show on tasks and invoices tabs */}
+            {(activeTab === "tasks" || activeTab === "invoices") && (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-slate-600">Filter by Entity:</span>
+                <Select
+                  value={selectedEntityId?.toString() || "all"}
+                  onValueChange={(value) => {
+                    setSelectedEntityId(value === "all" ? null : parseInt(value));
+                  }}
+                >
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Select entity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Entities</SelectItem>
+                    {(clientEntities as any[]).map((entity: any) => (
+                      <SelectItem key={entity.id} value={entity.id.toString()}>
+                        {entity.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           
           {/* Entities Tab */}
@@ -696,7 +727,15 @@ export default function ClientPortalDashboardPage() {
                                   )}
                                 </div>
                               </div>
-                              <Button size="sm" variant="outline" className="ml-2">
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="ml-2"
+                                onClick={() => {
+                                  setSelectedInvoiceId(invoice.id);
+                                  setShowInvoiceDetails(true);
+                                }}
+                              >
                                 View Details
                               </Button>
                             </div>
@@ -711,6 +750,161 @@ export default function ClientPortalDashboardPage() {
           </TabsContent>
           
         </Tabs>
+        
+        {/* Task Details Modal */}
+        <Dialog open={showTaskDetails} onOpenChange={setShowTaskDetails}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Task Details</DialogTitle>
+              <DialogDescription>
+                Complete information about your task
+              </DialogDescription>
+            </DialogHeader>
+            {selectedTaskId && (
+              <div className="space-y-4">
+                {(() => {
+                  const task = clientTasks.find((t: any) => t.id === selectedTaskId);
+                  if (!task) return <p>Task not found</p>;
+                  
+                  return (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <h4 className="font-semibold text-slate-900">Task Title</h4>
+                          <p className="text-slate-600">{task.title || task.taskDetails || 'No title available'}</p>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-slate-900">Status</h4>
+                          <Badge variant="outline">{task.statusName || 'Unknown'}</Badge>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <h4 className="font-semibold text-slate-900">Due Date</h4>
+                          <p className="text-slate-600">{formatDate(task.dueDate)}</p>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-slate-900">Task Type</h4>
+                          <p className="text-slate-600">{task.taskType || 'Regular Task'}</p>
+                        </div>
+                      </div>
+                      
+                      {task.entityId && (
+                        <div>
+                          <h4 className="font-semibold text-slate-900">Related Entity</h4>
+                          <p className="text-slate-600">
+                            {(clientEntities as any[]).find((e: any) => e.id === task.entityId)?.name || 'Unknown Entity'}
+                          </p>
+                        </div>
+                      )}
+                      
+                      {task.description && (
+                        <div>
+                          <h4 className="font-semibold text-slate-900">Description</h4>
+                          <p className="text-slate-600">{task.description}</p>
+                        </div>
+                      )}
+                      
+                      <div className="pt-4 border-t">
+                        <h4 className="font-semibold text-slate-900 mb-2">Next Steps</h4>
+                        <p className="text-slate-600">
+                          Please contact your account manager if you need assistance with this task or have any questions.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+        
+        {/* Invoice Details Modal */}
+        <Dialog open={showInvoiceDetails} onOpenChange={setShowInvoiceDetails}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Invoice Details</DialogTitle>
+              <DialogDescription>
+                Complete information about your invoice
+              </DialogDescription>
+            </DialogHeader>
+            {selectedInvoiceId && (
+              <div className="space-y-4">
+                {(() => {
+                  const invoice = clientInvoices.find((i: any) => i.id === selectedInvoiceId);
+                  if (!invoice) return <p>Invoice not found</p>;
+                  
+                  return (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <h4 className="font-semibold text-slate-900">Invoice Number</h4>
+                          <p className="text-slate-600">{invoice.invoiceNumber || `INV-${invoice.id}`}</p>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-slate-900">Status</h4>
+                          <Badge variant={invoice.status === 'Paid' ? 'default' : 'secondary'}>
+                            {invoice.status || 'Draft'}
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <h4 className="font-semibold text-slate-900">Issue Date</h4>
+                          <p className="text-slate-600">{formatDate(invoice.issueDate || invoice.invoiceDate)}</p>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-slate-900">Due Date</h4>
+                          <p className="text-slate-600">{formatDate(invoice.dueDate)}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <h4 className="font-semibold text-slate-900">Total Amount</h4>
+                          <p className="text-lg font-semibold text-slate-900">
+                            ${formatCurrencyAmount(invoice.totalAmount)} {invoice.currencyCode || 'USD'}
+                          </p>
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-slate-900">Amount Due</h4>
+                          <p className="text-lg font-semibold text-red-600">
+                            ${formatCurrencyAmount(invoice.amountDue || invoice.totalAmount)} {invoice.currencyCode || 'USD'}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {invoice.entityId && (
+                        <div>
+                          <h4 className="font-semibold text-slate-900">Related Entity</h4>
+                          <p className="text-slate-600">
+                            {(clientEntities as any[]).find((e: any) => e.id === invoice.entityId)?.name || 'Unknown Entity'}
+                          </p>
+                        </div>
+                      )}
+                      
+                      {invoice.notes && (
+                        <div>
+                          <h4 className="font-semibold text-slate-900">Notes</h4>
+                          <p className="text-slate-600">{invoice.notes}</p>
+                        </div>
+                      )}
+                      
+                      <div className="pt-4 border-t">
+                        <h4 className="font-semibold text-slate-900 mb-2">Payment Information</h4>
+                        <p className="text-slate-600">
+                          For payment inquiries or to request payment instructions, please contact your account manager.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </main>
       
       {/* Footer */}
