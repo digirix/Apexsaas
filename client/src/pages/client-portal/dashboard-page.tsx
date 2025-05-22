@@ -612,64 +612,52 @@ export default function ClientPortalDashboardPage() {
               
               <Card>
                 <CardHeader>
-                  <CardTitle>Recent Documents</CardTitle>
+                  <CardTitle>Recent Activity</CardTitle>
                   <CardDescription>
-                    Your recently uploaded financial documents
+                    Latest updates on your tasks and invoices
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {isDocumentsLoading ? (
-                    <div className="flex justify-center py-6">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                    </div>
-                  ) : documentsError ? (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>Error</AlertTitle>
-                      <AlertDescription>
-                        Failed to load documents. Please try again later.
-                      </AlertDescription>
-                    </Alert>
-                  ) : clientDocuments.length === 0 ? (
-                    <div className="text-center py-6 text-slate-500">
-                      No documents available
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {clientDocuments.slice(0, 3).map((doc: any) => (
-                        <div key={doc.id} className="flex items-start space-x-3">
-                          <div className="flex-shrink-0 mt-1">
-                            {getDocumentIcon(doc.type)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900 truncate">
-                              {doc.name}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {formatDate(doc.date)} • {doc.type}
-                            </p>
-                          </div>
-                          <div>
-                            <Button variant="ghost" size="sm">
-                              View
-                            </Button>
-                          </div>
+                  <div className="space-y-4">
+                    {clientTasks && clientTasks.slice(0, 3).map((task: any) => (
+                      <div key={task.id} className="flex items-start space-x-3">
+                        <div className="flex-shrink-0 mt-1">
+                          <Clock className="h-4 w-4 text-blue-500" />
                         </div>
-                      ))}
-                      
-                      {clientDocuments.length > 3 && (
-                        <div className="text-center pt-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => setActiveTab("documents")}
-                          >
-                            View all documents
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-900 truncate">
+                            {task.title || task.taskDetails || 'Task'}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Due: {formatDate(task.dueDate)} • {task.statusName || 'In Progress'}
+                          </p>
+                        </div>
+                        <div>
+                          <Button variant="ghost" size="sm" onClick={() => setActiveTab("tasks")}>
+                            View
                           </Button>
                         </div>
-                      )}
-                    </div>
-                  )}
+                      </div>
+                    ))}
+                    
+                    {(!clientTasks || clientTasks.length === 0) && (
+                      <div className="text-center py-6 text-slate-500">
+                        No recent activity
+                      </div>
+                    )}
+                    
+                    {clientTasks && clientTasks.length > 3 && (
+                      <div className="text-center pt-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setActiveTab("tasks")}
+                        >
+                          View all tasks
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -1021,17 +1009,7 @@ export default function ClientPortalDashboardPage() {
             </Card>
           </TabsContent>
           
-          {/* Documents Tab */}
-          <TabsContent value="documents" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Your Documents</CardTitle>
-                <CardDescription>
-                  Access your financial statements, tax returns, and other documents
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isDocumentsLoading ? (
+          {/* Documents functionality removed - not implemented in main application yet */}
                   <div className="flex justify-center py-6">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                   </div>
