@@ -15,45 +15,50 @@ This document outlines the remaining tasks and future enhancements for the Accou
 - Workflow Automation Module: 0% complete ❌ (not started)
 - Compliance Calendar Module: 20% complete ⚠️ (basic compliance tracking exists in tasks)
 
-## Current Priority
-1. ✓ Fix the Journal Entry source document bug (currently causing 500 error)
-2. ✓ Separate Chart of Accounts structure (Setup Module) from Account Heads management (Finance Module)
-3. ✓ Fix tenant isolation in Chart of Accounts with dual-layer protection
-4. ✓ Fix the bug where deleting accounts would not properly respect tenant isolation
-5. ✓ Implement full CRUD functionality for Journal Entries (create, read, update, delete)
-6. ✓ Add validation to prevent editing or deleting posted journal entries
-7. ✓ Add confirmation dialogs for safe deletion of journal entries
-8. ✓ Remove redundant Account Heads tab from Finance Module
-9. ✓ Fix Account selection dropdown in General Ledger report
-10. ✓ Add date range filtering (From Date and To Date) to General Ledger report
-11. ✓ Fix back navigation in the Ledger report to return to Finance module
-12. ✓ Add proper display of account details and debit/credit amounts in Journal Entry view
-13. ✓ Fix 404 error when accessing General Ledger from Financial Reports section
-14. ✓ Update invoice functionality through task management (fixed form field mapping & data loading)
-15. ✓ Improve API paths and synchronization between Tasks and Finance modules for invoice updates
-16. ✓ Implement automated task-invoice linking for better traceability
-17. ✓ Fix navigation consistency in Journal Entry views (tab-based path handling)
-18. ✓ Implement auto-posting of journal entries when invoice status changes to "approved"
-19. ✓ Fixed financial reports to properly display live accounting data
-20. ✓ Removed "New Invoice" button from Finance page and disabled direct invoice route
-21. ✓ Implemented AI features with database analysis capabilities
-22. ✓ Fixed auto-generated tasks for proper recurring task generation:
-   - ✓ Fixed monthly frequency calculations to properly handle dates
-   - ✓ Improved existence checking logic to prevent duplicate tasks
-   - ✓ Added tenant settings for lead days configuration
-   - ✓ Implemented force generation capability for manually triggered tasks
-   - ✓ Added approval workflow for auto-generated tasks
-   - ✓ Fixed future task generation to only generate current month tasks
-   - ✓ Improved compliance end date calculation to use last day of month (23:59:59.999)
-   - ✓ Fixed duplicate task creation issue during approval process
-   - ✓ Enhanced date handling for consistent compliance period calculation
-23. Improve Settings UI with better controls and visual feedback
-24. Add settings section for AI customization (model selection, API key management)
-25. Add invoice settings and template capabilities for more flexibility
-26. Improve task template capabilities for easier recurring task setup
-27. Implement batch approval/rejection for multiple auto-generated tasks
-28. Create dedicated AI reporting section with customizable reports and visualizations
-29. Fix remaining type errors in storage interface implementation
+## HIGHEST PRIORITY - Major Missing Modules from Full Scope
+
+### 1. User Management/Permissions Module Expansion (CRITICAL)
+According to Full Scope Section 6, this needs to be significantly expanded:
+- [ ] **Module-Level Permissions**: Implement granular permissions for each module (Clients, Tasks, Setup, Finance, etc.)
+- [ ] **Action-Level Permissions**: Add Create, Read, Update, Delete permissions for each module
+- [ ] **Access Level Controls**: Full/Partial/Restricted access levels for different user roles
+- [ ] **Permission Templates**: Common permission sets (Super Admin, Manager, Member, etc.)
+- [ ] **Delegation Capabilities**: Super Admin ability to delegate permissions to other users
+- [ ] **Client Portal Access Management**: Control who can manage client portal credentials
+
+### 2. Workflow Automation Module (NEW - HIGH PRIORITY)
+Full Scope Section 9 specifies this as a major feature:
+- [ ] **Workflow Builder**: Visual workflow designer for creating automation rules
+- [ ] **Trigger System**: Define triggers (task status change, due date approaching, etc.)
+- [ ] **Action System**: Automated actions (change status, assign task, send notification, etc.)
+- [ ] **Condition Logic**: Complex conditional logic for workflow execution
+- [ ] **User Interface**: Workflow management UI for creating, editing, enabling/disabling workflows
+- [ ] **Permission Controls**: Workflow access permissions (Full/Partial/Restricted)
+
+### 3. Enhanced Settings Module (PRIORITY)
+Based on Full Scope requirements for comprehensive settings:
+- [ ] **Payment Gateway Integration**: Stripe, PayPal, other payment systems configuration
+- [ ] **Email Configuration**: SMTP settings for automated emails and notifications
+- [ ] **Notification Settings**: Configure when and how notifications are sent
+- [ ] **Invoice Templates**: Customizable invoice layouts and formats
+- [ ] **Backup Configuration**: Automated backup settings and schedules
+- [ ] **System Security Settings**: Password policies, session timeouts, etc.
+
+### 4. AI Service Suggestions Enhancement (PRIORITY)
+Full Scope emphasizes AI assistance for service recommendations:
+- [ ] **Entity Profile Analysis**: AI analyzes entity type, country, VAT status, etc.
+- [ ] **Required Service Recommendations**: AI suggests which services should be marked as "Required"
+- [ ] **Compliance Service Mapping**: AI maps entity characteristics to compliance requirements
+- [ ] **Service Subscription Optimization**: AI recommends optimal service packages
+- [ ] **Learning System**: AI improves recommendations based on tenant feedback
+
+### 5. Compliance Calendar Module (NEW - PRIORITY)
+Full Scope mentions compliance calendar generation:
+- [ ] **Calendar View**: Visual calendar showing all compliance deadlines
+- [ ] **Entity-Specific Calendars**: Filter calendar by client/entity
+- [ ] **Service-Based Deadlines**: Automatic deadline calculation based on subscribed services
+- [ ] **Notification Integration**: Alerts for upcoming compliance deadlines
+- [ ] **Export Capabilities**: Export calendar to external calendar systems
 
 ## Priority 1: Critical System Improvements
 
