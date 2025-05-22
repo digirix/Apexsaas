@@ -700,58 +700,6 @@ export default function ClientPortalDashboardPage() {
             <Card>
               <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
                 <div>
-                  <CardTitle>Tasks & Deadlines</CardTitle>
-                  <CardDescription>
-                    Your upcoming and completed tasks
-                  </CardDescription>
-                </div>
-                {clientEntities && clientEntities.length > 0 && (
-                  <div className="w-full sm:w-64">
-                    <select 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={selectedEntityId || ""}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setSelectedEntityId(value ? parseInt(value) : null);
-                      }}
-                    >
-                      <option value="">All Entities</option>
-                      {clientEntities.map((entity) => (
-                        <option key={entity.id} value={entity.id}>
-                          {entity.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                <div>
-                  <CardTitle>Tasks & Deadlines</CardTitle>
-                  <CardDescription>
-                    Your upcoming and completed tasks
-                  </CardDescription>
-                </div>
-                {clientEntities?.length > 0 && (
-                  <div className="w-full sm:w-64">
-                    <select 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={selectedEntityId || ""}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setSelectedEntityId(value ? parseInt(value) : null);
-                        // Refetch tasks with the new entity filter
-                        setTimeout(() => refetchTasks(), 100);
-                      }}
-                    >
-                      <option value="">All Entities</option>
-                      {clientEntities.map((entity: any) => (
-                        <option key={entity.id} value={entity.id}>
-                          {entity.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                <div>
                   <CardTitle>
                     {selectedEntityId ? 'Entity Tasks' : 'Your Tasks & Deadlines'}
                   </CardTitle>
@@ -924,59 +872,16 @@ export default function ClientPortalDashboardPage() {
           {/* Invoices Tab */}
           <TabsContent value="invoices" className="space-y-6">
             <Card>
-              <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
-                <div>
-                  <CardTitle>Your Invoices</CardTitle>
-                  <CardDescription>
-                    View and manage your invoices
-                  </CardDescription>
-                </div>
-                {clientEntities && clientEntities.length > 0 && (
-                  <div className="w-full sm:w-64">
-                    <select 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={selectedEntityId || ""}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setSelectedEntityId(value ? parseInt(value) : null);
-                      }}
-                    >
-                      <option value="">All Entities</option>
-                      {clientEntities.map((entity) => (
-                        <option key={entity.id} value={entity.id}>
-                          {entity.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                <div>
-                  <CardTitle>Your Invoices</CardTitle>
-                  <CardDescription>
-                    View your invoices and payment status
-                  </CardDescription>
-                </div>
-                {clientEntities?.length > 0 && (
-                  <div className="w-full sm:w-64">
-                    <select 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={selectedEntityId || ""}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setSelectedEntityId(value ? parseInt(value) : null);
-                        // Refetch invoices with the new entity filter
-                        setTimeout(() => refetchInvoices(), 100);
-                      }}
-                    >
-                      <option value="">All Entities</option>
-                      {clientEntities.map((entity: any) => (
-                        <option key={entity.id} value={entity.id}>
-                          {entity.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+              <CardHeader>
+                <CardTitle>Your Invoices</CardTitle>
+                <CardDescription>
+                  View and manage your invoices
+                  {selectedEntityId && (
+                    <Badge className="ml-2 bg-blue-100 text-blue-800 hover:bg-blue-200">
+                      Filtered by entity
+                    </Badge>
+                  )}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {isInvoicesLoading ? (
