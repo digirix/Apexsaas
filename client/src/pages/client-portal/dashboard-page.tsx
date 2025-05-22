@@ -45,6 +45,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
+// Format currency amount safely, handling both string and number inputs
+const formatCurrencyAmount = (amount: any): string => {
+  if (!amount) return '0.00';
+  // Handle both string and number inputs
+  return typeof amount === 'number' 
+    ? amount.toFixed(2)
+    : parseFloat(String(amount)).toFixed(2);
+};
+
 export default function ClientPortalDashboardPage() {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
