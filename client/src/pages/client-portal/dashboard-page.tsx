@@ -695,56 +695,7 @@ export default function ClientPortalDashboardPage() {
                 </div>
               </motion.div>
 
-              {/* Account Manager Card */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-                whileHover={{ y: -8, scale: 1.02 }}
-                className="group"
-              >
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-orange-400/30 to-red-400/30 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
-                  <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-500 overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 to-red-500"></div>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium text-slate-600">
-                        Account Manager
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex items-start space-x-4">
-                      <motion.div
-                        whileHover={{ scale: 1.1, rotate: 5 }}
-                        transition={{ type: "spring", stiffness: 400 }}
-                      >
-                        <Avatar className="h-12 w-12 bg-gradient-to-br from-orange-500 to-red-500 text-white border-2 border-white/50">
-                          <AvatarFallback className="bg-gradient-to-br from-orange-500 to-red-500 text-white">
-                            {clientProfile?.accountManager?.name
-                              ?.split(" ")
-                              .map((n: string) => n[0])
-                              .join("")
-                              .toUpperCase()
-                              .substring(0, 2) || "AM"}
-                          </AvatarFallback>
-                        </Avatar>
-                      </motion.div>
-                      <div>
-                        <div className="font-medium text-slate-900">
-                          {clientProfile?.accountManager?.name || "Not Assigned"}
-                        </div>
-                        <p className="text-sm text-slate-600">
-                          {clientProfile?.accountManager?.email || "Contact your firm for details"}
-                        </p>
-                        {clientProfile?.accountManager?.phone && (
-                          <p className="text-sm text-slate-600">
-                            {clientProfile.accountManager.phone}
-                          </p>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </motion.div>
+
             </motion.div>
             
             {/* Recent Activity Section */}
@@ -1132,7 +1083,7 @@ export default function ClientPortalDashboardPage() {
                                         </Badge>
                                       )}
                                     </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-slate-600 ml-7">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-slate-600 ml-7">
                                       <div className="flex items-center">
                                         <Calendar className="h-3 w-3 mr-1" />
                                         Due: {formatDate(task.dueDate)}
@@ -1147,6 +1098,12 @@ export default function ClientPortalDashboardPage() {
                                         <Briefcase className="h-3 w-3 mr-1" />
                                         Type: {task.taskType || 'Regular'}
                                       </div>
+                                      {task.assigneeName && (
+                                        <div className="flex items-center">
+                                          <User className="h-3 w-3 mr-1" />
+                                          Assigned: {task.assigneeName}
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                   <motion.div

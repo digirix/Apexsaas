@@ -582,7 +582,7 @@ export function registerClientPortalRoutes(app: Express) {
         whereClause += ` AND t.entity_id = ${entityId}`;
       }
       
-      // Query the tasks table and join with task statuses and entities to get rich data
+      // Query the tasks table and join with task statuses, entities, and users to get rich data
       const taskResults = await db.execute(sql`
         SELECT 
           t.id,
@@ -594,6 +594,7 @@ export function registerClientPortalRoutes(app: Express) {
           t.status_id as "statusId",
           ts.name as "statusName",
           t.assignee_id as "assigneeId",
+          u.display_name as "assigneeName",
           t.entity_id as "entityId",
           e.name as "entityName",
           t.created_at as "createdAt",
@@ -601,6 +602,7 @@ export function registerClientPortalRoutes(app: Express) {
         FROM tasks t
         LEFT JOIN task_statuses ts ON t.status_id = ts.id AND t.tenant_id = ts.tenant_id
         LEFT JOIN entities e ON t.entity_id = e.id AND t.tenant_id = e.tenant_id
+        LEFT JOIN users u ON t.assignee_id = u.id AND t.tenant_id = u.tenant_id
         WHERE 
           ${sql.raw(whereClause)}
         ORDER BY t.due_date DESC
