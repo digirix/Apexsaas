@@ -62,6 +62,11 @@ const editEntitySchema = z.object({
     .url({ message: "Must be a valid URL" })
     .optional()
     .or(z.literal("")),
+  whatsappGroupLink: z
+    .string()
+    .url({ message: "Must be a valid URL" })
+    .optional()
+    .or(z.literal("")),
 });
 
 type EditEntityFormValues = z.infer<typeof editEntitySchema>;
@@ -104,6 +109,7 @@ export function EditEntityModal({
       isVatRegistered: entity?.isVatRegistered || false,
       vatId: entity?.vatId || "",
       fileAccessLink: entity?.fileAccessLink || "",
+      whatsappGroupLink: entity?.whatsappGroupLink || "",
     },
   });
 
@@ -120,6 +126,7 @@ export function EditEntityModal({
         isVatRegistered: entity.isVatRegistered,
         vatId: entity.vatId || "",
         fileAccessLink: entity.fileAccessLink || "",
+        whatsappGroupLink: entity.whatsappGroupLink || "",
       });
     }
   }, [entity, form]);
@@ -404,6 +411,26 @@ export function EditEntityModal({
                     </FormControl>
                     <FormDescription>
                       Link to documentation or external file storage
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="whatsappGroupLink"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>WhatsApp Group Link (Optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="https://chat.whatsapp.com/..."
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      WhatsApp group link for client communication
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
