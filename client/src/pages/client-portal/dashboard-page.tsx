@@ -57,36 +57,8 @@ const formatCurrencyAmount = (amount: any): string => {
 export default function ClientPortalDashboardPage() {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
-  
-  // Get active tab from URL path
-  const getActiveTabFromPath = () => {
-    if (location.includes('/tasks')) return 'tasks';
-    if (location.includes('/invoices')) return 'invoices';
-    if (location.includes('/documents')) return 'documents';
-    return 'overview';
-  };
-  
-  const [activeTab, setActiveTab] = useState(getActiveTabFromPath());
+  const [activeTab, setActiveTab] = useState("overview");
   const [selectedEntityId, setSelectedEntityId] = useState<number | null>(null);
-  
-  // Update URL when tab changes
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
-    switch (value) {
-      case 'tasks':
-        setLocation('/client-portal/tasks');
-        break;
-      case 'invoices':
-        setLocation('/client-portal/invoices');
-        break;
-      case 'documents':
-        setLocation('/client-portal/documents');
-        break;
-      default:
-        setLocation('/client-portal');
-        break;
-    }
-  };
   
   // Fetch client profile
   const { 
@@ -106,11 +78,13 @@ export default function ClientPortalDashboardPage() {
     refetch: refetchTasks
   } = useQuery<any[]>({
     queryKey: ["/api/client-portal/tasks", selectedEntityId],
-    queryFn: () => {
+    queryFn: async () => {
       const url = selectedEntityId 
         ? `/api/client-portal/tasks?entityId=${selectedEntityId}`
         : '/api/client-portal/tasks';
-      return apiRequest(url);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch tasks');
+      return response.json();
     },
     enabled: !!clientProfile
   });
@@ -318,7 +292,7 @@ export default function ClientPortalDashboardPage() {
       
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <div className="flex justify-between items-center mb-6">
             <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>

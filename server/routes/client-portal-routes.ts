@@ -596,7 +596,8 @@ export function registerClientPortalRoutes(app: Express) {
           t.entity_id as "entityId",
           e.name as "entityName",
           t.created_at as "createdAt",
-          t.updated_at as "updatedAt" 
+          t.updated_at as "updatedAt",
+          t.priority 
         FROM tasks t
         LEFT JOIN task_statuses ts ON t.status_id = ts.id AND t.tenant_id = ts.tenant_id
         LEFT JOIN entities e ON t.entity_id = e.id AND t.tenant_id = e.tenant_id
