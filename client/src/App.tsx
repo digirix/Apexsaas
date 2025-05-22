@@ -3,6 +3,7 @@ import { queryClient } from "@/lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/hooks/use-auth";
+import { TenantProvider } from "@/hooks/use-tenant";
 import { ProtectedRoute } from "@/lib/protected-route";
 import { ChatWidget } from "@/components/chatbot/chat-widget";
 import NotFound from "@/pages/not-found";
@@ -88,9 +89,11 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router />
-        <ChatWidget />
-        <Toaster />
+        <TenantProvider>
+          <Router />
+          <ChatWidget />
+          <Toaster />
+        </TenantProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

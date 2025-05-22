@@ -1,5 +1,6 @@
 import { Bell, ChevronDown, Search, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useTenant } from "@/hooks/use-tenant";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
@@ -24,6 +25,7 @@ interface HeaderProps {
 
 export function Header({ title, subtitle }: HeaderProps) {
   const { user, logoutMutation } = useAuth();
+  const tenant = useTenant();
   const [designStyle, setDesignStyle] = useState("classic");
   const [themeMode, setThemeMode] = useState("light");
   const [primaryColor, setPrimaryColor] = useState("blue");
