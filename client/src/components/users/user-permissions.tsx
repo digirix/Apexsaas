@@ -126,8 +126,11 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
   // Create or update permission mutation
   const permissionMutation = useMutation({
     mutationFn: async (data: InsertUserPermission) => {
-      if (selectedPermission) {
-        const response = await apiRequest('PUT', `/api/v1/user-permissions/${selectedPermission.id}`, data);
+      // Check if permission already exists for this module
+      const existingPermission = permissions?.find(p => p.module === selectedModule);
+      
+      if (existingPermission) {
+        const response = await apiRequest('PUT', `/api/v1/user-permissions/${existingPermission.id}`, data);
         return response.json();
       } else {
         const response = await apiRequest('POST', '/api/v1/user-permissions', data);
@@ -156,8 +159,8 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
   const handleSavePermission = () => {
     if (!selectedModule || !userId) return;
 
-    // For now, we'll use 1 as the default tenant ID (this would normally come from the user context)
-    const tenantId = user?.tenantId || 1;
+    // Use the correct tenant ID from the authenticated user
+    const tenantId = user?.tenantId || 5;
     
     // Create the permission data with proper typing
     const permissionData = {
