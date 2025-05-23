@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { useModulePermissions } from "@/hooks/use-permissions";
+import { useModulePermissions, useMultiplePermissions } from "@/hooks/use-permissions";
 
 type NavItem = {
   title: string;
