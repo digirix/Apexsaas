@@ -63,8 +63,10 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
 
   // Fetch user permissions
   const { data: permissions, isLoading: permissionsLoading, refetch: refetchPermissions } = useQuery<UserPermission[]>({
-    queryKey: [`/api/v1/users/${userId}/permissions`],
-    enabled: !!userId
+    queryKey: [`/api/v1/users/${userId}/permissions`, Date.now()],
+    enabled: !!userId,
+    staleTime: 0,
+    gcTime: 0
   });
 
   // Get permission for selected module
