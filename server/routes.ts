@@ -2252,12 +2252,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = parseInt(req.params.userId);
       const requestingUserId = (req.user as any).id;
       
+      console.log(`API: Fetching permissions for user ${userId} in tenant ${tenantId}, requested by user ${requestingUserId}`);
+      
       // Allow users to view their own permissions or admins to view any permissions
       if (userId !== requestingUserId && !(req.user as any).isSuperAdmin) {
         return res.status(403).json({ message: "Access denied" });
       }
       
       const permissions = await storage.getUserPermissions(tenantId, userId);
+      console.log(`API: Found ${permissions.length} permissions for user ${userId}:`, permissions);
       res.json(permissions);
     } catch (error) {
       console.error('Error fetching user permissions:', error);
