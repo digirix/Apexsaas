@@ -74,25 +74,30 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
 
   // Update permission form when selected module changes
   useEffect(() => {
-    if (selectedPermission) {
-      setPermissionForm({
-        accessLevel: selectedPermission.accessLevel,
-        canRead: selectedPermission.canRead,
-        canCreate: selectedPermission.canCreate,
-        canUpdate: selectedPermission.canUpdate,
-        canDelete: selectedPermission.canDelete
-      });
-    } else if (selectedModule) {
-      // Default values for new permission
-      setPermissionForm({
-        accessLevel: "restricted",
-        canRead: true,
-        canCreate: false,
-        canUpdate: false,
-        canDelete: false
-      });
+    if (selectedModule && permissions) {
+      const existingPermission = permissions.find(p => p.module === selectedModule);
+      
+      if (existingPermission) {
+        // Load existing permission data
+        setPermissionForm({
+          accessLevel: existingPermission.accessLevel,
+          canRead: existingPermission.canRead,
+          canCreate: existingPermission.canCreate,
+          canUpdate: existingPermission.canUpdate,
+          canDelete: existingPermission.canDelete
+        });
+      } else {
+        // Default values for new permission
+        setPermissionForm({
+          accessLevel: "restricted",
+          canRead: true,
+          canCreate: false,
+          canUpdate: false,
+          canDelete: false
+        });
+      }
     }
-  }, [selectedPermission, selectedModule]);
+  }, [selectedModule, permissions]);
 
   // Delete permission mutation
   const deletePermissionMutation = useMutation({
@@ -133,7 +138,6 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
       queryClient.invalidateQueries({ queryKey: [`/api/v1/users/${userId}/permissions`] });
       queryClient.invalidateQueries({ queryKey: [`/api/v1/users/permissions`] });
       refetchPermissions();
-      setSelectedModule(null);
       toast({
         title: "Permission saved",
         description: `The permission for ${selectedModule} module has been saved.`,
