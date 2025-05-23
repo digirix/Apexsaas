@@ -2259,13 +2259,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
+      // Force bypass any caching by calling storage directly
       const permissions = await storage.getUserPermissions(tenantId, userId);
       console.log(`API: Found ${permissions.length} permissions for user ${userId}:`, permissions);
       
-      // Disable caching to ensure fresh data
-      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      // Disable all forms of caching
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate, private');
       res.set('Pragma', 'no-cache');
       res.set('Expires', '0');
+      res.set('Last-Modified', new Date().toUTCString());
       
       res.json(permissions);
     } catch (error) {
