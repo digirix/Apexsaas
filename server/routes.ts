@@ -2261,6 +2261,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const permissions = await storage.getUserPermissions(tenantId, userId);
       console.log(`API: Found ${permissions.length} permissions for user ${userId}:`, permissions);
+      
+      // Disable caching to ensure fresh data
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
       res.json(permissions);
     } catch (error) {
       console.error('Error fetching user permissions:', error);
