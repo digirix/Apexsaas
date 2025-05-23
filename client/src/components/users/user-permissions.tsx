@@ -131,7 +131,9 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/v1/users/${userId}/permissions`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/v1/users/permissions`] });
       refetchPermissions();
+      setSelectedModule(null);
       toast({
         title: "Permission saved",
         description: `The permission for ${selectedModule} module has been saved.`,
