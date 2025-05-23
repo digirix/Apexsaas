@@ -9,6 +9,7 @@ import { registerAiReportingRoutes } from "./api/ai-reporting-routes";
 import { registerAICustomizationRoutes } from "./api/ai-customization-routes";
 import { registerClientPortalRoutes } from "./routes/client-portal-routes";
 import { setupClientPortalAuth } from "./client-portal-auth";
+import { requirePermission, requireModuleAccess, getUserModulePermissions } from "./middleware/permissions";
 import { 
   insertCountrySchema, insertCurrencySchema, insertStateSchema, 
   insertEntityTypeSchema, insertTaskStatusSchema, insertTaskCategorySchema, insertServiceTypeSchema,
