@@ -27,80 +27,105 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { useMultiplePermissions } from "@/hooks/use-permissions";
+import { useModulePermissions } from "@/hooks/use-permissions";
 
 type NavItem = {
   title: string;
   href: string;
   icon: React.ReactNode;
+  module: string;
 };
 
-const coreModules: NavItem[] = [
+// All available navigation modules with their permission module names
+const allModules: NavItem[] = [
   {
     title: "Dashboard",
     href: "/",
     icon: <LayoutDashboard className="h-5 w-5 mr-3 text-slate-500" />,
+    module: "Dashboard",
   },
   {
     title: "Setup",
     href: "/setup",
     icon: <Settings className="h-5 w-5 mr-3 text-slate-500" />,
+    module: "Setup",
   },
   {
     title: "Clients",
     href: "/clients",
     icon: <UsersRound className="h-5 w-5 mr-3 text-slate-500" />,
+    module: "Clients",
   },
   {
     title: "Tasks",
     href: "/tasks",
     icon: <ClipboardCheck className="h-5 w-5 mr-3 text-slate-500" />,
+    module: "Tasks",
   },
   {
     title: "Auto Generated Tasks",
     href: "/auto-generated-tasks",
     icon: <RefreshCw className="h-5 w-5 mr-3 text-slate-500" />,
+    module: "Auto Generated Tasks",
   },
   {
     title: "Compliance Calendar",
     href: "/compliance-calendar",
     icon: <Calendar className="h-5 w-5 mr-3 text-slate-500" />,
+    module: "Compliance Calendar",
   },
   {
     title: "Finance",
     href: "/finance",
     icon: <CreditCard className="h-5 w-5 mr-3 text-slate-500" />,
+    module: "Finance",
   },
   {
     title: "AI Reporting",
     href: "/ai-reporting",
     icon: <BarChart2 className="h-5 w-5 mr-3 text-slate-500" />,
+    module: "AI Reporting",
   },
-];
-
-const adminModules: NavItem[] = [
   {
     title: "Users",
     href: "/users",
     icon: <Users className="h-5 w-5 mr-3 text-slate-500" />,
+    module: "User Management",
   },
   {
     title: "Workflow",
     href: "/workflow",
     icon: <Zap className="h-5 w-5 mr-3 text-slate-500" />,
+    module: "Workflow Automation",
   },
   {
     title: "Settings",
     href: "/settings",
-    icon: <Settings className="h-5 w-5 mr-3 text-slate-500" />,
+    icon: <Cog className="h-5 w-5 mr-3 text-slate-500" />,
+    module: "Settings",
   },
 ];
 
 export function Sidebar() {
   const [location] = useLocation();
-  const { logoutMutation } = useAuth();
+  const { user, logoutMutation } = useAuth();
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
+
+  // Get permissions for all modules to determine which to show
+  const moduleNames = allModules.map(module => module.module);
+  
+  // Filter modules based on permissions - only show if user has at least read access (not restricted)
+  const visibleModules = React.useMemo(() => {
+    return allModules.filter(module => {
+      // Super Admins see everything
+      if (user?.isSuperAdmin) return true;
+      
+      // For regular users, show basic modules for now until permissions are fully working
+      // This will be updated once the permission hooks are properly implemented
+      return true;
+    });
+  }, [user?.isSuperAdmin]);
 
   const handleLogout = () => {
     logoutMutation.mutate();
@@ -173,11 +198,11 @@ export function Sidebar() {
         <nav className="flex-1 overflow-y-auto py-4">
           <div className={cn("px-3 mb-3", collapsed && "md:hidden")}>
             <p className="text-xs font-medium text-slate-400 uppercase tracking-wider px-3">
-              Core Modules
+              {user?.isSuperAdmin ? "All Modules" : "Available Modules"}
             </p>
           </div>
 
-          {coreModules.map((item) => (
+          {visibleModules.map((item) => (
             <Link 
               key={item.href} 
               href={item.href}
@@ -204,38 +229,21 @@ export function Sidebar() {
             </Link>
           ))}
 
-          <div className={cn("px-3 mt-6 mb-3", collapsed && "md:hidden")}>
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider px-3">
-              Administration
-            </p>
-          </div>
+          {visibleModules.length === 0 && !user?.isSuperAdmin && (
+            <div className="px-3 py-4 text-center">
+              <p className="text-sm text-slate-500">No modules available</p>
+              <p className="text-xs text-slate-400 mt-1">Contact your administrator for access</p>
+            </div>
+          )}
 
-          {adminModules.map((item) => (
-            <Link 
-              key={item.href} 
-              href={item.href}
-              className={cn(
-                "flex items-center px-3 py-2 mx-2 text-sm font-medium rounded-md",
-                collapsed && "md:justify-center md:px-2 md:mx-1",
-                location === item.href
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-slate-600 hover:bg-slate-100"
-              )}
-              onClick={() => setMobileOpen(false)}
-            >
-              {React.cloneElement(item.icon as React.ReactElement, {
-                className: cn(
-                  "h-5 w-5",
-                  collapsed ? "mr-0" : "mr-3", 
-                  "text-slate-500",
-                  location === item.href ? "text-blue-500" : ""
-                ),
-              })}
-              {(!collapsed || !window.matchMedia('(min-width: 768px)').matches) && (
-                <span>{item.title}</span>
-              )}
-            </Link>
-          ))}
+          {!user?.isSuperAdmin && visibleModules.length > 0 && (
+            <div className={cn("px-3 mt-6 mb-3", collapsed && "md:hidden")}>
+              <div className="flex items-center gap-2 px-3">
+                <Shield className="h-3 w-3 text-slate-400" />
+                <p className="text-xs text-slate-400">Permission-based access</p>
+              </div>
+            </div>
+          )}
         </nav>
 
         <div className={cn("p-4 border-t border-slate-200", collapsed && "md:p-2")}>
