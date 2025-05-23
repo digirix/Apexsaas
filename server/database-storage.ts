@@ -3293,11 +3293,16 @@ export class DatabaseStorage implements IStorage {
 
   // User Permission operations
   async getUserPermissions(tenantId: number, userId: number): Promise<UserPermission[]> {
-    return await db.select().from(userPermissions)
+    console.log(`Fetching permissions for user ${userId} in tenant ${tenantId}`);
+    
+    const permissions = await db.select().from(userPermissions)
       .where(and(
         eq(userPermissions.tenantId, tenantId),
         eq(userPermissions.userId, userId)
       ));
+    
+    console.log(`Found ${permissions.length} permissions:`, permissions);
+    return permissions;
   }
 
   async getUserPermission(tenantId: number, userId: number, module: string): Promise<UserPermission | undefined> {
