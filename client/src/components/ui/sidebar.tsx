@@ -19,9 +19,15 @@ import {
   ChevronRight,
   BarChart2,
   Brain,
+  Cog,
+  BotIcon,
+  FileText,
+  GitBranch,
+  Shield,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
+import { useMultiplePermissions } from "@/hooks/use-permissions";
 
 type NavItem = {
   title: string;

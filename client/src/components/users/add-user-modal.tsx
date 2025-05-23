@@ -25,14 +25,22 @@ interface AddUserModalProps {
   onSuccess: () => void;
 }
 
-// Define the module permissions
+// Define the module permissions - comprehensive list covering all application areas
 const availableModules = [
+  { id: "users", name: "User Management" },
   { id: "clients", name: "Clients Management" },
   { id: "tasks", name: "Tasks Management" },
+  { id: "finance", name: "Finance Module" },
   { id: "setup", name: "System Setup" },
-  { id: "users", name: "User Management" },
-  { id: "reports", name: "Reports" },
-  { id: "finance", name: "Finance" }
+  { id: "auto-generated-tasks", name: "Auto Generated Tasks" },
+  { id: "compliance-calendar", name: "Compliance Calendar" },
+  { id: "ai-features", name: "AI Features" },
+  { id: "ai-reporting", name: "AI Reporting" },
+  { id: "settings", name: "System Settings" },
+  { id: "reports", name: "Financial Reports" },
+  { id: "workflow-automation", name: "Workflow Automation" },
+  { id: "client-portal", name: "Client Portal Management" },
+  { id: "dashboard", name: "Dashboard Access" }
 ];
 
 export function AddUserModal({ isOpen, onClose, onSuccess }: AddUserModalProps) {
