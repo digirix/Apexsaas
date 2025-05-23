@@ -61,9 +61,19 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
     enabled: !!userId
   });
 
-  // Fetch user permissions
+  // Fetch user permissions with cache busting
   const { data: permissions, isLoading: permissionsLoading, refetch: refetchPermissions } = useQuery<UserPermission[]>({
-    queryKey: [`/api/v1/users/${userId}/permissions`, Date.now()],
+    queryKey: [`/api/v1/users/${userId}/permissions`],
+    queryFn: async () => {
+      const response = await fetch(`/api/v1/users/${userId}/permissions?_t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch permissions');
+      return response.json();
+    },
     enabled: !!userId,
     staleTime: 0,
     gcTime: 0
