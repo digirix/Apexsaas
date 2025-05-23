@@ -2250,10 +2250,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = parseInt(req.params.userId);
+      const requestingUserId = (req.user as any).id;
+      
+      // Allow users to view their own permissions or admins to view any permissions
+      if (userId !== requestingUserId && !(req.user as any).isSuperAdmin) {
+        return res.status(403).json({ message: "Access denied" });
+      }
       
       const permissions = await storage.getUserPermissions(tenantId, userId);
       res.json(permissions);
     } catch (error) {
+      console.error('Error fetching user permissions:', error);
       res.status(500).json({ message: "Failed to fetch permissions" });
     }
   });
