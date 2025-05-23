@@ -15,7 +15,7 @@ export interface ModulePermissions {
  * Hook to check user permissions for a specific module
  */
 export function useModulePermissions(module: string): ModulePermissions {
-  const { user } = useUser();
+  const { user } = useAuth();
   
   const { data: permissions } = useQuery<UserPermission[]>({
     queryKey: [`/api/v1/users/${user?.id}/permissions`],
@@ -62,7 +62,7 @@ export function useModulePermissions(module: string): ModulePermissions {
  * Hook to check if user has access to multiple modules
  */
 export function useMultiplePermissions(modules: string[]) {
-  const { user } = useUser();
+  const { user } = useAuth();
   
   const { data: permissions } = useQuery<UserPermission[]>({
     queryKey: [`/api/v1/users/${user?.id}/permissions`],

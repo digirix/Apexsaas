@@ -3291,6 +3291,65 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  // User Permission operations
+  async getUserPermissions(tenantId: number, userId: number): Promise<UserPermission[]> {
+    return await db.select().from(userPermissions)
+      .where(and(
+        eq(userPermissions.tenantId, tenantId),
+        eq(userPermissions.userId, userId)
+      ));
+  }
+
+  async getUserPermission(tenantId: number, userId: number, module: string): Promise<UserPermission | undefined> {
+    const result = await db.select().from(userPermissions)
+      .where(and(
+        eq(userPermissions.tenantId, tenantId),
+        eq(userPermissions.userId, userId),
+        eq(userPermissions.module, module)
+      ))
+      .limit(1);
+    
+    return result[0];
+  }
+
+  async getUserPermissionById(id: number, tenantId: number): Promise<UserPermission | undefined> {
+    const result = await db.select().from(userPermissions)
+      .where(and(
+        eq(userPermissions.id, id),
+        eq(userPermissions.tenantId, tenantId)
+      ))
+      .limit(1);
+    
+    return result[0];
+  }
+
+  async createUserPermission(permission: InsertUserPermission): Promise<UserPermission> {
+    const [newPermission] = await db.insert(userPermissions)
+      .values(permission)
+      .returning();
+    
+    return newPermission;
+  }
+
+  async updateUserPermission(id: number, permission: Partial<InsertUserPermission>): Promise<UserPermission | undefined> {
+    const [updatedPermission] = await db.update(userPermissions)
+      .set(permission)
+      .where(eq(userPermissions.id, id))
+      .returning();
+    
+    return updatedPermission;
+  }
+
+  async deleteUserPermission(id: number, tenantId: number): Promise<boolean> {
+    const result = await db.delete(userPermissions)
+      .where(and(
+        eq(userPermissions.id, id),
+        eq(userPermissions.tenantId, tenantId)
+      ));
+    
+    return result.rowCount > 0;
+  }
+
   // AI Configuration operations
   async getAiConfigurations(tenantId: number): Promise<AiConfiguration[]> {
     return await db.select().from(aiConfigurations)

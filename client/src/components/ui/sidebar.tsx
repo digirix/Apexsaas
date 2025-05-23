@@ -112,20 +112,21 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
-  // Get permissions for all modules to determine which to show
+  // Get all module names for permission checking
   const moduleNames = allModules.map(module => module.module);
-  
-  // Filter modules based on permissions - only show if user has at least read access (not restricted)
+  const permissions = useMultiplePermissions(moduleNames);
+
+  // Filter modules based on permissions - only show if user has access (not restricted)
   const visibleModules = React.useMemo(() => {
     return allModules.filter(module => {
       // Super Admins see everything
       if (user?.isSuperAdmin) return true;
       
-      // For regular users, show basic modules for now until permissions are fully working
-      // This will be updated once the permission hooks are properly implemented
-      return true;
+      // For regular users, check if they have access to this module
+      const modulePermission = permissions[module.module];
+      return modulePermission?.hasAccess === true;
     });
-  }, [user?.isSuperAdmin]);
+  }, [user?.isSuperAdmin, permissions, allModules]);
 
   const handleLogout = () => {
     logoutMutation.mutate();
