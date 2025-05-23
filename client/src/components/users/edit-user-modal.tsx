@@ -198,8 +198,8 @@ export function EditUserModal({ isOpen, onClose, user, onSuccess }: EditUserModa
                         <FormItem>
                           <FormLabel>Department</FormLabel>
                           <Select 
-                            onValueChange={(value) => field.onChange(value ? parseInt(value) : null)}
-                            value={field.value?.toString() || ""}
+                            onValueChange={(value) => field.onChange(value === "none" ? null : parseInt(value))}
+                            value={field.value?.toString() || "none"}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -207,7 +207,7 @@ export function EditUserModal({ isOpen, onClose, user, onSuccess }: EditUserModa
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="">None</SelectItem>
+                              <SelectItem value="none">None</SelectItem>
                               {departments?.map((department) => (
                                 <SelectItem key={department.id} value={department.id.toString()}>
                                   {department.name}
@@ -227,8 +227,8 @@ export function EditUserModal({ isOpen, onClose, user, onSuccess }: EditUserModa
                         <FormItem>
                           <FormLabel>Designation</FormLabel>
                           <Select 
-                            onValueChange={(value) => field.onChange(value ? parseInt(value) : null)}
-                            value={field.value?.toString() || ""}
+                            onValueChange={(value) => field.onChange(value === "none" ? null : parseInt(value))}
+                            value={field.value?.toString() || "none"}
                           >
                             <FormControl>
                               <SelectTrigger>
@@ -236,7 +236,7 @@ export function EditUserModal({ isOpen, onClose, user, onSuccess }: EditUserModa
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="">None</SelectItem>
+                              <SelectItem value="none">None</SelectItem>
                               {designations?.map((designation) => (
                                 <SelectItem key={designation.id} value={designation.id.toString()}>
                                   {designation.name}

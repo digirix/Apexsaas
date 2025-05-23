@@ -2071,6 +2071,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User Permissions API endpoints
+  app.get("/api/v1/users/:id/permissions", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = parseInt(req.params.id);
+      
+      // Check if user belongs to tenant
+      const user = await storage.getUser(userId);
+      if (!user || user.tenantId !== tenantId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const permissions = await storage.getUserPermissions(userId);
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error fetching user permissions:", error);
+      res.status(500).json({ message: "Failed to fetch permissions" });
+    }
+  });
+
+  app.post("/api/v1/users/:id/permissions", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = parseInt(req.params.id);
+      
+      // Check if user belongs to tenant
+      const user = await storage.getUser(userId);
+      if (!user || user.tenantId !== tenantId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const validatedData = insertUserPermissionSchema.parse({
+        ...req.body,
+        userId
+      });
+      
+      const permission = await storage.createUserPermission(validatedData);
+      res.status(201).json(permission);
+    } catch (error) {
+      console.error("Error creating user permission:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create permission" });
+    }
+  });
+
+  app.put("/api/v1/users/:userId/permissions/:permissionId", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = parseInt(req.params.userId);
+      const permissionId = parseInt(req.params.permissionId);
+      
+      // Check if user belongs to tenant
+      const user = await storage.getUser(userId);
+      if (!user || user.tenantId !== tenantId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const updatedPermission = await storage.updateUserPermission(permissionId, req.body);
+      if (!updatedPermission) {
+        return res.status(404).json({ message: "Permission not found" });
+      }
+      
+      res.json(updatedPermission);
+    } catch (error) {
+      console.error("Error updating user permission:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update permission" });
+    }
+  });
+
+  app.delete("/api/v1/users/:userId/permissions/:permissionId", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = parseInt(req.params.userId);
+      const permissionId = parseInt(req.params.permissionId);
+      
+      // Check if user belongs to tenant
+      const user = await storage.getUser(userId);
+      if (!user || user.tenantId !== tenantId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const success = await storage.deleteUserPermission(permissionId);
+      if (!success) {
+        return res.status(404).json({ message: "Permission not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting user permission:", error);
+      res.status(500).json({ message: "Failed to delete permission" });
+    }
+  });
+
+  // Bulk permissions update endpoint
+  app.put("/api/v1/users/:id/permissions", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = parseInt(req.params.id);
+      
+      // Check if user belongs to tenant
+      const user = await storage.getUser(userId);
+      if (!user || user.tenantId !== tenantId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const { permissions } = req.body;
+      
+      // Update permissions in bulk
+      const updatedPermissions = await storage.updateUserPermissionsBulk(userId, permissions);
+      res.json(updatedPermissions);
+    } catch (error) {
+      console.error("Error updating user permissions:", error);
+      res.status(500).json({ message: "Failed to update permissions" });
+    }
+  });
+
   // Legacy PUT endpoint for members
   app.put("/api/v1/members/:id", isAuthenticated, async (req, res) => {
     try {
