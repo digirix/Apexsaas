@@ -49,6 +49,9 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
   
   // Track unsaved changes for each module separately
   const [unsavedModulePermissions, setUnsavedModulePermissions] = useState<Record<string, Partial<InsertUserPermission>>>({});
+  
+  // Flag to prevent auto-sync feedback loop when user manually changes access level
+  const [isManualAccessLevelChange, setIsManualAccessLevelChange] = useState(false);
 
   // Define user type
   interface UserDetails {
@@ -99,9 +102,9 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
     setSelectedModule(newModuleId);
   };
 
-  // Auto-sync CRUD toggles when accessLevel changes (but not during loading)
+  // Auto-sync CRUD toggles when accessLevel changes (but not during loading or manual changes)
   useEffect(() => {
-    if (isLoadingPermission) return; // Don't auto-sync while loading data
+    if (isLoadingPermission || isManualAccessLevelChange) return; // Don't auto-sync while loading data or during manual changes
     
     if (permissionForm.accessLevel === 'full') {
       // Full access: turn all CRUD toggles ON
@@ -128,7 +131,7 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
         canRead: true
       }));
     }
-  }, [permissionForm.accessLevel, isLoadingPermission]);
+  }, [permissionForm.accessLevel, isLoadingPermission, isManualAccessLevelChange]);
 
   // Auto-sync accessLevel when CRUD toggles change (but not during loading)
   useEffect(() => {
