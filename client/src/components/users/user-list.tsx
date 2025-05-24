@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,8 @@ import {
   ShieldCheck, 
   MoreHorizontal,
   AlertCircle,
-  UserX 
+  UserX,
+  Trash2 
 } from "lucide-react";
 import { AddUserModal } from "../users/add-user-modal";
 import { EditUserModal } from "../users/edit-user-modal";
@@ -22,8 +23,20 @@ import {
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
-  DropdownMenuTrigger 
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { apiRequest } from "@/lib/queryClient";
 import { User } from "@shared/schema";
 
 interface UserListProps {
@@ -32,19 +45,59 @@ interface UserListProps {
 
 export function UserList({ onUserSelect }: UserListProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   // Fetch users data
   const { data: users, isLoading, error, refetch } = useQuery<User[]>({
     queryKey: ['/api/v1/users'],
   });
 
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const response = await apiRequest('DELETE', `/api/v1/users/${userId}`);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/users'] });
+      toast({
+        title: "User deleted",
+        description: "The user has been successfully removed from your team.",
+      });
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete user. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Handle opening edit modal
   const handleEdit = (user: User) => {
     setEditingUser(user);
     setIsEditUserModalOpen(true);
+  };
+
+  // Handle delete user request
+  const handleDeleteUser = (user: User) => {
+    setUserToDelete(user);
+    setDeleteDialogOpen(true);
+  };
+
+  // Confirm delete user
+  const confirmDeleteUser = () => {
+    if (userToDelete) {
+      deleteUserMutation.mutate(userToDelete.id);
+    }
   };
 
   // Handle user creation success
@@ -168,12 +221,14 @@ export function UserList({ onUserSelect }: UserListProps) {
                           <Edit className="h-4 w-4 mr-2" />
                           Edit Details
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem 
                           className="text-red-600"
-                          disabled={user.isSuperAdmin}
+                          onClick={() => handleDeleteUser(user)}
+                          disabled={user.isSuperAdmin || deleteUserMutation.isPending}
                         >
-                          <UserX className="h-4 w-4 mr-2" />
-                          Deactivate
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          {deleteUserMutation.isPending ? "Deleting..." : "Delete User"}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -213,6 +268,52 @@ export function UserList({ onUserSelect }: UserListProps) {
           onSuccess={handleUserUpdated}
         />
       )}
+
+      {/* Delete User Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-red-500" />
+              Delete User Account
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete{" "}
+              <span className="font-semibold">{userToDelete?.displayName}</span>?
+              <br />
+              <br />
+              This action cannot be undone. The user will lose all access to the system and all their associated data will be removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setUserToDelete(null);
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteUser}
+              disabled={deleteUserMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {deleteUserMutation.isPending ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete User
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
