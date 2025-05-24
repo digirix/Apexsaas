@@ -2083,7 +2083,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      const permissions = await storage.getUserPermissions(userId);
+      const permissions = await storage.getUserPermissions(tenantId, userId);
       res.json(permissions);
     } catch (error) {
       console.error("Error fetching user permissions:", error);
