@@ -47,8 +47,8 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
     canDelete: false
   });
   
-  // Track original loaded state for unsaved changes detection
-  const [originalLoadedPermissionForSelectedModule, setOriginalLoadedPermissionForSelectedModule] = useState<Partial<InsertUserPermission> | null>(null);
+  // Track unsaved changes for each module separately
+  const [unsavedModulePermissions, setUnsavedModulePermissions] = useState<Record<string, Partial<InsertUserPermission>>>({});
 
   // Define user type
   interface UserDetails {
@@ -88,45 +88,15 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
     ? permissions?.find(p => p.module === selectedModule)
     : null;
 
-  // Helper function to detect unsaved changes
-  const hasUnsavedChanges = (): boolean => {
-    if (!originalLoadedPermissionForSelectedModule || !selectedModule) return false;
-    
-    return (
-      permissionForm.accessLevel !== originalLoadedPermissionForSelectedModule.accessLevel ||
-      permissionForm.canRead !== originalLoadedPermissionForSelectedModule.canRead ||
-      permissionForm.canCreate !== originalLoadedPermissionForSelectedModule.canCreate ||
-      permissionForm.canUpdate !== originalLoadedPermissionForSelectedModule.canUpdate ||
-      permissionForm.canDelete !== originalLoadedPermissionForSelectedModule.canDelete
-    );
+  // Helper function to detect unsaved changes for current module
+  const hasUnsavedChangesForCurrentModule = (): boolean => {
+    if (!selectedModule) return false;
+    return !!unsavedModulePermissions[selectedModule];
   };
 
-  // Handle module selection with unsaved changes check
-  const handleModuleSelect = async (newModuleId: string) => {
-    // Check if we have unsaved changes for the current module
-    if (hasUnsavedChanges() && selectedModule) {
-      const shouldSave = window.confirm(
-        `You have unsaved changes for ${selectedModule}. Save them now?\n\nClick OK to save, or Cancel to discard changes.`
-      );
-      
-      if (shouldSave) {
-        // Save current changes first, then switch modules
-        try {
-          await handleSavePermission();
-          setSelectedModule(newModuleId);
-        } catch (error) {
-          // Save failed, don't switch modules
-          console.error('Failed to save permission:', error);
-          return;
-        }
-      } else {
-        // User chose to discard changes, proceed with module switch
-        setSelectedModule(newModuleId);
-      }
-    } else {
-      // No unsaved changes, or no current module, switch directly
-      setSelectedModule(newModuleId);
-    }
+  // Handle module selection - now just switches modules, unsaved changes are preserved
+  const handleModuleSelect = (newModuleId: string) => {
+    setSelectedModule(newModuleId);
   };
 
   // Auto-sync CRUD toggles when accessLevel changes (but not during loading)
@@ -189,26 +159,40 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
     }
   }, [permissionForm.canRead, permissionForm.canCreate, permissionForm.canUpdate, permissionForm.canDelete, isLoadingPermission]);
 
-  // Update permission form when selected module changes
+  // Update permission form when selected module changes - with priority-based loading
   useEffect(() => {
-    if (selectedModule && permissions) {
+    if (selectedModule) {
       setIsLoadingPermission(true); // Prevent auto-sync during loading
-      
-      const existingPermission = permissions.find(p => p.module === selectedModule);
       
       let newFormState: Partial<InsertUserPermission>;
       
-      if (existingPermission) {
-        // Load existing permission data
-        newFormState = {
-          accessLevel: existingPermission.accessLevel,
-          canRead: existingPermission.canRead,
-          canCreate: existingPermission.canCreate,
-          canUpdate: existingPermission.canUpdate,
-          canDelete: existingPermission.canDelete
-        };
+      // Priority 1: Check for unsaved changes first
+      if (unsavedModulePermissions[selectedModule]) {
+        newFormState = { ...unsavedModulePermissions[selectedModule] };
+      } 
+      // Priority 2: Check for existing saved permission
+      else if (permissions) {
+        const existingPermission = permissions.find(p => p.module === selectedModule);
+        if (existingPermission) {
+          newFormState = {
+            accessLevel: existingPermission.accessLevel,
+            canRead: existingPermission.canRead,
+            canCreate: existingPermission.canCreate,
+            canUpdate: existingPermission.canUpdate,
+            canDelete: existingPermission.canDelete
+          };
+        } else {
+          // Priority 3: Default restricted state
+          newFormState = {
+            accessLevel: "restricted",
+            canRead: false,
+            canCreate: false,
+            canUpdate: false,
+            canDelete: false
+          };
+        }
       } else {
-        // Default values for new permission
+        // Default state when permissions haven't loaded yet
         newFormState = {
           accessLevel: "restricted",
           canRead: false,
@@ -218,14 +202,23 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
         };
       }
       
-      // Set both form state and original loaded state
       setPermissionForm(newFormState);
-      setOriginalLoadedPermissionForSelectedModule(newFormState);
       
       // Reset loading state after data is set
       setTimeout(() => setIsLoadingPermission(false), 100);
     }
-  }, [selectedModule, permissions]);
+  }, [selectedModule, permissions, unsavedModulePermissions]);
+
+  // Store changes to unsavedModulePermissions when permissionForm changes
+  useEffect(() => {
+    if (selectedModule && !isLoadingPermission) {
+      // Update unsaved changes for current module
+      setUnsavedModulePermissions(prev => ({
+        ...prev,
+        [selectedModule]: { ...permissionForm }
+      }));
+    }
+  }, [permissionForm, selectedModule, isLoadingPermission]);
 
   // Delete permission mutation
   const deletePermissionMutation = useMutation({
@@ -270,8 +263,14 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
       queryClient.invalidateQueries({ queryKey: [`/api/v1/users/permissions`] });
       refetchPermissions();
       
-      // Update the original loaded state to reflect the saved changes
-      setOriginalLoadedPermissionForSelectedModule({ ...permissionForm });
+      // Remove the saved module from unsaved changes
+      if (selectedModule) {
+        setUnsavedModulePermissions(prev => {
+          const updated = { ...prev };
+          delete updated[selectedModule];
+          return updated;
+        });
+      }
       
       toast({
         title: "Permission saved",
@@ -422,7 +421,12 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
                         onClick={() => handleModuleSelect(module.id)}
                       >
                         <div className="flex justify-between items-center">
-                          <span className="font-medium">{module.name}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{module.name}</span>
+                            {unsavedModulePermissions[module.id] && (
+                              <span className="w-2 h-2 bg-yellow-500 rounded-full" title="Unsaved changes" />
+                            )}
+                          </div>
                           {effectiveHasPermission && (
                             <Badge variant={badgeVariant as any} className={
                               badgeVariant === "default" ? "bg-green-600 hover:bg-green-700" : ""

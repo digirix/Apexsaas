@@ -1,0 +1,24 @@
+The User Permissions UI (UserPermissions.tsx) still resets unsaved changes when switching between modules. The desired behavior is to preserve unsaved changes for each module locally until the user explicitly saves them. The user should be able to configure multiple modules and then click a 'Save Permissions' button for the currently viewed module.
+Please implement the following state management strategy in UserPermissions.tsx:
+New State for Unsaved Changes:
+Introduce a state variable, e.g., unsavedModulePermissions, an object to store permission form data for modules that have been modified but not yet saved.
+The key should be the module.id (string), and the value should be Partial<InsertUserPermission>.
+Example: const [unsavedModulePermissions, setUnsavedModulePermissions] = useState<Record<string, Partial<InsertUserPermission>>>({});
+Update permissionForm Population Logic:
+Modify the useEffect hook that depends on [selectedModule, permissions] (and now also unsavedModulePermissions):
+When selectedModule changes:
+a. Priority 1: Check if unsavedModulePermissions[selectedModule] exists. If yes, populate permissionForm with this "dirty" (unsaved) state.
+b. Priority 2: If no unsaved state for the module, check the fetched permissions array. If an existingPermission for selectedModule is found, populate permissionForm with it.
+c. Priority 3: Otherwise (no unsaved state and no saved permission), populate permissionForm with the default "Restricted" state (all CRUD false).
+Store Changes to unsavedModulePermissions:
+Create a useEffect that depends on [permissionForm, selectedModule].
+When permissionForm changes (due to user input or the syncing effects for accessLevel/CRUD toggles) AND a selectedModule is active:
+Update unsavedModulePermissions by setting unsavedModulePermissions[selectedModule] to a copy of the current permissionForm state.
+Update handleSavePermission:
+This function should now take the permission data to save from unsavedModulePermissions[selectedModule] (or directly from permissionForm if it's always reflecting the intended state for the current module).
+On successful save (after refetchPermissions() completes and permissions state is updated):
+Remove the entry for the selectedModule from unsavedModulePermissions because its state is now saved.
+UI Indication (Optional but Recommended):
+Consider adding a visual cue (e.g., an asterisk) next to module names in the list if they have an entry in unsavedModulePermissions.
+The "Save Permissions" button should ideally be enabled only if there are unsaved changes for the currently selectedModule.
+This approach allows users to switch between modules, have their intermediate (unsaved) configurations remembered for each, and then explicitly save the permissions for the module they are currently viewing.
