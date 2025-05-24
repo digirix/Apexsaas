@@ -2093,7 +2093,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting user:", error);
-      res.status(500).json({ message: "Failed to delete user" });
+      console.error("Error details:", error instanceof Error ? error.message : error);
+      console.error("Stack trace:", error instanceof Error ? error.stack : "No stack trace");
+      res.status(500).json({ 
+        message: "Failed to delete user",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

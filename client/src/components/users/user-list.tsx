@@ -128,6 +128,11 @@ export function UserList({ onUserSelect }: UserListProps) {
     setDeleteDialogOpen(true);
   };
 
+  const handleDeactivateUser = (user: User) => {
+    setUserToDelete(user);
+    deactivateUserMutation.mutate(user.id);
+  };
+
   // Confirm delete user
   const confirmDeleteUser = () => {
     if (userToDelete) {
@@ -257,6 +262,14 @@ export function UserList({ onUserSelect }: UserListProps) {
                           Edit Details
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          className="text-orange-600"
+                          onClick={() => handleDeactivateUser(user)}
+                          disabled={user.isSuperAdmin || deactivateUserMutation.isPending || !user.isActive}
+                        >
+                          <UserX className="h-4 w-4 mr-2" />
+                          {deactivateUserMutation.isPending ? "Deactivating..." : "Deactivate User"}
+                        </DropdownMenuItem>
                         <DropdownMenuItem 
                           className="text-red-600"
                           onClick={() => handleDeleteUser(user)}
