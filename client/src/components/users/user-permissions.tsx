@@ -50,6 +50,9 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
   // Track unsaved changes for each module separately
   const [unsavedModulePermissions, setUnsavedModulePermissions] = useState<Record<string, Partial<InsertUserPermission>>>({});
   
+  // Track saved permissions for each module
+  const [savedModulePermissions, setSavedModulePermissions] = useState<Record<string, Partial<InsertUserPermission>>>({});
+  
   // Flag to prevent auto-sync feedback loop when user manually changes access level
   const [isManualAccessLevelChange, setIsManualAccessLevelChange] = useState(false);
 
@@ -231,30 +234,17 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
       }
     },
     onSuccess: (savedPermission) => {
-      // Update the permissions cache with the saved data
-      queryClient.invalidateQueries({ queryKey: [`/api/v1/users/${userId}/permissions`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/v1/users/permissions`] });
-      
-      // Remove the saved module from unsaved changes and preserve current form state
+      // Remove the saved module from unsaved changes
       if (selectedModule) {
         setUnsavedModulePermissions(prev => {
           const updated = { ...prev };
           delete updated[selectedModule];
           return updated;
         });
-        
-        // Update saved permissions to include the newly saved permission
-        setSavedModulePermissions(prev => ({
-          ...prev,
-          [selectedModule]: {
-            accessLevel: permissionForm.accessLevel,
-            canRead: permissionForm.canRead,
-            canCreate: permissionForm.canCreate,
-            canUpdate: permissionForm.canUpdate,
-            canDelete: permissionForm.canDelete
-          }
-        }));
       }
+      
+      // Refresh permissions to get the updated data
+      queryClient.invalidateQueries({ queryKey: [`/api/v1/users/${userId}/permissions`] });
       
       toast({
         title: "Permission saved",
