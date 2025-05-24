@@ -84,6 +84,62 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
     ? permissions?.find(p => p.module === selectedModule)
     : null;
 
+  // Auto-sync CRUD toggles when accessLevel changes
+  useEffect(() => {
+    if (permissionForm.accessLevel === 'full') {
+      // Full access: turn all CRUD toggles ON
+      setPermissionForm(prev => ({
+        ...prev,
+        canRead: true,
+        canCreate: true,
+        canUpdate: true,
+        canDelete: true
+      }));
+    } else if (permissionForm.accessLevel === 'restricted') {
+      // Restricted access: turn all CRUD toggles OFF
+      setPermissionForm(prev => ({
+        ...prev,
+        canRead: false,
+        canCreate: false,
+        canUpdate: false,
+        canDelete: false
+      }));
+    } else if (permissionForm.accessLevel === 'partial') {
+      // Partial access: ensure at least read access is ON
+      setPermissionForm(prev => ({
+        ...prev,
+        canRead: true
+      }));
+    }
+  }, [permissionForm.accessLevel]);
+
+  // Auto-sync accessLevel when CRUD toggles change
+  useEffect(() => {
+    const { canRead, canCreate, canUpdate, canDelete } = permissionForm;
+    
+    // If all CRUD permissions are true, set to Full
+    if (canRead && canCreate && canUpdate && canDelete) {
+      setPermissionForm(prev => ({
+        ...prev,
+        accessLevel: 'full'
+      }));
+    }
+    // If all CRUD permissions are false, set to Restricted
+    else if (!canRead && !canCreate && !canUpdate && !canDelete) {
+      setPermissionForm(prev => ({
+        ...prev,
+        accessLevel: 'restricted'
+      }));
+    }
+    // Otherwise, set to Partial
+    else {
+      setPermissionForm(prev => ({
+        ...prev,
+        accessLevel: 'partial'
+      }));
+    }
+  }, [permissionForm.canRead, permissionForm.canCreate, permissionForm.canUpdate, permissionForm.canDelete]);
+
   // Update permission form when selected module changes
   useEffect(() => {
     if (selectedModule && permissions) {
