@@ -133,9 +133,9 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
     }
   }, [permissionForm.accessLevel, isLoadingPermission, isManualAccessLevelChange]);
 
-  // Auto-sync accessLevel when CRUD toggles change (but not during loading)
+  // Auto-sync accessLevel when CRUD toggles change (but not during loading or manual access level changes)
   useEffect(() => {
-    if (isLoadingPermission) return; // Don't auto-sync while loading data
+    if (isLoadingPermission || isManualAccessLevelChange) return; // Don't auto-sync while loading data or during manual changes
     
     const { canRead, canCreate, canUpdate, canDelete } = permissionForm;
     
@@ -160,7 +160,7 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
         accessLevel: 'partial'
       }));
     }
-  }, [permissionForm.canRead, permissionForm.canCreate, permissionForm.canUpdate, permissionForm.canDelete, isLoadingPermission]);
+  }, [permissionForm.canRead, permissionForm.canCreate, permissionForm.canUpdate, permissionForm.canDelete, isLoadingPermission, isManualAccessLevelChange]);
 
   // Update permission form when selected module changes - with priority-based loading
   useEffect(() => {
@@ -319,9 +319,17 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
   // Handle permission change
   const handlePermissionChange = (field: keyof InsertUserPermission, value: any) => {
     if (field === 'accessLevel') {
+      // Set flag to prevent auto-sync feedback loop
+      setIsManualAccessLevelChange(true);
+      
       // Ensure accessLevel is one of the allowed values
       const accessLevel = value as 'full' | 'partial' | 'restricted';
       setPermissionForm(prev => ({ ...prev, accessLevel }));
+      
+      // Reset the flag after a short delay to allow auto-sync to resume
+      setTimeout(() => {
+        setIsManualAccessLevelChange(false);
+      }, 500);
     } else {
       // Handle other field types normally
       setPermissionForm(prev => ({ ...prev, [field]: value }));
