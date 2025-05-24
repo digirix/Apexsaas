@@ -419,7 +419,7 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
                             ? "bg-blue-50 border border-blue-200"
                             : "hover:bg-slate-50 border border-transparent"
                         }`}
-                        onClick={() => setSelectedModule(module.id)}
+                        onClick={() => handleModuleSelect(module.id)}
                       >
                         <div className="flex justify-between items-center">
                           <span className="font-medium">{module.name}</span>
