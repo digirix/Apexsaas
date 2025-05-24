@@ -50,11 +50,8 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
   // Track unsaved changes for each module separately
   const [unsavedModulePermissions, setUnsavedModulePermissions] = useState<Record<string, Partial<InsertUserPermission>>>({});
   
-  // Track saved permissions for each module
-  const [savedModulePermissions, setSavedModulePermissions] = useState<Record<string, Partial<InsertUserPermission>>>({});
-  
-  // Flag to prevent auto-sync feedback loop when user manually changes access level
-  const [isManualAccessLevelChange, setIsManualAccessLevelChange] = useState(false);
+  // Track if current form has been modified
+  const [isFormDirty, setIsFormDirty] = useState(false);
 
   // Define user type
   interface UserDetails {
@@ -234,50 +231,48 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
       }
     },
     onSuccess: (savedPermission) => {
-      console.log('Permission save successful:', savedPermission);
+      console.log('=== FRONTEND SAVE SUCCESS DEBUG ===');
+      console.log('Permission save successful - API returned:', savedPermission);
+      console.log('Current permissionForm state:', permissionForm);
+      console.log('selectedModule:', selectedModule);
       
       if (selectedModule) {
-        // Step 1: Optimistically update the current form state to reflect the successful save
-        const successfulSaveState = {
-          accessLevel: permissionForm.accessLevel,
-          canRead: permissionForm.canRead,
-          canCreate: permissionForm.canCreate,
-          canUpdate: permissionForm.canUpdate,
-          canDelete: permissionForm.canDelete
+        // Step 1: Use the ACTUAL saved permission from backend API response
+        const actualSavedState = {
+          accessLevel: savedPermission.accessLevel,
+          canRead: savedPermission.canRead,
+          canCreate: savedPermission.canCreate,
+          canUpdate: savedPermission.canUpdate,
+          canDelete: savedPermission.canDelete
         };
         
-        console.log('Optimistically updating form state with:', successfulSaveState);
-        setPermissionForm(successfulSaveState);
+        console.log('Setting form state to ACTUAL saved data:', actualSavedState);
+        setPermissionForm(actualSavedState);
         
-        // Step 2: Optimistically update the React Query cache to prevent reverting during refetch
+        // Step 2: Update React Query cache with the COMPLETE saved permission object
+        console.log('Updating cache with complete saved permission...');
         queryClient.setQueryData([`/api/v1/users/${userId}/permissions`], (oldPermissions: UserPermission[] | undefined) => {
-          if (!oldPermissions) return [savedPermission];
+          console.log('Old permissions in cache:', oldPermissions);
+          
+          if (!oldPermissions) {
+            console.log('No old permissions, creating new array with saved permission');
+            return [savedPermission];
+          }
           
           const existingIndex = oldPermissions.findIndex(p => p.module === selectedModule);
+          console.log('Existing permission index for module:', existingIndex);
+          
           if (existingIndex >= 0) {
-            // Update existing permission
+            // Update existing permission with the complete saved object
             const updatedPermissions = [...oldPermissions];
-            updatedPermissions[existingIndex] = { 
-              ...updatedPermissions[existingIndex], 
-              ...savedPermission,
-              accessLevel: permissionForm.accessLevel,
-              canRead: permissionForm.canRead,
-              canCreate: permissionForm.canCreate,
-              canUpdate: permissionForm.canUpdate,
-              canDelete: permissionForm.canDelete
-            };
+            updatedPermissions[existingIndex] = savedPermission; // Use complete saved object
+            console.log('Updated existing permission at index', existingIndex, 'with:', savedPermission);
             return updatedPermissions;
           } else {
             // Add new permission
-            return [...oldPermissions, { 
-              ...savedPermission,
-              module: selectedModule,
-              accessLevel: permissionForm.accessLevel,
-              canRead: permissionForm.canRead,
-              canCreate: permissionForm.canCreate,
-              canUpdate: permissionForm.canUpdate,
-              canDelete: permissionForm.canDelete
-            }];
+            const newPermissions = [...oldPermissions, savedPermission];
+            console.log('Added new permission to cache:', newPermissions);
+            return newPermissions;
           }
         });
         
@@ -285,14 +280,18 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
         setUnsavedModulePermissions(prev => {
           const updated = { ...prev };
           delete updated[selectedModule];
+          console.log('Removed unsaved changes for module:', selectedModule);
           return updated;
         });
         
-        // Step 4: Fetch canonical state from server (should match optimistic update)
+        // Step 4: Fetch canonical state from server after short delay
         setTimeout(() => {
+          console.log('Invalidating cache to fetch canonical state...');
           queryClient.invalidateQueries({ queryKey: [`/api/v1/users/${userId}/permissions`] });
-        }, 100);
+        }, 200);
       }
+      
+      console.log('=== END FRONTEND SAVE SUCCESS DEBUG ===');
       
       toast({
         title: "Permission saved",

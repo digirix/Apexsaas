@@ -1,0 +1,29 @@
+The UserPermissions.tsx component still has issues with state resetting after save and on page reload. We need a more robust state management strategy.
+Please refactor UserPermissions.tsx with the following approach:
+Introduce isFormDirty State: Add const [isFormDirty, setIsFormDirty] = useState(false);. This flag will track if permissionForm for the selectedModule has changes not yet reflected in unsavedModulePermissions or the database.
+Modify useEffect for Form Population (depends on selectedModule, permissions, unsavedModulePermissions):
+This effect is the primary loader for permissionForm.
+Order of Loading permissionForm:
+a. If unsavedModulePermissions[selectedModule] exists, load from it and set isFormDirty = true.
+b. Else, if permissions data contains an entry for selectedModule, load from it and set isFormDirty = false.
+c. Else (no unsaved, no saved), load default "Restricted" state (all CRUD false) and set isFormDirty = false.
+If !selectedModule, reset form to default and isFormDirty = false.
+Modify handlePermissionChange(field, value):
+Always set isFormDirty = true at the beginning of this function.
+If field === 'accessLevel': When value is "Full", also set all CRUDs to true in permissionForm. When "Restricted", set all CRUDs to false. When "Partial", ensure canRead is true (others can retain state or default).
+If a CRUD toggle (canRead, etc.) is changed, just update that field.
+Modify useEffect for accessLevel <-> CRUD Sync (depends on CRUD states):
+This effect updates permissionForm.accessLevel based on the state of canRead/Create/Update/Delete.
+Only run its logic if isFormDirty is true (to avoid loops on initial load). If it changes accessLevel, isFormDirty remains true.
+Modify useEffect for Storing to unsavedModulePermissions (depends on permissionForm, selectedModule, isFormDirty):
+If selectedModule is active AND isFormDirty is true, copy the current permissionForm state into unsavedModulePermissions[selectedModule].
+Update permissionMutation.onSuccess:
+Assume the API returns the saved permission object (savedPermissionDataFromApi).
+Optimistically update React Query cache: Use queryClient.setQueryData([/api/v1/users/${userId}/permissions], ...) to update the local permissions cache with savedPermissionDataFromApi (or construct it from permissionForm if API response is minimal).
+Clear Unsaved State: Delete unsavedModulePermissions[selectedModule].
+permissionForm will then be correctly re-populated by the main form population useEffect (using the updated cache), and isFormDirty will become false.
+Call queryClient.invalidateQueries(...) to ensure eventual consistency.
+Update handleSavePermission():
+Only trigger permissionMutation.mutate if isFormDirty is true for the selectedModule.
+Send the current permissionForm content as the payload.
+Also, critically review the backend POST (upsert) and PUT permission save endpoints. If data resets on page reload (Issue #2), it means the save to the database is not consistently persisting all fields (accessLevel AND all CRUD booleans). This backend part must be flawless

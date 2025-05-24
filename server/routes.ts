@@ -2369,8 +2369,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let permission;
       if (existingPermission) {
-        console.log('UPDATING existing permission...');API: Updating existing permission ID ${existingPermission.id}`);
-        // Update existing permission
+        console.log(`API: Updating existing permission ID ${existingPermission.id}`);
+        // Update existing permission - ENSURE ALL FIELDS ARE SAVED
         const updateData = {
           accessLevel: req.body.accessLevel,
           canCreate: req.body.canCreate ?? false,
@@ -2378,16 +2378,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
           canUpdate: req.body.canUpdate ?? false,
           canDelete: req.body.canDelete ?? false
         };
+        
+        console.log('Update data being sent to storage:', updateData);
         permission = await storage.updateUserPermission(existingPermission.id, updateData);
+        console.log('Permission after update from storage:', permission);
       } else {
         console.log(`API: Creating new permission for user ${userId}, module ${req.body.module}`);
-        // Create new permission
-        const data = { ...req.body, tenantId, userId };
+        // Create new permission - ENSURE ALL FIELDS ARE SAVED
+        const data = { 
+          ...req.body, 
+          tenantId, 
+          userId,
+          canCreate: req.body.canCreate ?? false,
+          canRead: req.body.canRead ?? false,
+          canUpdate: req.body.canUpdate ?? false,
+          canDelete: req.body.canDelete ?? false
+        };
+        
+        console.log('Create data being sent to storage:', data);
         const validatedData = insertUserPermissionSchema.parse(data);
         permission = await storage.createUserPermission(validatedData);
+        console.log('Permission after create from storage:', permission);
       }
       
-      console.log(`API: Permission upserted successfully:`, permission);
+      console.log(`API: Permission upserted successfully - FINAL RESULT:`, permission);
+      
+      // CRITICAL: Return the complete saved permission object for frontend optimistic updates
+      if (!permission) {
+        console.log('ERROR: Permission save failed - no permission returned from storage');
+        return res.status(500).json({ message: "Failed to save permission" });
+      }
       res.status(200).json(permission);
     } catch (error) {
       if (error instanceof z.ZodError) {
