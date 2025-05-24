@@ -78,6 +78,7 @@ function Router() {
       <ProtectedRoute path="/finance/reports/expenses" component={ExpenseReportPage} />
       <ProtectedRoute path="/finance/reports/tax-summary" component={TaxSummaryPage} />
       <ProtectedRoute path="/users" component={UsersPage} />
+      <ProtectedRoute path="/users/:id/permissions" component={UsersPage} />
       <ProtectedRoute path="/settings" component={SettingsPage} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
