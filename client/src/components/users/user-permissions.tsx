@@ -38,9 +38,10 @@ interface UserPermissionsProps {
 export function UserPermissions({ userId }: UserPermissionsProps) {
   const { toast } = useToast();
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
+  const [isLoadingPermission, setIsLoadingPermission] = useState(false);
   const [permissionForm, setPermissionForm] = useState<Partial<InsertUserPermission>>({
     accessLevel: "restricted",
-    canRead: true,
+    canRead: false,
     canCreate: false,
     canUpdate: false,
     canDelete: false
@@ -84,8 +85,10 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
     ? permissions?.find(p => p.module === selectedModule)
     : null;
 
-  // Auto-sync CRUD toggles when accessLevel changes
+  // Auto-sync CRUD toggles when accessLevel changes (but not during loading)
   useEffect(() => {
+    if (isLoadingPermission) return; // Don't auto-sync while loading data
+    
     if (permissionForm.accessLevel === 'full') {
       // Full access: turn all CRUD toggles ON
       setPermissionForm(prev => ({
@@ -111,10 +114,12 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
         canRead: true
       }));
     }
-  }, [permissionForm.accessLevel]);
+  }, [permissionForm.accessLevel, isLoadingPermission]);
 
-  // Auto-sync accessLevel when CRUD toggles change
+  // Auto-sync accessLevel when CRUD toggles change (but not during loading)
   useEffect(() => {
+    if (isLoadingPermission) return; // Don't auto-sync while loading data
+    
     const { canRead, canCreate, canUpdate, canDelete } = permissionForm;
     
     // If all CRUD permissions are true, set to Full
@@ -138,11 +143,13 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
         accessLevel: 'partial'
       }));
     }
-  }, [permissionForm.canRead, permissionForm.canCreate, permissionForm.canUpdate, permissionForm.canDelete]);
+  }, [permissionForm.canRead, permissionForm.canCreate, permissionForm.canUpdate, permissionForm.canDelete, isLoadingPermission]);
 
   // Update permission form when selected module changes
   useEffect(() => {
     if (selectedModule && permissions) {
+      setIsLoadingPermission(true); // Prevent auto-sync during loading
+      
       const existingPermission = permissions.find(p => p.module === selectedModule);
       
       if (existingPermission) {
@@ -158,12 +165,15 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
         // Default values for new permission
         setPermissionForm({
           accessLevel: "restricted",
-          canRead: true,
+          canRead: false,
           canCreate: false,
           canUpdate: false,
           canDelete: false
         });
       }
+      
+      // Reset loading state after data is set
+      setTimeout(() => setIsLoadingPermission(false), 100);
     }
   }, [selectedModule, permissions]);
 
