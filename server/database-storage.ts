@@ -283,6 +283,67 @@ export class DatabaseStorage implements IStorage {
     return updatedUser;
   }
 
+  async checkUserDependencies(userId: number, tenantId: number): Promise<{
+    hasDependencies: boolean;
+    dependencies: string[];
+  }> {
+    const dependencies: string[] = [];
+    
+    // Check if user is assigned to any tasks
+    const userTasks = await db.select({ id: tasks.id })
+      .from(tasks)
+      .where(and(eq(tasks.assigneeId, userId), eq(tasks.tenantId, tenantId)))
+      .limit(1);
+    
+    if (userTasks.length > 0) {
+      dependencies.push("tasks");
+    }
+    
+    // Check if user created any invoices
+    const userInvoices = await db.select({ id: invoices.id })
+      .from(invoices)
+      .where(and(eq(invoices.createdBy, userId), eq(invoices.tenantId, tenantId)))
+      .limit(1);
+    
+    if (userInvoices.length > 0) {
+      dependencies.push("invoices");
+    }
+    
+    // Check if user created any journal entries
+    const userJournalEntries = await db.select({ id: journalEntries.id })
+      .from(journalEntries)
+      .where(and(eq(journalEntries.createdBy, userId), eq(journalEntries.tenantId, tenantId)))
+      .limit(1);
+    
+    if (userJournalEntries.length > 0) {
+      dependencies.push("journal entries");
+    }
+    
+    // Check if user made any payments
+    const userPayments = await db.select({ id: payments.id })
+      .from(payments)
+      .where(and(eq(payments.createdBy, userId), eq(payments.tenantId, tenantId)))
+      .limit(1);
+    
+    if (userPayments.length > 0) {
+      dependencies.push("payments");
+    }
+    
+    return {
+      hasDependencies: dependencies.length > 0,
+      dependencies
+    };
+  }
+
+  async deactivateUser(id: number, tenantId: number): Promise<boolean> {
+    const [updatedUser] = await db.update(users)
+      .set({ isActive: false })
+      .where(and(eq(users.id, id), eq(users.tenantId, tenantId)))
+      .returning({ id: users.id });
+    
+    return !!updatedUser;
+  }
+
   async deleteUser(id: number, tenantId?: number): Promise<boolean> {
     let query = db.delete(users).where(eq(users.id, id));
     

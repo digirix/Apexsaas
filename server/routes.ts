@@ -2049,7 +2049,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add DELETE endpoint for users
+  // Add DELETE endpoint for users with smart deletion logic
   app.delete("/api/v1/users/:id", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
@@ -2060,6 +2060,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You cannot delete your own account" });
       }
       
+      // Check if user exists and belongs to tenant
+      const user = await storage.getUser(id);
+      if (!user || user.tenantId !== tenantId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Prevent deleting super admins
+      if (user.isSuperAdmin) {
+        return res.status(403).json({ message: "Cannot delete super admin accounts" });
+      }
+      
+      // Check for dependencies
+      const dependencyCheck = await storage.checkUserDependencies(id, tenantId);
+      
+      if (dependencyCheck.hasDependencies) {
+        // User has dependencies, suggest deactivation
+        return res.status(409).json({ 
+          message: "Cannot delete user with existing data",
+          action: "deactivate",
+          dependencies: dependencyCheck.dependencies,
+          suggestion: `This user is linked to ${dependencyCheck.dependencies.join(', ')}. Would you like to deactivate the user instead? This will preserve the data while removing their access.`
+        });
+      }
+      
+      // No dependencies, safe to delete
       const success = await storage.deleteUser(id, tenantId);
       if (!success) {
         return res.status(404).json({ message: "User not found" });
@@ -2067,7 +2092,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(204).send();
     } catch (error) {
+      console.error("Error deleting user:", error);
       res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  // Add deactivate endpoint for users
+  app.patch("/api/v1/users/:id/deactivate", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Prevent deactivating yourself
+      if (id === (req.user as any).id) {
+        return res.status(403).json({ message: "You cannot deactivate your own account" });
+      }
+      
+      // Check if user exists and belongs to tenant
+      const user = await storage.getUser(id);
+      if (!user || user.tenantId !== tenantId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Prevent deactivating super admins
+      if (user.isSuperAdmin) {
+        return res.status(403).json({ message: "Cannot deactivate super admin accounts" });
+      }
+      
+      const success = await storage.deactivateUser(id, tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json({ message: "User deactivated successfully" });
+    } catch (error) {
+      console.error("Error deactivating user:", error);
+      res.status(500).json({ message: "Failed to deactivate user" });
     }
   });
 

@@ -51,13 +51,15 @@ export function UserList({ onUserSelect }: UserListProps) {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [deactivationDialogOpen, setDeactivationDialogOpen] = useState(false);
+  const [deactivationData, setDeactivationData] = useState<any>(null);
 
   // Fetch users data
   const { data: users, isLoading, error, refetch } = useQuery<User[]>({
     queryKey: ['/api/v1/users'],
   });
 
-  // Delete user mutation
+  // Delete user mutation with smart deletion logic
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: number) => {
       const response = await apiRequest('DELETE', `/api/v1/users/${userId}`);
@@ -73,9 +75,42 @@ export function UserList({ onUserSelect }: UserListProps) {
       setUserToDelete(null);
     },
     onError: (error: any) => {
+      // Check if it's a 409 (dependency conflict) which means we should offer deactivation
+      if (error.status === 409) {
+        // Show deactivation dialog instead
+        setDeactivationData(error.data);
+        setDeactivationDialogOpen(true);
+        setDeleteDialogOpen(false);
+      } else {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to delete user. Please try again.",
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
+  // Deactivate user mutation
+  const deactivateUserMutation = useMutation({
+    mutationFn: async (userId: number) => {
+      const response = await apiRequest('PATCH', `/api/v1/users/${userId}/deactivate`);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/users'] });
+      toast({
+        title: "User deactivated",
+        description: "The user has been deactivated while preserving their data.",
+      });
+      setDeactivationDialogOpen(false);
+      setUserToDelete(null);
+      setDeactivationData(null);
+    },
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete user. Please try again.",
+        description: error.message || "Failed to deactivate user. Please try again.",
         variant: "destructive",
       });
     },
@@ -308,6 +343,69 @@ export function UserList({ onUserSelect }: UserListProps) {
                 <>
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete User
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Deactivation Confirmation Dialog */}
+      <AlertDialog open={deactivationDialogOpen} onOpenChange={setDeactivationDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <UserX className="h-5 w-5 text-orange-500" />
+              Cannot Delete User - Deactivate Instead?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-semibold">{userToDelete?.displayName}</span> cannot be deleted because they are linked to existing data.
+              <br />
+              <br />
+              <span className="text-sm text-slate-600">
+                {deactivationData?.suggestion}
+              </span>
+              <br />
+              <br />
+              <span className="font-medium">Would you like to deactivate this user instead?</span>
+              <br />
+              <span className="text-sm text-slate-600">
+                • User will lose access to the system immediately
+                <br />
+                • All their data and records will be preserved
+                <br />
+                • Account can be reactivated later if needed
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={() => {
+                setDeactivationDialogOpen(false);
+                setUserToDelete(null);
+                setDeactivationData(null);
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (userToDelete) {
+                  deactivateUserMutation.mutate(userToDelete.id);
+                }
+              }}
+              disabled={deactivateUserMutation.isPending}
+              className="bg-orange-600 hover:bg-orange-700 focus:ring-orange-600"
+            >
+              {deactivateUserMutation.isPending ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Deactivating...
+                </>
+              ) : (
+                <>
+                  <UserX className="h-4 w-4 mr-2" />
+                  Deactivate User
                 </>
               )}
             </AlertDialogAction>

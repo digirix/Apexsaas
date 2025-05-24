@@ -56,6 +56,11 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
   deleteUser(id: number, tenantId: number): Promise<boolean>;
+  checkUserDependencies(userId: number, tenantId: number): Promise<{
+    hasDependencies: boolean;
+    dependencies: string[];
+  }>;
+  deactivateUser(id: number, tenantId: number): Promise<boolean>;
   
   // Designation operations
   getDesignations(tenantId: number): Promise<Designation[]>;
@@ -579,6 +584,28 @@ export class MemStorage implements IStorage {
     const user = this.users.get(id);
     if (user && user.tenantId === tenantId) {
       return this.users.delete(id);
+    }
+    return false;
+  }
+
+  async checkUserDependencies(userId: number, tenantId: number): Promise<{
+    hasDependencies: boolean;
+    dependencies: string[];
+  }> {
+    // For in-memory storage, this is a simple stub
+    // In a real implementation, you'd check for dependencies
+    return {
+      hasDependencies: false,
+      dependencies: []
+    };
+  }
+
+  async deactivateUser(id: number, tenantId: number): Promise<boolean> {
+    const user = this.users.get(id);
+    if (user && user.tenantId === tenantId) {
+      user.isActive = false;
+      this.users.set(id, user);
+      return true;
     }
     return false;
   }
