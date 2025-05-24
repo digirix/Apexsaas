@@ -2252,6 +2252,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = parseInt(req.params.userId);
       const requestingUserId = (req.user as any).id;
       
+      console.log('=== BACKEND DEBUG: GET PERMISSIONS ===');
+      console.log('Raw params:', req.params);
+      console.log('Parsed userId:', userId, typeof userId);
+      console.log('tenantId:', tenantId, typeof tenantId);
+      console.log('requestingUserId:', requestingUserId);
+      console.log('isSuperAdmin:', (req.user as any).isSuperAdmin);
+      
+      // Validate parsed values
+      if (isNaN(userId) || isNaN(tenantId)) {
+        console.log('ERROR: Invalid userId or tenantId after parsing');
+        return res.status(400).json({ message: "Invalid user ID or tenant ID" });
+      }
+      
       console.log(`API: Fetching permissions for user ${userId} in tenant ${tenantId}, requested by user ${requestingUserId}`);
       
       // Allow users to view their own permissions or admins to view any permissions
@@ -2330,20 +2343,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const userId = req.body.userId;
       
-      console.log(`API: Upserting permission for user ${userId}, module ${req.body.module}`);
+      console.log('=== BACKEND DEBUG: SAVE PERMISSION ===');
+      console.log('Raw request body:', req.body);
+      console.log('tenantId:', tenantId);
+      console.log('userId:', userId, typeof userId);
+      console.log('module:', req.body.module);
+      console.log('accessLevel:', req.body.accessLevel);
+      console.log('CRUD permissions:', {
+        canRead: req.body.canRead,
+        canCreate: req.body.canCreate,
+        canUpdate: req.body.canUpdate,
+        canDelete: req.body.canDelete
+      });
       
       // Check if user exists
       const user = await storage.getUser(userId);
       if (!user || user.tenantId !== tenantId) {
+        console.log('ERROR: User not found or wrong tenant');
         return res.status(404).json({ message: "User not found" });
       }
       
       // Check if permission for this module already exists
       const existingPermission = await storage.getUserPermission(tenantId, userId, req.body.module);
+      console.log('existingPermission found:', !!existingPermission, existingPermission);
       
       let permission;
       if (existingPermission) {
-        console.log(`API: Updating existing permission ID ${existingPermission.id}`);
+        console.log('UPDATING existing permission...');API: Updating existing permission ID ${existingPermission.id}`);
         // Update existing permission
         const updateData = {
           accessLevel: req.body.accessLevel,

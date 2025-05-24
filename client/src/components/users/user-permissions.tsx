@@ -234,17 +234,65 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
       }
     },
     onSuccess: (savedPermission) => {
-      // Remove the saved module from unsaved changes
+      console.log('Permission save successful:', savedPermission);
+      
       if (selectedModule) {
+        // Step 1: Optimistically update the current form state to reflect the successful save
+        const successfulSaveState = {
+          accessLevel: permissionForm.accessLevel,
+          canRead: permissionForm.canRead,
+          canCreate: permissionForm.canCreate,
+          canUpdate: permissionForm.canUpdate,
+          canDelete: permissionForm.canDelete
+        };
+        
+        console.log('Optimistically updating form state with:', successfulSaveState);
+        setPermissionForm(successfulSaveState);
+        
+        // Step 2: Optimistically update the React Query cache to prevent reverting during refetch
+        queryClient.setQueryData([`/api/v1/users/${userId}/permissions`], (oldPermissions: UserPermission[] | undefined) => {
+          if (!oldPermissions) return [savedPermission];
+          
+          const existingIndex = oldPermissions.findIndex(p => p.module === selectedModule);
+          if (existingIndex >= 0) {
+            // Update existing permission
+            const updatedPermissions = [...oldPermissions];
+            updatedPermissions[existingIndex] = { 
+              ...updatedPermissions[existingIndex], 
+              ...savedPermission,
+              accessLevel: permissionForm.accessLevel,
+              canRead: permissionForm.canRead,
+              canCreate: permissionForm.canCreate,
+              canUpdate: permissionForm.canUpdate,
+              canDelete: permissionForm.canDelete
+            };
+            return updatedPermissions;
+          } else {
+            // Add new permission
+            return [...oldPermissions, { 
+              ...savedPermission,
+              module: selectedModule,
+              accessLevel: permissionForm.accessLevel,
+              canRead: permissionForm.canRead,
+              canCreate: permissionForm.canCreate,
+              canUpdate: permissionForm.canUpdate,
+              canDelete: permissionForm.canDelete
+            }];
+          }
+        });
+        
+        // Step 3: Remove from unsaved changes
         setUnsavedModulePermissions(prev => {
           const updated = { ...prev };
           delete updated[selectedModule];
           return updated;
         });
+        
+        // Step 4: Fetch canonical state from server (should match optimistic update)
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: [`/api/v1/users/${userId}/permissions`] });
+        }, 100);
       }
-      
-      // Refresh permissions to get the updated data
-      queryClient.invalidateQueries({ queryKey: [`/api/v1/users/${userId}/permissions`] });
       
       toast({
         title: "Permission saved",
