@@ -102,40 +102,9 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
     setSelectedModule(newModuleId);
   };
 
-  // Auto-sync CRUD toggles when accessLevel changes (but not during loading or manual changes)
+  // Only sync CRUD toggles when CRUD permissions change (not when access level changes)
   useEffect(() => {
-    if (isLoadingPermission || isManualAccessLevelChange) return; // Don't auto-sync while loading data or during manual changes
-    
-    if (permissionForm.accessLevel === 'full') {
-      // Full access: turn all CRUD toggles ON
-      setPermissionForm(prev => ({
-        ...prev,
-        canRead: true,
-        canCreate: true,
-        canUpdate: true,
-        canDelete: true
-      }));
-    } else if (permissionForm.accessLevel === 'restricted') {
-      // Restricted access: turn all CRUD toggles OFF
-      setPermissionForm(prev => ({
-        ...prev,
-        canRead: false,
-        canCreate: false,
-        canUpdate: false,
-        canDelete: false
-      }));
-    } else if (permissionForm.accessLevel === 'partial') {
-      // Partial access: ensure at least read access is ON
-      setPermissionForm(prev => ({
-        ...prev,
-        canRead: true
-      }));
-    }
-  }, [permissionForm.accessLevel, isLoadingPermission, isManualAccessLevelChange]);
-
-  // Auto-sync accessLevel when CRUD toggles change (but not during loading or manual access level changes)
-  useEffect(() => {
-    if (isLoadingPermission || isManualAccessLevelChange) return; // Don't auto-sync while loading data or during manual changes
+    if (isLoadingPermission) return; // Don't auto-sync while loading data
     
     const { canRead, canCreate, canUpdate, canDelete } = permissionForm;
     
@@ -160,7 +129,7 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
         accessLevel: 'partial'
       }));
     }
-  }, [permissionForm.canRead, permissionForm.canCreate, permissionForm.canUpdate, permissionForm.canDelete, isLoadingPermission, isManualAccessLevelChange]);
+  }, [permissionForm.canRead, permissionForm.canCreate, permissionForm.canUpdate, permissionForm.canDelete, isLoadingPermission]);
 
   // Update permission form when selected module changes - with priority-based loading
   useEffect(() => {
@@ -319,17 +288,36 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
   // Handle permission change
   const handlePermissionChange = (field: keyof InsertUserPermission, value: any) => {
     if (field === 'accessLevel') {
-      // Set flag to prevent auto-sync feedback loop
-      setIsManualAccessLevelChange(true);
-      
       // Ensure accessLevel is one of the allowed values
       const accessLevel = value as 'full' | 'partial' | 'restricted';
-      setPermissionForm(prev => ({ ...prev, accessLevel }));
       
-      // Reset the flag after a short delay to allow auto-sync to resume
-      setTimeout(() => {
-        setIsManualAccessLevelChange(false);
-      }, 500);
+      // Update access level and corresponding CRUD permissions in one go
+      if (accessLevel === 'full') {
+        setPermissionForm(prev => ({
+          ...prev,
+          accessLevel,
+          canRead: true,
+          canCreate: true,
+          canUpdate: true,
+          canDelete: true
+        }));
+      } else if (accessLevel === 'restricted') {
+        setPermissionForm(prev => ({
+          ...prev,
+          accessLevel,
+          canRead: false,
+          canCreate: false,
+          canUpdate: false,
+          canDelete: false
+        }));
+      } else if (accessLevel === 'partial') {
+        setPermissionForm(prev => ({
+          ...prev,
+          accessLevel,
+          canRead: true
+          // Keep other CRUD permissions as they are for partial
+        }));
+      }
     } else {
       // Handle other field types normally
       setPermissionForm(prev => ({ ...prev, [field]: value }));
