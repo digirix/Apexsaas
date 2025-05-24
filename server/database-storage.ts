@@ -345,13 +345,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUser(id: number, tenantId?: number): Promise<boolean> {
-    let query = db.delete(users).where(eq(users.id, id));
+    const whereConditions = [eq(users.id, id)];
     
     if (tenantId) {
-      query = query.where(eq(users.tenantId, tenantId));
+      whereConditions.push(eq(users.tenantId, tenantId));
     }
     
-    const [deletedUser] = await query.returning({ id: users.id });
+    const [deletedUser] = await db
+      .delete(users)
+      .where(and(...whereConditions))
+      .returning({ id: users.id });
+    
     return !!deletedUser;
   }
 
