@@ -16,6 +16,7 @@ export function requirePermission(storage: IStorage, module: string, action: Per
     try {
       // Skip permission check for Super Admins
       if (req.user?.isSuperAdmin) {
+        console.log(`Permission middleware: Super admin ${req.user.id} bypassing ${action} check for ${module}`);
         return next();
       }
 
@@ -23,11 +24,16 @@ export function requirePermission(storage: IStorage, module: string, action: Per
       const tenantId = req.user?.tenantId;
 
       if (!userId || !tenantId) {
+        console.log(`Permission middleware: Authentication required for ${action} on ${module}`);
         return res.status(401).json({ message: 'Authentication required' });
       }
 
+      console.log(`Permission middleware: Checking ${action} permission for user ${userId} on ${module} module`);
+
       // Get user permission for the module
       const permission = await storage.getUserPermission(tenantId, userId, module);
+      
+      console.log(`Permission middleware: Found permission for user ${userId}, module ${module}:`, permission);
 
       if (!permission) {
         return res.status(403).json({ 

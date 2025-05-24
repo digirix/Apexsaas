@@ -1208,7 +1208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/v1/clients", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/clients", isAuthenticated, requirePermission(storage, "clients", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const data = { ...req.body, tenantId };
@@ -2324,11 +2324,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Updated endpoint for POST /api/v1/user-permissions
+  // Updated endpoint for POST /api/v1/user-permissions (now with upsert functionality)
   app.post("/api/v1/user-permissions", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = req.body.userId;
+      
+      console.log(`API: Upserting permission for user ${userId}, module ${req.body.module}`);
       
       // Check if user exists
       const user = await storage.getUser(userId);
@@ -2338,15 +2340,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if permission for this module already exists
       const existingPermission = await storage.getUserPermission(tenantId, userId, req.body.module);
+      
+      let permission;
       if (existingPermission) {
-        return res.status(400).json({ message: "Permission for this module already exists" });
+        console.log(`API: Updating existing permission ID ${existingPermission.id}`);
+        // Update existing permission
+        const updateData = {
+          accessLevel: req.body.accessLevel,
+          canCreate: req.body.canCreate ?? false,
+          canRead: req.body.canRead ?? false,
+          canUpdate: req.body.canUpdate ?? false,
+          canDelete: req.body.canDelete ?? false
+        };
+        permission = await storage.updateUserPermission(existingPermission.id, updateData);
+      } else {
+        console.log(`API: Creating new permission for user ${userId}, module ${req.body.module}`);
+        // Create new permission
+        const data = { ...req.body, tenantId, userId };
+        const validatedData = insertUserPermissionSchema.parse(data);
+        permission = await storage.createUserPermission(validatedData);
       }
       
-      const data = { ...req.body, tenantId, userId };
-      const validatedData = insertUserPermissionSchema.parse(data);
-      const permission = await storage.createUserPermission(validatedData);
-      
-      res.status(201).json(permission);
+      console.log(`API: Permission upserted successfully:`, permission);
+      res.status(200).json(permission);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
@@ -2614,7 +2630,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/v1/tasks", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/tasks", isAuthenticated, requirePermission(storage, "tasks", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const data = { ...req.body, tenantId };
