@@ -10,6 +10,7 @@ import { registerAICustomizationRoutes } from "./api/ai-customization-routes";
 import { registerClientPortalRoutes } from "./routes/client-portal-routes";
 import { setupClientPortalAuth } from "./client-portal-auth";
 import { requirePermission, requireModuleAccess, getUserModulePermissions } from "./middleware/permissions";
+import { checkPermission } from "./middleware/check-permissions";
 import { 
   insertCountrySchema, insertCurrencySchema, insertStateSchema, 
   insertEntityTypeSchema, insertTaskStatusSchema, insertTaskCategorySchema, insertServiceTypeSchema,
@@ -5658,7 +5659,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 5. Journal Entries
-  app.get("/api/v1/finance/journal-entries", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/journal-entries", isAuthenticated, checkPermission("finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const sourceDocument = req.query.sourceDocument as string | undefined;
@@ -5799,7 +5800,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Update an existing journal entry
-  app.put("/api/v1/finance/journal-entries/:id", isAuthenticated, async (req, res) => {
+  app.put("/api/v1/finance/journal-entries/:id", isAuthenticated, checkPermission("finance", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = (req.user as any).id;
