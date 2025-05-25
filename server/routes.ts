@@ -2797,7 +2797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/v1/tasks/:id", isAuthenticated, async (req, res) => {
+  app.put("/api/v1/tasks/:id", isAuthenticated, requirePermission(storage, "tasks", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -5800,7 +5800,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Update an existing journal entry
-  app.put("/api/v1/finance/journal-entries/:id", isAuthenticated, checkPermission("finance", "update"), async (req, res) => {
+  app.put("/api/v1/finance/journal-entries/:id", isAuthenticated, requirePermission(storage, "finance", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = (req.user as any).id;
