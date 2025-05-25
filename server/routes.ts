@@ -1385,7 +1385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/v1/clients/:clientId/entities", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/clients/:clientId/entities", isAuthenticated, requirePermission(storage, "clients", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const clientId = parseInt(req.params.clientId);
@@ -1412,7 +1412,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/v1/entities/:id", isAuthenticated, async (req, res) => {
+  app.put("/api/v1/entities/:id", isAuthenticated, requirePermission(storage, "clients", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -1433,7 +1433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/v1/entities/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/v1/entities/:id", isAuthenticated, requirePermission(storage, "clients", "delete"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -1946,7 +1946,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // New endpoint for creating users
-  app.post("/api/v1/users", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/users", isAuthenticated, requirePermission(storage, "users", "create"), async (req, res) => {
     console.log("POST /api/v1/users - Received request with body:", req.body);
     try {
       const tenantId = (req.user as any).tenantId;
@@ -2021,7 +2021,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add PUT endpoint for users
-  app.put("/api/v1/users/:id", isAuthenticated, async (req, res) => {
+  app.put("/api/v1/users/:id", isAuthenticated, requirePermission(storage, "users", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -2051,7 +2051,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add DELETE endpoint for users with smart deletion logic
-  app.delete("/api/v1/users/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/v1/users/:id", isAuthenticated, requirePermission(storage, "users", "delete"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
