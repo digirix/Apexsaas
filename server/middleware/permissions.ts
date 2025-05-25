@@ -1,10 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { IStorage } from '../storage';
 
-export interface AuthenticatedRequest extends Request {
-  user: any; // Using any to avoid interface conflicts with existing auth system
-}
-
 export type PermissionAction = 'create' | 'read' | 'update' | 'delete';
 
 /**
@@ -12,7 +8,7 @@ export type PermissionAction = 'create' | 'read' | 'update' | 'delete';
  * Checks if user has required permission for a specific module and action
  */
 export function requirePermission(storage: IStorage, module: string, action: PermissionAction) {
-  return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     try {
       // Skip permission check for Super Admins
       if (req.user?.isSuperAdmin) {
