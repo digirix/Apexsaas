@@ -4,11 +4,17 @@ import { DatabaseStorage } from "../database-storage";
 type PermissionAction = "create" | "read" | "update" | "delete";
 
 export function checkPermission(module: string, action: PermissionAction) {
+  console.log(`Creating permission middleware for ${module}:${action}`);
+  
   return async (req: any, res: Response, next: NextFunction) => {
+    console.log(`=== PERMISSION MIDDLEWARE EXECUTING ===`);
+    console.log(`Module: ${module}, Action: ${action}`);
+    
     try {
       const { user } = req;
       
       console.log(`Permission check: User ${user?.id} trying to ${action} in ${module} module`);
+      console.log(`User object:`, user);
       
       if (!user) {
         console.log("Permission denied: No user found");
@@ -21,6 +27,7 @@ export function checkPermission(module: string, action: PermissionAction) {
         return next();
       }
 
+      console.log(`Getting permissions for user ${user.id} in tenant ${user.tenantId}`);
       const storage = new DatabaseStorage();
       const permissions = await storage.getUserPermissions(user.tenantId, user.id);
       
