@@ -22,7 +22,7 @@ export function checkPermission(module: string, action: PermissionAction) {
       }
 
       const storage = new DatabaseStorage();
-      const permissions = await storage.getUserPermissions(user.id);
+      const permissions = await storage.getUserPermissions(user.tenantId, user.id);
       
       console.log(`Found ${permissions.length} permissions for user ${user.id}:`, permissions);
       
