@@ -1272,7 +1272,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/v1/clients/:id", isAuthenticated, checkPermission("clients", "update"), async (req, res) => {
+  app.put("/api/v1/clients/:id", isAuthenticated, requirePermission(storage, "clients", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -1334,7 +1334,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/v1/clients/:id", isAuthenticated, checkPermission("clients", "delete"), async (req, res) => {
+  app.delete("/api/v1/clients/:id", isAuthenticated, requirePermission(storage, "clients", "delete"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
