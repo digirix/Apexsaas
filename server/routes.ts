@@ -3415,7 +3415,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put("/api/v1/finance/payment-gateways/:id", isAuthenticated, async (req, res) => {
+  app.put("/api/v1/finance/payment-gateways/:id", isAuthenticated, requirePermission(storage, "finance", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -3439,7 +3439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete("/api/v1/finance/payment-gateways/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/v1/finance/payment-gateways/:id", isAuthenticated, requirePermission(storage, "finance", "delete"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -4176,7 +4176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/v1/finance/invoices", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/finance/invoices", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = (req.user as any).id;
@@ -4341,7 +4341,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put("/api/v1/finance/invoices/:id", isAuthenticated, async (req, res) => {
+  app.put("/api/v1/finance/invoices/:id", isAuthenticated, requirePermission(storage, "finance", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = (req.user as any).id;
@@ -4594,7 +4594,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete("/api/v1/finance/invoices/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/v1/finance/invoices/:id", isAuthenticated, requirePermission(storage, "finance", "delete"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
