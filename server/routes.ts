@@ -2797,30 +2797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/v1/tasks/:id", isAuthenticated, async (req, res) => {
-    // Check permission for tasks update
-    const userId = (req.user as any)?.id;
-    const tenantId = (req.user as any)?.tenantId;
-    const isSuperAdmin = (req.user as any)?.isSuperAdmin;
-    
-    if (!isSuperAdmin) {
-      console.log(`Permission check: User ${userId} attempting to update task`);
-      try {
-        const permission = await storage.getUserPermission(tenantId, userId, "tasks");
-        console.log(`Permission check: Found permission for user ${userId}, module tasks:`, permission);
-        
-        if (!permission || !permission.canUpdate) {
-          console.log(`Permission denied: User ${userId} cannot update tasks`);
-          return res.status(403).json({ 
-            message: "Permission denied: Cannot update in tasks module",
-            code: "ACTION_PERMISSION_DENIED"
-          });
-        }
-      } catch (error) {
-        console.error('Permission check error:', error);
-        return res.status(500).json({ message: "Permission check failed" });
-      }
-    }
+  app.put("/api/v1/tasks/:id", isAuthenticated, requirePermission(storage, "tasks", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
