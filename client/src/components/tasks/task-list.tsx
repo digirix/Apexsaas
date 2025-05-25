@@ -46,6 +46,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AddTaskModal } from "./add-task-modal";
 import { TaskDetails } from "./task-details";
+import { useModulePermissions } from "@/hooks/use-permissions";
+import { WithPermissions } from "@/components/ui/with-permissions";
 
 export function TaskList() {
   const { toast } = useToast();
@@ -61,6 +63,9 @@ export function TaskList() {
   const [taskDetailsEditing, setTaskDetailsEditing] = useState(false);
   const [taskType, setTaskType] = useState<"admin" | "revenue">("admin");
   const [showFilters, setShowFilters] = useState(false);
+
+  // Get permissions for tasks module
+  const permissions = useModulePermissions("tasks");
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -322,28 +327,37 @@ export function TaskList() {
               )}
               {showFilters ? "Hide Filters" : "Show Filters"}
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+            {permissions?.canCreate ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm">
+                    <Plus className="-ml-1 mr-2 h-5 w-5" />
+                    Add Task
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => {
+                    setTaskType("admin");
+                    setIsAddTaskModalOpen(true);
+                  }}>
+                    Administrative Task
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    setTaskType("revenue");
+                    setIsAddTaskModalOpen(true);
+                  }}>
+                    Revenue Task
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <WithPermissions module="tasks" action="create">
                 <Button size="sm">
                   <Plus className="-ml-1 mr-2 h-5 w-5" />
                   Add Task
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => {
-                  setTaskType("admin");
-                  setIsAddTaskModalOpen(true);
-                }}>
-                  Administrative Task
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => {
-                  setTaskType("revenue");
-                  setIsAddTaskModalOpen(true);
-                }}>
-                  Revenue Task
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </WithPermissions>
+            )}
           </div>
         </div>
       </div>
