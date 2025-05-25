@@ -42,61 +42,61 @@ const allModules: NavItem[] = [
     title: "Dashboard",
     href: "/",
     icon: <LayoutDashboard className="h-5 w-5 mr-3 text-slate-500" />,
-    module: "Dashboard",
+    module: "dashboard",
   },
   {
     title: "Setup",
     href: "/setup",
     icon: <Settings className="h-5 w-5 mr-3 text-slate-500" />,
-    module: "Setup",
+    module: "setup",
   },
   {
     title: "Clients",
     href: "/clients",
     icon: <UsersRound className="h-5 w-5 mr-3 text-slate-500" />,
-    module: "Clients",
+    module: "clients",
   },
   {
     title: "Tasks",
     href: "/tasks",
     icon: <ClipboardCheck className="h-5 w-5 mr-3 text-slate-500" />,
-    module: "Tasks",
+    module: "tasks",
   },
   {
     title: "Auto Generated Tasks",
     href: "/auto-generated-tasks",
     icon: <RefreshCw className="h-5 w-5 mr-3 text-slate-500" />,
-    module: "Auto Generated Tasks",
+    module: "auto_generated_tasks",
   },
   {
     title: "Compliance Calendar",
     href: "/compliance-calendar",
     icon: <Calendar className="h-5 w-5 mr-3 text-slate-500" />,
-    module: "Compliance Calendar",
+    module: "compliance_calendar",
   },
   {
     title: "Finance",
     href: "/finance",
     icon: <CreditCard className="h-5 w-5 mr-3 text-slate-500" />,
-    module: "Finance",
+    module: "finance",
   },
   {
     title: "AI Reporting",
     href: "/ai-reporting",
     icon: <BarChart2 className="h-5 w-5 mr-3 text-slate-500" />,
-    module: "AI Reporting",
+    module: "ai_reporting",
   },
   {
     title: "Users",
     href: "/users",
     icon: <Users className="h-5 w-5 mr-3 text-slate-500" />,
-    module: "User Management",
+    module: "user_management",
   },
   {
     title: "Workflow",
     href: "/workflow",
     icon: <Zap className="h-5 w-5 mr-3 text-slate-500" />,
-    module: "Workflow Automation",
+    module: "workflow_automation",
   },
   {
     title: "Settings",
@@ -124,7 +124,8 @@ export function Sidebar() {
       
       // For regular users, check if they have access to this module
       const modulePermission = permissions[module.module];
-      return modulePermission?.hasAccess === true;
+      // User has access if they have any access level other than "restricted"
+      return modulePermission && modulePermission.accessLevel !== "restricted";
     });
   }, [user?.isSuperAdmin, permissions, allModules]);
 
