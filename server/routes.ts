@@ -5934,7 +5934,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Add a direct route to set journal entry to draft without validation
-  app.post("/api/v1/finance/journal-entries/:id/set-draft", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/finance/journal-entries/:id/set-draft", isAuthenticated, checkPermission("finance", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = (req.user as any).id;
@@ -5970,7 +5970,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a journal entry
-  app.delete("/api/v1/finance/journal-entries/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/v1/finance/journal-entries/:id", isAuthenticated, checkPermission("finance", "delete"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const entryId = parseInt(req.params.id);
