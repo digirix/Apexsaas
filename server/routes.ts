@@ -701,7 +701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/v1/setup/task-status-workflow-rules", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/setup/task-status-workflow-rules", isAuthenticated, requirePermission(storage, "workflow-automation", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const data = { ...req.body, tenantId };
@@ -745,7 +745,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put("/api/v1/setup/task-status-workflow-rules/:id", isAuthenticated, async (req, res) => {
+  app.put("/api/v1/setup/task-status-workflow-rules/:id", isAuthenticated, requirePermission(storage, "workflow-automation", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -799,7 +799,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete("/api/v1/setup/task-status-workflow-rules/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/v1/setup/task-status-workflow-rules/:id", isAuthenticated, requirePermission(storage, "workflow-automation", "delete"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -1037,7 +1037,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 9. AI Configurations
-  app.get("/api/v1/setup/ai-configurations", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/setup/ai-configurations", isAuthenticated, requirePermission(storage, "ai-features", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const configurations = await storage.getAiConfigurations(tenantId);
@@ -1058,7 +1058,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/v1/setup/ai-configurations/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/setup/ai-configurations/:id", isAuthenticated, requirePermission(storage, "ai-features", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -1080,7 +1080,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/v1/setup/ai-configurations", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/setup/ai-configurations", isAuthenticated, requirePermission(storage, "ai-features", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const data = { ...req.body, tenantId };
@@ -1110,7 +1110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/v1/setup/ai-configurations/:id", isAuthenticated, async (req, res) => {
+  app.put("/api/v1/setup/ai-configurations/:id", isAuthenticated, requirePermission(storage, "ai-features", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -1139,7 +1139,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/v1/setup/ai-configurations/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/v1/setup/ai-configurations/:id", isAuthenticated, requirePermission(storage, "ai-features", "delete"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);

@@ -1,5 +1,7 @@
 import express, { Request, Response } from 'express';
 import { generateReport } from '../services/ai-reporting-service';
+import { requirePermission } from '../middleware/permissions';
+import { storage } from '../storage';
 import { z } from 'zod';
 
 // Validation schema for the report request
