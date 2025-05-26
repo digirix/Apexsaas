@@ -29,20 +29,22 @@ async function throwIfResNotOk(res: Response) {
             const action = errorData.message.match(/Cannot (\w+) in (\w+) module/);
             if (action) {
               const [, actionType, moduleName] = action;
-              const moduleDisplay = {
+              const moduleDisplayMap: Record<string, string> = {
                 clients: "Client Management",
                 users: "User Management", 
                 tasks: "Task Management",
                 finance: "Finance Module",
                 setup: "System Setup"
-              }[moduleName] || moduleName;
+              };
+              const moduleDisplay = moduleDisplayMap[moduleName] || moduleName;
               
-              const actionDisplay = {
+              const actionDisplayMap: Record<string, string> = {
                 create: "add new records",
                 read: "view information", 
                 update: "edit records",
                 delete: "remove records"
-              }[actionType] || actionType;
+              };
+              const actionDisplay = actionDisplayMap[actionType] || actionType;
               
               userMessage = `You don't have permission to ${actionDisplay} in ${moduleDisplay}. Please contact your administrator to request access.`;
             } else {

@@ -108,25 +108,13 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
     
     const { canRead, canCreate, canUpdate, canDelete } = permissionForm;
     
-    // If all CRUD permissions are true, set to Full
-    if (canRead && canCreate && canUpdate && canDelete) {
+    // Use the helper function for consistent access level calculation
+    const calculatedAccessLevel = calculateAccessLevel(canRead!, canCreate!, canUpdate!, canDelete!);
+    
+    if (permissionForm.accessLevel !== calculatedAccessLevel) {
       setPermissionForm(prev => ({
         ...prev,
-        accessLevel: 'full'
-      }));
-    }
-    // If all CRUD permissions are false, set to Restricted
-    else if (!canRead && !canCreate && !canUpdate && !canDelete) {
-      setPermissionForm(prev => ({
-        ...prev,
-        accessLevel: 'restricted'
-      }));
-    }
-    // Otherwise, set to Partial
-    else {
-      setPermissionForm(prev => ({
-        ...prev,
-        accessLevel: 'partial'
+        accessLevel: calculatedAccessLevel
       }));
     }
   }, [permissionForm.canRead, permissionForm.canCreate, permissionForm.canUpdate, permissionForm.canDelete, isLoadingPermission]);
@@ -381,6 +369,41 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
     return isSuperAdmin || selectedModule === 'users' && userId === user?.id;
   };
 
+  // Helper function to calculate access level based on CRUD permissions - ensures consistency
+  const calculateAccessLevel = (canRead: boolean, canCreate: boolean, canUpdate: boolean, canDelete: boolean) => {
+    if (canRead && canCreate && canUpdate && canDelete) {
+      return 'full';
+    } else if (!canRead && !canCreate && !canUpdate && !canDelete) {
+      return 'restricted';
+    } else {
+      return 'partial';
+    }
+  };
+
+  // Helper function to get effective permission data for display (including unsaved changes)
+  const getEffectivePermission = (moduleId: string) => {
+    // Priority 1: Unsaved changes
+    if (unsavedModulePermissions[moduleId]) {
+      const unsaved = unsavedModulePermissions[moduleId];
+      return {
+        ...unsaved,
+        accessLevel: calculateAccessLevel(unsaved.canRead!, unsaved.canCreate!, unsaved.canUpdate!, unsaved.canDelete!)
+      };
+    }
+    
+    // Priority 2: Saved permissions
+    const savedPermission = permissions?.find(p => p.module === moduleId);
+    if (savedPermission) {
+      return {
+        ...savedPermission,
+        accessLevel: calculateAccessLevel(savedPermission.canRead, savedPermission.canCreate, savedPermission.canUpdate, savedPermission.canDelete)
+      };
+    }
+    
+    // Priority 3: Default (no permission)
+    return null;
+  };
+
   return (
     <div>
       {user ? (
@@ -432,13 +455,11 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
               ) : (
                 <div className="space-y-1">
                   {availableModules.map(module => {
-                    const modulePermission = permissions?.find(p => p.module === module.id);
-                    const hasPermission = !!modulePermission;
+                    // Get effective permission data (including unsaved changes)
+                    const effectivePermission = getEffectivePermission(module.id);
+                    const hasPermission = !!effectivePermission;
 
-                    // If user is SuperAdmin, show all modules as configured
-                    const effectiveHasPermission = isSuperAdmin || hasPermission;
-                    
-                    // Set badge styles based on permission level - clearer labels
+                    // Set badge styles based on permission level - using consistent logic
                     let badgeVariant = "destructive";
                     let badgeText = "No Access";
                     let badgeIcon = <ShieldAlert className="h-3 w-3" />;
@@ -448,17 +469,18 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
                       badgeText = "Full Access";
                       badgeIcon = <ShieldCheck className="h-3 w-3" />;
                     } else if (hasPermission) {
-                      if (modulePermission?.accessLevel === "full") {
+                      // Use the calculated access level for consistency
+                      if (effectivePermission.accessLevel === "full") {
                         badgeVariant = "default";
                         badgeText = "Full Access";
                         badgeIcon = <ShieldCheck className="h-3 w-3" />;
-                      } else if (modulePermission?.accessLevel === "partial") {
+                      } else if (effectivePermission.accessLevel === "partial") {
                         badgeVariant = "secondary";
                         badgeText = "Partial Access";
                         badgeIcon = <CheckCircle2 className="h-3 w-3" />;
                       } else {
                         badgeVariant = "outline";
-                        badgeText = "Read Only";
+                        badgeText = "Restricted Access";
                         badgeIcon = <AlertCircle className="h-3 w-3" />;
                       }
                     }
