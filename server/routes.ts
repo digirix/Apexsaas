@@ -673,7 +673,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 5.1 Task Status Workflow Rules
-  app.get("/api/v1/setup/task-status-workflow-rules", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/setup/task-status-workflow-rules", isAuthenticated, requirePermission(storage, "workflow-automation", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const fromStatusId = req.query.fromStatusId ? parseInt(req.query.fromStatusId as string) : undefined;
@@ -685,7 +685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/v1/setup/task-status-workflow-rules/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/setup/task-status-workflow-rules/:id", isAuthenticated, requirePermission(storage, "workflow-automation", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -3300,7 +3300,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Tenant Settings routes
-  app.get("/api/v1/tenant/settings", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/tenant/settings", isAuthenticated, requirePermission(storage, "settings", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const settings = await storage.getTenantSettings(tenantId);
@@ -3310,7 +3310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/v1/tenant/settings/:key", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/tenant/settings/:key", isAuthenticated, requirePermission(storage, "settings", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const key = req.params.key;
@@ -3326,7 +3326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/v1/tenant/settings", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/tenant/settings", isAuthenticated, requirePermission(storage, "settings", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const { key, value } = req.body;
@@ -3342,7 +3342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete("/api/v1/tenant/settings/:key", isAuthenticated, async (req, res) => {
+  app.delete("/api/v1/tenant/settings/:key", isAuthenticated, requirePermission(storage, "settings", "delete"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const key = req.params.key;
@@ -3361,7 +3361,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Finance Module API Routes
   
   // Payment Gateway Settings
-  app.get("/api/v1/finance/payment-gateways", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/payment-gateways", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const settings = await storage.getPaymentGatewaySettings(tenantId);
@@ -3372,7 +3372,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/v1/finance/payment-gateways/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/payment-gateways/:id", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -3389,7 +3389,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/v1/finance/payment-gateways", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/finance/payment-gateways", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const data = {
@@ -3415,7 +3415,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put("/api/v1/finance/payment-gateways/:id", isAuthenticated, requirePermission(storage, "finance", "update"), async (req, res) => {
+  app.put("/api/v1/finance/payment-gateways/:id", isAuthenticated, requirePermission(storage, "finance", "update"), requirePermission(storage, "finance", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -3439,7 +3439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete("/api/v1/finance/payment-gateways/:id", isAuthenticated, requirePermission(storage, "finance", "delete"), async (req, res) => {
+  app.delete("/api/v1/finance/payment-gateways/:id", isAuthenticated, requirePermission(storage, "finance", "delete"), requirePermission(storage, "finance", "delete"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -3457,7 +3457,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Test payment gateway connection
-  app.post("/api/v1/finance/payment-gateways/:type/test", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/finance/payment-gateways/:type/test", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const gatewayType = req.params.type;
@@ -3522,7 +3522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // 1. Invoices
-  app.get("/api/v1/finance/invoices", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/invoices", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const clientId = req.query.clientId ? parseInt(req.query.clientId as string) : undefined;
@@ -3536,7 +3536,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/v1/finance/invoices/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/invoices/:id", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -3560,7 +3560,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // GET invoice PDF by ID
-  app.get("/api/v1/finance/invoices/:id/pdf", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/invoices/:id/pdf", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -3609,7 +3609,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // GET invoice share link by ID
-  app.get("/api/v1/finance/invoices/:id/share-link", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/invoices/:id/share-link", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -3633,7 +3633,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // POST update invoice status
-  app.post("/api/v1/finance/invoices/:id/status", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/finance/invoices/:id/status", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = (req.user as any).id;
@@ -4176,7 +4176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/v1/finance/invoices", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
+  app.post("/api/v1/finance/invoices", isAuthenticated, requirePermission(storage, "finance", "create"), requirePermission(storage, "finance", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = (req.user as any).id;
@@ -4341,7 +4341,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put("/api/v1/finance/invoices/:id", isAuthenticated, requirePermission(storage, "finance", "update"), async (req, res) => {
+  app.put("/api/v1/finance/invoices/:id", isAuthenticated, requirePermission(storage, "finance", "update"), requirePermission(storage, "finance", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = (req.user as any).id;
@@ -4594,7 +4594,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete("/api/v1/finance/invoices/:id", isAuthenticated, requirePermission(storage, "finance", "delete"), async (req, res) => {
+  app.delete("/api/v1/finance/invoices/:id", isAuthenticated, requirePermission(storage, "finance", "delete"), requirePermission(storage, "finance", "delete"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -4611,7 +4611,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // 2. Invoice Line Items
-  app.post("/api/v1/finance/invoice-line-items", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/finance/invoice-line-items", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const data = { ...req.body, tenantId };
@@ -4643,7 +4643,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // 3. Payments
-  app.get("/api/v1/finance/payments", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/payments", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const invoiceId = req.query.invoiceId ? parseInt(req.query.invoiceId as string) : undefined;
@@ -4655,7 +4655,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/v1/finance/payments", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/finance/payments", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = (req.user as any).id;
@@ -4768,7 +4768,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // 4. Chart of Accounts Hierarchy
   
   // 4.1 Main Groups
-  app.get("/api/v1/finance/chart-of-accounts/main-groups", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/chart-of-accounts/main-groups", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const mainGroups = await storage.getChartOfAccountsMainGroups(tenantId);
@@ -4779,7 +4779,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/v1/finance/chart-of-accounts/main-groups", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/finance/chart-of-accounts/main-groups", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       
@@ -4820,7 +4820,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete("/api/v1/finance/chart-of-accounts/main-groups/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/v1/finance/chart-of-accounts/main-groups/:id", isAuthenticated, requirePermission(storage, "finance", "delete"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -4846,7 +4846,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // 4.2 Element Groups
-  app.get("/api/v1/finance/chart-of-accounts/element-groups", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/chart-of-accounts/element-groups", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const mainGroupId = req.query.mainGroupId ? parseInt(req.query.mainGroupId as string) : undefined;
@@ -4859,7 +4859,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/v1/finance/chart-of-accounts/element-groups", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/finance/chart-of-accounts/element-groups", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       
@@ -4884,7 +4884,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // 4.3 Sub-Element Groups
-  app.get("/api/v1/finance/chart-of-accounts/sub-element-groups", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/chart-of-accounts/sub-element-groups", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const elementGroupId = req.query.elementGroupId ? parseInt(req.query.elementGroupId as string) : undefined;
@@ -4897,7 +4897,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/v1/finance/chart-of-accounts/sub-element-groups", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/finance/chart-of-accounts/sub-element-groups", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       
@@ -4970,7 +4970,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete("/api/v1/finance/chart-of-accounts/sub-element-groups/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/v1/finance/chart-of-accounts/sub-element-groups/:id", isAuthenticated, requirePermission(storage, "finance", "delete"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -5002,7 +5002,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // 4.4 Detailed Groups
-  app.get("/api/v1/finance/chart-of-accounts/detailed-groups", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/chart-of-accounts/detailed-groups", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const subElementGroupId = req.query.subElementGroupId ? parseInt(req.query.subElementGroupId as string) : undefined;
@@ -5015,7 +5015,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/v1/finance/chart-of-accounts/detailed-groups", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/finance/chart-of-accounts/detailed-groups", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       
@@ -5088,7 +5088,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete("/api/v1/finance/chart-of-accounts/detailed-groups/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/v1/finance/chart-of-accounts/detailed-groups/:id", isAuthenticated, requirePermission(storage, "finance", "delete"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -5120,7 +5120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // 4.5 Accounts (AC Heads)
-  app.get("/api/v1/finance/chart-of-accounts", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/chart-of-accounts", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       console.log(`Fetching chart of accounts for tenantId: ${tenantId}`);
@@ -5148,7 +5148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/v1/finance/chart-of-accounts", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/finance/chart-of-accounts", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       
@@ -5285,7 +5285,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Delete an account
-  app.delete("/api/v1/finance/chart-of-accounts/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/v1/finance/chart-of-accounts/:id", isAuthenticated, requirePermission(storage, "finance", "delete"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -5330,7 +5330,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // CSV Upload for Chart of Accounts
-  app.post("/api/v1/finance/chart-of-accounts/csv-upload", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/finance/chart-of-accounts/csv-upload", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const accountsData = req.body.accounts;
@@ -5659,7 +5659,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 5. Journal Entries
-  app.get("/api/v1/finance/journal-entries", isAuthenticated, checkPermission("finance", "read"), async (req, res) => {
+  app.get("/api/v1/finance/journal-entries", isAuthenticated, requirePermission(storage, "finance", "read"), checkPermission("finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const sourceDocument = req.query.sourceDocument as string | undefined;
@@ -5673,7 +5673,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/v1/finance/journal-entries/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/journal-entries/:id", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
@@ -5696,7 +5696,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/v1/finance/journal-entries", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/finance/journal-entries", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = (req.user as any).id;
@@ -5800,7 +5800,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Update an existing journal entry
-  app.put("/api/v1/finance/journal-entries/:id", isAuthenticated, requirePermission(storage, "finance", "update"), async (req, res) => {
+  app.put("/api/v1/finance/journal-entries/:id", isAuthenticated, requirePermission(storage, "finance", "update"), requirePermission(storage, "finance", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = (req.user as any).id;
@@ -5934,7 +5934,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Add a direct route to set journal entry to draft without validation
-  app.post("/api/v1/finance/journal-entries/:id/set-draft", isAuthenticated, checkPermission("finance", "update"), async (req, res) => {
+  app.post("/api/v1/finance/journal-entries/:id/set-draft", isAuthenticated, requirePermission(storage, "finance", "create"), checkPermission("finance", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = (req.user as any).id;
@@ -5970,7 +5970,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a journal entry
-  app.delete("/api/v1/finance/journal-entries/:id", isAuthenticated, checkPermission("finance", "delete"), async (req, res) => {
+  app.delete("/api/v1/finance/journal-entries/:id", isAuthenticated, requirePermission(storage, "finance", "delete"), checkPermission("finance", "delete"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const entryId = parseInt(req.params.id);
@@ -6004,7 +6004,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Ledger operations
   // Get all accounts for ledger dropdown
-  app.get("/api/v1/finance/ledger-accounts", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/ledger-accounts", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       
@@ -6029,7 +6029,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get Ledger entries for a specific account
-  app.get("/api/v1/finance/ledger/:accountId", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/ledger/:accountId", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const accountId = parseInt(req.params.accountId);
@@ -6068,7 +6068,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Financial Reports Endpoints
   
   // Profit and Loss Report
-  app.get("/api/v1/finance/reports/profit-loss", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/reports/profit-loss", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       
@@ -6088,7 +6088,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Balance Sheet Report
-  app.get("/api/v1/finance/reports/balance-sheet", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/reports/balance-sheet", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       
@@ -6107,7 +6107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Cash Flow Report
-  app.get("/api/v1/finance/reports/cash-flow", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/reports/cash-flow", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       
@@ -6127,7 +6127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Expense Report
-  app.get("/api/v1/finance/reports/expenses", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/reports/expenses", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       
@@ -6150,7 +6150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Tax Summary Report
-  app.get("/api/v1/finance/reports/tax-summary", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/reports/tax-summary", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       
@@ -6173,7 +6173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // 6. Payment Gateway Settings
-  app.get("/api/v1/finance/payment-gateways", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/payment-gateways", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       
@@ -6184,7 +6184,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/v1/finance/payment-gateways", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/finance/payment-gateways", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       
@@ -6210,7 +6210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 7. Journal Entry Types
-  app.get("/api/v1/finance/journal-entry-types", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/finance/journal-entry-types", isAuthenticated, requirePermission(storage, "finance", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       
@@ -6223,7 +6223,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/v1/finance/journal-entry-types", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/finance/journal-entry-types", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       
