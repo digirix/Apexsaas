@@ -3092,7 +3092,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get tasks that need approval
-  app.get("/api/v1/auto-generated-tasks", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/auto-generated-tasks", isAuthenticated, requirePermission(storage, "auto-generated-tasks", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const taskScheduler = new TaskScheduler(storage);
@@ -3109,7 +3109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get task history (previously approved auto-generated tasks)
-  app.get("/api/v1/auto-generated-tasks/history", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/auto-generated-tasks/history", isAuthenticated, requirePermission(storage, "auto-generated-tasks", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const taskScheduler = new TaskScheduler(storage);
@@ -3126,7 +3126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Approve a single auto-generated task
-  app.post("/api/v1/auto-generated-tasks/:id/approve", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/auto-generated-tasks/:id/approve", isAuthenticated, requirePermission(storage, "auto-generated-tasks", "update"), requirePermission(storage, "auto-generated-tasks", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const taskId = parseInt(req.params.id);
@@ -3149,7 +3149,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Reject a single auto-generated task
-  app.post("/api/v1/auto-generated-tasks/:id/reject", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/auto-generated-tasks/:id/reject", isAuthenticated, requirePermission(storage, "auto-generated-tasks", "update"), requirePermission(storage, "auto-generated-tasks", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const taskId = parseInt(req.params.id);
@@ -3172,7 +3172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Approve all pending tasks
-  app.post("/api/v1/auto-generated-tasks/approve-all", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/auto-generated-tasks/approve-all", isAuthenticated, requirePermission(storage, "auto-generated-tasks", "update"), requirePermission(storage, "auto-generated-tasks", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       
@@ -3192,7 +3192,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Activate a task
-  app.post("/api/v1/auto-generated-tasks/:id/activate", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/auto-generated-tasks/:id/activate", isAuthenticated, requirePermission(storage, "auto-generated-tasks", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const taskId = parseInt(req.params.id);
@@ -3219,7 +3219,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Cancel a task
-  app.post("/api/v1/auto-generated-tasks/:id/cancel", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/auto-generated-tasks/:id/cancel", isAuthenticated, requirePermission(storage, "auto-generated-tasks", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const taskId = parseInt(req.params.id);
@@ -3246,7 +3246,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Resume a task
-  app.post("/api/v1/auto-generated-tasks/:id/resume", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/auto-generated-tasks/:id/resume", isAuthenticated, requirePermission(storage, "auto-generated-tasks", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const taskId = parseInt(req.params.id);
@@ -3273,7 +3273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Delete a task permanently
-  app.delete("/api/v1/auto-generated-tasks/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/v1/auto-generated-tasks/:id", isAuthenticated, requirePermission(storage, "auto-generated-tasks", "delete"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const taskId = parseInt(req.params.id);
