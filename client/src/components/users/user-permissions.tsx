@@ -438,23 +438,28 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
                     // If user is SuperAdmin, show all modules as configured
                     const effectiveHasPermission = isSuperAdmin || hasPermission;
                     
-                    // Set badge styles based on permission level
-                    let badgeVariant = "default";
+                    // Set badge styles based on permission level - clearer labels
+                    let badgeVariant = "destructive";
                     let badgeText = "No Access";
+                    let badgeIcon = <ShieldAlert className="h-3 w-3" />;
                     
                     if (isSuperAdmin) {
                       badgeVariant = "default";
                       badgeText = "Full Access";
+                      badgeIcon = <ShieldCheck className="h-3 w-3" />;
                     } else if (hasPermission) {
                       if (modulePermission?.accessLevel === "full") {
                         badgeVariant = "default";
                         badgeText = "Full Access";
+                        badgeIcon = <ShieldCheck className="h-3 w-3" />;
                       } else if (modulePermission?.accessLevel === "partial") {
                         badgeVariant = "secondary";
-                        badgeText = "Partial";
+                        badgeText = "Partial Access";
+                        badgeIcon = <CheckCircle2 className="h-3 w-3" />;
                       } else {
                         badgeVariant = "outline";
-                        badgeText = "Limited";
+                        badgeText = "Read Only";
+                        badgeIcon = <AlertCircle className="h-3 w-3" />;
                       }
                     }
                     
@@ -475,13 +480,16 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
                               <span className="w-2 h-2 bg-yellow-500 rounded-full" title="Unsaved changes" />
                             )}
                           </div>
-                          {effectiveHasPermission && (
-                            <Badge variant={badgeVariant as any} className={
-                              badgeVariant === "default" ? "bg-green-600 hover:bg-green-700" : ""
-                            }>
-                              {badgeText}
-                            </Badge>
-                          )}
+                          <Badge variant={badgeVariant as any} className={`
+                            flex items-center gap-1
+                            ${badgeVariant === "default" ? "bg-green-600 hover:bg-green-700 text-white" : ""}
+                            ${badgeVariant === "secondary" ? "bg-yellow-100 text-yellow-800 border-yellow-300" : ""}
+                            ${badgeVariant === "destructive" ? "bg-red-100 text-red-800 border-red-300" : ""}
+                            ${badgeVariant === "outline" ? "bg-gray-100 text-gray-700 border-gray-300" : ""}
+                          `}>
+                            {badgeIcon}
+                            {badgeText}
+                          </Badge>
                         </div>
                       </div>
                     );
@@ -557,14 +565,28 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
                     </div>
 
                     <div className="space-y-4 border-t pt-4">
-                      <h4 className="font-medium">CRUD Permissions</h4>
+                      <h4 className="font-medium flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Specific Permissions
+                      </h4>
 
                       {/* Read Permission */}
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label htmlFor="read">View Records</Label>
-                          <p className="text-xs text-slate-500">
-                            Can view information in this module
+                      <div className="flex items-center justify-between p-3 rounded-lg border bg-slate-50">
+                        <div className="space-y-0.5 flex-1">
+                          <div className="flex items-center gap-2">
+                            <Label htmlFor="read" className="font-medium">View Records</Label>
+                            {(isSuperAdmin || permissionForm.canRead) ? (
+                              <Badge variant="default" className="bg-green-600 text-white text-xs">
+                                ✓ Granted
+                              </Badge>
+                            ) : (
+                              <Badge variant="destructive" className="text-xs">
+                                ✗ Denied
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-600">
+                            Can view and access information in this module
                           </p>
                         </div>
                         <Switch
@@ -576,11 +598,22 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
                       </div>
 
                       {/* Create Permission */}
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label htmlFor="create">Create Records</Label>
-                          <p className="text-xs text-slate-500">
-                            Can add new records in this module
+                      <div className="flex items-center justify-between p-3 rounded-lg border bg-slate-50">
+                        <div className="space-y-0.5 flex-1">
+                          <div className="flex items-center gap-2">
+                            <Label htmlFor="create" className="font-medium">Create Records</Label>
+                            {(isSuperAdmin || permissionForm.canCreate) ? (
+                              <Badge variant="default" className="bg-green-600 text-white text-xs">
+                                ✓ Granted
+                              </Badge>
+                            ) : (
+                              <Badge variant="destructive" className="text-xs">
+                                ✗ Denied
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-600">
+                            Can add new records and data in this module
                           </p>
                         </div>
                         <Switch
@@ -592,11 +625,22 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
                       </div>
 
                       {/* Update Permission */}
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label htmlFor="update">Edit Records</Label>
-                          <p className="text-xs text-slate-500">
-                            Can modify existing records in this module
+                      <div className="flex items-center justify-between p-3 rounded-lg border bg-slate-50">
+                        <div className="space-y-0.5 flex-1">
+                          <div className="flex items-center gap-2">
+                            <Label htmlFor="update" className="font-medium">Edit Records</Label>
+                            {(isSuperAdmin || permissionForm.canUpdate) ? (
+                              <Badge variant="default" className="bg-green-600 text-white text-xs">
+                                ✓ Granted
+                              </Badge>
+                            ) : (
+                              <Badge variant="destructive" className="text-xs">
+                                ✗ Denied
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-600">
+                            Can modify and update existing records in this module
                           </p>
                         </div>
                         <Switch
@@ -608,11 +652,22 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
                       </div>
 
                       {/* Delete Permission */}
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label htmlFor="delete">Delete Records</Label>
-                          <p className="text-xs text-slate-500">
-                            Can remove records from this module
+                      <div className="flex items-center justify-between p-3 rounded-lg border bg-slate-50">
+                        <div className="space-y-0.5 flex-1">
+                          <div className="flex items-center gap-2">
+                            <Label htmlFor="delete" className="font-medium">Delete Records</Label>
+                            {(isSuperAdmin || permissionForm.canDelete) ? (
+                              <Badge variant="default" className="bg-green-600 text-white text-xs">
+                                ✓ Granted
+                              </Badge>
+                            ) : (
+                              <Badge variant="destructive" className="text-xs">
+                                ✗ Denied
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-600">
+                            Can permanently remove records from this module
                           </p>
                         </div>
                         <Switch

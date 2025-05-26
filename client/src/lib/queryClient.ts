@@ -18,7 +18,54 @@ async function throwIfResNotOk(res: Response) {
     try {
       const text = (await res.text()) || res.statusText;
       console.error(`API Error (${res.status})`, text);
-      throw new ApiError(res, `${res.status}: ${text}`);
+      
+      // Parse the error response to extract user-friendly messages
+      let userMessage = text;
+      try {
+        const errorData = JSON.parse(text);
+        if (errorData.message) {
+          // Convert technical permission errors to user-friendly messages
+          if (errorData.message.includes("Permission denied: Cannot")) {
+            const action = errorData.message.match(/Cannot (\w+) in (\w+) module/);
+            if (action) {
+              const [, actionType, moduleName] = action;
+              const moduleDisplay = {
+                clients: "Client Management",
+                users: "User Management", 
+                tasks: "Task Management",
+                finance: "Finance Module",
+                setup: "System Setup"
+              }[moduleName] || moduleName;
+              
+              const actionDisplay = {
+                create: "add new records",
+                read: "view information", 
+                update: "edit records",
+                delete: "remove records"
+              }[actionType] || actionType;
+              
+              userMessage = `You don't have permission to ${actionDisplay} in ${moduleDisplay}. Please contact your administrator to request access.`;
+            } else {
+              userMessage = "You don't have permission to perform this action. Please contact your administrator.";
+            }
+          } else if (res.status === 403) {
+            userMessage = "Access denied. You don't have permission to perform this action.";
+          } else if (res.status === 401) {
+            userMessage = "Please log in to access this feature.";
+          } else {
+            userMessage = errorData.message;
+          }
+        }
+      } catch (parseError) {
+        // If JSON parsing fails, use the raw text
+        if (res.status === 403) {
+          userMessage = "Access denied. You don't have permission to perform this action.";
+        } else if (res.status === 401) {
+          userMessage = "Please log in to access this feature.";
+        }
+      }
+      
+      throw new ApiError(res, userMessage);
     } catch (error) {
       if (error instanceof ApiError) {
         throw error;
