@@ -16,7 +16,7 @@ export function registerAiReportingRoutes(app: express.Express) {
    * Generate a report based on a natural language query
    * POST /api/v1/ai/report
    */
-  app.post('/api/v1/ai/report', async (req: Request, res: Response) => {
+  app.post('/api/v1/ai/report', requirePermission(storage, "ai-reporting", "create"), async (req: Request, res: Response) => {
     try {
       // Ensure user is authenticated
       if (!req.user) {

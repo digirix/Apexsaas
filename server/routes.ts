@@ -1908,7 +1908,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // 3. Members (Users)
   // Support both endpoints for users (/members for legacy, /users for new frontend)
-  app.get("/api/v1/users", isAuthenticated, async (req, res) => {
+  app.get("/api/v1/users", isAuthenticated, requirePermission(storage, "users", "read"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const users = await storage.getUsers(tenantId);
