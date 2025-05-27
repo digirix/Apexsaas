@@ -8,6 +8,7 @@ import { registerChatbotRoutes } from "./api/chatbot-routes";
 import { registerAiReportingRoutes } from "./api/ai-reporting-routes";
 import { registerAICustomizationRoutes } from "./api/ai-customization-routes";
 import { registerClientPortalRoutes } from "./routes/client-portal-routes";
+import { registerWorkflowRoutes } from "./api/workflow-routes";
 import { setupClientPortalAuth } from "./client-portal-auth";
 import { requirePermission, requireModuleAccess, getUserModulePermissions } from "./middleware/permissions";
 import { checkPermission } from "./middleware/check-permissions";
@@ -6264,6 +6265,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register AI Customization routes
   registerAICustomizationRoutes(app, isAuthenticated, hasTenantAccess, databaseStorage);
   console.log("AI Customization routes registered");
+  
+  // Register Workflow Automation routes
+  registerWorkflowRoutes(app, databaseStorage);
+  console.log("Workflow Automation routes registered");
 
   // Create an HTTP server
   const httpServer = createServer(app);

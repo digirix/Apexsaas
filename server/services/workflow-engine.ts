@@ -1,4 +1,5 @@
 import { DatabaseStorage } from '../database-storage';
+import { db } from '../db';
 import {
   workflows,
   workflowTriggers,
@@ -81,8 +82,6 @@ export class WorkflowEngine {
   }
 
   private async findMatchingTriggers(event: WorkflowEvent): Promise<(WorkflowTrigger & { workflow: any })[]> {
-    const db = this.storage.db;
-
     const matchingTriggers = await db
       .select({
         trigger: workflowTriggers,
@@ -94,7 +93,7 @@ export class WorkflowEngine {
         and(
           eq(workflowTriggers.tenantId, event.tenantId),
           eq(workflowTriggers.triggerModule, event.module),
-          eq(workflowTriggers.triggerEvent, event.event),
+          eq(workflowTriggers.triggerEvent, event.event as any),
           eq(workflowTriggers.isActive, true),
           eq(workflows.isActive, true),
           eq(workflows.status, 'active')

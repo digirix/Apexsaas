@@ -34,7 +34,11 @@ import type {
   JournalEntry, InsertJournalEntry, JournalEntryLine, InsertJournalEntryLine, JournalEntryType, InsertJournalEntryType,
   // AI module types
   AiConfiguration, InsertAiConfiguration, AiInteraction, InsertAiInteraction, 
-  AiAssistantCustomization, InsertAiAssistantCustomization
+  AiAssistantCustomization, InsertAiAssistantCustomization,
+  // Workflow automation types
+  Workflow, InsertWorkflow, WorkflowTrigger, InsertWorkflowTrigger,
+  WorkflowAction, InsertWorkflowAction, WorkflowExecutionLog, InsertWorkflowExecutionLog,
+  WorkflowTemplate, InsertWorkflowTemplate, CompleteWorkflow
 } from "@shared/schema";
 import { IStorage } from "./storage";
 import { db } from "./db";
