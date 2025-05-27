@@ -9,7 +9,9 @@ import {
   // AI module
   aiConfigurations, aiInteractions, aiAssistantCustomizations,
   // Workflow automation module
-  workflows, workflowTriggers, workflowActions, workflowExecutionLogs, workflowTemplates
+  workflows, workflowTriggers, workflowActions, workflowExecutionLogs, workflowTemplates,
+  // Notification module
+  notifications
 } from "@shared/schema";
 import type { 
   Tenant, User, InsertUser, InsertTenant, 
@@ -38,7 +40,9 @@ import type {
   // Workflow automation types
   Workflow, InsertWorkflow, WorkflowTrigger, InsertWorkflowTrigger,
   WorkflowAction, InsertWorkflowAction, WorkflowExecutionLog, InsertWorkflowExecutionLog,
-  WorkflowTemplate, InsertWorkflowTemplate, CompleteWorkflow
+  WorkflowTemplate, InsertWorkflowTemplate, CompleteWorkflow,
+  // Notification types
+  Notification, InsertNotification
 } from "@shared/schema";
 import { IStorage } from "./storage";
 import { db } from "./db";

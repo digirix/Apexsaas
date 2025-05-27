@@ -1,38 +1,19 @@
-import { eq, and, desc, count, or } from "drizzle-orm";
-import { storage } from "../database-storage";
+import { eq, and, desc, count } from "drizzle-orm";
+import { db } from "../db";
 import { notifications, users, type CreateNotification, type InsertNotification } from "@shared/schema";
 
 export class NotificationService {
   /**
-   * Create a notification for specific users or roles
+   * Create a notification for specific users
    */
   static async createNotification(data: CreateNotification): Promise<void> {
-    const { userIds, roleId, tenantId, ...notificationData } = data;
+    const { userIds, tenantId, ...notificationData } = data;
     
     let targetUserIds: number[] = [];
 
     // If specific user IDs are provided, use them
     if (userIds && userIds.length > 0) {
       targetUserIds = userIds;
-    }
-    
-    // If roleId is provided, fetch all users with that role
-    if (roleId) {
-      const usersWithRole = await db
-        .select({ userId: users.id })
-        .from(users)
-        .innerJoin(userRoles, eq(userRoles.userId, users.id))
-        .innerJoin(roles, eq(roles.id, userRoles.roleId))
-        .where(
-          and(
-            eq(roles.id, roleId),
-            eq(users.tenantId, tenantId),
-            eq(users.isActive, true)
-          )
-        );
-      
-      const roleUserIds = usersWithRole.map(u => u.userId);
-      targetUserIds = [...new Set([...targetUserIds, ...roleUserIds])];
     }
 
     // If no users specified, throw error
@@ -49,8 +30,6 @@ export class NotificationService {
 
     await db.insert(notifications).values(notificationRecords);
     
-    // TODO: Emit WebSocket events for real-time notifications
-    // This will be implemented when WebSocket support is added
     console.log(`Created ${notificationRecords.length} notifications for tenant ${tenantId}`);
   }
 

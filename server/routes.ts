@@ -9,6 +9,7 @@ import { registerAiReportingRoutes } from "./api/ai-reporting-routes";
 import { registerAICustomizationRoutes } from "./api/ai-customization-routes";
 import { registerClientPortalRoutes } from "./routes/client-portal-routes";
 import { registerWorkflowRoutes } from "./api/workflow-routes";
+import { setupNotificationRoutes } from "./api/notification-routes";
 import { setupClientPortalAuth } from "./client-portal-auth";
 import { requirePermission, requireModuleAccess, getUserModulePermissions } from "./middleware/permissions";
 import { checkPermission } from "./middleware/check-permissions";
