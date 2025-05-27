@@ -20,6 +20,7 @@ import { WorkflowBuilder } from "@/components/workflow/workflow-builder";
 import { WorkflowList } from "@/components/workflow/workflow-list";
 import { WorkflowLogs } from "@/components/workflow/workflow-logs";
 import { WorkflowTemplates } from "@/components/workflow/workflow-templates";
+import { AppLayout } from "@/components/layout/app-layout";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -113,19 +114,22 @@ export default function WorkflowAutomation() {
 
   if (showBuilder) {
     return (
-      <WorkflowBuilder
-        workflow={editingWorkflow}
-        onClose={handleBuilderClose}
-        onSave={() => {
-          handleBuilderClose();
-          queryClient.invalidateQueries({ queryKey: ["/api/v1/workflows"] });
-        }}
-      />
+      <AppLayout title="Workflow Builder">
+        <WorkflowBuilder
+          workflow={editingWorkflow}
+          onClose={handleBuilderClose}
+          onSave={() => {
+            handleBuilderClose();
+            queryClient.invalidateQueries({ queryKey: ["/api/v1/workflows"] });
+          }}
+        />
+      </AppLayout>
     );
   }
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+    <AppLayout title="Workflow Automation">
+      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
         <div>
           <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
@@ -305,6 +309,7 @@ export default function WorkflowAutomation() {
           </div>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </AppLayout>
   );
 }
