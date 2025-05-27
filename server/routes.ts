@@ -1473,13 +1473,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
       
-      const success = await storage.deleteEntity(id, tenantId);
-      if (!success) {
+      // Check if entity exists
+      const entity = await storage.getEntity(id, tenantId);
+      if (!entity) {
         return res.status(404).json({ message: "Entity not found" });
       }
       
-      res.status(204).send();
+      // Check for related records that would prevent deletion
+      try {
+        // Check for tasks associated with this entity
+        const tasks = await storage.getTasks(tenantId, undefined, id);
+        if (tasks.length > 0) {
+          return res.status(400).json({ 
+            message: "Cannot delete entity. There are tasks associated with this entity. Please reassign or delete the tasks first.",
+            relatedRecords: { tasks: tasks.length }
+          });
+        }
+        
+        // Check for invoices associated with this entity
+        const invoices = await storage.getInvoices(tenantId, undefined, id);
+        if (invoices.length > 0) {
+          return res.status(400).json({ 
+            message: "Cannot delete entity. There are invoices associated with this entity. Please move or delete the invoices first.",
+            relatedRecords: { invoices: invoices.length }
+          });
+        }
+        
+        // If there are chart of accounts records, they need to be handled
+        // For now, we'll provide a clear error message
+        const success = await storage.deleteEntity(id, tenantId);
+        if (!success) {
+          return res.status(404).json({ message: "Entity not found" });
+        }
+        
+        res.status(204).send();
+      } catch (dbError: any) {
+        console.error("Database error during entity deletion:", dbError);
+        
+        // Handle specific foreign key constraint errors
+        if (dbError.code === '23503') {
+          if (dbError.constraint === 'chart_of_accounts_entity_id_fkey') {
+            return res.status(400).json({ 
+              message: "Cannot delete entity. There are chart of accounts records associated with this entity. Please remove the chart of accounts entries first or contact your administrator."
+            });
+          }
+          
+          // Handle other foreign key constraints
+          return res.status(400).json({ 
+            message: "Cannot delete entity. There are related records that must be removed first.",
+            details: dbError.detail || "Foreign key constraint violation"
+          });
+        }
+        
+        throw dbError; // Re-throw if it's not a foreign key constraint error
+      }
     } catch (error) {
+      console.error("Error deleting entity:", error);
       res.status(500).json({ message: "Failed to delete entity" });
     }
   });
