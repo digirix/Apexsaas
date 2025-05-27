@@ -49,7 +49,7 @@ export function TaskStatusWorkflow({
   
   // Fetch workflow rules for the current status
   const { data: workflowRules = [], isLoading: isLoadingRules } = useQuery<TaskStatusWorkflowRule[]>({
-    queryKey: ["/api/v1/setup/task-status-workflow-rules", { fromStatusId: currentStatusId }],
+    queryKey: ["/api/v1/setup/task-status-workflow-rules"],
     enabled: !!currentStatusId,
   });
   
@@ -73,15 +73,16 @@ export function TaskStatusWorkflow({
     })
     .sort((a, b) => a.rank - b.rank);
   
-  // Get completed status
-  const completedStatus = statuses.find(s => s.rank === 3);
+  // Get the highest ranked status (typically "Completed")
+  const highestRankStatus = statuses.length > 0 ? 
+    statuses.reduce((highest, current) => current.rank > highest.rank ? current : highest) : null;
   
   // Check if direct complete is allowed 
-  const canDirectComplete = completedStatus && currentStatusId !== completedStatus.id &&
+  const canDirectComplete = highestRankStatus && currentStatusId !== highestRankStatus.id &&
     // Find rule for completion, if it exists
     (!workflowRules.some(r => 
       r.fromStatusId === currentStatusId && 
-      r.toStatusId === completedStatus.id && 
+      r.toStatusId === highestRankStatus.id && 
       !r.isAllowed
     ));
   
@@ -129,12 +130,12 @@ export function TaskStatusWorkflow({
   
   // Complete task directly
   const completeTask = () => {
-    if (completedStatus) {
-      updateStatusMutation.mutate(completedStatus.id);
+    if (highestRankStatus) {
+      updateStatusMutation.mutate(highestRankStatus.id);
     } else {
       toast({
         title: "Error",
-        description: "Completed status not found in the system.",
+        description: "No completion status found in the system.",
         variant: "destructive",
       });
     }
@@ -290,7 +291,7 @@ export function TaskStatusWorkflow({
               {status.name}
             </Button>
           ))}
-          {canDirectComplete && !availableNextStatuses.find(s => s.rank === 3) && (
+          {canDirectComplete && !availableNextStatuses.find(s => s.id === highestRankStatus?.id) && (
             <Button
               variant="ghost"
               size="sm"
@@ -299,7 +300,7 @@ export function TaskStatusWorkflow({
               disabled={updateStatusMutation.isPending}
             >
               <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
-              Mark as Completed
+              Mark as {highestRankStatus?.name || 'Completed'}
             </Button>
           )}
         </div>
