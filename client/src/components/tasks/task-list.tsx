@@ -33,6 +33,7 @@ import {
   useSensors,
   closestCenter,
   DragOverlay,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -143,31 +144,31 @@ function DraggableTaskCard({
       }`}
       onClick={() => onViewDetails(task.id)}
     >
-      <CardContent className="p-3">
-        <div className="flex items-start justify-between mb-2">
+      <CardContent className="p-2">
+        <div className="flex items-start justify-between mb-1">
           <div 
             {...attributes} 
             {...listeners} 
             className="cursor-grab active:cursor-grabbing"
             onClick={(e) => e.stopPropagation()}
           >
-            <Grip className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+            <Grip className="h-3 w-3 text-gray-400 hover:text-gray-600" />
           </div>
           <div onClick={(e) => e.stopPropagation()}>
             <Checkbox
               checked={isSelected}
               onCheckedChange={(checked) => onSelect(task.id, checked as boolean)}
-              className="h-4 w-4"
+              className="h-3 w-3"
             />
           </div>
         </div>
         
-        <h4 className="text-sm font-medium text-slate-900 line-clamp-2 mb-2">
+        <h4 className="text-xs font-medium text-slate-900 line-clamp-2 mb-1">
           {task.taskDetails || 'Untitled Task'}
         </h4>
         
-        <div className="flex items-center justify-between text-xs text-slate-600 mb-2">
-          <span className="truncate">{client?.displayName || 'Unknown'}</span>
+        <div className="flex items-center justify-between text-xs text-slate-600 mb-1">
+          <span className="truncate text-xs">{client?.displayName || 'Unknown'}</span>
           <Badge className={`text-xs px-1 py-0 ${getTaskPriorityColor(task.taskType || 'Regular')}`}>
             {(task.taskType || 'Regular').charAt(0)}
           </Badge>
@@ -175,12 +176,12 @@ function DraggableTaskCard({
         
         <div className="flex items-center justify-between text-xs">
           <div className="flex items-center space-x-1">
-            <Avatar className="h-4 w-4">
+            <Avatar className="h-3 w-3">
               <AvatarFallback className="text-xs">
                 {assignee?.displayName?.charAt(0) || 'U'}
               </AvatarFallback>
             </Avatar>
-            <span className="truncate">{assignee?.displayName || 'Unassigned'}</span>
+            <span className="truncate text-xs">{assignee?.displayName || 'Unassigned'}</span>
           </div>
           
           <div className={`text-xs ${isOverdue ? 'text-red-600 font-medium' : 'text-slate-500'}`}>
@@ -189,13 +190,37 @@ function DraggableTaskCard({
         </div>
         
         {isOverdue && (
-          <div className="mt-2 flex items-center space-x-1">
+          <div className="mt-1 flex items-center space-x-1">
             <AlertTriangle className="h-3 w-3 text-red-500" />
             <span className="text-xs text-red-600 font-medium">Overdue</span>
           </div>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// Droppable Zone Component for Kanban Columns
+function DroppableColumn({ 
+  id, 
+  children, 
+  className 
+}: { 
+  id: string; 
+  children: React.ReactNode; 
+  className?: string; 
+}) {
+  const { isOver, setNodeRef } = useDroppable({
+    id,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`${className} ${isOver ? 'bg-blue-50 border-blue-200' : ''}`}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -953,41 +978,43 @@ export function TaskList() {
                             </h3>
                           </div>
                           
-                          <SortableContext 
-                            items={statusTasks.map(t => t.id)}
-                            strategy={verticalListSortingStrategy}
+                          <DroppableColumn
+                            id={status.id.toString()}
+                            className="space-y-2 min-h-32 transition-colors duration-200 rounded-lg border-2 border-transparent"
                           >
-                            <div 
-                              className="space-y-2 min-h-32"
-                              style={{
-                                minHeight: '200px',
-                                paddingBottom: '8px'
-                              }}
-                              onDrop={(e) => e.preventDefault()}
-                              onDragOver={(e) => e.preventDefault()}
-                              data-status-id={status.id}
+                            <SortableContext 
+                              items={statusTasks.map(t => t.id)}
+                              strategy={verticalListSortingStrategy}
                             >
-                              {statusTasks.map((task) => (
-                                <DraggableTaskCard
-                                  key={task.id}
-                                  task={task}
-                                  clients={clients}
-                                  users={users}
-                                  onViewDetails={handleViewTaskDetails}
-                                  onSelect={handleTaskSelect}
-                                  isSelected={selectedTaskIds.includes(task.id)}
-                                  isOverdue={isTaskOverdue(task)}
-                                />
-                              ))}
-                              
-                              {statusTasks.length === 0 && (
-                                <div className="text-center py-8 text-slate-400">
-                                  <FileText className="h-8 w-8 mx-auto mb-2" />
-                                  <p className="text-sm">No tasks</p>
-                                </div>
-                              )}
-                            </div>
-                          </SortableContext>
+                              <div 
+                                className="space-y-2"
+                                style={{
+                                  minHeight: '200px',
+                                  paddingBottom: '8px'
+                                }}
+                              >
+                                {statusTasks.map((task) => (
+                                  <DraggableTaskCard
+                                    key={task.id}
+                                    task={task}
+                                    clients={clients}
+                                    users={users}
+                                    onViewDetails={handleViewTaskDetails}
+                                    onSelect={handleTaskSelect}
+                                    isSelected={selectedTaskIds.includes(task.id)}
+                                    isOverdue={isTaskOverdue(task)}
+                                  />
+                                ))}
+                                
+                                {statusTasks.length === 0 && (
+                                  <div className="text-center py-8 text-slate-400">
+                                    <FileText className="h-8 w-8 mx-auto mb-2" />
+                                    <p className="text-sm">No tasks</p>
+                                  </div>
+                                )}
+                              </div>
+                            </SortableContext>
+                          </DroppableColumn>
                         </div>
                       );
                     })}
