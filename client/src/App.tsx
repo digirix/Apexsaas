@@ -40,6 +40,7 @@ import CashFlowPage from "@/pages/finance/reports/cash-flow";
 import ExpenseReportPage from "@/pages/finance/reports/expenses";
 import TaxSummaryPage from "@/pages/finance/reports/tax-summary";
 import WorkflowAutomationPage from "@/pages/workflow-automation";
+import { NotificationsPage } from "@/pages/notifications-page";
 
 function Router() {
   return (
@@ -82,6 +83,7 @@ function Router() {
       <ProtectedRoute path="/users" component={UsersPage} />
       <ProtectedRoute path="/users/:id/permissions" component={UsersPage} />
       <ProtectedRoute path="/settings" component={SettingsPage} />
+      <ProtectedRoute path="/notifications" component={NotificationsPage} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>
