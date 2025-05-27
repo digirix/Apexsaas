@@ -1182,15 +1182,48 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteInvoice(id: number, tenantId: number): Promise<boolean> {
-    // Soft delete by setting isDeleted flag
-    const [deletedInvoice] = await db.update(invoices)
-      .set({ isDeleted: true, updatedAt: new Date() })
-      .where(and(
-        eq(invoices.id, id),
-        eq(invoices.tenantId, tenantId)
-      ))
-      .returning({ id: invoices.id });
-    return !!deletedInvoice;
+    console.log(`DATABASE STORAGE: INVOICE DELETE CALLED for ID ${id}, tenantId ${tenantId}`);
+    
+    try {
+      // First check if invoice has any journal entries
+      console.log(`DATABASE STORAGE: Checking journal entries for invoice ${id}`);
+      const relatedJournalEntries = await db.select().from(journalEntries)
+        .where(and(
+          eq(journalEntries.sourceDocument, 'invoice'),
+          eq(journalEntries.sourceDocumentId, id),
+          eq(journalEntries.tenantId, tenantId)
+        ));
+      
+      if (relatedJournalEntries && relatedJournalEntries.length > 0) {
+        console.log(`DATABASE STORAGE: Invoice ${id} has ${relatedJournalEntries.length} journal entries - BLOCKING deletion`);
+        throw new Error(`Cannot delete invoice because it has ${relatedJournalEntries.length} associated journal entries. Please delete the journal entries first before attempting to delete the invoice.`);
+      }
+      
+      console.log(`DATABASE STORAGE: Invoice ${id} has no journal entries - proceeding with deletion`);
+      
+      // Delete invoice line items first
+      console.log(`DATABASE STORAGE: Deleting line items for invoice ${id}`);
+      await db.delete(invoiceLineItems)
+        .where(and(
+          eq(invoiceLineItems.invoiceId, id),
+          eq(invoiceLineItems.tenantId, tenantId)
+        ));
+      
+      // Finally, delete the invoice
+      console.log(`DATABASE STORAGE: Deleting invoice ${id}`);
+      const result = await db.delete(invoices)
+        .where(and(
+          eq(invoices.id, id),
+          eq(invoices.tenantId, tenantId)
+        ));
+      
+      const success = (result.rowCount || 0) > 0;
+      console.log(`DATABASE STORAGE: Invoice ${id} deletion ${success ? 'SUCCESSFUL' : 'FAILED'}`);
+      return success;
+    } catch (error) {
+      console.error(`DATABASE STORAGE: Invoice ${id} deletion failed:`, error);
+      throw error; // Don't allow deletion to proceed if there are journal entries
+    }
   }
 
   // Invoice Line Item operations
