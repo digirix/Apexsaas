@@ -255,6 +255,11 @@ export function TaskList() {
     queryKey: ["/api/v1/clients"],
   });
 
+  // Fetch task status workflow rules to respect user configuration
+  const { data: workflowRules = [] } = useQuery({
+    queryKey: ["/api/v1/setup/task-status-workflow-rules"],
+  });
+
   // Drag and drop handlers
   const updateTaskStatus = useMutation({
     mutationFn: ({ taskId, statusId }: { taskId: number; statusId: number }) =>
@@ -290,18 +295,35 @@ export function TaskList() {
     
     const task = tasks.find(t => t.id === taskId);
     if (task && task.statusId !== newStatusId) {
+      // Check workflow rules to see if this status change is allowed
+      const rule = workflowRules.find((r: any) => 
+        r.fromStatusId === task.statusId && r.toStatusId === newStatusId
+      );
+      
+      // If there's a rule and it's not allowed, show error
+      if (rule && !rule.isAllowed) {
+        toast({
+          title: "Status Change Not Allowed",
+          description: "This status transition is restricted by your workflow rules.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       updateTaskStatus.mutate({ taskId, statusId: newStatusId });
     }
-  }, [tasks, updateTaskStatus]);
+  }, [tasks, updateTaskStatus, workflowRules, toast]);
 
   // Filtering and sorting
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
       const now = new Date();
       const taskDueDate = new Date(task.dueDate);
-      const completedStatusId = taskStatuses.find(s => s.rank === 3)?.id;
-      const isOverdue = taskDueDate < now && task.statusId !== completedStatusId;
-      const isCompleted = task.statusId === completedStatusId;
+      // Find the highest ranked status (completed status)
+      const highestRankStatus = taskStatuses.reduce((highest, current) => 
+        current.rank > (highest?.rank || 0) ? current : highest, null as TaskStatus | null);
+      const isOverdue = taskDueDate < now && task.statusId !== highestRankStatus?.id;
+      const isCompleted = task.statusId === highestRankStatus?.id;
       const isMyTask = task.assigneeId === currentUser?.id;
 
       // Quick filters
@@ -311,7 +333,7 @@ export function TaskList() {
         case 'today': return taskDueDate.toDateString() === now.toDateString();
         case 'completed': return isCompleted;
         case 'pending': return !isCompleted;
-        case 'high': return task.priority === 'High';
+        case 'high': return task.taskType === 'Urgent';
       }
 
       // Search filter
@@ -330,18 +352,35 @@ export function TaskList() {
       if (statusFilter !== 'all' && task.statusId !== parseInt(statusFilter)) return false;
       if (assigneeFilter !== 'all' && task.assigneeId !== parseInt(assigneeFilter)) return false;
       if (clientFilter !== 'all' && task.clientId !== parseInt(clientFilter)) return false;
-      if (priorityFilter !== 'all' && task.priority !== priorityFilter) return false;
+      if (priorityFilter !== 'all' && task.taskType !== priorityFilter) return false;
 
       return true;
     });
   }, [tasks, quickFilter, searchTerm, statusFilter, assigneeFilter, clientFilter, priorityFilter, taskStatuses, users, clients, currentUser]);
 
+  // Task metrics using user-defined statuses
+  const taskMetrics = useMemo(() => {
+    const now = new Date();
+    const highestRankStatus = taskStatuses.reduce((highest, current) => 
+      current.rank > (highest?.rank || 0) ? current : highest, null as TaskStatus | null);
+    
+    return {
+      total: tasks.length,
+      pending: tasks.filter(t => t.statusId !== highestRankStatus?.id).length,
+      completed: tasks.filter(t => t.statusId === highestRankStatus?.id).length,
+      overdue: tasks.filter(t => new Date(t.dueDate) < now && t.statusId !== highestRankStatus?.id).length,
+      dueToday: tasks.filter(t => new Date(t.dueDate).toDateString() === now.toDateString()).length,
+      highPriority: tasks.filter(t => t.taskType === 'Urgent' && t.statusId !== highestRankStatus?.id).length,
+      myTasks: tasks.filter(t => t.assigneeId === currentUser?.id && t.statusId !== highestRankStatus?.id).length,
+    };
+  }, [tasks, taskStatuses, currentUser]);
+
   // Helper functions
-  const getTaskPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'High': return 'bg-red-100 text-red-800';
+  const getTaskPriorityColor = (taskType: string) => {
+    switch (taskType) {
+      case 'Urgent': return 'bg-red-100 text-red-800';
       case 'Medium': return 'bg-yellow-100 text-yellow-800';
-      case 'Low': return 'bg-green-100 text-green-800';
+      case 'Regular': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -609,6 +648,59 @@ export function TaskList() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+          </div>
+        </div>
+
+        {/* Key Metrics Bar */}
+        <div className="bg-slate-50 border-b border-slate-200 px-4 py-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-slate-400 rounded-full"></div>
+                <span className="text-sm font-semibold text-slate-900">{taskMetrics.total}</span>
+                <span className="text-xs text-slate-600">Total</span>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span className="text-sm font-semibold text-slate-900">{taskMetrics.pending}</span>
+                <span className="text-xs text-slate-600">Pending</span>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span className="text-sm font-semibold text-slate-900">{taskMetrics.completed}</span>
+                <span className="text-xs text-slate-600">Completed</span>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                <span className="text-sm font-semibold text-slate-900">{taskMetrics.overdue}</span>
+                <span className="text-xs text-slate-600">Overdue</span>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                <span className="text-sm font-semibold text-slate-900">{taskMetrics.dueToday}</span>
+                <span className="text-xs text-slate-600">Due Today</span>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <span className="text-sm font-semibold text-slate-900">{taskMetrics.highPriority}</span>
+                <span className="text-xs text-slate-600">High Priority</span>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                <span className="text-sm font-semibold text-slate-900">{taskMetrics.myTasks}</span>
+                <span className="text-xs text-slate-600">My Tasks</span>
+              </div>
+            </div>
+            
+            <div className="text-xs text-slate-500">
+              Last updated: {new Date().toLocaleTimeString()}
+            </div>
           </div>
         </div>
 
