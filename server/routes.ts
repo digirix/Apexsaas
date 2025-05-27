@@ -5436,14 +5436,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Delete an account
-  app.delete("/api/v1/finance/chart-of-accounts/:id", isAuthenticated, async (req, res) => {
+  // Enhanced delete account with proper hard/soft delete logic
+  app.delete("/api/v1/finance/chart-of-accounts/:id/enhanced", isAuthenticated, async (req, res) => {
     console.log("=== ENHANCED DELETE ROUTE CALLED ===");
-    console.log(`ROUTE HANDLER: Chart of accounts deletion route called for ID: ${req.params.id}`);
+    console.log(`ROUTE HANDLER: Enhanced chart of accounts deletion route called for ID: ${req.params.id}`);
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
-      console.log(`ROUTE HANDLER: Processing deletion for ID ${id}, tenantId ${tenantId}`);
+      console.log(`ROUTE HANDLER: Processing enhanced deletion for ID ${id}, tenantId ${tenantId}`);
       
       // Check if the account exists
       const account = await storage.getChartOfAccount(id, tenantId);
@@ -5463,32 +5463,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const journalEntries = await storage.getJournalEntryLines(tenantId, undefined, id);
         if (journalEntries && journalEntries.length > 0) {
-          console.log(`ROUTE HANDLER: Account ${id} has ${journalEntries.length} journal entries, cannot delete`);
+          console.log(`ROUTE HANDLER: Account ${id} has ${journalEntries.length} journal entries, cannot delete OR deactivate`);
           return res.status(400).json({ 
-            message: "Cannot delete account that has journal entries. Consider deactivating it instead." 
+            message: `Cannot delete or deactivate account "${account.accountName}" because it has ${journalEntries.length} associated journal entries. Please remove these journal entries first before attempting to delete the account.` 
           });
         }
-        console.log(`ROUTE HANDLER: Account ${id} has no journal entries, proceeding with deletion`);
+        console.log(`ROUTE HANDLER: Account ${id} has no journal entries, proceeding with hard deletion`);
       } catch (journalError) {
         console.warn("ROUTE HANDLER: Error checking journal entries for account:", journalError);
-        // Continue with deletion even if there's an error checking journal entries
-        // This ensures accounts without journal entries can still be deleted
+        // If we can't check journal entries, don't allow deletion to be safe
+        return res.status(500).json({ 
+          message: "Unable to verify account dependencies. Please try again." 
+        });
       }
       
-      // Delete the account
-      console.log(`ROUTE HANDLER: Attempting to delete chart of accounts entry with ID: ${id}`);
+      // Perform hard delete since no journal entries exist
+      console.log(`ROUTE HANDLER: Attempting hard delete of chart of accounts entry with ID: ${id}`);
       const result = await storage.deleteChartOfAccount(id, tenantId);
-      console.log(`ROUTE HANDLER: Deletion result for chart of accounts ID ${id}:`, result);
+      console.log(`ROUTE HANDLER: Hard deletion result for chart of accounts ID ${id}:`, result);
       
       if (result) {
-        console.log(`ROUTE HANDLER: Successfully deleted chart of accounts entry ${id}`);
+        console.log(`ROUTE HANDLER: Successfully hard deleted chart of accounts entry ${id}`);
         res.status(204).end();
       } else {
-        console.log(`ROUTE HANDLER: Failed to delete chart of accounts entry ${id}`);
+        console.log(`ROUTE HANDLER: Failed to hard delete chart of accounts entry ${id}`);
         res.status(500).json({ message: "Failed to delete account" });
       }
     } catch (error) {
-      console.error("ROUTE HANDLER: Error deleting account:", error);
+      console.error("ROUTE HANDLER: Error during enhanced deletion:", error);
+      res.status(500).json({ message: "Failed to delete account" });
+    }
+  });
+
+  // Legacy delete account (soft delete only for compatibility)
+  app.delete("/api/v1/finance/chart-of-accounts/:id", isAuthenticated, async (req, res) => {
+    console.log("=== LEGACY DELETE ROUTE CALLED ===");
+    console.log(`LEGACY ROUTE: Chart of accounts deletion route called for ID: ${req.params.id}`);
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const id = parseInt(req.params.id);
+      
+      // Check if the account exists
+      const account = await storage.getChartOfAccount(id, tenantId);
+      if (!account) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // Check if this is a system account
+      if (account.isSystemAccount) {
+        return res.status(403).json({ message: "System accounts cannot be deleted" });
+      }
+      
+      // Check if the account has any journal entries
+      try {
+        const journalEntries = await storage.getJournalEntryLines(tenantId, undefined, id);
+        if (journalEntries && journalEntries.length > 0) {
+          return res.status(400).json({ 
+            message: `Cannot delete account "${account.accountName}" because it has ${journalEntries.length} associated journal entries. Please remove these journal entries first before attempting to delete the account.` 
+          });
+        }
+      } catch (journalError) {
+        console.warn("Error checking journal entries for account:", journalError);
+        return res.status(500).json({ 
+          message: "Unable to verify account dependencies. Please try again." 
+        });
+      }
+      
+      // Perform hard delete
+      const result = await storage.deleteChartOfAccount(id, tenantId);
+      
+      if (result) {
+        res.status(204).end();
+      } else {
+        res.status(500).json({ message: "Failed to delete account" });
+      }
+    } catch (error) {
+      console.error("Error deleting account:", error);
       res.status(500).json({ message: "Failed to delete account" });
     }
   });
