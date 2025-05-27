@@ -1,0 +1,157 @@
+import express from "express";
+import { NotificationService } from "../services/notification-service";
+import { createNotificationSchema } from "@shared/schema";
+import { z } from "zod";
+
+export function setupNotificationRoutes(app: express.Application, isAuthenticated: any, requirePermission: any, storage: any) {
+  // Get notifications for the current user
+  app.get("/api/v1/me/notifications", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { limit, offset, unreadOnly, type } = req.query;
+
+      const options = {
+        limit: limit ? parseInt(limit as string) : 20,
+        offset: offset ? parseInt(offset as string) : 0,
+        unreadOnly: unreadOnly === 'true',
+        type: type as string || undefined
+      };
+
+      const notifications = await NotificationService.getNotificationsForUser(
+        user.id,
+        user.tenantId,
+        options
+      );
+
+      res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+
+  // Get unread notification count for the current user
+  app.get("/api/v1/me/notifications/unread-count", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      const count = await NotificationService.getUnreadNotificationCount(
+        user.id,
+        user.tenantId
+      );
+
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+      res.status(500).json({ message: "Failed to fetch unread count" });
+    }
+  });
+
+  // Mark a specific notification as read
+  app.put("/api/v1/me/notifications/:notificationId/read", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const notificationId = parseInt(req.params.notificationId);
+
+      const success = await NotificationService.markNotificationAsRead(
+        notificationId,
+        user.id,
+        user.tenantId
+      );
+
+      if (success) {
+        res.json({ message: "Notification marked as read" });
+      } else {
+        res.status(404).json({ message: "Notification not found" });
+      }
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+
+  // Mark all notifications as read for the current user
+  app.put("/api/v1/me/notifications/mark-all-read", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+
+      const updatedCount = await NotificationService.markAllNotificationsAsRead(
+        user.id,
+        user.tenantId
+      );
+
+      res.json({ message: "All notifications marked as read", updatedCount });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ message: "Failed to mark all notifications as read" });
+    }
+  });
+
+  // Internal endpoint for creating notifications (used by workflow automation and other services)
+  app.post("/api/v1/internal/notifications", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      // Validate the request body
+      const validatedData = createNotificationSchema.parse({
+        ...req.body,
+        tenantId: user.tenantId, // Ensure tenant isolation
+        createdBy: user.id // Set the creator
+      });
+
+      await NotificationService.createNotification(validatedData);
+
+      res.json({ message: "Notification created successfully" });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ 
+          message: "Invalid request data", 
+          errors: error.errors 
+        });
+        return;
+      }
+      
+      console.error("Error creating notification:", error);
+      res.status(500).json({ message: "Failed to create notification" });
+    }
+  });
+
+  // Public endpoint for workflow automation to create notifications
+  // This will be used by the workflow engine when executing "Send Notification" actions
+  app.post("/api/v1/workflows/notifications", isAuthenticated, requirePermission(storage, "workflow-automation", "update"), async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      // Validate the request body for workflow notifications
+      const validatedData = createNotificationSchema.parse({
+        ...req.body,
+        tenantId: user.tenantId,
+        createdBy: user.id
+      });
+
+      await NotificationService.createNotification(validatedData);
+
+      res.json({ 
+        message: "Workflow notification created successfully",
+        success: true 
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ 
+          message: "Invalid notification data", 
+          errors: error.errors,
+          success: false
+        });
+        return;
+      }
+      
+      console.error("Error creating workflow notification:", error);
+      res.status(500).json({ 
+        message: "Failed to create workflow notification",
+        success: false
+      });
+    }
+  });
+
+  console.log("Notification routes registered successfully");
+}

@@ -1,0 +1,116 @@
+Develop an "Internal Notification System" for our Accounting Firm Practice Management software. This system will enable timely and relevant communication to users within the application about important events, tasks, and updates, enhancing collaboration and awareness.
+Core Philosophy:
+User-Centric: Notifications should be informative, actionable, and minimally intrusive.
+Integrated: Seamlessly connect with other modules (especially Workflow Automation, Tasks, Users) to trigger notifications.
+Real-time (or near real-time): Users should receive updates promptly.
+Persistent & Manageable: Notifications should be stored, and users should be able to view, manage (e.g., mark as read), and potentially filter them.
+Secure & Tenant-Isolated: Adhere strictly to multi-tenancy and user-specific data access.
+I. Backend Development (Node.js, TypeScript, Drizzle ORM, PostgreSQL):
+Notification Data Model:
+Design a PostgreSQL table (using Drizzle ORM schema syntax) named notifications.
+Fields:
+id (Primary Key, UUID or auto-incrementing int)
+tenantId (Foreign Key to tenants table, crucial for isolation)
+userId (Foreign Key to users table – the recipient of the notification)
+title (VARCHAR, concise summary)
+messageBody (TEXT, detailed content of the notification)
+linkUrl (VARCHAR, optional – a URL within the application to navigate to, e.g., /tasks/123)
+isRead (BOOLEAN, default false)
+type (VARCHAR, e.g., 'TASK_ASSIGNMENT', 'WORKFLOW_ALERT', 'SYSTEM_MESSAGE', 'MENTION' – for categorization and potential filtering/iconography)
+severity (VARCHAR, optional, e.g., 'INFO', 'WARNING', 'CRITICAL' – for visual cues)
+createdBy (Foreign Key to users table, optional – if a user action triggered it, or null/system for automated ones)
+createdAt (TIMESTAMP, default NOW())
+relatedModule (VARCHAR, optional, e.g., 'Tasks', 'Clients' - the module that generated the notification)
+relatedEntityId (VARCHAR or INT, optional - the ID of the entity in the relatedModule, e.g. task ID)
+Indexes: tenantId, userId, isRead, createdAt, type.
+Notification Service (NotificationService):
+createNotification(data: CreateNotificationDto):
+Input: tenantId, userId (or roleId to resolve to multiple userIds), title, messageBody, linkUrl, type, etc.
+Logic:
+If roleId is provided, fetch all users with that role within the tenantId.
+Create notification record(s) in the database.
+Crucially, after saving, emit an event (e.g., via WebSockets – see section III) to notify the relevant user client(s) in real-time.
+Intelligent Suggestion: This service will be heavily used by the WorkflowAutomation module's "Send Internal Notification" action.
+getNotificationsForUser(userId: string, tenantId: string, options: { limit?: number, offset?: number, unreadOnly?: boolean, type?: string }):
+Fetches notifications for a specific user, with pagination and filtering.
+getUnreadNotificationCount(userId: string, tenantId: string):
+Efficiently retrieves the count of unread notifications.
+markNotificationAsRead(notificationId: string, userId: string, tenantId: string):
+Updates isRead to true. Verifies userId and tenantId match the notification.
+markAllNotificationsAsRead(userId: string, tenantId: string):
+Updates isRead to true for all unread notifications of a user.
+deleteNotification(notificationId: string, userId: string, tenantId: string) (Optional, or implement soft delete).
+API Endpoints (RESTful, protected by requirePermission and user context):
+GET /api/me/notifications: Fetches notifications for the currently authenticated user.
+Query params: limit, offset, unreadOnly (boolean), type.
+GET /api/me/notifications/unread-count: Gets the unread count for the current user.
+PUT /api/me/notifications/:notificationId/read: Marks a specific notification as read.
+PUT /api/me/notifications/mark-all-read: Marks all of the current user's notifications as read.
+(Internal endpoint, potentially with specific service-to-service auth or elevated permissions if not called via user context): POST /api/internal/notifications: For other backend services (like Workflow Automation) to trigger notification creation. Ensure this is secure.
+II. Frontend Development (React, TypeScript, Shadcn/UI, TanStack Query, Wouter):
+Notification Indicator Component (e.g., NotificationBell):
+Usually placed in the main application header/navigation bar.
+Displays an icon (e.g., a bell).
+Shows a badge with the unreadNotificationCount (fetched via TanStack Query, updated by WebSockets).
+On click, opens a NotificationPanel (e.g., using Shadcn/UI Popover or DropdownMenu).
+Notification Panel Component:
+Displays a list of recent (e.g., 5-10 latest unread, then recent read) notifications.
+Each notification item should show: title, a snippet of messageBody, createdAt (e.g., "2 hours ago"), and an indicator if unread.
+Clicking a notification item should:
+Mark it as read (call the API via TanStack Query mutation).
+If linkUrl is present, navigate the user to that URL using Wouter.
+A "Mark all as read" button.
+A "View All Notifications" link navigating to the dedicated notifications page.
+Dedicated Notifications Page (e.g., /notifications):
+Route handled by Wouter.
+Displays a full, paginated list of the user's notifications (using TanStack Query for infinite scrolling or pagination).
+Filtering options (e.g., by type, isRead status).
+Ability to mark individual or all notifications as read.
+Clear visual distinction between read and unread items.
+Real-time Updates:
+Implement WebSocket client-side logic (see section III) to listen for new notifications and update the unreadNotificationCount and potentially prepend to the visible list in the NotificationPanel.
+Use TanStack Query's cache invalidation or refetching mechanisms when notifications are marked as read.
+III. Real-time Functionality (WebSockets - e.g., using socket.io):
+Backend (WebSocket Server):
+Integrate socket.io (or similar) with your Node.js server.
+When a user authenticates, associate their socket.id with their userId and tenantId.
+Use rooms for efficient targeting (e.g., join a room like user_${userId}_${tenantId}).
+In NotificationService.createNotification, after saving to DB, emit a new_notification event to the specific user's room/socket, sending the new notification data (or just the unread count).
+Handle disconnections and reconnections gracefully.
+Frontend (WebSocket Client):
+Establish a WebSocket connection upon application load (after user login).
+Listen for new_notification events.
+On receiving an event:
+Update the unread count (triggering a re-render of NotificationBell).
+Optionally, show a toast/snackbar notification (e.g., using Shadcn/UI Toast).
+If the NotificationPanel is open, prepend the new notification to the list.
+Invalidate relevant TanStack Query caches for notification lists if needed.
+IV. Integration Points & Usage:
+Workflow Automation Module: A primary consumer. The "Send Internal Notification" action in a workflow will call NotificationService.createNotification with appropriate parameters (recipient user/role, message template with variables like {{trigger.client.name}}).
+Tasks Module:
+When a task is assigned to a user.
+When a task status changes (e.g., to "Completed" for the creator).
+When a comment/mention (@username) is added to a task.
+User Management Module:
+Notify users if their permissions are changed (if desired).
+System Setup/AI Configurations:
+Notify admins if an AI provider configuration fails or needs attention.
+V. Key Considerations for AI Implementation:
+Variable Substitution in Messages: Allow notification messages (especially those triggered by workflows) to use placeholders (e.g., "Task '{{task.title}}' is now overdue."). The NotificationService might not do the templating itself, but the calling service (like Workflow Automation) would prepare the final message.
+Performance: The getUnreadNotificationCount query needs to be very fast. Fetching lists should be paginated.
+Scalability of WebSockets: Consider the number of concurrent connections if you anticipate a very large number of users online simultaneously.
+User Preferences (Future Enhancement): While not for the initial build, think ahead. Users might eventually want to customize which types of notifications they receive or how (e.g., in-app only, email digest).
+Security: Strictly ensure users can only access and manage their own notifications. API endpoints must be correctly protected. tenantId checks are paramount.
+Clarity of "Internal": Ensure this system is for notifications within the application for the firm's users, not for the Client Portal users (unless a separate, similar system is planned for them later).
+Example Scenario for AI to "Understand":
+A Workflow "Monthly Bookkeeping Reminder" runs for Client X.
+An action in this workflow is "Send Internal Notification."
+The Workflow Engine calls NotificationService.createNotification with:
+tenantId: Current tenant
+userId: ID of the accountant assigned to Client X
+title: "Bookkeeping Due for {{client.name}}" (template resolved to "Bookkeeping Due for Client X")
+messageBody: "Monthly bookkeeping tasks for {{client.name}} are due by {{task.dueDate}}."
+linkUrl: /clients/{{client.id}}/tasks (resolved to /clients/client_x_id/tasks)
+type: 'TASK_REMINDER'
+NotificationService saves this to the DB and emits a WebSocket event to the accountant's client.
+Accountant's UI updates the bell icon count and shows the notification.

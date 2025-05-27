@@ -1480,3 +1480,115 @@ export const completeWorkflowSchema = z.object({
 });
 
 export type CompleteWorkflow = z.infer<typeof completeWorkflowSchema>;
+
+// Internal Notification System Schema
+
+// Notification type enum
+export const notificationTypeEnum = pgEnum('notification_type', [
+  'TASK_ASSIGNMENT',
+  'TASK_COMPLETED', 
+  'TASK_OVERDUE',
+  'WORKFLOW_ALERT',
+  'SYSTEM_MESSAGE',
+  'MENTION',
+  'CLIENT_UPDATE',
+  'INVOICE_UPDATE',
+  'ENTITY_UPDATE',
+  'USER_UPDATE',
+  'CUSTOM'
+]);
+
+// Notification severity enum
+export const notificationSeverityEnum = pgEnum('notification_severity', [
+  'INFO',
+  'WARNING', 
+  'CRITICAL',
+  'SUCCESS'
+]);
+
+// Notifications table
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  userId: integer("user_id").notNull(), // Recipient of the notification
+  title: text("title").notNull(),
+  messageBody: text("message_body").notNull(),
+  linkUrl: text("link_url"), // Optional URL within the application to navigate to
+  isRead: boolean("is_read").default(false).notNull(),
+  type: notificationTypeEnum("type").default("SYSTEM_MESSAGE").notNull(),
+  severity: notificationSeverityEnum("severity").default("INFO").notNull(),
+  createdBy: integer("created_by"), // User who triggered the notification (null for system-generated)
+  relatedModule: text("related_module"), // e.g., 'Tasks', 'Clients', 'Workflows'
+  relatedEntityId: text("related_entity_id"), // ID of the entity in the related module
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantFk: foreignKey({ columns: [table.tenantId], foreignColumns: [tenants.id] }),
+    userFk: foreignKey({ columns: [table.userId], foreignColumns: [users.id] }),
+    createdByFk: foreignKey({ columns: [table.createdBy], foreignColumns: [users.id] })
+  };
+});
+
+// Notification preferences table (for future enhancement)
+export const notificationPreferences = pgTable("notification_preferences", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  userId: integer("user_id").notNull(),
+  notificationType: notificationTypeEnum("notification_type").notNull(),
+  inAppEnabled: boolean("in_app_enabled").default(true).notNull(),
+  emailEnabled: boolean("email_enabled").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    userTypeUnique: unique().on(table.userId, table.notificationType),
+    tenantFk: foreignKey({ columns: [table.tenantId], foreignColumns: [tenants.id] }),
+    userFk: foreignKey({ columns: [table.userId], foreignColumns: [users.id] })
+  };
+});
+
+// Zod schemas for notifications
+export const insertNotificationSchema = createInsertSchema(notifications).pick({
+  tenantId: true,
+  userId: true,
+  title: true,
+  messageBody: true,
+  linkUrl: true,
+  type: true,
+  severity: true,
+  createdBy: true,
+  relatedModule: true,
+  relatedEntityId: true,
+});
+
+export const insertNotificationPreferenceSchema = createInsertSchema(notificationPreferences).pick({
+  tenantId: true,
+  userId: true,
+  notificationType: true,
+  inAppEnabled: true,
+  emailEnabled: true,
+});
+
+// TypeScript types for notifications
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
+export type NotificationPreference = typeof notificationPreferences.$inferSelect;
+export type InsertNotificationPreference = z.infer<typeof insertNotificationPreferenceSchema>;
+
+// Notification creation with multiple recipients schema
+export const createNotificationSchema = z.object({
+  tenantId: z.number(),
+  userIds: z.array(z.number()).optional(), // For specific users
+  roleId: z.number().optional(), // For all users with a specific role
+  title: z.string().min(1),
+  messageBody: z.string().min(1),
+  linkUrl: z.string().optional(),
+  type: z.enum(['TASK_ASSIGNMENT', 'TASK_COMPLETED', 'TASK_OVERDUE', 'WORKFLOW_ALERT', 'SYSTEM_MESSAGE', 'MENTION', 'CLIENT_UPDATE', 'INVOICE_UPDATE', 'ENTITY_UPDATE', 'USER_UPDATE', 'CUSTOM']).default('SYSTEM_MESSAGE'),
+  severity: z.enum(['INFO', 'WARNING', 'CRITICAL', 'SUCCESS']).default('INFO'),
+  createdBy: z.number().optional(),
+  relatedModule: z.string().optional(),
+  relatedEntityId: z.string().optional(),
+});
+
+export type CreateNotification = z.infer<typeof createNotificationSchema>;
