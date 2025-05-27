@@ -4703,13 +4703,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
       
+      // Check if invoice exists
+      const invoice = await storage.getInvoice(id, tenantId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      // First, delete all related journal entries for this invoice
+      try {
+        const journalEntries = await storage.getJournalEntries(tenantId);
+        const invoiceJournalEntries = journalEntries.filter(entry => 
+          entry.reference === `INV-${invoice.invoiceNumber}` || 
+          entry.reference === invoice.invoiceNumber ||
+          entry.description?.includes(`Invoice ${invoice.invoiceNumber}`) ||
+          entry.description?.includes(`INV-${invoice.invoiceNumber}`)
+        );
+        
+        console.log(`Found ${invoiceJournalEntries.length} journal entries to delete for invoice ${invoice.invoiceNumber}`);
+        
+        // Delete each related journal entry
+        for (const journalEntry of invoiceJournalEntries) {
+          try {
+            await storage.deleteJournalEntry(journalEntry.id, tenantId);
+            console.log(`Deleted journal entry ${journalEntry.id} for invoice ${invoice.invoiceNumber}`);
+          } catch (jeError) {
+            console.error(`Failed to delete journal entry ${journalEntry.id}:`, jeError);
+            // Continue with other entries even if one fails
+          }
+        }
+      } catch (journalError) {
+        console.error("Error cleaning up journal entries:", journalError);
+        // Continue with invoice deletion even if journal cleanup fails
+      }
+      
+      // Delete invoice line items
+      try {
+        const lineItems = await storage.getInvoiceLineItems(id, tenantId);
+        for (const lineItem of lineItems) {
+          await storage.deleteInvoiceLineItem(lineItem.id, tenantId);
+        }
+        console.log(`Deleted ${lineItems.length} line items for invoice ${invoice.invoiceNumber}`);
+      } catch (lineItemError) {
+        console.error("Error deleting invoice line items:", lineItemError);
+        // Continue with invoice deletion
+      }
+      
+      // Finally, delete the invoice itself
       const success = await storage.deleteInvoice(id, tenantId);
       if (!success) {
         return res.status(404).json({ message: "Invoice not found" });
       }
       
+      console.log(`Successfully deleted invoice ${invoice.invoiceNumber} and all related records`);
       res.status(204).send();
     } catch (error) {
+      console.error("Error deleting invoice:", error);
       res.status(500).json({ message: "Failed to delete invoice" });
     }
   });
