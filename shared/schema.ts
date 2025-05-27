@@ -1246,3 +1246,237 @@ export const clientPortalLoginSchema = z.object({
 });
 
 export type ClientPortalLoginData = z.infer<typeof clientPortalLoginSchema>;
+
+// Workflow Automation Module Schema
+
+// Workflow status enum
+export const workflowStatusEnum = pgEnum('workflow_status', ['active', 'inactive', 'draft']);
+
+// Workflow execution status enum
+export const executionStatusEnum = pgEnum('execution_status', ['success', 'failed', 'in_progress', 'skipped']);
+
+// Action types enum
+export const actionTypeEnum = pgEnum('action_type', [
+  'create_task',
+  'update_task',
+  'send_notification',
+  'update_client_field',
+  'create_invoice',
+  'send_email',
+  'call_webhook',
+  'update_entity_field',
+  'assign_user'
+]);
+
+// Trigger events enum
+export const triggerEventEnum = pgEnum('trigger_event', [
+  'client_created',
+  'client_updated',
+  'client_status_changed',
+  'task_created',
+  'task_updated',
+  'task_status_changed',
+  'task_completed',
+  'invoice_created',
+  'invoice_paid',
+  'invoice_overdue',
+  'entity_created',
+  'entity_updated',
+  'user_created',
+  'payment_received'
+]);
+
+// Workflows table
+export const workflows = pgTable("workflows", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  status: workflowStatusEnum("status").default("draft").notNull(),
+  isActive: boolean("is_active").default(false).notNull(),
+  createdBy: integer("created_by").notNull(),
+  updatedBy: integer("updated_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantFk: foreignKey({ columns: [table.tenantId], foreignColumns: [tenants.id] }),
+    createdByFk: foreignKey({ columns: [table.createdBy], foreignColumns: [users.id] }),
+    updatedByFk: foreignKey({ columns: [table.updatedBy], foreignColumns: [users.id] })
+  };
+});
+
+// Workflow triggers table
+export const workflowTriggers = pgTable("workflow_triggers", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  workflowId: integer("workflow_id").notNull(),
+  triggerModule: text("trigger_module").notNull(), // e.g., "clients", "tasks", "invoices"
+  triggerEvent: triggerEventEnum("trigger_event").notNull(),
+  triggerConditions: text("trigger_conditions"), // JSON string for complex conditions
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantFk: foreignKey({ columns: [table.tenantId], foreignColumns: [tenants.id] }),
+    workflowFk: foreignKey({ columns: [table.workflowId], foreignColumns: [workflows.id] })
+  };
+});
+
+// Workflow actions table
+export const workflowActions = pgTable("workflow_actions", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  workflowId: integer("workflow_id").notNull(),
+  sequenceOrder: integer("sequence_order").notNull(),
+  actionType: actionTypeEnum("action_type").notNull(),
+  actionConfiguration: text("action_configuration").notNull(), // JSON string for action parameters
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantFk: foreignKey({ columns: [table.tenantId], foreignColumns: [tenants.id] }),
+    workflowFk: foreignKey({ columns: [table.workflowId], foreignColumns: [workflows.id] })
+  };
+});
+
+// Workflow execution logs table
+export const workflowExecutionLogs = pgTable("workflow_execution_logs", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  workflowId: integer("workflow_id").notNull(),
+  triggerId: integer("trigger_id").notNull(),
+  triggerEventData: text("trigger_event_data").notNull(), // JSON string of event data
+  executionStatus: executionStatusEnum("execution_status").notNull(),
+  actionLogs: text("action_logs"), // JSON array of action execution results
+  errorMessage: text("error_message"),
+  executionTimeMs: integer("execution_time_ms"),
+  executedAt: timestamp("executed_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantFk: foreignKey({ columns: [table.tenantId], foreignColumns: [tenants.id] }),
+    workflowFk: foreignKey({ columns: [table.workflowId], foreignColumns: [workflows.id] }),
+    triggerFk: foreignKey({ columns: [table.triggerId], foreignColumns: [workflowTriggers.id] })
+  };
+});
+
+// Workflow action execution details table (for detailed action-level logging)
+export const workflowActionExecutions = pgTable("workflow_action_executions", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  executionLogId: integer("execution_log_id").notNull(),
+  actionId: integer("action_id").notNull(),
+  executionStatus: executionStatusEnum("execution_status").notNull(),
+  inputData: text("input_data"), // JSON string of action input
+  outputData: text("output_data"), // JSON string of action output
+  errorMessage: text("error_message"),
+  executionTimeMs: integer("execution_time_ms"),
+  executedAt: timestamp("executed_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantFk: foreignKey({ columns: [table.tenantId], foreignColumns: [tenants.id] }),
+    executionLogFk: foreignKey({ columns: [table.executionLogId], foreignColumns: [workflowExecutionLogs.id] }),
+    actionFk: foreignKey({ columns: [table.actionId], foreignColumns: [workflowActions.id] })
+  };
+});
+
+// Workflow templates table (for predefined workflow templates)
+export const workflowTemplates = pgTable("workflow_templates", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  category: text("category"), // e.g., "client_onboarding", "task_automation", "financial"
+  templateData: text("template_data").notNull(), // JSON string containing complete workflow definition
+  isSystemTemplate: boolean("is_system_template").default(false).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Zod schemas for inserts
+export const insertWorkflowSchema = createInsertSchema(workflows).pick({
+  tenantId: true,
+  name: true,
+  description: true,
+  status: true,
+  isActive: true,
+  createdBy: true,
+  updatedBy: true,
+});
+
+export const insertWorkflowTriggerSchema = createInsertSchema(workflowTriggers).pick({
+  tenantId: true,
+  workflowId: true,
+  triggerModule: true,
+  triggerEvent: true,
+  triggerConditions: true,
+  isActive: true,
+});
+
+export const insertWorkflowActionSchema = createInsertSchema(workflowActions).pick({
+  tenantId: true,
+  workflowId: true,
+  sequenceOrder: true,
+  actionType: true,
+  actionConfiguration: true,
+  isActive: true,
+});
+
+export const insertWorkflowExecutionLogSchema = createInsertSchema(workflowExecutionLogs).pick({
+  tenantId: true,
+  workflowId: true,
+  triggerId: true,
+  triggerEventData: true,
+  executionStatus: true,
+  actionLogs: true,
+  errorMessage: true,
+  executionTimeMs: true,
+});
+
+export const insertWorkflowActionExecutionSchema = createInsertSchema(workflowActionExecutions).pick({
+  tenantId: true,
+  executionLogId: true,
+  actionId: true,
+  executionStatus: true,
+  inputData: true,
+  outputData: true,
+  errorMessage: true,
+  executionTimeMs: true,
+});
+
+export const insertWorkflowTemplateSchema = createInsertSchema(workflowTemplates).pick({
+  name: true,
+  description: true,
+  category: true,
+  templateData: true,
+  isSystemTemplate: true,
+  isActive: true,
+});
+
+// TypeScript types
+export type Workflow = typeof workflows.$inferSelect;
+export type InsertWorkflow = z.infer<typeof insertWorkflowSchema>;
+
+export type WorkflowTrigger = typeof workflowTriggers.$inferSelect;
+export type InsertWorkflowTrigger = z.infer<typeof insertWorkflowTriggerSchema>;
+
+export type WorkflowAction = typeof workflowActions.$inferSelect;
+export type InsertWorkflowAction = z.infer<typeof insertWorkflowActionSchema>;
+
+export type WorkflowExecutionLog = typeof workflowExecutionLogs.$inferSelect;
+export type InsertWorkflowExecutionLog = z.infer<typeof insertWorkflowExecutionLogSchema>;
+
+export type WorkflowActionExecution = typeof workflowActionExecutions.$inferSelect;
+export type InsertWorkflowActionExecution = z.infer<typeof insertWorkflowActionExecutionSchema>;
+
+export type WorkflowTemplate = typeof workflowTemplates.$inferSelect;
+export type InsertWorkflowTemplate = z.infer<typeof insertWorkflowTemplateSchema>;
+
+// Extended workflow schema for complete workflow with triggers and actions
+export const completeWorkflowSchema = z.object({
+  workflow: insertWorkflowSchema,
+  triggers: z.array(insertWorkflowTriggerSchema.omit({ workflowId: true })),
+  actions: z.array(insertWorkflowActionSchema.omit({ workflowId: true })),
+});
+
+export type CompleteWorkflow = z.infer<typeof completeWorkflowSchema>;
