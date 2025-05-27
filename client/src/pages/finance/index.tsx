@@ -28,7 +28,7 @@ import {
   ChevronRight
 } from "lucide-react";
 
-export default function FinancePage() {
+function FinancePage() {
   const [location, setLocation] = useLocation();
   const { user } = useAuth();
   
@@ -371,3 +371,5 @@ export default function FinancePage() {
     </AppLayout>
   );
 }
+
+export default FinancePage;
