@@ -5468,11 +5468,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Delete the account
+      console.log(`Attempting to delete chart of accounts entry with ID: ${id}`);
       const result = await storage.deleteChartOfAccount(id, tenantId);
+      console.log(`Deletion result for chart of accounts ID ${id}:`, result);
       
       if (result) {
+        console.log(`Successfully deleted chart of accounts entry ${id}`);
         res.status(204).end();
       } else {
+        console.log(`Failed to delete chart of accounts entry ${id}`);
         res.status(500).json({ message: "Failed to delete account" });
       }
     } catch (error) {
