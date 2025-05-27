@@ -550,51 +550,45 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
       </div>
       
       <Card className="mb-6">
-        <CardContent className="pt-6">
-          <div className="flex items-center">
-            <Avatar className="h-16 w-16 bg-blue-100 text-blue-600">
-              <AvatarFallback>
-                {client.displayName
-                  .split(" ")
-                  .map(n => n[0])
-                  .join("")
-                  .toUpperCase()
-                  .substring(0, 2)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="ml-4">
-              <h2 className="text-lg font-medium text-slate-900">
-                {client.displayName}
-              </h2>
-              <p className="text-sm text-slate-500">{client.email}</p>
+        <CardContent className="py-3 px-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Avatar className="h-10 w-10 bg-blue-100 text-blue-600">
+                <AvatarFallback className="text-sm font-medium">
+                  {client.displayName
+                    .split(" ")
+                    .map(n => n[0])
+                    .join("")
+                    .toUpperCase()
+                    .substring(0, 2)}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h2 className="text-base font-medium text-slate-900">{client.displayName}</h2>
+                <p className="text-xs text-slate-500">{client.email}</p>
+              </div>
             </div>
-          </div>
-          
-          <div className="mt-6 border-t border-slate-200 pt-6">
-            <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
-              <div className="sm:col-span-1">
-                <dt className="text-sm font-medium text-slate-500">Mobile</dt>
-                <dd className="mt-1 text-sm text-slate-900">{client.mobile}</dd>
+            
+            <div className="flex items-center space-x-6 text-xs">
+              <div className="flex items-center space-x-1">
+                <span className="text-slate-500">Mobile:</span>
+                <span className="text-slate-900">{client.mobile}</span>
               </div>
-              <div className="sm:col-span-1">
-                <dt className="text-sm font-medium text-slate-500">Status</dt>
-                <dd className="mt-1">
-                  <Badge variant={client.status === 'Active' ? 'success' : 'warning'}>
-                    {client.status}
-                  </Badge>
-                </dd>
+              <div className="flex items-center space-x-1">
+                <span className="text-slate-500">Status:</span>
+                <Badge variant={client.status === 'Active' ? 'success' : 'warning'} className="text-xs py-0 px-2">
+                  {client.status}
+                </Badge>
               </div>
-              <div className="sm:col-span-1">
-                <dt className="text-sm font-medium text-slate-500">Total Entities</dt>
-                <dd className="mt-1 text-sm text-slate-900">{entities.length}</dd>
+              <div className="flex items-center space-x-1">
+                <span className="text-slate-500">Entities:</span>
+                <span className="text-slate-900 font-medium">{entities.length}</span>
               </div>
-              <div className="sm:col-span-1">
-                <dt className="text-sm font-medium text-slate-500">Created On</dt>
-                <dd className="mt-1 text-sm text-slate-900">
-                  {new Date(client.createdAt).toLocaleDateString()}
-                </dd>
+              <div className="flex items-center space-x-1">
+                <span className="text-slate-500">Created:</span>
+                <span className="text-slate-900">{new Date(client.createdAt).toLocaleDateString()}</span>
               </div>
-            </dl>
+            </div>
           </div>
         </CardContent>
       </Card>
