@@ -1479,28 +1479,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Entity not found" });
       }
       
-      // Check for related records that would prevent deletion
+      // Check for tasks associated with this entity
+      const tasks = await storage.getTasks(tenantId, undefined, id);
+      if (tasks.length > 0) {
+        return res.status(400).json({ 
+          message: "Cannot delete entity. There are tasks associated with this entity. Please reassign or delete the tasks first.",
+          relatedRecords: { tasks: tasks.length }
+        });
+      }
+      
+      // Check for invoices associated with this entity
+      const invoices = await storage.getInvoices(tenantId, undefined, id);
+      if (invoices.length > 0) {
+        return res.status(400).json({ 
+          message: "Cannot delete entity. There are invoices associated with this entity. Please move or delete the invoices first.",
+          relatedRecords: { invoices: invoices.length }
+        });
+      }
+      
+      // Attempt to delete the entity - wrap this specific call to catch foreign key constraint errors
       try {
-        // Check for tasks associated with this entity
-        const tasks = await storage.getTasks(tenantId, undefined, id);
-        if (tasks.length > 0) {
-          return res.status(400).json({ 
-            message: "Cannot delete entity. There are tasks associated with this entity. Please reassign or delete the tasks first.",
-            relatedRecords: { tasks: tasks.length }
-          });
-        }
-        
-        // Check for invoices associated with this entity
-        const invoices = await storage.getInvoices(tenantId, undefined, id);
-        if (invoices.length > 0) {
-          return res.status(400).json({ 
-            message: "Cannot delete entity. There are invoices associated with this entity. Please move or delete the invoices first.",
-            relatedRecords: { invoices: invoices.length }
-          });
-        }
-        
-        // If there are chart of accounts records, they need to be handled
-        // For now, we'll provide a clear error message
         const success = await storage.deleteEntity(id, tenantId);
         if (!success) {
           return res.status(404).json({ message: "Entity not found" });
