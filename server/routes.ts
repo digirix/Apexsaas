@@ -1358,15 +1358,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const clientId = parseInt(req.params.clientId);
       
+      console.log(`Fetching entities for client ${clientId} in tenant ${tenantId}`);
+      
       // Check if client belongs to tenant
       const client = await storage.getClient(clientId, tenantId);
       if (!client) {
+        console.log(`Client ${clientId} not found in tenant ${tenantId}`);
         return res.status(404).json({ message: "Client not found" });
       }
       
+      console.log(`Client found: ${client.displayName}`);
       const entities = await storage.getEntities(tenantId, clientId);
+      console.log(`Found ${entities.length} entities for client ${clientId}`);
       res.json(entities);
     } catch (error) {
+      console.error(`Error fetching entities for client ${req.params.clientId}:`, error);
       res.status(500).json({ message: "Failed to fetch entities" });
     }
   });
