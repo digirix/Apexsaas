@@ -2458,18 +2458,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteChartOfAccount(id: number, tenantId: number): Promise<boolean> {
-    // Soft delete by setting isActive to false instead of hard delete
-    const [updatedAccount] = await db.update(chartOfAccounts)
-      .set({ 
-        isActive: false,
-        updatedAt: new Date()
-      })
-      .where(and(
-        eq(chartOfAccounts.id, id),
-        eq(chartOfAccounts.tenantId, tenantId)
-      ))
-      .returning({ id: chartOfAccounts.id });
-    return !!updatedAccount;
+    try {
+      // Hard delete - completely remove the record from the database
+      const result = await db.delete(chartOfAccounts)
+        .where(and(
+          eq(chartOfAccounts.id, id),
+          eq(chartOfAccounts.tenantId, tenantId)
+        ));
+      
+      console.log(`Chart of accounts deletion result for ID ${id}:`, result.rowCount);
+      return (result.rowCount || 0) > 0;
+    } catch (error) {
+      console.error(`Error deleting chart of accounts entry ${id}:`, error);
+      throw error;
+    }
   }
 
   // Journal Entry operations for accounting
