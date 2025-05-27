@@ -470,15 +470,24 @@ export function WorkflowBuilder({ workflow, onClose, onSave }: WorkflowBuilderPr
 // Trigger Form Component
 function TriggerForm({ trigger, triggerConfig, onSave, onCancel }: any) {
   const [formData, setFormData] = useState({
-    triggerModule: trigger?.triggerModule || "",
-    triggerEvent: trigger?.triggerEvent || "",
-    triggerConditions: trigger?.triggerConditions || null
+    triggerType: trigger?.triggerType || "",
+    triggerConfiguration: trigger?.triggerConfiguration || {}
   });
 
-  const selectedModule = triggerConfig?.modules?.find((m: any) => m.name === formData.triggerModule);
+  const selectedTriggerType = triggerConfig?.types?.find((t: any) => t.name === formData.triggerType);
+
+  const handleConfigChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      triggerConfiguration: {
+        ...prev.triggerConfiguration,
+        [field]: value
+      }
+    }));
+  };
 
   const handleSave = () => {
-    if (!formData.triggerModule || !formData.triggerEvent) {
+    if (!formData.triggerType) {
       return;
     }
     onSave(formData);
@@ -486,51 +495,80 @@ function TriggerForm({ trigger, triggerConfig, onSave, onCancel }: any) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md max-h-[90vh] overflow-hidden">
         <CardHeader>
           <CardTitle>{trigger ? "Edit Trigger" : "Add Trigger"}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Module</Label>
-            <Select
-              value={formData.triggerModule}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, triggerModule: value, triggerEvent: "" }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select module" />
-              </SelectTrigger>
-              <SelectContent>
-                {triggerConfig?.modules?.map((module: any) => (
-                  <SelectItem key={module.name} value={module.name}>
-                    {module.displayName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {selectedModule && (
+        <ScrollArea className="max-h-[60vh]">
+          <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Event</Label>
+              <Label>Trigger Type</Label>
               <Select
-                value={formData.triggerEvent}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, triggerEvent: value }))}
+                value={formData.triggerType}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, triggerType: value, triggerConfiguration: {} }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select event" />
+                  <SelectValue placeholder="Select trigger type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {selectedModule.events?.map((event: any) => (
-                    <SelectItem key={event.name} value={event.name}>
-                      {event.displayName}
+                  {triggerConfig?.types?.map((type: any) => (
+                    <SelectItem key={type.name} value={type.name}>
+                      {type.displayName}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          )}
 
+            {selectedTriggerType && (
+              <div className="space-y-4">
+                <div className="text-sm text-muted-foreground">
+                  {selectedTriggerType.description}
+                </div>
+                {selectedTriggerType.configFields?.map((field: any) => (
+                  <div key={field.name} className="space-y-2">
+                    <Label>{field.label || field.name.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase())}</Label>
+                    {field.type === "textarea" ? (
+                      <Textarea
+                        value={formData.triggerConfiguration[field.name] || field.defaultValue || ""}
+                        onChange={(e) => handleConfigChange(field.name, e.target.value)}
+                        placeholder={field.placeholder}
+                        required={field.required}
+                        disabled={field.readonly}
+                      />
+                    ) : field.type === "select" ? (
+                      <Select
+                        value={formData.triggerConfiguration[field.name] || field.defaultValue || ""}
+                        onValueChange={(value) => handleConfigChange(field.name, value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={field.placeholder} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {field.options?.map((option: string) => (
+                            <SelectItem key={option} value={option}>
+                              {option}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        type={field.type === "number" ? "number" : "text"}
+                        value={formData.triggerConfiguration[field.name] || field.defaultValue || ""}
+                        onChange={(e) => handleConfigChange(field.name, e.target.value)}
+                        placeholder={field.placeholder}
+                        required={field.required}
+                        disabled={field.readonly}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </ScrollArea>
+        <CardContent className="pt-0">
           <div className="flex justify-end space-x-2">
             <Button variant="outline" onClick={onCancel}>
               Cancel

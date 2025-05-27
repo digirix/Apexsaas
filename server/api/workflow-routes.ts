@@ -250,41 +250,75 @@ export function registerWorkflowRoutes(app: Express, storage: any) {
   app.get("/api/v1/workflows/config/triggers", isAuthenticated, requirePermission(storage, "workflow-automation", "read"), async (req, res) => {
     try {
       const triggerConfig = {
-        modules: [
+        types: [
           {
-            name: "clients",
-            displayName: "Clients Management",
-            events: [
-              { name: "client_created", displayName: "Client Created" },
-              { name: "client_updated", displayName: "Client Updated" },
-              { name: "client_status_changed", displayName: "Client Status Changed" }
+            name: 'webhook',
+            displayName: 'Webhook Trigger',
+            description: 'Trigger workflow when a webhook URL is called',
+            configFields: [
+              { name: 'webhookUrl', type: 'text', required: true, placeholder: 'Unique webhook URL will be generated', readonly: true },
+              { name: 'method', type: 'select', options: ['POST', 'GET', 'PUT'], required: true, defaultValue: 'POST' },
+              { name: 'authToken', type: 'text', required: false, placeholder: 'Optional authentication token' }
             ]
           },
           {
-            name: "tasks",
-            displayName: "Tasks Management", 
-            events: [
-              { name: "task_created", displayName: "Task Created" },
-              { name: "task_updated", displayName: "Task Updated" },
-              { name: "task_status_changed", displayName: "Task Status Changed" },
-              { name: "task_completed", displayName: "Task Completed" }
+            name: 'schedule',
+            displayName: 'Schedule Trigger',
+            description: 'Trigger workflow on a schedule (cron expression)',
+            configFields: [
+              { name: 'cronExpression', type: 'text', required: true, placeholder: '0 9 * * 1-5 (Every weekday at 9 AM)' },
+              { name: 'timezone', type: 'select', options: ['UTC', 'America/New_York', 'America/Los_Angeles', 'Europe/London', 'Asia/Tokyo'], required: true, defaultValue: 'UTC' },
+              { name: 'description', type: 'text', required: false, placeholder: 'Schedule description' }
             ]
           },
           {
-            name: "invoices",
-            displayName: "Finance - Invoices",
-            events: [
-              { name: "invoice_created", displayName: "Invoice Created" },
-              { name: "invoice_paid", displayName: "Invoice Paid" },
-              { name: "invoice_overdue", displayName: "Invoice Overdue" }
+            name: 'database_change',
+            displayName: 'Database Change',
+            description: 'Trigger when database records are created, updated, or deleted',
+            configFields: [
+              { name: 'tableName', type: 'text', required: true, placeholder: 'e.g., clients, tasks, invoices' },
+              { name: 'operation', type: 'select', options: ['CREATE', 'UPDATE', 'DELETE', 'ANY'], required: true, defaultValue: 'CREATE' },
+              { name: 'conditions', type: 'textarea', required: false, placeholder: 'JSON conditions: {"status": "active", "amount": {"$gt": 1000}}' }
             ]
           },
           {
-            name: "entities",
-            displayName: "Client Entities",
-            events: [
-              { name: "entity_created", displayName: "Entity Created" },
-              { name: "entity_updated", displayName: "Entity Updated" }
+            name: 'file_upload',
+            displayName: 'File Upload',
+            description: 'Trigger when files are uploaded to the system',
+            configFields: [
+              { name: 'fileTypes', type: 'text', required: false, placeholder: 'pdf,xlsx,csv (leave empty for all types)' },
+              { name: 'minSize', type: 'number', required: false, placeholder: 'Minimum file size in KB' },
+              { name: 'maxSize', type: 'number', required: false, placeholder: 'Maximum file size in KB' }
+            ]
+          },
+          {
+            name: 'email_received',
+            displayName: 'Email Received',
+            description: 'Trigger when emails are received (requires email integration)',
+            configFields: [
+              { name: 'fromEmail', type: 'text', required: false, placeholder: 'Filter by sender email (optional)' },
+              { name: 'subject', type: 'text', required: false, placeholder: 'Filter by subject keywords (optional)' },
+              { name: 'hasAttachment', type: 'select', options: ['Any', 'Yes', 'No'], required: false, defaultValue: 'Any' }
+            ]
+          },
+          {
+            name: 'api_call',
+            displayName: 'External API Response',
+            description: 'Trigger based on external API responses',
+            configFields: [
+              { name: 'apiUrl', type: 'text', required: true, placeholder: 'https://api.example.com/endpoint' },
+              { name: 'method', type: 'select', options: ['GET', 'POST'], required: true, defaultValue: 'GET' },
+              { name: 'headers', type: 'textarea', required: false, placeholder: '{"Authorization": "Bearer token"}' },
+              { name: 'checkInterval', type: 'number', required: true, placeholder: '300', defaultValue: 300 }
+            ]
+          },
+          {
+            name: 'manual',
+            displayName: 'Manual Trigger',
+            description: 'Manually trigger workflow execution',
+            configFields: [
+              { name: 'buttonLabel', type: 'text', required: false, placeholder: 'Start Workflow', defaultValue: 'Start Workflow' },
+              { name: 'requireConfirmation', type: 'select', options: ['Yes', 'No'], required: false, defaultValue: 'No' }
             ]
           }
         ]
@@ -303,46 +337,93 @@ export function registerWorkflowRoutes(app: Express, storage: any) {
       const actionConfig = {
         types: [
           {
-            name: "create_task",
-            displayName: "Create Task",
-            description: "Automatically create a new task",
+            name: "http_request",
+            displayName: "HTTP Request",
+            description: "Make HTTP requests to any API or webhook",
             configFields: [
-              { name: "title", type: "text", required: true, placeholder: "Task title (use {{trigger.client.name}} for variables)" },
-              { name: "description", type: "textarea", required: false, placeholder: "Task description" },
-              { name: "clientId", type: "variable", required: false, placeholder: "{{trigger.client.id}}" },
-              { name: "assigneeId", type: "number", required: false, placeholder: "User ID to assign task" },
-              { name: "dueDateOffset", type: "text", required: false, placeholder: "+7 days, +2 weeks, +1 month" },
-              { name: "priority", type: "select", options: ["Low", "Medium", "High"], required: false }
+              { name: "url", type: "text", required: true, placeholder: "https://api.example.com/endpoint" },
+              { name: "method", type: "select", options: ["GET", "POST", "PUT", "DELETE", "PATCH"], required: true, defaultValue: "POST" },
+              { name: "headers", type: "textarea", required: false, placeholder: '{"Content-Type": "application/json", "Authorization": "Bearer token"}' },
+              { name: "body", type: "textarea", required: false, placeholder: '{"data": "{{trigger.data}}", "message": "Hello World"}' },
+              { name: "timeout", type: "number", required: false, placeholder: "30", defaultValue: 30 }
             ]
           },
           {
-            name: "send_notification",
-            displayName: "Send Notification",
-            description: "Send internal notification to users",
+            name: "database_query",
+            displayName: "Database Operation",
+            description: "Execute database queries (SELECT, INSERT, UPDATE, DELETE)",
             configFields: [
-              { name: "recipientRole", type: "text", required: false, placeholder: "Role name or user ID" },
-              { name: "message", type: "textarea", required: true, placeholder: "Notification message" },
-              { name: "type", type: "select", options: ["info", "success", "warning", "error"], required: false }
-            ]
-          },
-          {
-            name: "update_client_field",
-            displayName: "Update Client Field",
-            description: "Update a specific field on the client record",
-            configFields: [
-              { name: "clientId", type: "variable", required: true, placeholder: "{{trigger.client.id}}" },
-              { name: "fieldName", type: "text", required: true, placeholder: "Field name to update" },
-              { name: "fieldValue", type: "text", required: true, placeholder: "New field value" }
+              { name: "operation", type: "select", options: ["SELECT", "INSERT", "UPDATE", "DELETE"], required: true, defaultValue: "INSERT" },
+              { name: "tableName", type: "text", required: true, placeholder: "clients, tasks, custom_table" },
+              { name: "data", type: "textarea", required: false, placeholder: '{"name": "{{trigger.name}}", "status": "active"}' },
+              { name: "conditions", type: "textarea", required: false, placeholder: '{"id": "{{trigger.id}}", "status": "pending"}' },
+              { name: "returnFields", type: "text", required: false, placeholder: "id,name,email (for SELECT queries)" }
             ]
           },
           {
             name: "send_email",
             displayName: "Send Email",
-            description: "Send email notification",
+            description: "Send emails via SMTP or email service",
             configFields: [
-              { name: "to", type: "text", required: true, placeholder: "{{trigger.client.email}} or email address" },
-              { name: "subject", type: "text", required: true, placeholder: "Email subject" },
-              { name: "body", type: "textarea", required: true, placeholder: "Email body content" }
+              { name: "to", type: "text", required: true, placeholder: "user@example.com or {{trigger.email}}" },
+              { name: "cc", type: "text", required: false, placeholder: "cc@example.com (optional)" },
+              { name: "bcc", type: "text", required: false, placeholder: "bcc@example.com (optional)" },
+              { name: "subject", type: "text", required: true, placeholder: "Email subject with {{variables}}" },
+              { name: "body", type: "textarea", required: true, placeholder: "Email body content with {{trigger.data}}" },
+              { name: "isHtml", type: "select", options: ["Yes", "No"], required: false, defaultValue: "No" }
+            ]
+          },
+          {
+            name: "file_operation",
+            displayName: "File Operation",
+            description: "Create, read, update, or delete files",
+            configFields: [
+              { name: "operation", type: "select", options: ["CREATE", "READ", "UPDATE", "DELETE", "COPY", "MOVE"], required: true, defaultValue: "CREATE" },
+              { name: "filePath", type: "text", required: true, placeholder: "/path/to/file.txt or uploads/{{trigger.filename}}" },
+              { name: "content", type: "textarea", required: false, placeholder: "File content or data to write" },
+              { name: "encoding", type: "select", options: ["utf8", "base64", "binary"], required: false, defaultValue: "utf8" }
+            ]
+          },
+          {
+            name: "conditional_logic",
+            displayName: "Conditional Logic",
+            description: "Execute actions based on conditions",
+            configFields: [
+              { name: "condition", type: "textarea", required: true, placeholder: '{{trigger.amount}} > 1000 && {{trigger.status}} === "pending"' },
+              { name: "trueActions", type: "textarea", required: false, placeholder: "JSON array of actions to execute if condition is true" },
+              { name: "falseActions", type: "textarea", required: false, placeholder: "JSON array of actions to execute if condition is false" }
+            ]
+          },
+          {
+            name: "data_transformation",
+            displayName: "Data Transformation",
+            description: "Transform, filter, or manipulate data",
+            configFields: [
+              { name: "inputData", type: "textarea", required: true, placeholder: "{{trigger.data}} or custom JSON data" },
+              { name: "transformScript", type: "textarea", required: true, placeholder: "JavaScript transformation logic" },
+              { name: "outputVariable", type: "text", required: false, placeholder: "Name to store transformed data" }
+            ]
+          },
+          {
+            name: "delay_action",
+            displayName: "Delay/Wait",
+            description: "Add delays between actions",
+            configFields: [
+              { name: "delayType", type: "select", options: ["seconds", "minutes", "hours", "days"], required: true, defaultValue: "minutes" },
+              { name: "delayAmount", type: "number", required: true, placeholder: "5" },
+              { name: "description", type: "text", required: false, placeholder: "Wait description" }
+            ]
+          },
+          {
+            name: "notification",
+            displayName: "Send Notification",
+            description: "Send in-app notifications or alerts",
+            configFields: [
+              { name: "recipients", type: "text", required: true, placeholder: "user@example.com,admin@company.com" },
+              { name: "title", type: "text", required: true, placeholder: "Notification title" },
+              { name: "message", type: "textarea", required: true, placeholder: "Notification message with {{variables}}" },
+              { name: "priority", type: "select", options: ["low", "normal", "high", "urgent"], required: false, defaultValue: "normal" },
+              { name: "channel", type: "select", options: ["in-app", "email", "sms", "slack", "teams"], required: false, defaultValue: "in-app" }
             ]
           }
         ]
