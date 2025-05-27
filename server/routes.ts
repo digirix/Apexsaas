@@ -10,6 +10,7 @@ import { registerAICustomizationRoutes } from "./api/ai-customization-routes";
 import { registerClientPortalRoutes } from "./routes/client-portal-routes";
 import { registerWorkflowRoutes } from "./api/workflow-routes";
 import { setupNotificationRoutes } from "./api/notification-routes";
+import { NotificationService } from "./services/notification-service";
 import { setupClientPortalAuth } from "./client-portal-auth";
 import { requirePermission, requireModuleAccess, getUserModulePermissions } from "./middleware/permissions";
 import { checkPermission } from "./middleware/check-permissions";
@@ -1259,6 +1260,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const client = await storage.createClient(validatedData);
         console.log("Client created successfully:", client);
+        
+        // Send notification to all staff about new client
+        const currentUserId = (req.user as any).id;
+        try {
+          // Get all staff members to notify
+          const allStaff = await storage.getUsers(tenantId);
+          const staffUserIds = allStaff.map(user => user.id);
+          
+          if (staffUserIds.length > 0) {
+            await NotificationService.createNotification({
+              tenantId,
+              userIds: staffUserIds,
+              title: "New Client Added",
+              messageBody: `A new client "${client.displayName}" has been added to your portfolio. Review their profile and set up initial services.`,
+              type: 'CLIENT_UPDATE',
+              severity: 'SUCCESS',
+              createdBy: currentUserId,
+              relatedModule: 'Clients',
+              relatedEntityId: client.id.toString(),
+              linkUrl: `/clients/${client.id}`
+            });
+          }
+        } catch (notifError) {
+          console.error("Error sending client creation notification:", notifError);
+          // Don't fail the client creation if notification fails
+        }
         
         res.status(201).json(client);
       } catch (validationError) {
@@ -2796,6 +2823,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const task = await storage.createTask(validatedData);
+      
+      // Send notification to assigned user if different from creator
+      const currentUserId = (req.user as any).id;
+      if (task.assigneeId && task.assigneeId !== currentUserId) {
+        try {
+          const assignee = await storage.getUser(task.assigneeId, tenantId);
+          if (assignee) {
+            await NotificationService.createTaskNotification(
+              tenantId,
+              task.assigneeId,
+              "New Task Assigned",
+              `You have been assigned a new task: ${task.taskDetails || 'Task'} due ${task.dueDate.toLocaleDateString()}`,
+              task.id,
+              currentUserId
+            );
+          }
+        } catch (notifError) {
+          console.error("Error sending task assignment notification:", notifError);
+          // Don't fail the task creation if notification fails
+        }
+      }
+      
       res.status(201).json(task);
     } catch (error) {
       if (error instanceof z.ZodError) {
