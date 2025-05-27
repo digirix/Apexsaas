@@ -2459,6 +2459,8 @@ export class DatabaseStorage implements IStorage {
 
   async deleteChartOfAccount(id: number, tenantId: number): Promise<boolean> {
     try {
+      console.log(`DATABASE STORAGE: Starting hard delete for chart of accounts ID ${id}, tenantId ${tenantId}`);
+      
       // Hard delete - completely remove the record from the database
       const result = await db.delete(chartOfAccounts)
         .where(and(
@@ -2466,11 +2468,32 @@ export class DatabaseStorage implements IStorage {
           eq(chartOfAccounts.tenantId, tenantId)
         ));
       
-      console.log(`Chart of accounts deletion result for ID ${id}:`, result.rowCount);
-      return (result.rowCount || 0) > 0;
+      console.log(`DATABASE STORAGE: Chart of accounts deletion result for ID ${id}:`, result.rowCount);
+      const success = (result.rowCount || 0) > 0;
+      console.log(`DATABASE STORAGE: Deletion ${success ? 'SUCCESSFUL' : 'FAILED'} for ID ${id}`);
+      return success;
     } catch (error) {
-      console.error(`Error deleting chart of accounts entry ${id}:`, error);
-      throw error;
+      console.error(`DATABASE STORAGE: Error during hard delete of chart of accounts entry ${id}:`, error);
+      
+      // If hard delete fails due to foreign key constraints, try soft delete as fallback
+      console.log(`DATABASE STORAGE: Falling back to soft delete for ID ${id}`);
+      try {
+        const result = await db.update(chartOfAccounts)
+          .set({ 
+            isActive: false,
+            updatedAt: new Date()
+          })
+          .where(and(
+            eq(chartOfAccounts.id, id),
+            eq(chartOfAccounts.tenantId, tenantId)
+          ));
+        
+        console.log(`DATABASE STORAGE: Soft delete fallback completed for ID ${id}`);
+        return (result.rowCount || 0) > 0;
+      } catch (softDeleteError) {
+        console.error(`DATABASE STORAGE: Both hard and soft delete failed for ID ${id}:`, softDeleteError);
+        throw softDeleteError;
+      }
     }
   }
 
