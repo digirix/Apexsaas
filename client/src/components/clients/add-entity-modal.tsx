@@ -277,11 +277,13 @@ export function AddEntityModal({ isOpen, onClose, clientId }: AddEntityModalProp
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {entityTypes.map((entityType) => (
-                          <SelectItem key={entityType.id} value={entityType.id.toString()}>
-                            {entityType.name}
-                          </SelectItem>
-                        ))}
+                        {entityTypes
+                          .filter((entityType) => entityType.countryId === selectedCountryId)
+                          .map((entityType) => (
+                            <SelectItem key={entityType.id} value={entityType.id.toString()}>
+                              {entityType.name}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
