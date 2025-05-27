@@ -51,11 +51,22 @@ function ClientTasks({ clientId }: { clientId: number }) {
     queryKey: ["/api/v1/setup/task-statuses"],
   });
   
+  // Fetch entities for entity names
+  const { data: entities = [] } = useQuery<Entity[]>({
+    queryKey: [`/api/v1/clients/${clientId}/entities`],
+    enabled: !!clientId,
+  });
+  
+  // Fetch users for assignee names
+  const { data: users = [] } = useQuery<any[]>({
+    queryKey: ["/api/v1/users"],
+  });
+  
   // Filter tasks based on search term and status filter
   const filteredTasks = tasks.filter(task => {
     // Filter by search term
     const matchesSearch = searchTerm === "" || 
-      (task.title && task.title.toLowerCase().includes(searchTerm.toLowerCase()));
+      (task.taskDetails && task.taskDetails.toLowerCase().includes(searchTerm.toLowerCase()));
     
     // Filter by status
     const matchesStatus = !statusFilter || task.statusId.toString() === statusFilter;
@@ -69,23 +80,43 @@ function ClientTasks({ clientId }: { clientId: number }) {
     setIsTaskDetailsOpen(true);
   };
   
+  // Helper functions
+  const getEntityName = (entityId: number | null) => {
+    if (!entityId) return "No Entity";
+    const entity = entities.find(e => e.id === entityId);
+    return entity?.name || "Unknown Entity";
+  };
+  
+  const getAssigneeName = (assigneeId: number) => {
+    const user = users.find(u => u.id === assigneeId);
+    return user?.displayName || "Unassigned";
+  };
+  
+  const formatCurrency = (amount: number | null, currency: string | null) => {
+    if (!amount || !currency) return "-";
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+    }).format(amount);
+  };
+  
   return (
-    <div className="space-y-4">
-      {/* Search & Filter UI */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-4">
+    <div className="space-y-3">
+      {/* Search & Filter UI - Compact */}
+      <div className="flex gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
+          <Search className="absolute left-2 top-2 h-3 w-3 text-slate-400" />
           <Input
             type="text"
             placeholder="Search tasks..."
-            className="pl-8"
+            className="pl-7 h-8 text-xs"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <Select value={statusFilter || "all"} onValueChange={(value) => setStatusFilter(value === "all" ? null : value)}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="All Statuses" />
+          <SelectTrigger className="w-32 h-8 text-xs">
+            <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
@@ -98,66 +129,109 @@ function ClientTasks({ clientId }: { clientId: number }) {
         </Select>
       </div>
       
-      {/* Tasks Table */}
+      {/* Tasks Table - Slim Design */}
       {isTasksLoading ? (
-        <div className="flex justify-center items-center py-10">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        <div className="flex justify-center items-center py-6">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
         </div>
       ) : filteredTasks.length === 0 ? (
-        <div className="text-center py-10 text-slate-500">
+        <div className="text-center py-6 text-slate-500 text-sm">
           No tasks found for this client
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50">
+          <table className="min-w-full divide-y divide-slate-100">
+            <thead className="bg-slate-25">
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Task
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  Task Details
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  Entity
+                </th>
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Due Date
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  Assignee
+                </th>
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  Rate
+                </th>
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  Type
+                </th>
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-slate-200">
+            <tbody className="bg-white divide-y divide-slate-50">
               {filteredTasks.map((task) => {
                 // Find status name
                 const status = taskStatuses.find(s => s.id === task.statusId);
                 
                 return (
-                  <tr key={task.id} className="hover:bg-slate-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-slate-900">{task.title}</div>
-                      <div className="text-sm text-slate-500">{task.description?.substring(0, 60)}{task.description && task.description.length > 60 ? "..." : ""}</div>
+                  <tr key={task.id} className="hover:bg-slate-25">
+                    <td className="px-3 py-2">
+                      <div className="text-xs font-medium text-slate-900 max-w-48">
+                        {task.taskDetails ? task.taskDetails.substring(0, 50) + (task.taskDetails.length > 50 ? "..." : "") : "No details"}
+                      </div>
+                      {task.isRecurring && (
+                        <div className="text-xs text-blue-600 flex items-center mt-1">
+                          <span className="mr-1">🔄</span>
+                          {task.complianceFrequency}
+                        </div>
+                      )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-slate-500">
-                        {format(new Date(task.dueDate), "MMM d, yyyy")}
+                    <td className="px-3 py-2">
+                      <div className="text-xs text-slate-700">
+                        {getEntityName(task.entityId)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge variant={
-                        status?.category === 'completed' ? 'success' : 
-                        status?.category === 'in_progress' ? 'default' : 
-                        status?.category === 'not_started' ? 'secondary' : 
-                        status?.category === 'overdue' ? 'destructive' : 
-                        'outline'
-                      }>
+                    <td className="px-3 py-2">
+                      <div className="text-xs text-slate-600">
+                        {format(new Date(task.dueDate), "MMM d, yy")}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="text-xs text-slate-700">
+                        {getAssigneeName(task.assigneeId)}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2">
+                      <Badge 
+                        variant={
+                          status?.name === 'Completed' ? 'success' : 
+                          status?.name === 'In Progress' ? 'default' : 
+                          status?.name === 'New' ? 'secondary' : 
+                          status?.name === 'Hold' ? 'destructive' : 
+                          'outline'
+                        }
+                        className="text-xs py-0 px-1"
+                      >
                         {status?.name || 'Unknown'}
                       </Badge>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <td className="px-3 py-2">
+                      <div className="text-xs text-slate-600">
+                        {formatCurrency(task.serviceRate, task.currency)}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="text-xs text-slate-600">
+                        {task.taskType}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2">
                       <Button 
                         variant="link" 
+                        size="sm"
                         onClick={() => handleViewTask(task.id)}
-                        className="text-blue-500 hover:text-blue-600"
+                        className="text-blue-500 hover:text-blue-600 text-xs h-auto p-0"
                       >
                         View
                       </Button>
