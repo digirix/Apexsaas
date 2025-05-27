@@ -80,13 +80,13 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
     enabled: isOpen && !!entityId && !!entity?.isVatRegistered,
   });
   
-  // Get available tax jurisdictions for the country
+  // Get all available tax jurisdictions 
   const { 
     data: availableTaxJurisdictions = [], 
     isLoading: isAvailableTaxJurisdictionsLoading 
   } = useQuery<TaxJurisdiction[]>({
-    queryKey: ["/api/v1/setup/tax-jurisdictions", entity?.countryId],
-    enabled: isOpen && !!entityId && !!entity?.isVatRegistered && !!entity?.countryId,
+    queryKey: ["/api/v1/setup/tax-jurisdictions"],
+    enabled: isOpen && !!entityId && !!entity?.isVatRegistered,
   });
   
   // Fetch countries for reference
@@ -101,9 +101,9 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
     enabled: isOpen,
   });
   
-  // Filter available tax jurisdictions to exclude those already added
+  // Filter tax jurisdictions by entity's country and exclude already assigned ones
   const filteredTaxJurisdictions = availableTaxJurisdictions.filter(
-    tj => !entityTaxJurisdictions.some(etj => etj.id === tj.id)
+    tj => tj.countryId === entity?.countryId && !entityTaxJurisdictions.some(etj => etj.id === tj.id)
   );
   
   // Reset active tab when modal is opened
