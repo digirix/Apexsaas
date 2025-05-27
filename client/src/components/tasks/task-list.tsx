@@ -137,32 +137,31 @@ function DraggableTaskCard({
     <Card 
       ref={setNodeRef}
       style={style}
-      className={`group cursor-pointer transition-all duration-200 ${
-        isDragging ? 'opacity-50 scale-105 shadow-xl' : 'hover:shadow-md'
+      {...attributes} 
+      {...listeners}
+      className={`group cursor-grab active:cursor-grabbing transition-all duration-200 relative ${
+        isDragging ? 'opacity-50 scale-105 shadow-xl' : 'hover:shadow-lg hover:scale-102'
       } ${isOverdue ? 'border-red-200 bg-red-50' : 'bg-white'} ${
         isSelected ? 'ring-2 ring-blue-500' : ''
       }`}
-      onClick={() => onViewDetails(task.id)}
+      onClick={(e) => {
+        // Only open details if not dragging
+        if (!isDragging) {
+          onViewDetails(task.id);
+        }
+      }}
     >
-      <CardContent className="p-2">
-        <div className="flex items-start justify-between mb-1">
-          <div 
-            {...attributes} 
-            {...listeners} 
-            className="cursor-grab active:cursor-grabbing"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Grip className="h-3 w-3 text-gray-400 hover:text-gray-600" />
-          </div>
-          <div onClick={(e) => e.stopPropagation()}>
-            <Checkbox
-              checked={isSelected}
-              onCheckedChange={(checked) => onSelect(task.id, checked as boolean)}
-              className="h-3 w-3"
-            />
-          </div>
+      {/* Hover Tooltip */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
+        <div className="absolute top-2 right-2 bg-black text-white text-xs px-2 py-1 rounded shadow-lg max-w-xs">
+          <div className="font-medium mb-1">{task.taskDetails || 'Untitled Task'}</div>
+          <div className="text-gray-300">Client: {client?.displayName || 'Unknown'}</div>
+          <div className="text-gray-300">Assignee: {assignee?.displayName || 'Unassigned'}</div>
+          <div className="text-gray-300">Due: {formatDueDate(task.dueDate)}</div>
         </div>
-        
+      </div>
+
+      <CardContent className="p-2">
         <h4 className="text-xs font-medium text-slate-900 line-clamp-2 mb-1">
           {task.taskDetails || 'Untitled Task'}
         </h4>
@@ -307,23 +306,16 @@ export function TaskList() {
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id as number);
-    console.log('Drag started:', event.active.id);
   }, []);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
-    console.log('Drag ended:', { activeId: active.id, overId: over?.id });
     setActiveId(null);
 
-    if (!over) {
-      console.log('No drop target found');
-      return;
-    }
+    if (!over) return;
 
     const taskId = active.id as number;
     const newStatusId = parseInt(over.id as string);
-    
-    console.log('Task drag:', { taskId, newStatusId });
     
     const task = tasks.find(t => t.id === taskId);
     if (task && task.statusId !== newStatusId) {
@@ -342,7 +334,6 @@ export function TaskList() {
         return;
       }
       
-      console.log('Updating task status...');
       updateTaskStatus.mutate({ taskId, statusId: newStatusId });
     }
   }, [tasks, updateTaskStatus, workflowRules, toast]);
