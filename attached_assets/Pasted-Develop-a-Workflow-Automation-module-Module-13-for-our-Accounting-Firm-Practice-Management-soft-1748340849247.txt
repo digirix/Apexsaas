@@ -1,0 +1,78 @@
+Develop a "Workflow Automation" module (Module #13) for our Accounting Firm Practice Management software. This module will allow firm administrators to define, manage, and monitor automated workflows that connect various parts of our application, reducing manual effort, improving consistency, and enhancing communication.
+Core Philosophy:
+Leverage Existing Infrastructure: The module must deeply integrate with our existing 12 modules (Users, Clients, Tasks, Finance, etc.), RESTful APIs, Drizzle ORM, and permission system (requirePermission).
+Data-Driven: Workflows will be triggered by events and data changes within the application.
+User-Configurable: (Super)Admins should be able to create custom workflows without needing to write code.
+Robust & Reliable: Include error handling, logging, and clear status monitoring.
+Secure: All automated actions must respect existing user permissions and tenant isolation.
+I. Backend Development (Node.js, TypeScript, Drizzle ORM, PostgreSQL):
+Workflow Definition Data Model:
+Design PostgreSQL tables (using Drizzle ORM schema syntax) for:
+Workflows: Stores the name, description, tenantId, active status, created/updated by/at.
+WorkflowTriggers: Defines what initiates a workflow. Includes workflowId, triggerModule (e.g., "Clients", "Tasks"), triggerEvent (e.g., "ClientCreated", "TaskStatusUpdatedToCompleted"), and optional triggerConditions (JSONB for complex conditions like "Client.Country = 'USA'").
+WorkflowActions: Defines the steps to execute. Includes workflowId, sequenceOrder, actionType (e.g., "CreateTask", "SendNotification", "UpdateClientField", "CallWebhook"), and actionConfiguration (JSONB to store parameters for the action, e.g., for "CreateTask": { assigneeRole: 'AccountManager', taskCategoryId: '...', descriptionTemplate: 'New client {{client.name}} onboarded.' }).
+Ensure tenantId is present in all relevant tables for multi-tenancy.
+Workflow Engine Service:
+Event Listener/Dispatcher: Develop a mechanism to "listen" for relevant events occurring in other modules (e.g., after a client is successfully created, after a task status is updated). This might involve hooks, pub/sub, or a dedicated event bus.
+Intelligent Suggestion: Analyze existing API endpoints (e.g., POST /api/clients, PUT /api/tasks/:id) and database operations (e.g., insert into clients table) to identify potential event sources.
+Trigger Evaluation: When an event occurs, the engine should check if any active Workflows are triggered by this triggerModule and triggerEvent for the current tenantId.
+Condition Processing: Evaluate triggerConditions using data from the event payload (e.g., the newly created client object, the updated task object).
+Action Execution: If conditions are met, execute WorkflowActions in sequence.
+Each actionType will map to a specific function/service call. For example:
+CreateTask: Call the existing Tasks Module service/API to create a task.
+SendNotification: (If you have a notification system) Use it to send notifications to users/roles.
+UpdateClientField: Call the Clients Module service/API.
+Crucial: All these actions must be performed respecting the requirePermission middleware logic, potentially using a system-level identity or the identity of the user who configured the workflow (configurable).
+Templating/Variable Substitution: Implement a simple templating system (e.g., {{trigger.client.name}} or {{eventData.task.title}}) for actionConfiguration to use data from the trigger event.
+API Endpoints (RESTful, protected by requirePermission):
+Standard CRUD for Workflows (/api/workflows).
+Endpoints to view workflow execution logs (/api/workflows/:id/logs).
+Endpoints to manually trigger a workflow (for testing, with appropriate permissions).
+Endpoints to get available triggerModules, triggerEvents, and actionTypes (for the frontend UI).
+Intelligent Suggestion: The AI should be able to scan existing module definitions (e.g., availableModules array, API route structures) to help populate these lists.
+Workflow Execution Logging:
+Create a WorkflowExecutionLogs table: logId, workflowId, tenantId, triggerEventData (JSONB), executionTimestamp, status (Success, Failed, InProgress), actionLogs (JSONB array detailing each action's outcome and any errors).
+II. Frontend Development (React, TypeScript, Shadcn/UI, TanStack Query, Wouter):
+Workflow Management UI (for SuperAdmins/Admins with permission):
+List View: Display all workflows for the tenant, with options to create, edit, delete, activate/deactivate, and view logs. Use TanStack Table.
+Workflow Builder/Editor Form:
+Basic Info: Name, Description.
+Trigger Configuration:
+Dropdown to select Trigger Module (e.g., "Clients Management", "Tasks Management").
+Dropdown to select Trigger Event (e.g., "Client Created", "Task Status Changed"). These should be dynamically populated based on backend capabilities.
+UI for defining Trigger Conditions (e.g., a simple key-operator-value interface, potentially using a visual query builder style).
+Action Configuration:
+Ability to add multiple actions in sequence (drag-and-drop reordering).
+For each action:
+Dropdown to select Action Type (e.g., "Create Task", "Send Internal Notification", "Update Client Field").
+Dynamic form fields based on selected Action Type to configure its parameters.
+Intelligent Suggestion: For "Create Task", fields should align with the existing task creation form/schema. For "Update Client Field", allow selecting a client field and providing its new value (possibly using variables from the trigger).
+Utilize existing Shadcn/UI components.
+Workflow Logs Viewer: Display execution history for a selected workflow, showing status, triggered data, and any errors.
+Integration with usePermissions:
+Ensure all UI elements and actions within the Workflow Automation module are protected by appropriate permissions (e.g., workflow-automation:read, workflow-automation:create, workflow-automation:update, workflow-automation:delete).
+Data Fetching: Use TanStack Query for all API interactions.
+III. Key Considerations for AI Implementation:
+Modularity & Reusability:
+The Action Execution part of the Workflow Engine should ideally call existing service functions from other modules rather than directly manipulating the database, to reuse business logic and validation.
+Identify common patterns in your existing CRUD Operation Pattern and API route with permission middleware to apply here.
+Dynamic Discovery of Triggers/Actions:
+The AI should analyze the availableModules array and existing API route definitions to suggest potential triggerModules, triggerEvents.
+For actionTypes that involve creating/updating entities in other modules, the AI should refer to their respective Zod schemas (shared/schema.ts) and storage interfaces (server/database-storage.ts) to understand required fields and data types for the actionConfiguration.
+Error Handling & Resilience:
+Implement robust error handling in the Workflow Engine. If an action fails, should the workflow stop, or attempt retries for certain error types? Log errors clearly.
+Tenant Isolation: Strictly enforce tenantId in all database queries and service calls initiated by the Workflow Engine.
+Security:
+Re-emphasize that any action performed by a workflow (e.g., creating a task, updating a client) must effectively pass through the same permission checks as if a user were doing it manually, or operate under a clearly defined, secure system context.
+Scalability: Consider that some events might trigger many workflows, or workflows might have many actions. Design for reasonably efficient processing. (Initially, direct processing is fine; later, a queue-based system might be needed if volume is very high).
+Testing: How will these workflows be tested? Plan for unit/integration tests for the engine and individual action handlers.
+Example Workflow to Consider (for AI to "understand" the goal):
+Name: "New Client Onboarding Task Creation"
+Trigger Module: Clients Management
+Trigger Event: Client Created (or Client Status Updated to "Active")
+Trigger Conditions: (Optional) e.g., Client.Country == 'USA'
+Actions:
+Action Type: Create Task
+Configuration: { title: 'Onboard new client: {{trigger.client.name}}', description: 'Complete onboarding checklist for {{trigger.client.name}}.', assigneeRole: 'ClientOnboardingSpecialist', clientId: '{{trigger.client.id}}', dueDateOffset: '+5 days' }
+Action Type: Send Internal Notification
+Configuration: { recipientRole: 'AccountManager', message: 'New client {{trigger.client.name}} assigned for onboarding.' }
