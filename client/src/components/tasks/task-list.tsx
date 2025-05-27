@@ -168,8 +168,8 @@ function DraggableTaskCard({
         
         <div className="flex items-center justify-between text-xs text-slate-600 mb-2">
           <span className="truncate">{client?.displayName || 'Unknown'}</span>
-          <Badge className={`text-xs px-1 py-0 ${getTaskPriorityColor(task.priority || 'Medium')}`}>
-            {(task.priority || 'Medium').charAt(0)}
+          <Badge className={`text-xs px-1 py-0 ${getTaskPriorityColor(task.taskType || 'Regular')}`}>
+            {(task.taskType || 'Regular').charAt(0)}
           </Badge>
         </div>
         
