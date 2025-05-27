@@ -438,7 +438,223 @@ export function WorkflowBuilder({ workflow, onClose, onSave }: WorkflowBuilderPr
         </div>
       </div>
 
-      {/* Forms would be rendered here as separate components */}
+      {/* Trigger Form Modal */}
+      {showTriggerForm && (
+        <TriggerForm
+          trigger={editingTrigger}
+          triggerConfig={triggerConfig}
+          onSave={editingTrigger ? updateTrigger : addTrigger}
+          onCancel={() => {
+            setShowTriggerForm(false);
+            setEditingTrigger(null);
+          }}
+        />
+      )}
+
+      {/* Action Form Modal */}
+      {showActionForm && (
+        <ActionForm
+          action={editingAction}
+          actionConfig={actionConfig}
+          onSave={editingAction ? updateAction : addAction}
+          onCancel={() => {
+            setShowActionForm(false);
+            setEditingAction(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Trigger Form Component
+function TriggerForm({ trigger, triggerConfig, onSave, onCancel }: any) {
+  const [formData, setFormData] = useState({
+    triggerModule: trigger?.triggerModule || "",
+    triggerEvent: trigger?.triggerEvent || "",
+    triggerConditions: trigger?.triggerConditions || null
+  });
+
+  const selectedModule = triggerConfig?.modules?.find((m: any) => m.name === formData.triggerModule);
+
+  const handleSave = () => {
+    if (!formData.triggerModule || !formData.triggerEvent) {
+      return;
+    }
+    onSave(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>{trigger ? "Edit Trigger" : "Add Trigger"}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Module</Label>
+            <Select
+              value={formData.triggerModule}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, triggerModule: value, triggerEvent: "" }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select module" />
+              </SelectTrigger>
+              <SelectContent>
+                {triggerConfig?.modules?.map((module: any) => (
+                  <SelectItem key={module.name} value={module.name}>
+                    {module.displayName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {selectedModule && (
+            <div className="space-y-2">
+              <Label>Event</Label>
+              <Select
+                value={formData.triggerEvent}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, triggerEvent: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select event" />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectedModule.events?.map((event: any) => (
+                    <SelectItem key={event.name} value={event.name}>
+                      {event.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave}>
+              Save Trigger
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Action Form Component
+function ActionForm({ action, actionConfig, onSave, onCancel }: any) {
+  const [formData, setFormData] = useState({
+    actionType: action?.actionType || "",
+    actionConfiguration: action?.actionConfiguration || {}
+  });
+
+  const selectedActionType = actionConfig?.types?.find((t: any) => t.name === formData.actionType);
+
+  const handleConfigChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      actionConfiguration: {
+        ...prev.actionConfiguration,
+        [field]: value
+      }
+    }));
+  };
+
+  const handleSave = () => {
+    if (!formData.actionType) {
+      return;
+    }
+    onSave(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <Card className="w-full max-w-md max-h-[90vh] overflow-hidden">
+        <CardHeader>
+          <CardTitle>{action ? "Edit Action" : "Add Action"}</CardTitle>
+        </CardHeader>
+        <ScrollArea className="max-h-[60vh]">
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Action Type</Label>
+              <Select
+                value={formData.actionType}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, actionType: value, actionConfiguration: {} }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select action type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {actionConfig?.types?.map((type: any) => (
+                    <SelectItem key={type.name} value={type.name}>
+                      {type.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedActionType && (
+              <div className="space-y-4">
+                <div className="text-sm text-muted-foreground">
+                  {selectedActionType.description}
+                </div>
+                {selectedActionType.configFields?.map((field: any) => (
+                  <div key={field.name} className="space-y-2">
+                    <Label>{field.name.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase())}</Label>
+                    {field.type === "textarea" ? (
+                      <Textarea
+                        value={formData.actionConfiguration[field.name] || ""}
+                        onChange={(e) => handleConfigChange(field.name, e.target.value)}
+                        placeholder={field.placeholder}
+                        required={field.required}
+                      />
+                    ) : field.type === "select" ? (
+                      <Select
+                        value={formData.actionConfiguration[field.name] || ""}
+                        onValueChange={(value) => handleConfigChange(field.name, value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={field.placeholder} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {field.options?.map((option: string) => (
+                            <SelectItem key={option} value={option}>
+                              {option}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        type={field.type === "number" ? "number" : "text"}
+                        value={formData.actionConfiguration[field.name] || ""}
+                        onChange={(e) => handleConfigChange(field.name, e.target.value)}
+                        placeholder={field.placeholder}
+                        required={field.required}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </ScrollArea>
+        <CardContent className="pt-0">
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave}>
+              Save Action
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
