@@ -5438,6 +5438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Delete an account
   app.delete("/api/v1/finance/chart-of-accounts/:id", isAuthenticated, async (req, res) => {
+    console.log("=== ENHANCED DELETE ROUTE CALLED ===");
     console.log(`ROUTE HANDLER: Chart of accounts deletion route called for ID: ${req.params.id}`);
     try {
       const tenantId = (req.user as any).tenantId;
