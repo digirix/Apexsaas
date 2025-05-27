@@ -35,7 +35,6 @@ export function NotificationsPage() {
   // Get all notifications
   const { data: notifications = [], isLoading } = useQuery<Notification[]>({
     queryKey: ['/api/v1/me/notifications'],
-    queryFn: () => apiRequest('/api/v1/me/notifications?limit=50') as Promise<Notification[]>,
   });
 
   // Mark notification as read mutation
@@ -95,7 +94,7 @@ export function NotificationsPage() {
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
-    <AppLayout>
+    <AppLayout title="Notifications">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

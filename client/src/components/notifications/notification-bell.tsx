@@ -36,7 +36,6 @@ export function NotificationBell() {
   // Get recent notifications
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ['/api/v1/me/notifications'],
-    queryFn: () => apiRequest(`/api/v1/me/notifications?limit=10`) as Promise<Notification[]>,
     enabled: isOpen,
   });
 
