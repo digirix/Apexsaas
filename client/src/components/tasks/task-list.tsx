@@ -251,7 +251,7 @@ export function TaskList() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 3,
       },
     })
   );
@@ -307,16 +307,23 @@ export function TaskList() {
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id as number);
+    console.log('Drag started:', event.active.id);
   }, []);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
+    console.log('Drag ended:', { activeId: active.id, overId: over?.id });
     setActiveId(null);
 
-    if (!over) return;
+    if (!over) {
+      console.log('No drop target found');
+      return;
+    }
 
     const taskId = active.id as number;
     const newStatusId = parseInt(over.id as string);
+    
+    console.log('Task drag:', { taskId, newStatusId });
     
     const task = tasks.find(t => t.id === taskId);
     if (task && task.statusId !== newStatusId) {
@@ -335,6 +342,7 @@ export function TaskList() {
         return;
       }
       
+      console.log('Updating task status...');
       updateTaskStatus.mutate({ taskId, statusId: newStatusId });
     }
   }, [tasks, updateTaskStatus, workflowRules, toast]);
