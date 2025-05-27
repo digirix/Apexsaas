@@ -316,6 +316,13 @@ export function AddTaskModal({ isOpen, onClose, taskType, preselectedClientId }:
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/v1/tasks"] });
+      // Also invalidate client-specific task queries
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          query.queryKey[0] && 
+          typeof query.queryKey[0] === 'string' && 
+          query.queryKey[0].startsWith('/api/v1/tasks?clientId=')
+      });
       toast({
         title: "Task Created",
         description: "The administrative task has been created successfully.",
@@ -401,6 +408,13 @@ export function AddTaskModal({ isOpen, onClose, taskType, preselectedClientId }:
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/v1/tasks"] });
+      // Also invalidate client-specific task queries
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          query.queryKey[0] && 
+          typeof query.queryKey[0] === 'string' && 
+          query.queryKey[0].startsWith('/api/v1/tasks?clientId=')
+      });
       toast({
         title: "Task Created",
         description: "The revenue task has been created successfully.",
