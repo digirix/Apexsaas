@@ -5438,18 +5438,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Delete an account
   app.delete("/api/v1/finance/chart-of-accounts/:id", isAuthenticated, async (req, res) => {
+    console.log(`ROUTE HANDLER: Chart of accounts deletion route called for ID: ${req.params.id}`);
     try {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
+      console.log(`ROUTE HANDLER: Processing deletion for ID ${id}, tenantId ${tenantId}`);
       
       // Check if the account exists
       const account = await storage.getChartOfAccount(id, tenantId);
       if (!account) {
+        console.log(`ROUTE HANDLER: Account ${id} not found`);
         return res.status(404).json({ message: "Account not found" });
       }
+      console.log(`ROUTE HANDLER: Found account ${id}: ${account.accountName}`);
       
       // Check if this is a system account
       if (account.isSystemAccount) {
+        console.log(`ROUTE HANDLER: Account ${id} is a system account, cannot delete`);
         return res.status(403).json({ message: "System accounts cannot be deleted" });
       }
       
@@ -5457,30 +5462,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const journalEntries = await storage.getJournalEntryLines(tenantId, undefined, id);
         if (journalEntries && journalEntries.length > 0) {
+          console.log(`ROUTE HANDLER: Account ${id} has ${journalEntries.length} journal entries, cannot delete`);
           return res.status(400).json({ 
             message: "Cannot delete account that has journal entries. Consider deactivating it instead." 
           });
         }
+        console.log(`ROUTE HANDLER: Account ${id} has no journal entries, proceeding with deletion`);
       } catch (journalError) {
-        console.warn("Error checking journal entries for account:", journalError);
+        console.warn("ROUTE HANDLER: Error checking journal entries for account:", journalError);
         // Continue with deletion even if there's an error checking journal entries
         // This ensures accounts without journal entries can still be deleted
       }
       
       // Delete the account
-      console.log(`Attempting to delete chart of accounts entry with ID: ${id}`);
+      console.log(`ROUTE HANDLER: Attempting to delete chart of accounts entry with ID: ${id}`);
       const result = await storage.deleteChartOfAccount(id, tenantId);
-      console.log(`Deletion result for chart of accounts ID ${id}:`, result);
+      console.log(`ROUTE HANDLER: Deletion result for chart of accounts ID ${id}:`, result);
       
       if (result) {
-        console.log(`Successfully deleted chart of accounts entry ${id}`);
+        console.log(`ROUTE HANDLER: Successfully deleted chart of accounts entry ${id}`);
         res.status(204).end();
       } else {
-        console.log(`Failed to delete chart of accounts entry ${id}`);
+        console.log(`ROUTE HANDLER: Failed to delete chart of accounts entry ${id}`);
         res.status(500).json({ message: "Failed to delete account" });
       }
     } catch (error) {
-      console.error("Error deleting account:", error);
+      console.error("ROUTE HANDLER: Error deleting account:", error);
       res.status(500).json({ message: "Failed to delete account" });
     }
   });
