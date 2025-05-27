@@ -6270,6 +6270,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register Workflow Automation routes
   registerWorkflowRoutes(app, databaseStorage);
   console.log("Workflow Automation routes registered");
+  
+  // Register Internal Notification System routes
+  setupNotificationRoutes(app, isAuthenticated, requirePermission, databaseStorage);
+  console.log("Internal Notification System routes registered");
 
   // Create an HTTP server
   const httpServer = createServer(app);
