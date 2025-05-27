@@ -39,6 +39,7 @@ import BalanceSheetPage from "@/pages/finance/reports/balance-sheet";
 import CashFlowPage from "@/pages/finance/reports/cash-flow";
 import ExpenseReportPage from "@/pages/finance/reports/expenses";
 import TaxSummaryPage from "@/pages/finance/reports/tax-summary";
+import WorkflowAutomationPage from "@/pages/workflow-automation";
 
 function Router() {
   return (
