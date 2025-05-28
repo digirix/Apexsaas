@@ -140,8 +140,8 @@ function DraggableTaskCard({
       {...attributes} 
       {...listeners}
       className={`group cursor-grab active:cursor-grabbing transition-all duration-200 relative ${
-        isDragging ? 'opacity-50 scale-105 shadow-xl' : 'hover:shadow-lg hover:scale-102'
-      } ${isOverdue ? 'border-red-200 bg-red-50' : 'bg-white'} ${
+        isDragging ? 'opacity-50 scale-105 shadow-xl' : 'hover:shadow-lg hover:scale-105 hover:z-10'
+      } ${isOverdue ? 'border-red-200 bg-red-50' : 'bg-white hover:bg-gradient-to-br hover:from-white hover:to-blue-50'} ${
         isSelected ? 'ring-2 ring-blue-500' : ''
       }`}
       onClick={(e) => {
@@ -151,137 +151,84 @@ function DraggableTaskCard({
         }
       }}
     >
-      {/* Hover Tooltip - Comprehensive Task Details */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50">
-        <div className="absolute top-full left-0 mt-2 bg-gray-900 text-white text-xs px-4 py-3 rounded-lg shadow-2xl border border-gray-700 w-96 max-h-80 overflow-y-auto">
-          {/* Task Header */}
-          <div className="border-b border-gray-700 pb-2 mb-3">
-            <h3 className="font-semibold text-sm text-white mb-1 line-clamp-2">
+
+
+      <CardContent className="p-2">
+        {/* Main task content */}
+        <div className="group-hover:opacity-0 transition-opacity duration-200">
+          <h4 className="text-xs font-medium text-slate-900 line-clamp-2 mb-1">
+            {task.taskDetails || 'Untitled Task'}
+          </h4>
+          
+          <div className="flex items-center justify-between text-xs text-slate-600 mb-1">
+            <span className="truncate text-xs">{client?.displayName || 'Unknown'}</span>
+            <Badge className={`text-xs px-1 py-0 ${getTaskPriorityColor(task.taskType || 'Regular')}`}>
+              {(task.taskType || 'Regular').charAt(0)}
+            </Badge>
+          </div>
+          
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center space-x-1">
+              <Avatar className="h-3 w-3">
+                <AvatarFallback className="text-xs">
+                  {assignee?.displayName?.charAt(0) || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <span className="truncate text-xs">{assignee?.displayName || 'Unassigned'}</span>
+            </div>
+            
+            <div className={`text-xs ${isOverdue ? 'text-red-600 font-medium' : 'text-slate-500'}`}>
+              {formatDueDate(task.dueDate)}
+            </div>
+          </div>
+          
+          {isOverdue && (
+            <div className="mt-1 flex items-center space-x-1">
+              <AlertTriangle className="h-3 w-3 text-red-500" />
+              <span className="text-xs text-red-600 font-medium">Overdue</span>
+            </div>
+          )}
+        </div>
+
+        {/* Enhanced hover overlay with key details */}
+        <div className="absolute inset-2 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-white/95 backdrop-blur-sm rounded flex flex-col justify-center p-2">
+          <div className="text-center space-y-1">
+            <h4 className="text-sm font-semibold text-slate-900 line-clamp-1">
               {task.taskDetails || 'Untitled Task'}
-            </h3>
-            <div className="flex items-center justify-between">
-              <Badge className={`text-xs px-2 py-0.5 ${getTaskPriorityColor(task.taskType || 'Regular')}`}>
-                {task.taskType || 'Regular'}
+            </h4>
+            
+            <div className="flex items-center justify-center space-x-2 text-xs text-slate-600">
+              <span className="font-medium">{client?.displayName}</span>
+              <span>•</span>
+              <span>{assignee?.displayName || 'Unassigned'}</span>
+            </div>
+            
+            <div className="flex items-center justify-center space-x-2 text-xs">
+              <Badge className={`${getTaskPriorityColor(task.taskType || 'Regular')} text-xs`}>
+                {task.taskType}
               </Badge>
-              <span className={`text-xs font-medium ${isOverdue ? 'text-red-400' : 'text-green-400'}`}>
+              <span className={`font-medium ${isOverdue ? 'text-red-600' : 'text-green-600'}`}>
                 {formatDueDate(task.dueDate)}
               </span>
             </div>
-          </div>
-
-          {/* Task Details Grid */}
-          <div className="space-y-2 text-xs">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-              <div>
-                <span className="text-gray-400 font-medium">Client:</span>
-                <div className="text-white">{client?.displayName || 'Unknown'}</div>
+            
+            {task.serviceRate && (
+              <div className="text-xs text-slate-500 font-medium">
+                {task.currency} {task.serviceRate}
               </div>
-              <div>
-                <span className="text-gray-400 font-medium">Assignee:</span>
-                <div className="text-white">{assignee?.displayName || 'Unassigned'}</div>
-              </div>
-              <div>
-                <span className="text-gray-400 font-medium">Service Rate:</span>
-                <div className="text-white">{task.currency} {task.serviceRate || 'N/A'}</div>
-              </div>
-              <div>
-                <span className="text-gray-400 font-medium">Recurring:</span>
-                <div className="text-white">{task.isRecurring ? 'Yes' : 'No'}</div>
-              </div>
-            </div>
-
+            )}
+            
             {task.isRecurring && (
-              <div className="border-t border-gray-700 pt-2 mt-2">
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                  <div>
-                    <span className="text-gray-400 font-medium">Frequency:</span>
-                    <div className="text-white">{task.complianceFrequency || 'N/A'}</div>
-                  </div>
-                  <div>
-                    <span className="text-gray-400 font-medium">Year:</span>
-                    <div className="text-white">{task.complianceYear || 'N/A'}</div>
-                  </div>
-                  {task.complianceStartDate && (
-                    <div>
-                      <span className="text-gray-400 font-medium">Start Date:</span>
-                      <div className="text-white">
-                        {new Date(task.complianceStartDate).toLocaleDateString()}
-                      </div>
-                    </div>
-                  )}
-                  {task.complianceEndDate && (
-                    <div>
-                      <span className="text-gray-400 font-medium">End Date:</span>
-                      <div className="text-white">
-                        {new Date(task.complianceEndDate).toLocaleDateString()}
-                      </div>
-                    </div>
-                  )}
-                </div>
+              <div className="text-xs text-blue-600 font-medium">
+                📅 {task.complianceFrequency}
               </div>
             )}
 
-            {task.nextToDo && (
-              <div className="border-t border-gray-700 pt-2 mt-2">
-                <span className="text-gray-400 font-medium">Next To Do:</span>
-                <div className="text-white mt-1 line-clamp-2">{task.nextToDo}</div>
-              </div>
-            )}
-
-            {/* Status and Approval Info */}
-            <div className="border-t border-gray-700 pt-2 mt-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-gray-400 font-medium">Needs Approval:</span>
-                  <span className="text-white ml-1">{task.needsApproval ? 'Yes' : 'No'}</span>
-                </div>
-                {task.isAutoGenerated && (
-                  <span className="text-blue-400 text-xs">Auto-generated</span>
-                )}
-              </div>
-            </div>
-
-            {/* Created Date */}
-            <div className="text-gray-400 text-xs pt-1 border-t border-gray-700">
-              Created: {new Date(task.createdAt).toLocaleDateString()} at {new Date(task.createdAt).toLocaleTimeString()}
+            <div className="text-xs text-slate-400 mt-1">
+              Click to view details
             </div>
           </div>
         </div>
-      </div>
-
-      <CardContent className="p-2">
-        <h4 className="text-xs font-medium text-slate-900 line-clamp-2 mb-1">
-          {task.taskDetails || 'Untitled Task'}
-        </h4>
-        
-        <div className="flex items-center justify-between text-xs text-slate-600 mb-1">
-          <span className="truncate text-xs">{client?.displayName || 'Unknown'}</span>
-          <Badge className={`text-xs px-1 py-0 ${getTaskPriorityColor(task.taskType || 'Regular')}`}>
-            {(task.taskType || 'Regular').charAt(0)}
-          </Badge>
-        </div>
-        
-        <div className="flex items-center justify-between text-xs">
-          <div className="flex items-center space-x-1">
-            <Avatar className="h-3 w-3">
-              <AvatarFallback className="text-xs">
-                {assignee?.displayName?.charAt(0) || 'U'}
-              </AvatarFallback>
-            </Avatar>
-            <span className="truncate text-xs">{assignee?.displayName || 'Unassigned'}</span>
-          </div>
-          
-          <div className={`text-xs ${isOverdue ? 'text-red-600 font-medium' : 'text-slate-500'}`}>
-            {formatDueDate(task.dueDate)}
-          </div>
-        </div>
-        
-        {isOverdue && (
-          <div className="mt-1 flex items-center space-x-1">
-            <AlertTriangle className="h-3 w-3 text-red-500" />
-            <span className="text-xs text-red-600 font-medium">Overdue</span>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
