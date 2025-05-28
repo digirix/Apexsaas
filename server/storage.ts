@@ -149,6 +149,7 @@ export interface IStorage {
   
   // Entity operations
   getEntities(tenantId: number, clientId?: number): Promise<Entity[]>;
+  getAllEntities(tenantId: number): Promise<Entity[]>;
   getEntity(id: number, tenantId: number): Promise<Entity | undefined>;
   createEntity(entity: InsertEntity): Promise<Entity>;
   updateEntity(id: number, entity: Partial<InsertEntity>): Promise<Entity | undefined>;
@@ -1170,6 +1171,10 @@ export class MemStorage implements IStorage {
     }
     
     return entities;
+  }
+
+  async getAllEntities(tenantId: number): Promise<Entity[]> {
+    return this.getEntities(tenantId);
   }
 
   async getEntity(id: number, tenantId: number): Promise<Entity | undefined> {

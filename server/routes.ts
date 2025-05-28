@@ -1379,6 +1379,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // All Entities for tenant (for task list display)
+  app.get("/api/v1/entities", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      console.log(`Fetching all entities for tenant ${tenantId}`);
+      
+      const entities = await storage.getAllEntities(tenantId);
+      console.log(`Found ${entities.length} entities for tenant ${tenantId}`);
+      res.json(entities);
+    } catch (error) {
+      console.error(`Error fetching entities for tenant:`, error);
+      res.status(500).json({ message: "Failed to fetch entities" });
+    }
+  });
+
   // Entities (under Clients)
   app.get("/api/v1/clients/:clientId/entities", isAuthenticated, async (req, res) => {
     try {

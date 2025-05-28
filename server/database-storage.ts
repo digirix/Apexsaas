@@ -1063,6 +1063,10 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getAllEntities(tenantId: number): Promise<Entity[]> {
+    return this.getEntities(tenantId);
+  }
+
   async getEntity(id: number, tenantId: number): Promise<Entity | undefined> {
     try {
       const [entity] = await db.select().from(entities)
