@@ -474,11 +474,8 @@ export function TaskList() {
   const [quickFilter, setQuickFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
   
-  // Advanced filters
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [assigneeFilter, setAssigneeFilter] = useState<string>('all');
-  const [clientFilter, setClientFilter] = useState<string>('all');
-  const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  // Individual column filters
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   
   // UI state
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
@@ -568,6 +565,10 @@ export function TaskList() {
 
   const { data: entities = [], isLoading: isLoadingEntities, error: entitiesError } = useQuery<Entity[]>({
     queryKey: ["/api/v1/entities"],
+    select: (data) => {
+      console.log('Raw entities data from API:', data);
+      return Array.isArray(data) ? data : [];
+    }
   });
 
   const { data: taskCategories = [] } = useQuery({
@@ -726,11 +727,21 @@ export function TaskList() {
           </div>
         ) : <span className="text-slate-400">-</span>;
       case 'entity':
-        if (task.entityId) {
+        const entityData = entities.find(e => e.id === task.entityId);
+        if (entityData) {
           return (
             <div className="flex items-center space-x-2">
               <Building2 className="h-4 w-4 text-slate-400" />
               <span className="text-sm text-slate-900">
+                {entityData.name || `Entity ${task.entityId}`}
+              </span>
+            </div>
+          );
+        } else if (task.entityId) {
+          return (
+            <div className="flex items-center space-x-2">
+              <Building2 className="h-4 w-4 text-slate-400" />
+              <span className="text-sm text-slate-600">
                 Entity {task.entityId}
               </span>
             </div>
@@ -902,11 +913,31 @@ export function TaskList() {
         }
       }
 
-      // Advanced filters
-      if (statusFilter !== 'all' && task.statusId !== parseInt(statusFilter)) return false;
-      if (assigneeFilter !== 'all' && task.assigneeId !== parseInt(assigneeFilter)) return false;
-      if (clientFilter !== 'all' && task.clientId !== parseInt(clientFilter)) return false;
-      if (priorityFilter !== 'all' && task.taskType !== priorityFilter) return false;
+      // Column filters
+      for (const [columnKey, filterValue] of Object.entries(columnFilters)) {
+        if (!filterValue || filterValue === 'all') continue;
+        
+        switch (columnKey) {
+          case 'status':
+            if (task.statusId !== parseInt(filterValue)) return false;
+            break;
+          case 'assignee':
+            if (task.assigneeId !== parseInt(filterValue)) return false;
+            break;
+          case 'client':
+            if (task.clientId !== parseInt(filterValue)) return false;
+            break;
+          case 'entity':
+            if (task.entityId !== parseInt(filterValue)) return false;
+            break;
+          case 'category':
+            if (task.taskCategoryId !== parseInt(filterValue)) return false;
+            break;
+          case 'compliance':
+            if (!task.complianceFrequency?.toLowerCase().includes(filterValue.toLowerCase())) return false;
+            break;
+        }
+      }
 
       return true;
     });
