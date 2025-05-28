@@ -153,7 +153,7 @@ function DraggableTaskCard({
     >
       {/* Hover Tooltip - Comprehensive Task Details */}
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50">
-        <div className="absolute left-full top-0 ml-2 bg-gray-900 text-white text-xs px-4 py-3 rounded-lg shadow-2xl border border-gray-700 w-96 max-h-80 overflow-y-auto">
+        <div className="absolute top-full left-0 mt-2 bg-gray-900 text-white text-xs px-4 py-3 rounded-lg shadow-2xl border border-gray-700 w-96 max-h-80 overflow-y-auto">
           {/* Task Header */}
           <div className="border-b border-gray-700 pb-2 mb-3">
             <h3 className="font-semibold text-sm text-white mb-1 line-clamp-2">
@@ -1045,7 +1045,7 @@ export function TaskList() {
 
               {/* Kanban View with User-Defined Statuses */}
               {viewMode === 'kanban' && (
-                <div className="flex gap-4 p-4 h-full overflow-x-auto">
+                <div className="flex gap-4 p-4 pb-96 min-h-screen overflow-x-auto">
                   {taskStatuses
                     .sort((a, b) => a.rank - b.rank)
                     .map((status) => {
@@ -1054,7 +1054,12 @@ export function TaskList() {
                       return (
                         <div 
                           key={status.id} 
-                          className="flex-shrink-0 w-80 bg-slate-50 rounded-lg p-3"
+                          className="flex-shrink-0 bg-slate-50 rounded-lg p-3 resize-x overflow-hidden"
+                          style={{ 
+                            width: '320px',
+                            minWidth: '280px',
+                            maxWidth: '500px'
+                          }}
                         >
                           <div className="flex items-center justify-between mb-3">
                             <h3 className="font-medium text-slate-900 flex items-center">
