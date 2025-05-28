@@ -1648,21 +1648,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Entity not found" });
       }
       
-      // Get all service types for the entity's country
-      const serviceTypes = await storage.getServiceTypes(tenantId, entity.countryId);
-      
-      // Get existing subscriptions
+      // Get existing subscriptions for this entity
       const subscriptions = await storage.getEntityServiceSubscriptions(tenantId, entityId);
       
-      // Merge service types with subscription status
-      const servicesWithStatus = serviceTypes.map(serviceType => {
-        const subscription = subscriptions.find(sub => sub.serviceTypeId === serviceType.id);
-        return {
-          ...serviceType,
-          isRequired: subscription ? subscription.isRequired : false,
-          isSubscribed: subscription ? subscription.isSubscribed : false
-        };
-      });
+      // Only show services that have been explicitly added to this entity (have subscription records)
+      const servicesWithStatus = [];
+      for (const subscription of subscriptions) {
+        const serviceType = await storage.getServiceType(subscription.serviceTypeId, tenantId);
+        if (serviceType) {
+          servicesWithStatus.push({
+            ...serviceType,
+            isRequired: subscription.isRequired,
+            isSubscribed: subscription.isSubscribed
+          });
+        }
+      }
       
       res.json(servicesWithStatus);
     } catch (error) {
@@ -1796,44 +1796,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Entity not found" });
       }
       
-      try {
-        // First, find existing subscriptions for this entity and service type
-        const existingSubscriptions = await storage.getEntityServiceSubscriptions(tenantId, entityId);
-        const existingSub = existingSubscriptions.find(sub => sub.serviceTypeId === serviceTypeId);
-        
-        if (!existingSub) {
-          // If no subscription exists, create one with false values first, then delete it
-          // This ensures we have a record to delete
-          console.log(`Creating temporary subscription for entity ${entityId} service ${serviceTypeId} to enable deletion`);
-          
-          try {
-            const tempSub = await storage.createServiceSubscription({
-              tenantId,
-              entityId,
-              serviceTypeId,
-              isRequired: false,
-              isSubscribed: false
-            });
-            
-            if (tempSub) {
-              await storage.deleteServiceSubscription(tempSub.id, tenantId);
-              console.log(`Successfully created and deleted temporary subscription for service ${serviceTypeId}`);
-            }
-          } catch (tempError) {
-            console.error("Error with temporary subscription:", tempError);
-            // If we can't create a temp subscription, just return success since there was nothing to delete anyway
-          }
-          
-          res.status(204).send();
-          return;
-        }
-        
-        const success = await storage.deleteServiceSubscription(existingSub.id, tenantId);
-        if (!success) {
-          return res.status(404).json({ message: "Failed to delete service subscription" });
-        }
-      } catch (error) {
-        console.error("Error deleting service subscription:", error);
+      // Find existing subscription for this entity and service type
+      const existingSubscriptions = await storage.getEntityServiceSubscriptions(tenantId, entityId);
+      const existingSub = existingSubscriptions.find(sub => sub.serviceTypeId === serviceTypeId);
+      
+      if (!existingSub) {
+        return res.status(404).json({ message: "Service subscription not found" });
+      }
+      
+      const success = await storage.deleteServiceSubscription(existingSub.id, tenantId);
+      if (!success) {
         return res.status(500).json({ message: "Failed to delete service subscription" });
       }
       
