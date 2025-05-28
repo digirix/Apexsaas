@@ -566,7 +566,7 @@ export function TaskList() {
     queryKey: ["/api/v1/clients"],
   });
 
-  const { data: entities = [] } = useQuery({
+  const { data: entities = [], isLoading: isLoadingEntities, error: entitiesError } = useQuery({
     queryKey: ["/api/v1/entities"],
   });
 
@@ -726,19 +726,25 @@ export function TaskList() {
           </div>
         ) : <span className="text-slate-400">-</span>;
       case 'entity':
-        const entityData = Array.isArray(entities) ? entities.find((e: any) => e.id === task.entityId) : null;
-        return entityData ? (
-          <div className="flex items-center space-x-2">
-            <Building2 className="h-4 w-4 text-slate-400" />
-            <span className="text-sm text-slate-900">
-              {entityData.name || entityData.displayName || entityData.entityName || `Entity ${task.entityId}`}
-            </span>
-          </div>
-        ) : task.entityId ? (
-          <span className="text-xs text-slate-500">Entity ID: {task.entityId}</span>
-        ) : (
-          <span className="text-slate-400">-</span>
-        );
+        console.log('Entities data:', entities, 'Task entityId:', task.entityId);
+        const entityData = entities && Array.isArray(entities) ? 
+          entities.find((e: any) => e.id === task.entityId) : null;
+        console.log('Found entity:', entityData);
+        
+        if (entityData && entityData.name) {
+          return (
+            <div className="flex items-center space-x-2">
+              <Building2 className="h-4 w-4 text-slate-400" />
+              <span className="text-sm text-slate-900">
+                {entityData.name}
+              </span>
+            </div>
+          );
+        } else if (task.entityId) {
+          return <span className="text-xs text-slate-500">Entity ID: {task.entityId}</span>;
+        } else {
+          return <span className="text-slate-400">-</span>;
+        }
       case 'assignee':
         return assignee ? (
           <div className="flex items-center space-x-2">
