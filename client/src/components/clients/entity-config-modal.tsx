@@ -28,8 +28,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertCircle,
-  CheckCircle2,
   PlusCircle,
+  CheckCircle2,
   MinusCircle,
   XCircle,
   InfoIcon
@@ -53,6 +53,8 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("services");
   const [selectedTaxJurisdictionId, setSelectedTaxJurisdictionId] = useState<number | null>(null);
+  const [showAddServices, setShowAddServices] = useState(false);
+  const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
   
   // Get entity details
   const { data: entity, isLoading: isEntityLoading } = useQuery<Entity>({
@@ -68,6 +70,16 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
   } = useQuery<ServiceWithStatus[]>({
     queryKey: [`/api/v1/entities/${entityId}/services`],
     enabled: isOpen && !!entityId,
+  });
+
+  // Get all available services for the country (for adding new services)
+  const { data: allAvailableServices = [] } = useQuery<ServiceType[]>({
+    queryKey: [`/api/v1/setup/service-types`],
+    enabled: isOpen && !!entity?.countryId && showAddServices,
+    select: (data) => data.filter(service => 
+      service.countryId === entity?.countryId && 
+      !services.some(existingService => existingService.id === service.id)
+    )
   });
   
   // Get entity tax jurisdictions
@@ -214,6 +226,45 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
     }
   });
   
+  // Add services to entity mutation
+  const addServicesToEntity = useMutation({
+    mutationFn: async (serviceIds: number[]) => {
+      if (!entityId) throw new Error("Entity ID is required");
+      
+      const promises = serviceIds.map(serviceId =>
+        apiRequest("POST", `/api/v1/entities/${entityId}/services`, {
+          serviceTypeId: serviceId,
+          isRequired: false,
+          isSubscribed: false
+        })
+      );
+      
+      return Promise.all(promises);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/v1/entities/${entityId}/services`]
+      });
+      
+      toast({
+        title: "Services added",
+        description: "Selected services have been added to the entity",
+      });
+      
+      setShowAddServices(false);
+      setSelectedServiceIds([]);
+      refetchServices();
+    },
+    onError: (error: any) => {
+      console.error("Error adding services:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add services",
+        variant: "destructive",
+      });
+    }
+  });
+
   // Remove tax jurisdiction mutation
   const removeTaxJurisdiction = useMutation({
     mutationFn: async (taxJurisdictionId: number) => {
@@ -317,28 +368,132 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
               </TabsList>
               
               <TabsContent value="services" className="pt-4 space-y-4">
-                {isServicesLoading ? (
-                  <div className="flex justify-center items-center py-10">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
-                  </div>
-                ) : services.length === 0 ? (
+                {showAddServices ? (
                   <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-10">
-                      <AlertCircle className="h-10 w-10 text-yellow-500 mb-4" />
-                      <p className="text-slate-500 mb-4">No service types found for this country</p>
-                      <p className="text-slate-500 text-sm">
-                        Please add service types in Setup &gt; Service Types
-                      </p>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="text-lg font-medium">Add Services to Entity</h3>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Select services from your setup that are relevant to this entity
+                          </p>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => {
+                            setShowAddServices(false);
+                            setSelectedServiceIds([]);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+
+                      {allAvailableServices.length === 0 ? (
+                        <div className="text-center py-8">
+                          <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+                          <p className="text-slate-500 mb-2">No additional services available</p>
+                          <p className="text-sm text-slate-400">
+                            All services for this country have already been added to this entity.
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="space-y-3 mb-6 max-h-96 overflow-y-auto">
+                            {allAvailableServices.map((service) => (
+                              <Card key={service.id} className="border-2 transition-colors">
+                                <CardContent className="p-4">
+                                  <div className="flex items-start space-x-3">
+                                    <Checkbox
+                                      id={`select-service-${service.id}`}
+                                      checked={selectedServiceIds.includes(service.id)}
+                                      onCheckedChange={(checked) => {
+                                        if (checked) {
+                                          setSelectedServiceIds([...selectedServiceIds, service.id]);
+                                        } else {
+                                          setSelectedServiceIds(selectedServiceIds.filter(id => id !== service.id));
+                                        }
+                                      }}
+                                    />
+                                    <div className="flex-1">
+                                      <label
+                                        htmlFor={`select-service-${service.id}`}
+                                        className="text-sm font-medium cursor-pointer"
+                                      >
+                                        {service.name}
+                                      </label>
+                                      <p className="text-sm text-slate-500 mt-1">
+                                        {service.description || "No description"}
+                                      </p>
+                                      <div className="flex items-center space-x-2 mt-2">
+                                        <Badge variant="outline" className="text-xs">
+                                          Rate: {service.rate}
+                                        </Badge>
+                                        <Badge variant="outline" className="text-xs">
+                                          Billing: {service.billingBasis}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+
+                          <div className="flex justify-between items-center pt-4 border-t">
+                            <p className="text-sm text-slate-500">
+                              {selectedServiceIds.length} service(s) selected
+                            </p>
+                            <Button 
+                              onClick={() => addServicesToEntity.mutate(selectedServiceIds)}
+                              disabled={selectedServiceIds.length === 0 || addServicesToEntity.isPending}
+                            >
+                              {addServicesToEntity.isPending ? "Adding..." : "Add Selected Services"}
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     </CardContent>
                   </Card>
                 ) : (
+                  {/* Existing Services Configuration */}
                   <>
-                    <div className="mb-4">
-                      <h3 className="text-sm font-medium">Available Services</h3>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        For each service, indicate if it's Required and/or Subscribed
-                      </p>
-                    </div>
+                    {isServicesLoading ? (
+                      <div className="flex justify-center items-center py-10">
+                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
+                      </div>
+                    ) : services.length === 0 ? (
+                      <Card>
+                        <CardContent className="flex flex-col items-center justify-center py-10">
+                          <AlertCircle className="h-10 w-10 text-yellow-500 mb-4" />
+                          <p className="text-slate-500 mb-4">No services configured for this entity</p>
+                          <p className="text-slate-500 text-sm mb-4">
+                            Add services from your setup to configure compliance requirements
+                          </p>
+                          <Button onClick={() => setShowAddServices(true)}>
+                            <PlusCircle className="h-4 w-4 mr-2" />
+                            Add Services
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h3 className="text-sm font-medium">Configured Services</h3>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Configure required and subscribed status for each service
+                            </p>
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setShowAddServices(true)}
+                          >
+                            <PlusCircle className="h-4 w-4 mr-2" />
+                            Add More Services
+                          </Button>
+                        </div>
                     
                     <div className="space-y-2">
                       {services.map((service) => (
