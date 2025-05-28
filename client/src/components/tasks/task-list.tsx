@@ -293,8 +293,8 @@ export function TaskList() {
   const [taskType, setTaskType] = useState<"admin" | "revenue">("admin");
   const [showColumnManager, setShowColumnManager] = useState(false);
   
-  // Column management state
-  const [columns, setColumns] = useState<TaskColumn[]>([
+  // Column management state with localStorage persistence
+  const getDefaultColumns = (): TaskColumn[] => [
     { id: 'task', label: 'Task', key: 'taskDetails', visible: true, required: true },
     { id: 'client', label: 'Client', key: 'client', visible: true },
     { id: 'entity', label: 'Entity', key: 'entity', visible: false },
@@ -307,7 +307,54 @@ export function TaskList() {
     { id: 'created', label: 'Created', key: 'createdAt', visible: false },
     { id: 'recurring', label: 'Recurring', key: 'isRecurring', visible: false },
     { id: 'compliance', label: 'Compliance Period', key: 'complianceFrequency', visible: false },
-  ]);
+  ];
+
+  // Load user's column preferences from localStorage
+  const loadColumnPreferences = (): TaskColumn[] => {
+    try {
+      const saved = localStorage.getItem(`taskColumns_${currentUser?.id || 'default'}`);
+      if (saved) {
+        const savedColumns = JSON.parse(saved);
+        // Merge with default columns to handle new columns added to the system
+        const defaultColumns = getDefaultColumns();
+        return defaultColumns.map(defaultCol => {
+          const savedCol = savedColumns.find((s: TaskColumn) => s.id === defaultCol.id);
+          return savedCol ? { ...defaultCol, visible: savedCol.visible } : defaultCol;
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to load column preferences:', error);
+    }
+    return getDefaultColumns();
+  };
+
+  const [columns, setColumns] = useState<TaskColumn[]>(loadColumnPreferences);
+
+  // Save column preferences to localStorage
+  const saveColumnPreferences = (newColumns: TaskColumn[]) => {
+    try {
+      localStorage.setItem(`taskColumns_${currentUser?.id || 'default'}`, JSON.stringify(newColumns));
+      toast({
+        title: "Preferences Saved",
+        description: "Your column preferences have been saved as default.",
+      });
+    } catch (error) {
+      console.warn('Failed to save column preferences:', error);
+      toast({
+        title: "Save Failed",
+        description: "Failed to save column preferences.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Update columns and optionally save as default
+  const updateColumns = (newColumns: TaskColumn[], saveAsDefault = false) => {
+    setColumns(newColumns);
+    if (saveAsDefault) {
+      saveColumnPreferences(newColumns);
+    }
+  };
   
   // Drag and drop state
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -387,7 +434,7 @@ export function TaskList() {
         ) : <span className="text-slate-400">-</span>;
       case 'entity':
         return entity ? (
-          <span className="text-sm text-slate-900">{entity.name}</span>
+          <span className="text-sm text-slate-900">{(entity as any).name || (entity as any).displayName}</span>
         ) : <span className="text-slate-400">-</span>;
       case 'assignee':
         return assignee ? (
@@ -815,7 +862,7 @@ export function TaskList() {
                           checked={column.visible}
                           disabled={column.required}
                           onCheckedChange={(checked) => {
-                            setColumns(prev => prev.map(col => 
+                            updateColumns(columns.map(col => 
                               col.id === column.id 
                                 ? { ...col, visible: checked as boolean }
                                 : col
@@ -834,13 +881,13 @@ export function TaskList() {
                       </div>
                     ))}
                   </div>
-                  <div className="pt-2 border-t border-slate-200">
+                  <div className="pt-2 border-t border-slate-200 space-y-2">
                     <div className="flex gap-2">
                       <Button 
                         size="sm" 
                         variant="outline"
                         onClick={() => {
-                          setColumns(prev => prev.map(col => ({ ...col, visible: !col.required })));
+                          updateColumns(columns.map(col => ({ ...col, visible: !col.required })));
                         }}
                         className="flex-1"
                       >
@@ -850,11 +897,34 @@ export function TaskList() {
                         size="sm" 
                         variant="outline"
                         onClick={() => {
-                          setColumns(prev => prev.map(col => ({ ...col, visible: true })));
+                          updateColumns(columns.map(col => ({ ...col, visible: true })));
                         }}
                         className="flex-1"
                       >
                         Show All
+                      </Button>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="default"
+                        onClick={() => {
+                          updateColumns(columns, true);
+                        }}
+                        className="flex-1"
+                      >
+                        Set as Default
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          const defaultColumns = getDefaultColumns();
+                          updateColumns(defaultColumns);
+                        }}
+                        className="flex-1"
+                      >
+                        Reset
                       </Button>
                     </div>
                   </div>
