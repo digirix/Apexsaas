@@ -81,6 +81,209 @@ const formatDate = (date: string | Date) => {
   }
 };
 
+// Entity Detail Section Component
+function EntityDetailSection({ entity }: { entity: any }) {
+  const { data: entityServices, isLoading: servicesLoading } = useQuery({
+    queryKey: [`/api/client-portal/entities/${entity.id}/services`],
+    enabled: !!entity.id
+  });
+
+  const { data: entityTasks } = useQuery({
+    queryKey: [`/api/client-portal/tasks?entityId=${entity.id}`],
+    enabled: !!entity.id
+  });
+
+  // Calculate compliance metrics
+  const services = entityServices || [];
+  const totalServices = services.length;
+  const requiredServices = services.filter((s: any) => s.isRequired).length;
+  const subscribedServices = services.filter((s: any) => s.isSubscribed).length;
+  const complianceRate = totalServices > 0 ? Math.round((subscribedServices / totalServices) * 100) : 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="mb-8"
+    >
+      <Card className="bg-white/80 backdrop-blur-lg border border-white/40 shadow-xl rounded-2xl overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+        
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl">
+                <Building2 className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-xl font-bold text-slate-900">{entity.name}</CardTitle>
+                <CardDescription className="text-slate-600">
+                  Complete entity overview and service configuration
+                </CardDescription>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          {/* Compliance Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100">
+              <div className="flex items-center space-x-2 mb-2">
+                <BarChart className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-900">Compliance Rate</span>
+              </div>
+              <p className="text-2xl font-bold text-blue-700">{complianceRate}%</p>
+              <p className="text-xs text-blue-600">{subscribedServices} of {totalServices} services</p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100">
+              <div className="flex items-center space-x-2 mb-2">
+                <CheckCircle className="h-4 w-4 text-emerald-600" />
+                <span className="text-sm font-medium text-emerald-900">Required Services</span>
+              </div>
+              <p className="text-2xl font-bold text-emerald-700">{requiredServices}</p>
+              <p className="text-xs text-emerald-600">Essential for compliance</p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100">
+              <div className="flex items-center space-x-2 mb-2">
+                <Clock className="h-4 w-4 text-amber-600" />
+                <span className="text-sm font-medium text-amber-900">Active Tasks</span>
+              </div>
+              <p className="text-2xl font-bold text-amber-700">{entityTasks?.length || 0}</p>
+              <p className="text-xs text-amber-600">Pending completion</p>
+            </div>
+
+            <div className="p-4 rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100">
+              <div className="flex items-center space-x-2 mb-2">
+                <Shield className="h-4 w-4 text-purple-600" />
+                <span className="text-sm font-medium text-purple-900">Tax Status</span>
+              </div>
+              <p className="text-lg font-semibold text-purple-700">
+                {entity.isVatRegistered ? "VAT Registered" : "Standard"}
+              </p>
+              <p className="text-xs text-purple-600">{entity.businessTaxId || "No Tax ID"}</p>
+            </div>
+          </div>
+
+          {/* Service Configuration */}
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Briefcase className="h-5 w-5 text-slate-600" />
+              <h3 className="text-lg font-semibold text-slate-900">Service Configuration</h3>
+            </div>
+            
+            {servicesLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-20 bg-slate-100 rounded-lg animate-pulse"></div>
+                ))}
+              </div>
+            ) : services.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {services.map((service: any) => (
+                  <div 
+                    key={service.id}
+                    className={`p-4 rounded-lg border transition-all duration-200 ${
+                      service.isSubscribed 
+                        ? 'bg-emerald-50 border-emerald-200' 
+                        : service.isRequired 
+                        ? 'bg-amber-50 border-amber-200'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <h4 className="font-medium text-slate-900 text-sm">Service {service.serviceTypeId}</h4>
+                      <div className="flex space-x-1">
+                        {service.isRequired && (
+                          <span className="px-2 py-1 text-xs bg-amber-100 text-amber-700 rounded-full">
+                            Required
+                          </span>
+                        )}
+                        {service.isSubscribed && (
+                          <span className="px-2 py-1 text-xs bg-emerald-100 text-emerald-700 rounded-full">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-600">
+                      Status: {service.isSubscribed ? 'Subscribed' : 'Not Subscribed'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-500">
+                <Briefcase className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                <p>No services configured</p>
+              </div>
+            )}
+          </div>
+
+          {/* Entity Details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <h4 className="font-semibold text-slate-900">Business Information</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Entity Type:</span>
+                  <span className="font-medium">{entity.entityType}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Business Tax ID:</span>
+                  <span className="font-medium">{entity.businessTaxId || "Not provided"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">VAT ID:</span>
+                  <span className="font-medium">{entity.vatId || "Not applicable"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Registration Date:</span>
+                  <span className="font-medium">
+                    {new Date(entity.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="font-semibold text-slate-900">Location & Contact</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Country:</span>
+                  <span className="font-medium">{entity.countryName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">State/Province:</span>
+                  <span className="font-medium">{entity.stateName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Address:</span>
+                  <span className="font-medium">{entity.address || "Not provided"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Communication:</span>
+                  <div className="flex space-x-2">
+                    {entity.whatsappGroupLink && (
+                      <span className="text-green-600 text-xs">WhatsApp</span>
+                    )}
+                    {entity.fileAccessLink && (
+                      <span className="text-blue-600 text-xs">Files</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
 export default function ClientPortalDashboardPage() {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
@@ -560,163 +763,64 @@ export default function ClientPortalDashboardPage() {
                   <h2 className="text-2xl font-bold text-slate-900">Your Business Entities</h2>
                 </div>
                 
-                {(clientEntities as any[]).map((entity: any, index: number) => (
-                  <motion.div
-                    key={entity.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: index * 0.1 }}
-                    className="group"
-                  >
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-2xl blur-xl"></div>
-                      <Card className="relative bg-white/80 backdrop-blur-lg border border-white/40 shadow-xl rounded-2xl overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
-                        
-                        {/* Header Section */}
-                        <div className="p-6 border-b border-slate-200/50">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center space-x-4">
-                              <motion.div 
-                                className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl"
-                                whileHover={{ rotate: 5, scale: 1.05 }}
-                                transition={{ type: "spring", stiffness: 400 }}
-                              >
-                                <Building2 className="h-6 w-6 text-white" />
-                              </motion.div>
-                              <div>
-                                <h2 className="text-xl font-bold text-slate-900">
-                                  {entity.name}
-                                </h2>
-                                <p className="text-sm text-slate-600 flex items-center mt-1">
-                                  <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium mr-2">
-                                    {entity.entityType}
-                                  </span>
-                                  <MapPin className="h-3 w-3 mr-1" />
-                                  {entity.address ? `${entity.address}, ` : ''}{entity.stateName}, {entity.countryName}
-                                </p>
-                              </div>
+{/* Compact Entity Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
+                  {(clientEntities as any[]).map((entity: any, index: number) => (
+                    <motion.div
+                      key={entity.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.1 }}
+                      whileHover={{ y: -2, scale: 1.02 }}
+                      className="group"
+                    >
+                      <Card className="h-24 bg-white/90 backdrop-blur-sm border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 rounded-lg overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                        <div className="p-3 h-full flex items-center justify-between">
+                          <div className="flex items-center space-x-3 min-w-0 flex-1">
+                            <div className="p-1.5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex-shrink-0">
+                              <Building2 className="h-3.5 w-3.5 text-white" />
                             </div>
-                            <div className="flex items-center space-x-2">
-                              {entity.whatsappGroupLink && (
-                                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    className="text-green-600 border-green-200 hover:bg-green-50"
-                                    onClick={() => window.open(entity.whatsappGroupLink, '_blank')}
-                                  >
-                                    <MessageCircle className="h-4 w-4 mr-2" />
-                                    WhatsApp
-                                  </Button>
-                                </motion.div>
-                              )}
-                              {entity.fileAccessLink && (
-                                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                                    onClick={() => window.open(entity.fileAccessLink, '_blank')}
-                                  >
-                                    <FileBox className="h-4 w-4 mr-2" />
-                                    Files
-                                  </Button>
-                                </motion.div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Entity Details Grid */}
-                        <div className="p-6">
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                            <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <Shield className="h-4 w-4 text-blue-600" />
-                                <span className="text-sm font-medium text-blue-900">Business Tax ID</span>
-                              </div>
-                              <p className="text-lg font-semibold text-blue-700">
-                                {entity.businessTaxId || "Not Provided"}
-                              </p>
-                            </div>
-
-                            <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <CheckCircle className="h-4 w-4 text-emerald-600" />
-                                <span className="text-sm font-medium text-emerald-900">VAT Status</span>
-                              </div>
-                              <p className="text-lg font-semibold text-emerald-700">
-                                {entity.isVatRegistered ? "VAT Registered" : "Not VAT Registered"}
-                              </p>
-                              {entity.isVatRegistered && entity.vatId && (
-                                <p className="text-xs text-emerald-600 mt-1">ID: {entity.vatId}</p>
-                              )}
-                            </div>
-
-                            <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <Calendar className="h-4 w-4 text-amber-600" />
-                                <span className="text-sm font-medium text-amber-900">Registered</span>
-                              </div>
-                              <p className="text-lg font-semibold text-amber-700">
-                                {new Date(entity.createdAt).toLocaleDateString('en-US', { 
-                                  year: 'numeric', 
-                                  month: 'short', 
-                                  day: 'numeric' 
-                                })}
-                              </p>
-                            </div>
-
-                            <div className="p-4 rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <BarChart className="h-4 w-4 text-purple-600" />
-                                <span className="text-sm font-medium text-purple-900">Activity</span>
-                              </div>
-                              <p className="text-lg font-semibold text-purple-700">
-                                {entity.stats?.taskCount || 0} Tasks
-                              </p>
-                              <p className="text-xs text-purple-600">
-                                {entity.stats?.invoiceCount || 0} Invoices
+                            <div className="min-w-0 flex-1">
+                              <h3 className="font-semibold text-sm text-slate-900 truncate">
+                                {entity.name}
+                              </h3>
+                              <p className="text-xs text-slate-500 truncate">
+                                {entity.entityType} • {entity.countryName}
                               </p>
                             </div>
                           </div>
-
-                          {/* Quick Actions */}
-                          <div className="flex flex-wrap gap-2">
-                            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                          <div className="flex items-center space-x-1 flex-shrink-0">
+                            {entity.whatsappGroupLink && (
                               <Button 
                                 variant="ghost" 
                                 size="sm"
-                                className="text-blue-600 hover:bg-blue-50"
-                                onClick={() => {
-                                  setSelectedEntityId(entity.id);
-                                  setActiveTab("tasks");
-                                }}
+                                className="h-6 w-6 p-0 text-green-600 hover:bg-green-50"
+                                onClick={() => window.open(entity.whatsappGroupLink, '_blank')}
                               >
-                                <Clock className="h-4 w-4 mr-2" />
-                                View Tasks
+                                <MessageCircle className="h-3 w-3" />
                               </Button>
-                            </motion.div>
-                            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                            )}
+                            {entity.fileAccessLink && (
                               <Button 
                                 variant="ghost" 
                                 size="sm"
-                                className="text-purple-600 hover:bg-purple-50"
-                                onClick={() => {
-                                  setSelectedEntityId(entity.id);
-                                  setActiveTab("invoices");
-                                }}
+                                className="h-6 w-6 p-0 text-blue-600 hover:bg-blue-50"
+                                onClick={() => window.open(entity.fileAccessLink, '_blank')}
                               >
-                                <Receipt className="h-4 w-4 mr-2" />
-                                View Invoices
+                                <FileBox className="h-3 w-3" />
                               </Button>
-                            </motion.div>
+                            )}
                           </div>
                         </div>
                       </Card>
-                    </div>
-                  </motion.div>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {/* Detailed Entity Information */}
+                {(clientEntities as any[]).map((entity: any, index: number) => (
+                  <EntityDetailSection key={`detail-${entity.id}`} entity={entity} />
                 ))}
               </motion.div>
             )}
