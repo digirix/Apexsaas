@@ -903,6 +903,13 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
                           </div>
                         )}
                         
+                        {task.complianceDeadline && (
+                          <div>
+                            <p className="text-sm font-medium">Compliance Deadline</p>
+                            <p>{format(new Date(task.complianceDeadline), "PPP")}</p>
+                          </div>
+                        )}
+                        
                         <div>
                           <p className="text-sm font-medium">Recurring</p>
                           <p>{task.isRecurring ? "Yes" : "No"}</p>
@@ -1544,6 +1551,45 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
                                   )}
                                 />
                               </div>
+                              
+                              <FormField
+                                control={revenueTaskForm.control}
+                                name="complianceDeadline"
+                                render={({ field }) => (
+                                  <FormItem className="flex flex-col">
+                                    <FormLabel>Compliance Deadline</FormLabel>
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <FormControl>
+                                          <Button
+                                            variant={"outline"}
+                                            className="pl-3 text-left font-normal"
+                                          >
+                                            {field.value ? (
+                                              format(field.value, "PPP")
+                                            ) : (
+                                              <span>Set compliance deadline</span>
+                                            )}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                          </Button>
+                                        </FormControl>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar
+                                          mode="single"
+                                          selected={field.value}
+                                          onSelect={field.onChange}
+                                          initialFocus
+                                        />
+                                      </PopoverContent>
+                                    </Popover>
+                                    <FormDescription>
+                                      Official deadline set by tax authorities for this compliance requirement
+                                    </FormDescription>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
                               
                               <FormField
                                 control={revenueTaskForm.control}

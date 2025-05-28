@@ -385,9 +385,23 @@ function calculateComplianceAnalysis(
     
     const lastCompleted = recentTasks.length > 0 ? new Date(recentTasks[0].createdAt) : undefined;
 
-    // Calculate next due date based on compliance frequency
+    // Use compliance deadline if available, otherwise calculate based on frequency
     let nextDue: Date | undefined;
-    if (lastCompleted && serviceTasks.length > 0) {
+    
+    // First check if any task has a compliance deadline set by authorities
+    const tasksWithDeadlines = serviceTasks.filter(task => task.complianceDeadline);
+    if (tasksWithDeadlines.length > 0) {
+      // Use the nearest upcoming compliance deadline
+      const upcomingDeadlines = tasksWithDeadlines
+        .map(task => new Date(task.complianceDeadline))
+        .filter(deadline => deadline > new Date())
+        .sort((a, b) => a.getTime() - b.getTime());
+      
+      if (upcomingDeadlines.length > 0) {
+        nextDue = upcomingDeadlines[0];
+      }
+    } else if (lastCompleted && serviceTasks.length > 0) {
+      // Fallback to frequency-based calculation
       const frequency = serviceTasks[0].complianceFrequency;
       if (frequency === 'Monthly') {
         nextDue = addMonths(lastCompleted, 1);
@@ -500,7 +514,7 @@ function ComplianceAnalysisSection({ analysis }: { analysis: ComplianceAnalysis 
               <TableHead>Status</TableHead>
               <TableHead>Frequency</TableHead>
               <TableHead>Last Completed</TableHead>
-              <TableHead>Next Due</TableHead>
+              <TableHead>Compliance Deadline</TableHead>
               <TableHead>Completion Rate</TableHead>
               <TableHead>Required</TableHead>
             </TableRow>
