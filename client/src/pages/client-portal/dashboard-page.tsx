@@ -547,6 +547,180 @@ export default function ClientPortalDashboardPage() {
           
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-8">
+            {/* Entity Overview Section */}
+            {clientEntities && (clientEntities as any[]).length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+                className="space-y-6"
+              >
+                <div className="flex items-center space-x-3">
+                  <Building2 className="h-6 w-6 text-blue-600" />
+                  <h2 className="text-2xl font-bold text-slate-900">Your Business Entities</h2>
+                </div>
+                
+                {(clientEntities as any[]).map((entity: any, index: number) => (
+                  <motion.div
+                    key={entity.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                    className="group"
+                  >
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-2xl blur-xl"></div>
+                      <Card className="relative bg-white/80 backdrop-blur-lg border border-white/40 shadow-xl rounded-2xl overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                        
+                        {/* Header Section */}
+                        <div className="p-6 border-b border-slate-200/50">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center space-x-4">
+                              <motion.div 
+                                className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl"
+                                whileHover={{ rotate: 5, scale: 1.05 }}
+                                transition={{ type: "spring", stiffness: 400 }}
+                              >
+                                <Building2 className="h-6 w-6 text-white" />
+                              </motion.div>
+                              <div>
+                                <h2 className="text-xl font-bold text-slate-900">
+                                  {entity.name}
+                                </h2>
+                                <p className="text-sm text-slate-600 flex items-center mt-1">
+                                  <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium mr-2">
+                                    {entity.entityType}
+                                  </span>
+                                  <MapPin className="h-3 w-3 mr-1" />
+                                  {entity.address ? `${entity.address}, ` : ''}{entity.stateName}, {entity.countryName}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              {entity.whatsappGroupLink && (
+                                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    className="text-green-600 border-green-200 hover:bg-green-50"
+                                    onClick={() => window.open(entity.whatsappGroupLink, '_blank')}
+                                  >
+                                    <MessageCircle className="h-4 w-4 mr-2" />
+                                    WhatsApp
+                                  </Button>
+                                </motion.div>
+                              )}
+                              {entity.fileAccessLink && (
+                                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                    onClick={() => window.open(entity.fileAccessLink, '_blank')}
+                                  >
+                                    <FileBox className="h-4 w-4 mr-2" />
+                                    Files
+                                  </Button>
+                                </motion.div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Entity Details Grid */}
+                        <div className="p-6">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                            <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <Shield className="h-4 w-4 text-blue-600" />
+                                <span className="text-sm font-medium text-blue-900">Business Tax ID</span>
+                              </div>
+                              <p className="text-lg font-semibold text-blue-700">
+                                {entity.businessTaxId || "Not Provided"}
+                              </p>
+                            </div>
+
+                            <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <CheckCircle className="h-4 w-4 text-emerald-600" />
+                                <span className="text-sm font-medium text-emerald-900">VAT Status</span>
+                              </div>
+                              <p className="text-lg font-semibold text-emerald-700">
+                                {entity.isVatRegistered ? "VAT Registered" : "Not VAT Registered"}
+                              </p>
+                              {entity.isVatRegistered && entity.vatId && (
+                                <p className="text-xs text-emerald-600 mt-1">ID: {entity.vatId}</p>
+                              )}
+                            </div>
+
+                            <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <Calendar className="h-4 w-4 text-amber-600" />
+                                <span className="text-sm font-medium text-amber-900">Registered</span>
+                              </div>
+                              <p className="text-lg font-semibold text-amber-700">
+                                {new Date(entity.createdAt).toLocaleDateString('en-US', { 
+                                  year: 'numeric', 
+                                  month: 'short', 
+                                  day: 'numeric' 
+                                })}
+                              </p>
+                            </div>
+
+                            <div className="p-4 rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <BarChart className="h-4 w-4 text-purple-600" />
+                                <span className="text-sm font-medium text-purple-900">Activity</span>
+                              </div>
+                              <p className="text-lg font-semibold text-purple-700">
+                                {entity.stats?.taskCount || 0} Tasks
+                              </p>
+                              <p className="text-xs text-purple-600">
+                                {entity.stats?.invoiceCount || 0} Invoices
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Quick Actions */}
+                          <div className="flex flex-wrap gap-2">
+                            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                className="text-blue-600 hover:bg-blue-50"
+                                onClick={() => {
+                                  setSelectedEntityId(entity.id);
+                                  setActiveTab("tasks");
+                                }}
+                              >
+                                <Clock className="h-4 w-4 mr-2" />
+                                View Tasks
+                              </Button>
+                            </motion.div>
+                            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                className="text-purple-600 hover:bg-purple-50"
+                                onClick={() => {
+                                  setSelectedEntityId(entity.id);
+                                  setActiveTab("invoices");
+                                }}
+                              >
+                                <Receipt className="h-4 w-4 mr-2" />
+                                View Invoices
+                              </Button>
+                            </motion.div>
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+
             <motion.div 
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
               initial={{ opacity: 0, y: 20 }}
