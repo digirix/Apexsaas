@@ -1,0 +1,113 @@
+ Enhance the "Tasks Management" module with advanced features including real-time internal chat per task, user mentions (@username), and time tracking for assignees. This will improve team communication, accountability, and provide valuable data for billing and performance analysis.
+Core Philosophy:
+Task-Centric Communication: Chat and mentions should be directly associated with specific tasks.
+Real-Time Interaction: Chat messages and notifications for mentions should appear promptly.
+Actionable Data: Time tracking data should be accurate and easily reportable.
+Seamless Integration: These features must feel like a natural extension of the existing Tasks module and overall application (permissions, UI style, multi-tenancy).
+User-Friendly: Intuitive to use for all team members.
+I. Task Chat & Mentions Functionality:
+Data Model Enhancements (Drizzle ORM, PostgreSQL):
+task_messages Table:
+id (Primary Key)
+taskId (Foreign Key to tasks table, indexed)
+tenantId (Foreign Key, indexed)
+userId (Foreign Key to users table - sender of the message)
+messageContent (TEXT - can store rich text/markdown if desired later)
+createdAt (TIMESTAMP, default NOW())
+(Optional) isEdited (BOOLEAN), editedAt (TIMESTAMP)
+task_message_mentions Table (if you want to specifically track mentions for notifications/search):
+id (Primary Key)
+taskMessageId (Foreign Key to task_messages)
+mentionedUserId (Foreign Key to users table)
+tenantId (Foreign Key)
+Backend Development (Node.js, TypeScript):
+API Endpoints (RESTful, within /api/tasks/:taskId/messages scope):
+GET /api/tasks/:taskId/messages: Fetch messages for a task (paginated, sorted by createdAt).
+POST /api/tasks/:taskId/messages: Create a new message.
+Input: messageContent.
+Logic:
+Save the message to task_messages.
+Parse messageContent for @username patterns.
+Intelligent Suggestion: The AI should be able to query the users table (for the current tenantId) to validate usernames and get userIds for mentions.
+If mentions are found, create records in task_message_mentions (if using this table).
+Crucially, trigger notifications (via your Internal Notification System) to mentioned users. The notification should link back to the task.
+Emit a WebSocket event (see section III) to broadcast the new message to clients viewing that task.
+PUT /api/tasks/:taskId/messages/:messageId: Edit a message (with permission checks - only sender or admin).
+DELETE /api/tasks/:taskId/messages/:messageId: Delete a message (with permission checks).
+Service Logic (TaskService or a new TaskChatService): Encapsulate the business logic for creating, fetching, and managing task messages and mentions. Ensure tenantId and task access permissions (requirePermission(storage, "tasks", "read" or "update")) are checked.
+Frontend Development (React, TypeScript, Shadcn/UI):
+Chat Interface within Task View/Modal:
+Display a chronological list of messages for the current task.
+Show sender's name/avatar and timestamp for each message.
+Input field for typing new messages.
+Mention Autocomplete: As a user types @, provide a dropdown/suggestion list of users within the tenant (fetch from /api/users or a dedicated endpoint). Shadcn/UI Combobox or similar could be adapted.
+Selected mentions should be visually distinct in the input (e.g., highlighted).
+Real-time updates: New messages should appear automatically via WebSockets.
+Render mentions in displayed messages as clickable links (e.g., to a user profile, or just styled).
+Options to edit/delete own messages (if implemented).
+II. Task Time Tracking Functionality:
+Data Model Enhancements (Drizzle ORM, PostgreSQL):
+task_time_entries Table:
+id (Primary Key)
+taskId (Foreign Key to tasks table, indexed)
+userId (Foreign Key to users table - user who logged time, typically an assignee)
+tenantId (Foreign Key, indexed)
+startTime (TIMESTAMP - can be used for timer-based tracking or manual entry)
+endTime (TIMESTAMP - can be null if timer is active)
+durationSeconds (INTEGER - calculated or manually entered, store in seconds for precision)
+description (TEXT, optional - notes about the work done during this time entry)
+isBillable (BOOLEAN, default true - allows marking time as non-billable)
+createdAt (TIMESTAMP, default NOW())
+updatedAt (TIMESTAMP)
+Backend Development (Node.js, TypeScript):
+API Endpoints (RESTful, within /api/tasks/:taskId/time-entries scope):
+GET /api/tasks/:taskId/time-entries: Fetch all time entries for a task.
+GET /api/users/:userId/time-entries: Fetch time entries for a user (can be filtered by date range, task, etc. for reporting).
+POST /api/tasks/:taskId/time-entries: Create a new time entry.
+Allow manual entry (start, end, or duration) and potentially starting/stopping a timer.
+Input: userId (or inferred from auth), startTime (optional), endTime (optional), durationSeconds (optional), description, isBillable.
+Backend calculates durationSeconds if startTime and endTime are provided.
+PUT /api/tasks/:taskId/time-entries/:timeEntryId: Update a time entry (e.g., adjust duration, description).
+DELETE /api/tasks/:taskId/time-entries/:timeEntryId: Delete a time entry.
+Service Logic (TaskService or new TimeTrackingService):
+Handle CRUD operations for time entries.
+Business logic for timer start/stop if implementing active timers.
+Ensure appropriate permissions (e.g., users can only log/edit their own time, managers might view team time).
+Calculate total time spent on a task by summing durationSeconds from its task_time_entries. This could be a derived field on the task or calculated on demand.
+Frontend Development (React, TypeScript, Shadcn/UI):
+Time Tracking UI within Task View/Modal:
+Display Total Time: Show the total time logged for the task so far (sum of all entries).
+Log Time Button/Form:
+Manually enter time: Date, Duration (e.g., HH:MM or decimal hours), Description, Billable toggle.
+(Optional) Timer: Start/Stop timer button. When active, it updates a live counter. Clicking stop could pre-fill a "Log Time" form.
+List of Time Entries: Display existing time entries for the task (user, date, duration, description), with options to edit/delete own entries.
+Integration with Task List/Dashboard (Future):
+Potentially show total time logged on task cards in list views.
+Aggregate time tracking data in reports or dashboard widgets.
+III. Real-time Functionality (WebSockets - e.g., socket.io, building on your Internal Notification System's setup):
+Backend (WebSocket Server):
+When a new task_message is created, emit an event (e.g., new_task_message) to a room specific to that task (e.g., task_${taskId}_${tenantId}). All users viewing that task will receive the message.
+(Optional) If implementing an active timer, WebSocket events could be used for real-time updates of the timer display if multiple users are viewing the task where a timer is running.
+Frontend (WebSocket Client):
+If a user is viewing a task, their client should join the corresponding task room.
+Listen for new_task_message events. On receiving one, append the message to the chat display.
+IV. Additional Suggested Features (Consider for this iteration or later):
+File Attachments in Chat: Allow users to attach files (images, documents) to task messages. This would require storage (e.g., S3 or similar) and updates to task_messages table and APIs.
+Message Reactions/Emojis: Allow users to react to chat messages (like Slack/Teams).
+Read Receipts for Messages: Indicate who has seen a message (more complex).
+Task Activity Log: A separate log (or integrated with chat) showing all changes to a task (status changes, assignee changes, due date changes, etc.) in addition to chat messages.
+Time Tracking Reports: Dedicated section in the "Reports Module" to view time logged by user, client, project (if tasks are linked to projects), date range, billable vs. non-billable.
+Editing/Deleting Chat Messages: With clear indicators that a message was edited/deleted and permission controls.
+V. Key Considerations for AI Implementation:
+Leverage Existing Components: Encourage the AI to reuse existing UI components from Shadcn/UI and patterns from your application (e.g., for forms, lists, API calls with TanStack Query).
+Permission Model:
+Who can chat on a task? (Typically anyone who can view/access the task).
+Who can log time? (Typically assignees, or any team member if tasks are open).
+Who can see others' time entries? (Assignees see their own; managers might see team's time).
+Your requirePermission(storage, "module", "action") should be extended or applied appropriately.
+Notification Integration: Ensure @mentions reliably trigger your Internal Notification System, providing context and a direct link back to the task and message.
+Performance: Fetching many chat messages or time entries should be paginated. Database queries should be optimized.
+User Experience:
+The chat should feel fluid and intuitive.
+Time logging should be quick and easy.
+Autocomplete for mentions is crucial for usability.
