@@ -101,21 +101,21 @@ export function EntityDetail({ entityId }: EntityDetailProps) {
   });
 
   // Fetch client info
-  const { data: client } = useQuery({
+  const { data: client } = useQuery<any>({
     queryKey: [`/api/v1/clients/${entity?.clientId}`],
     enabled: !!entity?.clientId,
   });
 
   // Fetch country and state info
-  const { data: countries = [] } = useQuery({
+  const { data: countries = [] } = useQuery<any[]>({
     queryKey: ['/api/v1/setup/countries'],
   });
 
-  const { data: states = [] } = useQuery({
+  const { data: states = [] } = useQuery<any[]>({
     queryKey: ['/api/v1/setup/states'],
   });
 
-  const { data: entityTypes = [] } = useQuery({
+  const { data: entityTypes = [] } = useQuery<any[]>({
     queryKey: ['/api/v1/setup/entity-types'],
   });
 

@@ -729,7 +729,10 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
                     <div className="block hover:bg-slate-50">
                       <div className="px-4 py-4 sm:px-6">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center">
+                          <div 
+                            className="flex items-center cursor-pointer hover:text-blue-700 transition-colors"
+                            onClick={() => setLocation(`/entities/${entity.id}`)}
+                          >
                             <Building className="h-5 w-5 text-blue-500 mr-3" />
                             <p className="text-sm font-medium text-blue-600 truncate">
                               {entity.name}
