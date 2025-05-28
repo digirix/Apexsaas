@@ -26,6 +26,7 @@ import {
   Columns,
   Columns3
 } from "lucide-react";
+import { SiWhatsapp } from "react-icons/si";
 import {
   DndContext,
   DragEndEvent,
@@ -1400,19 +1401,41 @@ export function TaskList() {
                               </td>
                             ))}
                             <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="sm" className="h-6 w-6 px-0">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => handleViewTaskDetails(task.id)}>
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    View Details
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <div className="flex items-center space-x-1">
+                                {/* WhatsApp Icon */}
+                                {task.entityId && (() => {
+                                  const entityData = entities.find(e => e.id === task.entityId);
+                                  return entityData?.whatsappGroupLink ? (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 w-6 px-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.open(entityData.whatsappGroupLink, '_blank');
+                                      }}
+                                      title="Open WhatsApp Group"
+                                    >
+                                      <SiWhatsapp className="h-4 w-4" />
+                                    </Button>
+                                  ) : null;
+                                })()}
+                                
+                                {/* Actions Menu */}
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-6 w-6 px-0">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleViewTaskDetails(task.id)}>
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      View Details
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1463,9 +1486,29 @@ export function TaskList() {
                           </div>
                           
                           <div className="text-xs text-slate-600 mb-2">
-                            <div className="flex items-center space-x-1 mb-1">
-                              <Building2 className="h-3 w-3" />
-                              <span>{client?.displayName || 'Unknown Client'}</span>
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center space-x-1">
+                                <Building2 className="h-3 w-3" />
+                                <span>{client?.displayName || 'Unknown Client'}</span>
+                              </div>
+                              {/* WhatsApp Icon for Cards */}
+                              {task.entityId && (() => {
+                                const entityData = entities.find(e => e.id === task.entityId);
+                                return entityData?.whatsappGroupLink ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 w-5 px-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.open(entityData.whatsappGroupLink, '_blank');
+                                    }}
+                                    title="Open WhatsApp Group"
+                                  >
+                                    <SiWhatsapp className="h-3 w-3" />
+                                  </Button>
+                                ) : null;
+                              })()}
                             </div>
                             <div className="flex items-center space-x-1">
                               <Avatar className="h-3 w-3">
