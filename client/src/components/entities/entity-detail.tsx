@@ -230,6 +230,78 @@ export function EntityDetail({ entityId }: EntityDetailProps) {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
+          {/* Service Configuration */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <FileText className="h-5 w-5 mr-2" />
+                Service Configuration
+              </CardTitle>
+              <CardDescription>
+                Services configured for this entity and their current status
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {serviceSubscriptions.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 mb-2">No services configured</p>
+                  <p className="text-sm text-gray-400">Configure services in the client detail view to start tracking compliance</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {serviceSubscriptions.map((subscription) => {
+                    const serviceType = serviceTypes.find(st => st.id === subscription.serviceTypeId);
+                    const relatedTasks = entityTasks.filter(task => task.serviceTypeId === subscription.serviceTypeId);
+                    const completedTasks = relatedTasks.filter(task => task.statusId === 3).length; // Assuming status 3 is completed
+                    
+                    return (
+                      <div key={subscription.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3">
+                            <div>
+                              <h4 className="font-medium text-gray-900">{serviceType?.name || 'Unknown Service'}</h4>
+                              <p className="text-sm text-gray-500">
+                                {serviceType?.description || `Rate: ${serviceType?.rate || 'N/A'} • Billing: ${serviceType?.billingBasis || 'N/A'}`}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <div className="text-right">
+                            <div className="text-sm text-gray-600">
+                              {completedTasks}/{relatedTasks.length} tasks completed
+                            </div>
+                            <div className="flex items-center space-x-2 mt-1">
+                              <Badge variant={subscription.isRequired ? "default" : "secondary"} className="text-xs">
+                                {subscription.isRequired ? "Required" : "Optional"}
+                              </Badge>
+                              <Badge variant={subscription.isSubscribed ? "default" : "outline"} className="text-xs">
+                                {subscription.isSubscribed ? "Subscribed" : "Not Subscribed"}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="flex items-center">
+                            {subscription.isSubscribed ? (
+                              completedTasks === relatedTasks.length && relatedTasks.length > 0 ? (
+                                <CheckCircle className="h-5 w-5 text-green-500" />
+                              ) : relatedTasks.length > 0 ? (
+                                <Clock className="h-5 w-5 text-yellow-500" />
+                              ) : (
+                                <AlertTriangle className="h-5 w-5 text-red-500" />
+                              )
+                            ) : (
+                              <XCircle className="h-5 w-5 text-gray-400" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Quick Compliance Overview */}
           {complianceAnalysis && (
@@ -300,17 +372,17 @@ export function EntityDetail({ entityId }: EntityDetailProps) {
   );
 }
 
-// Helper function to calculate compliance analysis - only for required services
+// Helper function to calculate compliance analysis - only for subscribed services
 function calculateComplianceAnalysis(
   entity: Entity,
   serviceTypes: ServiceType[],
   subscriptions: EntityServiceSubscription[],
   tasks: Task[]
 ): ComplianceAnalysis {
-  // Only include services that are actually required for this entity
-  const requiredSubscriptions = subscriptions.filter(sub => sub.isRequired);
+  // Include all subscribed services
+  const subscribedServicesList = subscriptions.filter(sub => sub.isSubscribed);
   
-  const serviceBreakdown = requiredSubscriptions.map(subscription => {
+  const serviceBreakdown = subscribedServicesList.map(subscription => {
     const service = serviceTypes.find(st => st.id === subscription.serviceTypeId);
     if (!service) return null;
     
@@ -318,8 +390,8 @@ function calculateComplianceAnalysis(
     
     // Calculate completion rate based on completed vs total tasks
     const completedTasks = serviceTasks.filter(task => {
-      // Assuming status ID 1 is "Completed"
-      return task.statusId === 1;
+      // Check for completed status (status ID 3 is typically "Completed")
+      return task.statusId === 3;
     });
     
     const completionRate = serviceTasks.length > 0 
@@ -341,8 +413,8 @@ function calculateComplianceAnalysis(
     if (tasksWithDeadlines.length > 0) {
       // Use the nearest upcoming compliance deadline
       const upcomingDeadlines = tasksWithDeadlines
-        .map(task => new Date(task.complianceDeadline))
-        .filter(deadline => deadline > new Date())
+        .map(task => task.complianceDeadline ? new Date(task.complianceDeadline) : null)
+        .filter((deadline): deadline is Date => deadline !== null && deadline > new Date())
         .sort((a, b) => a.getTime() - b.getTime());
       
       if (upcomingDeadlines.length > 0) {
@@ -391,23 +463,23 @@ function calculateComplianceAnalysis(
     };
   }).filter(Boolean) as ComplianceAnalysis['serviceBreakdown'];
 
-  const subscribedServices = serviceBreakdown.filter(s => s.isSubscribed).length;
-  const compliantServices = serviceBreakdown.filter(s => s.status === 'compliant').length;
-  const overdueServices = serviceBreakdown.filter(s => s.status === 'overdue').length;
-  const upcomingDeadlines = serviceBreakdown.filter(s => s.status === 'upcoming').length;
+  const subscribedCount = serviceBreakdown.filter(s => s.isSubscribed).length;
+  const compliantCount = serviceBreakdown.filter(s => s.status === 'compliant').length;
+  const overdueCount = serviceBreakdown.filter(s => s.status === 'overdue').length;
+  const upcomingCount = serviceBreakdown.filter(s => s.status === 'upcoming').length;
 
   // Calculate overall score
-  const overallScore = subscribedServices > 0 
-    ? Math.round(((compliantServices + (upcomingDeadlines * 0.5)) / subscribedServices) * 100)
+  const overallScore = subscribedCount > 0 
+    ? Math.round(((compliantCount + (upcomingCount * 0.5)) / subscribedCount) * 100)
     : 0;
 
   return {
     overallScore,
     totalServices: serviceBreakdown.length,
-    subscribedServices,
-    compliantServices,
-    overdueServices,
-    upcomingDeadlines,
+    subscribedServices: subscribedCount,
+    compliantServices: compliantCount,
+    overdueServices: overdueCount,
+    upcomingDeadlines: upcomingCount,
     serviceBreakdown,
   };
 }
