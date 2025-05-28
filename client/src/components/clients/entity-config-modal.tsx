@@ -456,7 +456,6 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
                     </CardContent>
                   </Card>
                 ) : (
-                  {/* Existing Services Configuration */}
                   <>
                     {isServicesLoading ? (
                       <div className="flex justify-center items-center py-10">

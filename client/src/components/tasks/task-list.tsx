@@ -957,10 +957,10 @@ export function TaskList() {
                           </div>
                           
                           <div className="flex items-center justify-between mb-2">
-                            <Badge className={getTaskStatusColor(task.statusId)} className="text-xs">
+                            <Badge className={`${getTaskStatusColor(task.statusId)} text-xs`}>
                               {status?.name || 'Unknown'}
                             </Badge>
-                            <Badge className={getTaskPriorityColor(task.priority || 'Medium')} className="text-xs">
+                            <Badge className={`${getTaskPriorityColor(task.priority || 'Medium')} text-xs`}>
                               {task.priority || 'Medium'}
                             </Badge>
                           </div>
