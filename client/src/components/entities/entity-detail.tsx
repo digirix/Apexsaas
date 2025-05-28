@@ -48,6 +48,7 @@ interface EntityDetailProps {
 interface ComplianceAnalysis {
   overallScore: number;
   totalServices: number;
+  requiredServices: number;
   subscribedServices: number;
   compliantServices: number;
   overdueServices: number;
@@ -325,7 +326,11 @@ export function EntityDetail({ entityId }: EntityDetailProps) {
                     <Progress value={complianceAnalysis.overallScore} className="h-2" />
                   </div>
                   
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-purple-600">{complianceAnalysis.requiredServices}</div>
+                      <div className="text-xs text-gray-600">Required Services</div>
+                    </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-blue-600">{complianceAnalysis.subscribedServices}</div>
                       <div className="text-xs text-gray-600">Subscribed Services</div>
@@ -372,17 +377,17 @@ export function EntityDetail({ entityId }: EntityDetailProps) {
   );
 }
 
-// Helper function to calculate compliance analysis - only for subscribed services
+// Helper function to calculate compliance analysis - include all configured services
 function calculateComplianceAnalysis(
   entity: Entity,
   serviceTypes: ServiceType[],
   subscriptions: EntityServiceSubscription[],
   tasks: Task[]
 ): ComplianceAnalysis {
-  // Include all subscribed services
-  const subscribedServicesList = subscriptions.filter(sub => sub.isSubscribed);
+  // Include all configured services (both required and subscribed)
+  const allConfiguredServices = subscriptions;
   
-  const serviceBreakdown = subscribedServicesList.map(subscription => {
+  const serviceBreakdown = allConfiguredServices.map(subscription => {
     const service = serviceTypes.find(st => st.id === subscription.serviceTypeId);
     if (!service) return null;
     
@@ -463,12 +468,13 @@ function calculateComplianceAnalysis(
     };
   }).filter(Boolean) as ComplianceAnalysis['serviceBreakdown'];
 
+  const requiredCount = serviceBreakdown.filter(s => s.isRequired).length;
   const subscribedCount = serviceBreakdown.filter(s => s.isSubscribed).length;
   const compliantCount = serviceBreakdown.filter(s => s.status === 'compliant').length;
   const overdueCount = serviceBreakdown.filter(s => s.status === 'overdue').length;
   const upcomingCount = serviceBreakdown.filter(s => s.status === 'upcoming').length;
 
-  // Calculate overall score
+  // Calculate overall score based on subscribed services
   const overallScore = subscribedCount > 0 
     ? Math.round(((compliantCount + (upcomingCount * 0.5)) / subscribedCount) * 100)
     : 0;
@@ -476,6 +482,7 @@ function calculateComplianceAnalysis(
   return {
     overallScore,
     totalServices: serviceBreakdown.length,
+    requiredServices: requiredCount,
     subscribedServices: subscribedCount,
     compliantServices: compliantCount,
     overdueServices: overdueCount,
