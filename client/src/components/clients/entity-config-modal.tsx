@@ -456,7 +456,6 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
                     </CardContent>
                   </Card>
                 ) : (
-                  {/* Existing Services Configuration */}
                   <>
                     {isServicesLoading ? (
                       <div className="flex justify-center items-center py-10">
@@ -477,7 +476,7 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
                         </CardContent>
                       </Card>
                     ) : (
-                      <>
+                      <div>
                         <div className="flex items-center justify-between mb-4">
                           <div>
                             <h3 className="text-sm font-medium">Configured Services</h3>
@@ -574,7 +573,9 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
                         </div>
                       </div>
                     </div>
-                  </>
+                      </div>
+                    )
+                  )}
                 )}
               </TabsContent>
               
