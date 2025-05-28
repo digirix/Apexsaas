@@ -15,7 +15,6 @@ import {
   DialogHeader, 
   DialogTitle 
 } from "@/components/ui/dialog";
-import { Card, CardContent } from "@/components/ui/card";
 import { 
   Form, 
   FormControl, 
@@ -39,10 +38,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Loader2, PlusCircle, Minimize2, Maximize2, X, MessageSquare, Timer } from "lucide-react";
+import { CalendarIcon, Loader2, PlusCircle } from "lucide-react";
 import { format } from "date-fns";
-import { TaskChat } from "./task-chat";
-import { TaskTimeTracking } from "./task-time-tracking";
 
 interface AddTaskModalProps {
   isOpen: boolean;

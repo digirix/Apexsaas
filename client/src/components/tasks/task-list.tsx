@@ -68,9 +68,6 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AddTaskModal } from "./add-task-modal";
 import { TaskDetails } from "./task-details";
-import { EnhancedTaskModal } from "./enhanced-task-modal";
-import { ModernAddTaskModal } from "./modern-add-task-modal";
-import { ModernTaskViewModal } from "./modern-task-view-modal";
 import { useModulePermissions } from "@/hooks/use-permissions";
 
 type ViewMode = 'table' | 'cards' | 'kanban';
@@ -282,7 +279,6 @@ export function TaskList() {
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   const [isTaskDetailsOpen, setIsTaskDetailsOpen] = useState(false);
   const [taskType, setTaskType] = useState<"admin" | "revenue">("admin");
-  const [preselectedClientId, setPreselectedClientId] = useState<string | undefined>();
   
   // Drag and drop state
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -1077,21 +1073,20 @@ export function TaskList() {
       </DragOverlay>
 
       {/* Modals */}
-      <ModernAddTaskModal
+      <AddTaskModal
         isOpen={isAddTaskModalOpen}
         onClose={() => setIsAddTaskModalOpen(false)}
         taskType={taskType}
-        preselectedClientId={preselectedClientId}
       />
 
       {selectedTaskId && (
-        <ModernTaskViewModal
-          task={tasks.find(t => t.id === selectedTaskId) || null}
-          open={isTaskDetailsOpen}
-          onOpenChange={(open) => {
-            setIsTaskDetailsOpen(open);
-            if (!open) setSelectedTaskId(null);
+        <TaskDetails
+          isOpen={isTaskDetailsOpen}
+          onClose={() => {
+            setIsTaskDetailsOpen(false);
+            setSelectedTaskId(null);
           }}
+          taskId={selectedTaskId}
         />
       )}
     </DndContext>
