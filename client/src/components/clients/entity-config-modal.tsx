@@ -574,9 +574,10 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
                       </div>
                     </div>
                       </div>
-                    )
-                  )}
+                    )}
+                  </>
                 )}
+              </div>
               </TabsContent>
               
               <TabsContent value="tax-jurisdictions" className="pt-4 space-y-4">
