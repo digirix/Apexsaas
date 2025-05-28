@@ -95,7 +95,7 @@ export default function ClientPortalEntityDetailPage() {
 
   // Fetch entity services
   const { data: serviceSubscriptions = [] } = useQuery<any[]>({
-    queryKey: [`/api/client-portal/entities/${entityId}/services`],
+    queryKey: [`/api/client-portal/entity/${entityId}/services`],
     enabled: !!entityId,
   });
 

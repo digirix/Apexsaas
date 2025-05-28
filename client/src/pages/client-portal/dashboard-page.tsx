@@ -94,7 +94,7 @@ const formatDate = (date: string | Date) => {
 // Entity Detail Section Component
 function EntityDetailSection({ entity }: { entity: any }) {
   const { data: entityServices, isLoading: servicesLoading } = useQuery({
-    queryKey: [`/api/client-portal/entities/${entity.id}/services`],
+    queryKey: [`/api/client-portal/entity/${entity.id}/services`],
     enabled: !!entity.id
   });
 

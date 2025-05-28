@@ -723,10 +723,10 @@ export function registerClientPortalRoutes(app: Express) {
           s.rate,
           s.billing_basis as "billingBasis",
           s.created_at as "createdAt",
-          s.is_required as "isRequired",
+          false as "isRequired",
           c.code as "currencyCode",
           c.symbol as "currencySymbol"
-        FROM services s
+        FROM service_types s
         LEFT JOIN currencies c ON s.currency_id = c.id
         WHERE 
           s.country_id = ${countryId}
@@ -736,14 +736,15 @@ export function registerClientPortalRoutes(app: Express) {
       // Get subscribed services for the entity
       const subscribedServicesResults = await db.execute(sql`
         SELECT 
-          ss.service_id as "serviceId",
-          ss.is_active as "isActive",
-          ss.start_date as "startDate",
-          ss.end_date as "endDate"
-        FROM service_subscriptions ss
+          ess.service_type_id as "serviceId",
+          ess.is_subscribed as "isActive",
+          ess.is_required as "isRequired",
+          ess.created_at as "startDate",
+          null as "endDate"
+        FROM entity_service_subscriptions ess
         WHERE 
-          ss.entity_id = ${entityId}
-          AND ss.tenant_id = ${user.tenantId}
+          ess.entity_id = ${entityId}
+          AND ess.tenant_id = ${user.tenantId}
       `);
       
       // Create a map of subscribed services
