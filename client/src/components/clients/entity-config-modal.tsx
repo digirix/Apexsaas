@@ -366,7 +366,16 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
     });
   };
 
-  const handleRemoveService = (serviceId: number) => {
+  const handleRemoveService = (serviceId: number, isRequired: boolean, isSubscribed: boolean) => {
+    if (isRequired || isSubscribed) {
+      toast({
+        title: "Cannot remove service",
+        description: "Please uncheck 'Required' and 'Subscribed' before removing this service.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (window.confirm('Are you sure you want to remove this service from the entity? This action cannot be undone.')) {
       removeServiceFromEntity.mutate(serviceId);
     }
@@ -601,8 +610,11 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => handleRemoveService(service.id)}
-                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => handleRemoveService(service.id, service.isRequired, service.isSubscribed)}
+                                    className={`${service.isRequired || service.isSubscribed 
+                                      ? 'text-gray-400 cursor-not-allowed' 
+                                      : 'text-red-500 hover:text-red-700 hover:bg-red-50'}`}
+                                    disabled={service.isRequired || service.isSubscribed}
                                   >
                                     <XCircle className="h-4 w-4" />
                                     <span className="sr-only">Remove Service</span>
@@ -622,6 +634,7 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
                                 <li><strong>Required:</strong> Services that must be provided to this entity</li>
                                 <li><strong>Subscribed:</strong> Services that the entity is currently paying for</li>
                                 <li>A service must be marked as Required before it can be Subscribed</li>
+                                <li><strong>Remove:</strong> Services can only be removed when neither Required nor Subscribed</li>
                               </ul>
                             </div>
                           </div>
