@@ -4,7 +4,7 @@ import { Client, Entity, Country, State, EntityType, Task, Invoice } from "@shar
 import { 
   ArrowLeft, Edit, Plus, MapPin, Building, FileText, Settings, Trash2, 
   CalendarClock, CheckCircle2, Clock, AlertCircle, CreditCard, Search,
-  User, Key, Mail, UserPlus, RefreshCw, Filter, Download
+  User, Key, Mail, UserPlus, RefreshCw, Filter, Download, Eye
 } from "lucide-react";
 import { format } from "date-fns";
 import { useLocation } from "wouter";
