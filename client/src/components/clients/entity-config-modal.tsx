@@ -493,86 +493,88 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
                             Add More Services
                           </Button>
                         </div>
-                    
-                    <div className="space-y-2">
-                      {services.map((service) => (
-                        <Card key={service.id} className="overflow-hidden">
-                          <CardContent className="p-4 grid grid-cols-12 gap-4 items-center">
-                            <div className="col-span-6">
-                              <h4 className="font-medium">{service.name}</h4>
-                              <p className="text-sm text-slate-500 line-clamp-1">
-                                {service.description || "No description"}
-                              </p>
-                              <div className="mt-1">
-                                <Badge variant="outline" className="mr-2">
-                                  Rate: {service.rate}
-                                </Badge>
-                                <Badge variant="outline">
-                                  Billing: {service.billingBasis}
-                                </Badge>
-                              </div>
-                            </div>
-                            
-                            <div className="col-span-3 flex items-center">
-                              <div className="flex items-center space-x-2">
-                                <Checkbox 
-                                  id={`required-${service.id}`}
-                                  checked={service.isRequired}
-                                  onCheckedChange={() => handleServiceToggle(
-                                    service.id,
-                                    service.isRequired,
-                                    service.isSubscribed,
-                                    'isRequired'
-                                  )}
-                                />
-                                <label
-                                  htmlFor={`required-${service.id}`}
-                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                >
-                                  Required
-                                </label>
-                              </div>
-                            </div>
-                            
-                            <div className="col-span-3 flex items-center">
-                              <div className="flex items-center space-x-2">
-                                <Checkbox 
-                                  id={`subscribed-${service.id}`}
-                                  checked={service.isSubscribed}
-                                  disabled={!service.isRequired}
-                                  onCheckedChange={() => handleServiceToggle(
-                                    service.id,
-                                    service.isRequired,
-                                    service.isSubscribed,
-                                    'isSubscribed'
-                                  )}
-                                />
-                                <label
-                                  htmlFor={`subscribed-${service.id}`}
-                                  className={`text-sm font-medium leading-none ${!service.isRequired ? 'text-slate-400' : ''}`}
-                                >
-                                  Subscribed
-                                </label>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                    
-                    <div className="mt-4 p-4 rounded-md bg-slate-50">
-                      <div className="flex items-start">
-                        <InfoIcon className="h-5 w-5 text-blue-500 mt-0.5" />
-                        <div className="ml-3">
-                          <h4 className="text-sm font-medium text-slate-900">Service Configuration Info</h4>
-                          <ul className="text-sm text-slate-500 mt-1 list-disc list-inside space-y-1">
-                            <li><strong>Required:</strong> Services that must be provided to this entity</li>
-                            <li><strong>Subscribed:</strong> Services that the entity is currently paying for</li>
-                            <li>A service must be marked as Required before it can be Subscribed</li>
-                          </ul>
+                        
+                        <div className="space-y-2">
+                          {services.map((service) => (
+                            <Card key={service.id} className="overflow-hidden">
+                              <CardContent className="p-4 grid grid-cols-12 gap-4 items-center">
+                                <div className="col-span-6">
+                                  <h4 className="font-medium">{service.name}</h4>
+                                  <p className="text-sm text-slate-500 line-clamp-1">
+                                    {service.description || "No description"}
+                                  </p>
+                                  <div className="mt-1">
+                                    <Badge variant="outline" className="mr-2">
+                                      Rate: {service.rate}
+                                    </Badge>
+                                    <Badge variant="outline">
+                                      Billing: {service.billingBasis}
+                                    </Badge>
+                                  </div>
+                                </div>
+                                
+                                <div className="col-span-3 flex items-center">
+                                  <div className="flex items-center space-x-2">
+                                    <Checkbox 
+                                      id={`required-${service.id}`}
+                                      checked={service.isRequired}
+                                      onCheckedChange={() => handleServiceToggle(
+                                        service.id,
+                                        service.isRequired,
+                                        service.isSubscribed,
+                                        'isRequired'
+                                      )}
+                                    />
+                                    <label
+                                      htmlFor={`required-${service.id}`}
+                                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                    >
+                                      Required
+                                    </label>
+                                  </div>
+                                </div>
+                                
+                                <div className="col-span-3 flex items-center">
+                                  <div className="flex items-center space-x-2">
+                                    <Checkbox 
+                                      id={`subscribed-${service.id}`}
+                                      checked={service.isSubscribed}
+                                      disabled={!service.isRequired}
+                                      onCheckedChange={() => handleServiceToggle(
+                                        service.id,
+                                        service.isRequired,
+                                        service.isSubscribed,
+                                        'isSubscribed'
+                                      )}
+                                    />
+                                    <label
+                                      htmlFor={`subscribed-${service.id}`}
+                                      className={`text-sm font-medium leading-none ${!service.isRequired ? 'text-slate-400' : ''}`}
+                                    >
+                                      Subscribed
+                                    </label>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
                         </div>
-                      </div>
-                    </div>
+                        
+                        <div className="mt-4 p-4 rounded-md bg-slate-50">
+                          <div className="flex items-start">
+                            <InfoIcon className="h-5 w-5 text-blue-500 mt-0.5" />
+                            <div className="ml-3">
+                              <h4 className="text-sm font-medium text-slate-900">Service Configuration Info</h4>
+                              <ul className="text-sm text-slate-500 mt-1 list-disc list-inside space-y-1">
+                                <li><strong>Required:</strong> Services that must be provided to this entity</li>
+                                <li><strong>Subscribed:</strong> Services that the entity is currently paying for</li>
+                                <li>A service must be marked as Required before it can be Subscribed</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
               </TabsContent>
