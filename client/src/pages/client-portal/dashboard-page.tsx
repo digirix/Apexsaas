@@ -886,6 +886,22 @@ export default function ClientPortalDashboardPage() {
                                         <Button 
                                           variant="ghost" 
                                           size="sm"
+                                          className="h-7 text-xs px-2 py-1 hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 transition-colors"
+                                          onClick={() => {
+                                            setLocation(`/client-portal/entities/${entity.id}`);
+                                          }}
+                                        >
+                                          <Eye className="h-3 w-3 mr-1" />
+                                          Details
+                                        </Button>
+                                      </motion.div>
+                                      <motion.div
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                      >
+                                        <Button 
+                                          variant="ghost" 
+                                          size="sm"
                                           className="h-7 text-xs px-2 py-1 hover:bg-blue-50 text-slate-600 hover:text-blue-600 transition-colors"
                                           onClick={() => {
                                             setSelectedEntityId(entity.id);
