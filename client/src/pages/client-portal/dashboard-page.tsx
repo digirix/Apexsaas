@@ -103,7 +103,7 @@ function EntityDetailSection({ entity }: { entity: any }) {
     enabled: !!entity.id
   });
 
-  // Calculate compliance metrics
+  // Calculate compliance metrics using actual service data (same as admin portal)
   const services = entityServices || [];
   const totalServices = services.length;
   const requiredServices = services.filter((s: any) => s.isRequired).length;
