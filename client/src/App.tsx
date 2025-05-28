@@ -11,6 +11,7 @@ import AuthPage from "@/pages/auth-page";
 import DashboardPage from "@/pages/dashboard-page";
 import ClientPortalLoginPage from "@/pages/client-portal/login-page";
 import ClientPortalDashboardPage from "@/pages/client-portal/dashboard-page";
+import ClientPortalEntityDetailPage from "@/pages/client-portal/entity-detail-page";
 import ResetPasswordPage from "@/pages/client-portal/reset-password-page";
 import ClientsPage from "@/pages/clients-page";
 import ClientDetailPage from "@/pages/client-detail-page";
@@ -65,6 +66,7 @@ function Router() {
       <Route path="/client-portal/login" component={ClientPortalLoginPage} />
       <Route path="/client-portal" component={ClientPortalDashboardPage} />
       <Route path="/client-portal/dashboard" component={ClientPortalDashboardPage} />
+      <Route path="/client-portal/entities/:id" component={ClientPortalEntityDetailPage} />
       <Route path="/client-portal/reset-password" component={ResetPasswordPage} />
       {/* Direct invoice creation disabled - invoices are now created only through tasks */}
       {/* <ProtectedRoute path="/finance/invoices/create" component={CreateInvoicePage} /> */}

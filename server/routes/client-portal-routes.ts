@@ -296,6 +296,59 @@ export function registerClientPortalRoutes(app: Express) {
   
   // Client Portal Data Routes
   
+  // Get individual entity details
+  app.get("/api/client-portal/entities/:id", isClientAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const entityId = parseInt(req.params.id);
+      
+      if (!entityId || isNaN(entityId)) {
+        return res.status(400).json({ message: 'Invalid entity ID' });
+      }
+      
+      console.log(`Fetching entity ${entityId} for client ${user.clientId} in tenant ${user.tenantId}`);
+      
+      // Get the specific entity
+      const entityResults = await db
+        .select()
+        .from(entities)
+        .where(and(
+          eq(entities.id, entityId),
+          eq(entities.clientId, user.clientId),
+          eq(entities.tenantId, user.tenantId)
+        ));
+      
+      if (!entityResults || entityResults.length === 0) {
+        return res.status(404).json({ message: 'Entity not found' });
+      }
+      
+      const entity = entityResults[0];
+      
+      // Get entity type, country, and state information
+      const enrichedEntityResult = await db.execute(sql`
+        SELECT 
+          e.*,
+          et.name as "entityTypeName",
+          c.name as "countryName",
+          s.name as "stateName"
+        FROM entities e
+        LEFT JOIN entity_types et ON et.id = e.entity_type_id AND et.tenant_id = e.tenant_id
+        LEFT JOIN countries c ON c.id = e.country_id
+        LEFT JOIN states s ON s.id = e.state_id AND s.country_id = c.id
+        WHERE e.id = ${entityId} AND e.client_id = ${user.clientId} AND e.tenant_id = ${user.tenantId}
+      `);
+      
+      if (!enrichedEntityResult.rows || enrichedEntityResult.rows.length === 0) {
+        return res.status(404).json({ message: 'Entity not found' });
+      }
+      
+      res.json(enrichedEntityResult.rows[0]);
+    } catch (error) {
+      console.error('Error fetching entity details:', error);
+      res.status(500).json({ message: 'Failed to fetch entity details' });
+    }
+  });
+  
   // Get client entities with detailed information
   app.get("/api/client-portal/entities", isClientAuthenticated, async (req, res) => {
     try {
