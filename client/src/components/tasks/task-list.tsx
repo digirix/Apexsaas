@@ -22,7 +22,9 @@ import {
   MoreHorizontal,
   Building2,
   Filter,
-  Grip
+  Grip,
+  Columns,
+  Columns3
 } from "lucide-react";
 import {
   DndContext,
