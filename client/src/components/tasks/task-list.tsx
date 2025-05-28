@@ -492,16 +492,16 @@ export function TaskList() {
   const getDefaultColumns = (): TaskColumn[] => [
     { id: 'task', label: 'Task', key: 'taskDetails', visible: true, required: true, width: 300, order: 0 },
     { id: 'client', label: 'Client', key: 'client', visible: true, width: 200, order: 1 },
-    { id: 'entity', label: 'Entity', key: 'entity', visible: false, width: 150, order: 2 },
+    { id: 'entity', label: 'Entity', key: 'entity', visible: true, required: true, width: 150, order: 2 },
     { id: 'assignee', label: 'Assignee', key: 'assignee', visible: true, width: 180, order: 3 },
     { id: 'status', label: 'Status', key: 'status', visible: true, required: true, width: 120, order: 4 },
-    { id: 'priority', label: 'Priority', key: 'priority', visible: true, width: 100, order: 5 },
+    { id: 'compliance', label: 'Compliance Period', key: 'complianceFrequency', visible: true, required: true, width: 200, order: 5 },
     { id: 'dueDate', label: 'Due Date', key: 'dueDate', visible: true, width: 120, order: 6 },
-    { id: 'category', label: 'Category', key: 'category', visible: false, width: 150, order: 7 },
-    { id: 'serviceType', label: 'Service Type', key: 'serviceType', visible: false, width: 140, order: 8 },
-    { id: 'created', label: 'Created', key: 'createdAt', visible: false, width: 120, order: 9 },
-    { id: 'recurring', label: 'Recurring', key: 'isRecurring', visible: false, width: 100, order: 10 },
-    { id: 'compliance', label: 'Compliance Period', key: 'complianceFrequency', visible: false, width: 200, order: 11 },
+    { id: 'priority', label: 'Priority', key: 'priority', visible: false, width: 100, order: 7 },
+    { id: 'category', label: 'Category', key: 'category', visible: false, width: 150, order: 8 },
+    { id: 'serviceType', label: 'Service Type', key: 'serviceType', visible: false, width: 140, order: 9 },
+    { id: 'created', label: 'Created', key: 'createdAt', visible: false, width: 120, order: 10 },
+    { id: 'recurring', label: 'Recurring', key: 'isRecurring', visible: false, width: 100, order: 11 },
   ];
 
   const [columns, setColumns] = useState<TaskColumn[]>(() => getDefaultColumns());
@@ -726,22 +726,15 @@ export function TaskList() {
           </div>
         ) : <span className="text-slate-400">-</span>;
       case 'entity':
-        console.log('Entities data:', entities, 'Task entityId:', task.entityId);
-        const entityData = entities && Array.isArray(entities) ? 
-          entities.find((e: any) => e.id === task.entityId) : null;
-        console.log('Found entity:', entityData);
-        
-        if (entityData && entityData.name) {
+        if (task.entityId) {
           return (
             <div className="flex items-center space-x-2">
               <Building2 className="h-4 w-4 text-slate-400" />
               <span className="text-sm text-slate-900">
-                {entityData.name}
+                Entity {task.entityId}
               </span>
             </div>
           );
-        } else if (task.entityId) {
-          return <span className="text-xs text-slate-500">Entity ID: {task.entityId}</span>;
         } else {
           return <span className="text-slate-400">-</span>;
         }
