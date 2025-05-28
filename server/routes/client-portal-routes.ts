@@ -9,7 +9,10 @@ import {
   payments, 
   tasks
 } from '@shared/schema';
-import { storage } from '../storage';
+import { DatabaseStorage } from '../database-storage';
+
+// Use the same DatabaseStorage instance that works in admin portal
+const storage = new DatabaseStorage();
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 
