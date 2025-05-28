@@ -197,8 +197,8 @@ export function EntityDetail({ entityId }: EntityDetailProps) {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="compliance">Compliance Analysis</TabsTrigger>
+          <TabsTrigger value="history">Compliance History</TabsTrigger>
           <TabsTrigger value="upcoming">Upcoming Deadlines</TabsTrigger>
-          <TabsTrigger value="services">Service Configuration</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -335,31 +335,37 @@ export function EntityDetail({ entityId }: EntityDetailProps) {
           )}
         </TabsContent>
 
-        <TabsContent value="upcoming" className="space-y-6">
-          <UpcomingComplianceSection upcomingCompliances={upcomingCompliances} />
+        <TabsContent value="history" className="space-y-6">
+          <ComplianceHistorySection 
+            entity={entity}
+            serviceSubscriptions={serviceSubscriptions}
+            entityTasks={entityTasks || []}
+            serviceTypes={serviceTypes || []}
+          />
         </TabsContent>
 
-        <TabsContent value="services" className="space-y-6">
-          <ServiceConfigurationSection 
-            entity={entity}
-            serviceTypes={serviceTypes}
-            serviceSubscriptions={serviceSubscriptions}
-          />
+        <TabsContent value="upcoming" className="space-y-6">
+          <UpcomingComplianceSection upcomingCompliances={upcomingCompliances} />
         </TabsContent>
       </Tabs>
     </div>
   );
 }
 
-// Helper function to calculate compliance analysis
+// Helper function to calculate compliance analysis - only for required services
 function calculateComplianceAnalysis(
   entity: Entity,
   serviceTypes: ServiceType[],
   subscriptions: EntityServiceSubscription[],
   tasks: Task[]
 ): ComplianceAnalysis {
-  const serviceBreakdown = serviceTypes.map(service => {
-    const subscription = subscriptions.find(sub => sub.serviceTypeId === service.id);
+  // Only include services that are actually required for this entity
+  const requiredSubscriptions = subscriptions.filter(sub => sub.isRequired);
+  
+  const serviceBreakdown = requiredSubscriptions.map(subscription => {
+    const service = serviceTypes.find(st => st.id === subscription.serviceTypeId);
+    if (!service) return null;
+    
     const serviceTasks = tasks.filter(task => task.serviceTypeId === service.id);
     
     // Calculate completion rate based on completed vs total tasks
@@ -394,7 +400,7 @@ function calculateComplianceAnalysis(
 
     // Determine status
     let status: 'compliant' | 'overdue' | 'upcoming' | 'not-subscribed';
-    if (!subscription?.isSubscribed) {
+    if (!subscription.isSubscribed) {
       status = 'not-subscribed';
     } else if (nextDue) {
       const now = new Date();
@@ -407,21 +413,21 @@ function calculateComplianceAnalysis(
         status = 'compliant';
       }
     } else {
-      status = subscription?.isSubscribed ? 'upcoming' : 'not-subscribed';
+      status = subscription.isSubscribed ? 'upcoming' : 'not-subscribed';
     }
 
     return {
       serviceId: service.id,
       serviceName: service.name,
-      isRequired: subscription?.isRequired || false,
-      isSubscribed: subscription?.isSubscribed || false,
+      isRequired: subscription.isRequired,
+      isSubscribed: subscription.isSubscribed,
       frequency: serviceTasks[0]?.complianceFrequency || 'N/A',
       lastCompleted,
       nextDue,
       status,
       completionRate,
     };
-  });
+  }).filter(Boolean) as ComplianceAnalysis['serviceBreakdown'];
 
   const subscribedServices = serviceBreakdown.filter(s => s.isSubscribed).length;
   const compliantServices = serviceBreakdown.filter(s => s.status === 'compliant').length;
@@ -435,7 +441,7 @@ function calculateComplianceAnalysis(
 
   return {
     overallScore,
-    totalServices: serviceTypes.length,
+    totalServices: serviceBreakdown.length,
     subscribedServices,
     compliantServices,
     overdueServices,
@@ -444,12 +450,16 @@ function calculateComplianceAnalysis(
   };
 }
 
-// Helper function to calculate upcoming compliance deadlines
+// Helper function to calculate upcoming compliance deadlines - only for required services
 function calculateUpcomingCompliances(serviceBreakdown: ComplianceAnalysis['serviceBreakdown']): UpcomingCompliance[] {
+  const now = new Date();
+  const next12Months = new Date();
+  next12Months.setMonth(next12Months.getMonth() + 12);
+  
   return serviceBreakdown
-    .filter(service => service.nextDue && service.isSubscribed)
+    .filter(service => service.isRequired && service.isSubscribed && service.nextDue)
+    .filter(service => service.nextDue! <= next12Months) // Only next 12 months
     .map(service => {
-      const now = new Date();
       const daysUntilDue = Math.ceil((service.nextDue!.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       
       let priority: 'high' | 'medium' | 'low';
@@ -607,75 +617,172 @@ function UpcomingComplianceSection({ upcomingCompliances }: { upcomingCompliance
   );
 }
 
-// Service Configuration Section Component
-function ServiceConfigurationSection({ 
+// Compliance History Section Component
+function ComplianceHistorySection({ 
   entity, 
-  serviceTypes, 
-  serviceSubscriptions 
+  serviceSubscriptions, 
+  entityTasks, 
+  serviceTypes 
 }: { 
   entity: Entity;
-  serviceTypes: ServiceType[];
   serviceSubscriptions: EntityServiceSubscription[];
+  entityTasks: Task[];
+  serviceTypes: ServiceType[];
 }) {
+  // Get required services and their compliance history
+  const requiredServices = serviceSubscriptions.filter(sub => sub.isRequired);
+  
+  // Group tasks by compliance period (year-month) and service
+  const complianceHistory = requiredServices.map(subscription => {
+    const service = serviceTypes.find(st => st.id === subscription.serviceTypeId);
+    if (!service) return null;
+    
+    const serviceTasks = entityTasks.filter(task => task.serviceTypeId === service.id);
+    
+    // Group tasks by compliance period
+    const tasksByPeriod = serviceTasks.reduce((acc, task) => {
+      const taskDate = new Date(task.createdAt);
+      const period = `${taskDate.getFullYear()}-${String(taskDate.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!acc[period]) {
+        acc[period] = [];
+      }
+      acc[period].push(task);
+      
+      return acc;
+    }, {} as Record<string, Task[]>);
+    
+    // Create history entries for each period
+    const historyEntries = Object.entries(tasksByPeriod).map(([period, tasks]) => {
+      const completedTasks = tasks.filter(task => task.statusId === 1);
+      const hasCompleted = completedTasks.length > 0;
+      const completionDate = hasCompleted 
+        ? new Date(Math.max(...completedTasks.map(t => new Date(t.updatedAt || t.createdAt).getTime())))
+        : null;
+      
+      return {
+        period,
+        serviceName: service.name,
+        serviceId: service.id,
+        isRequired: subscription.isRequired,
+        isSubscribed: subscription.isSubscribed,
+        hasCompleted,
+        completionDate,
+        totalTasks: tasks.length,
+        completedTasks: completedTasks.length,
+      };
+    });
+    
+    return {
+      serviceId: service.id,
+      serviceName: service.name,
+      isRequired: subscription.isRequired,
+      isSubscribed: subscription.isSubscribed,
+      historyEntries,
+    };
+  }).filter(Boolean);
+  
+  // Flatten and sort all history entries by period (newest first)
+  const allHistoryEntries = complianceHistory
+    .flatMap(service => 
+      service!.historyEntries.map(entry => ({
+        ...entry,
+        sortDate: new Date(entry.period + '-01'),
+      }))
+    )
+    .sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime());
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center">
-          <Target className="h-5 w-5 mr-2" />
-          Service Configuration
+          <Clock className="h-5 w-5 mr-2" />
+          Compliance History
         </CardTitle>
         <CardDescription>
-          Configure which services this entity subscribes to
+          Historical compliance performance organized by compliance period
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Service</TableHead>
-              <TableHead>Country</TableHead>
-              <TableHead>Required</TableHead>
-              <TableHead>Subscribed</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {serviceTypes.map((service) => {
-              const subscription = serviceSubscriptions.find(sub => sub.serviceTypeId === service.id);
-              return (
-                <TableRow key={service.id}>
-                  <TableCell className="font-medium">{service.name}</TableCell>
-                  <TableCell>{service.countryId}</TableCell>
+        {allHistoryEntries.length === 0 ? (
+          <div className="text-center py-12">
+            <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Compliance History</h3>
+            <p className="text-gray-600">No compliance tasks have been completed yet for this entity.</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Compliance Period</TableHead>
+                <TableHead>Service</TableHead>
+                <TableHead>Required</TableHead>
+                <TableHead>Subscribed</TableHead>
+                <TableHead>Tasks Completed</TableHead>
+                <TableHead>Completion Date</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {allHistoryEntries.map((entry, index) => (
+                <TableRow key={`${entry.serviceId}-${entry.period}`}>
+                  <TableCell className="font-medium">
+                    {new Date(entry.period + '-01').toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'long' 
+                    })}
+                  </TableCell>
+                  <TableCell>{entry.serviceName}</TableCell>
                   <TableCell>
-                    {subscription?.isRequired ? (
-                      <Badge variant="destructive" className="text-xs">Required</Badge>
+                    <Badge variant={entry.isRequired ? "destructive" : "outline"} className="text-xs">
+                      {entry.isRequired ? "Required" : "Optional"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={entry.isSubscribed ? "default" : "secondary"} className="text-xs">
+                      {entry.isSubscribed ? "Yes" : "No"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm">
+                      {entry.completedTasks}/{entry.totalTasks}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {entry.completionDate ? (
+                      format(entry.completionDate, 'MMM dd, yyyy')
                     ) : (
-                      <Badge variant="outline" className="text-xs">Optional</Badge>
+                      <span className="text-gray-400">Not completed</span>
                     )}
                   </TableCell>
                   <TableCell>
-                    {subscription?.isSubscribed ? (
-                      <Badge variant="default" className="text-xs">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Subscribed
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary" className="text-xs">
-                        <XCircle className="h-3 w-3 mr-1" />
-                        Not Subscribed
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="outline" size="sm">
-                      Configure
-                    </Button>
+                    <Badge
+                      variant={
+                        entry.hasCompleted ? 'default' : 
+                        entry.isSubscribed ? 'destructive' : 'secondary'
+                      }
+                      className="text-xs"
+                    >
+                      {entry.hasCompleted ? (
+                        <>
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Completed
+                        </>
+                      ) : entry.isSubscribed ? (
+                        <>
+                          <XCircle className="h-3 w-3 mr-1" />
+                          Missing
+                        </>
+                      ) : (
+                        'Not Subscribed'
+                      )}
+                    </Badge>
                   </TableCell>
                 </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </CardContent>
     </Card>
   );
