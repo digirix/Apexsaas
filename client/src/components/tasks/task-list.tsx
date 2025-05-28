@@ -69,6 +69,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AddTaskModal } from "./add-task-modal";
 import { TaskDetails } from "./task-details";
 import { EnhancedTaskModal } from "./enhanced-task-modal";
+import { ModernAddTaskModal } from "./modern-add-task-modal";
+import { ModernTaskViewModal } from "./modern-task-view-modal";
 import { useModulePermissions } from "@/hooks/use-permissions";
 
 type ViewMode = 'table' | 'cards' | 'kanban';
@@ -1074,20 +1076,21 @@ export function TaskList() {
       </DragOverlay>
 
       {/* Modals */}
-      <AddTaskModal
+      <ModernAddTaskModal
         isOpen={isAddTaskModalOpen}
         onClose={() => setIsAddTaskModalOpen(false)}
         taskType={taskType}
+        preselectedClientId={preselectedClientId}
       />
 
       {selectedTaskId && (
-        <TaskDetails
-          isOpen={isTaskDetailsOpen}
-          onClose={() => {
-            setIsTaskDetailsOpen(false);
-            setSelectedTaskId(null);
+        <ModernTaskViewModal
+          task={tasks.find(t => t.id === selectedTaskId) || null}
+          open={isTaskDetailsOpen}
+          onOpenChange={(open) => {
+            setIsTaskDetailsOpen(open);
+            if (!open) setSelectedTaskId(null);
           }}
-          taskId={selectedTaskId}
         />
       )}
     </DndContext>
