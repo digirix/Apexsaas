@@ -526,9 +526,6 @@ export function TaskList() {
         <div className="flex items-center justify-between p-3 border-b border-slate-200 bg-white">
           <div className="flex items-center space-x-4">
             <h2 className="text-lg font-semibold text-slate-900">Tasks</h2>
-            <div className="text-sm text-slate-500">
-              {filteredTasks.length} of {tasks.length}
-            </div>
           </div>
           
           <div className="flex items-center space-x-2">
