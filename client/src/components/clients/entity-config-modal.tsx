@@ -376,7 +376,7 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
       return;
     }
     
-    if (window.confirm('Are you sure you want to remove this service from the entity? This action cannot be undone.')) {
+    if (window.confirm('Are you sure you want to remove this service from the entity? This will remove it from the configured services list.')) {
       removeServiceFromEntity.mutate(serviceId);
     }
   };

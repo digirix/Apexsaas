@@ -1654,15 +1654,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get existing subscriptions
       const subscriptions = await storage.getEntityServiceSubscriptions(tenantId, entityId);
       
-      // Merge service types with subscription status
-      const servicesWithStatus = serviceTypes.map(serviceType => {
-        const subscription = subscriptions.find(sub => sub.serviceTypeId === serviceType.id);
-        return {
-          ...serviceType,
-          isRequired: subscription ? subscription.isRequired : false,
-          isSubscribed: subscription ? subscription.isSubscribed : false
-        };
-      });
+      // Only return services that have been explicitly added to the entity (have subscriptions)
+      const servicesWithStatus = serviceTypes
+        .map(serviceType => {
+          const subscription = subscriptions.find(sub => sub.serviceTypeId === serviceType.id);
+          if (subscription) {
+            return {
+              ...serviceType,
+              isRequired: subscription.isRequired,
+              isSubscribed: subscription.isSubscribed
+            };
+          }
+          return null;
+        })
+        .filter(service => service !== null);
       
       res.json(servicesWithStatus);
     } catch (error) {
