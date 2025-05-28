@@ -861,13 +861,7 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
                     <Filter className="mr-2 h-4 w-4" />
                     View All
                   </Button>
-                  <Button 
-                    size="sm"
-                    onClick={() => setLocation(`/finance/invoices/new?clientId=${clientId}`)}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Invoice
-                  </Button>
+
                 </div>
               </div>
             </CardHeader>
