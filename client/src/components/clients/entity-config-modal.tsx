@@ -279,16 +279,19 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
       return response;
     },
     onSuccess: () => {
+      // Force immediate cache invalidation and refetch
       queryClient.invalidateQueries({
         queryKey: [`/api/v1/entities/${entityId}/services`]
       });
+      queryClient.refetchQueries({
+        queryKey: [`/api/v1/entities/${entityId}/services`]
+      });
+      refetchServices();
       
       toast({
         title: "Service removed",
         description: "Service has been successfully removed from the entity",
       });
-      
-      refetchServices();
     },
     onError: (error: any) => {
       console.error("Error removing service:", error);
