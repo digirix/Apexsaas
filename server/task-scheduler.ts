@@ -358,6 +358,44 @@ export class TaskScheduler {
         taskDetails = `${serviceName} - ${templateTask.complianceFrequency} compliance for period ${format(complianceStartDate, 'MMM yyyy')}`;
       }
       
+      // Calculate the next compliance deadline if the template task has one
+      let nextComplianceDeadline: Date | undefined;
+      if (templateTask.complianceDeadline) {
+        const originalDeadline = new Date(templateTask.complianceDeadline);
+        const frequency = templateTask.complianceFrequency;
+        
+        // Calculate the number of periods between original start and new period start
+        const originalStart = new Date(templateTask.complianceStartDate);
+        const monthsDifference = (complianceStartDate.getFullYear() - originalStart.getFullYear()) * 12 + 
+                                (complianceStartDate.getMonth() - originalStart.getMonth());
+        
+        // Calculate the new deadline based on frequency and period difference
+        if (frequency === 'Monthly') {
+          nextComplianceDeadline = addMonths(originalDeadline, monthsDifference);
+        } else if (frequency === 'Quarterly') {
+          const quartersDifference = Math.floor(monthsDifference / 3);
+          nextComplianceDeadline = addMonths(originalDeadline, quartersDifference * 3);
+        } else if (frequency === 'Bi-Annually') {
+          const halfYearsDifference = Math.floor(monthsDifference / 6);
+          nextComplianceDeadline = addMonths(originalDeadline, halfYearsDifference * 6);
+        } else if (frequency === 'Yearly' || frequency === 'Annual') {
+          const yearsDifference = Math.floor(monthsDifference / 12);
+          nextComplianceDeadline = addMonths(originalDeadline, yearsDifference * 12);
+        } else if (frequency === '2 Years') {
+          const biYearsDifference = Math.floor(monthsDifference / 24);
+          nextComplianceDeadline = addMonths(originalDeadline, biYearsDifference * 24);
+        } else if (frequency === '3 Years') {
+          const triYearsDifference = Math.floor(monthsDifference / 36);
+          nextComplianceDeadline = addMonths(originalDeadline, triYearsDifference * 36);
+        } else if (frequency === '4 Years') {
+          const quadYearsDifference = Math.floor(monthsDifference / 48);
+          nextComplianceDeadline = addMonths(originalDeadline, quadYearsDifference * 48);
+        } else if (frequency === '5 Years') {
+          const quintYearsDifference = Math.floor(monthsDifference / 60);
+          nextComplianceDeadline = addMonths(originalDeadline, quintYearsDifference * 60);
+        }
+      }
+
       // Determine if this is a one-time task
       const isOneTime = templateTask.complianceFrequency?.toLowerCase() === 'one time' || 
                        templateTask.complianceFrequency?.toLowerCase() === 'once';
@@ -382,6 +420,7 @@ export class TaskScheduler {
         complianceDuration: templateTask.complianceDuration,
         complianceStartDate: complianceStartDate,
         complianceEndDate: complianceEndDate,
+        complianceDeadline: nextComplianceDeadline,
         currency: templateTask.currency,
         serviceRate: templateTask.serviceRate,
         // New tracking fields
