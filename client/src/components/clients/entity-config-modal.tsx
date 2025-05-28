@@ -265,41 +265,6 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
     }
   });
 
-  // Remove service from entity mutation
-  const removeServiceFromEntity = useMutation({
-    mutationFn: async (serviceTypeId: number) => {
-      if (!entityId) throw new Error("Entity ID is required");
-      
-      const response = await apiRequest(
-        "DELETE",
-        `/api/v1/entities/${entityId}/services/${serviceTypeId}`,
-        {}
-      );
-      
-      return response;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [`/api/v1/entities/${entityId}/services`]
-      });
-      
-      toast({
-        title: "Service removed",
-        description: "Service has been removed from the entity",
-      });
-      
-      refetchServices();
-    },
-    onError: (error: any) => {
-      console.error("Error removing service:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to remove service",
-        variant: "destructive",
-      });
-    }
-  });
-
   // Remove tax jurisdiction mutation
   const removeTaxJurisdiction = useMutation({
     mutationFn: async (taxJurisdictionId: number) => {
@@ -364,21 +329,6 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
       isRequired,
       isSubscribed
     });
-  };
-
-  const handleRemoveService = (serviceId: number, isRequired: boolean, isSubscribed: boolean) => {
-    if (isRequired || isSubscribed) {
-      toast({
-        title: "Cannot remove service",
-        description: "Please uncheck 'Required' and 'Subscribed' before removing this service.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (window.confirm('Are you sure you want to remove this service from the entity? This will remove it from the configured services list.')) {
-      removeServiceFromEntity.mutate(serviceId);
-    }
   };
   
   // Handle tax jurisdiction add
@@ -548,7 +498,7 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
                           {services.map((service) => (
                             <Card key={service.id} className="overflow-hidden">
                               <CardContent className="p-4 grid grid-cols-12 gap-4 items-center">
-                                <div className="col-span-5">
+                                <div className="col-span-6">
                                   <h4 className="font-medium">{service.name}</h4>
                                   <p className="text-sm text-slate-500 line-clamp-1">
                                     {service.description || "No description"}
@@ -563,7 +513,7 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
                                   </div>
                                 </div>
                                 
-                                <div className="col-span-2 flex items-center">
+                                <div className="col-span-3 flex items-center">
                                   <div className="flex items-center space-x-2">
                                     <Checkbox 
                                       id={`required-${service.id}`}
@@ -605,21 +555,6 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
                                     </label>
                                   </div>
                                 </div>
-                                
-                                <div className="col-span-2 flex justify-end">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleRemoveService(service.id, service.isRequired, service.isSubscribed)}
-                                    className={`${service.isRequired || service.isSubscribed 
-                                      ? 'text-gray-400 cursor-not-allowed' 
-                                      : 'text-red-500 hover:text-red-700 hover:bg-red-50'}`}
-                                    disabled={service.isRequired || service.isSubscribed}
-                                  >
-                                    <XCircle className="h-4 w-4" />
-                                    <span className="sr-only">Remove Service</span>
-                                  </Button>
-                                </div>
                               </CardContent>
                             </Card>
                           ))}
@@ -634,7 +569,6 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
                                 <li><strong>Required:</strong> Services that must be provided to this entity</li>
                                 <li><strong>Subscribed:</strong> Services that the entity is currently paying for</li>
                                 <li>A service must be marked as Required before it can be Subscribed</li>
-                                <li><strong>Remove:</strong> Services can only be removed when neither Required nor Subscribed</li>
                               </ul>
                             </div>
                           </div>

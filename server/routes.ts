@@ -1654,20 +1654,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get existing subscriptions
       const subscriptions = await storage.getEntityServiceSubscriptions(tenantId, entityId);
       
-      // Only return services that have been explicitly added to the entity (have subscriptions)
-      const servicesWithStatus = serviceTypes
-        .map(serviceType => {
-          const subscription = subscriptions.find(sub => sub.serviceTypeId === serviceType.id);
-          if (subscription) {
-            return {
-              ...serviceType,
-              isRequired: subscription.isRequired,
-              isSubscribed: subscription.isSubscribed
-            };
-          }
-          return null;
-        })
-        .filter(service => service !== null);
+      // Merge service types with subscription status
+      const servicesWithStatus = serviceTypes.map(serviceType => {
+        const subscription = subscriptions.find(sub => sub.serviceTypeId === serviceType.id);
+        return {
+          ...serviceType,
+          isRequired: subscription ? subscription.isRequired : false,
+          isSubscribed: subscription ? subscription.isSubscribed : false
+        };
+      });
       
       res.json(servicesWithStatus);
     } catch (error) {
@@ -1806,15 +1801,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const existingSubscriptions = await storage.getEntityServiceSubscriptions(tenantId, entityId);
         const existingSub = existingSubscriptions.find(sub => sub.serviceTypeId === serviceTypeId);
         
-        if (existingSub) {
-          // Delete the existing subscription
-          const success = await storage.deleteServiceSubscription(existingSub.id, tenantId);
-          if (!success) {
-            return res.status(404).json({ message: "Failed to delete service subscription" });
-          }
+        if (!existingSub) {
+          return res.status(404).json({ message: "Service subscription not found" });
         }
-        // If no subscription exists, that's fine - the service was never actually configured
         
+        const success = await storage.deleteServiceSubscription(existingSub.id, tenantId);
+        if (!success) {
+          return res.status(404).json({ message: "Failed to delete service subscription" });
+        }
       } catch (error) {
         console.error("Error deleting service subscription:", error);
         return res.status(500).json({ message: "Failed to delete service subscription" });
