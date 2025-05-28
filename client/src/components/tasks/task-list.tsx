@@ -701,8 +701,8 @@ export function TaskList() {
     const client = clients.find(c => c.id === task.clientId);
     const assignee = users.find(u => u.id === task.assigneeId);
     const status = taskStatuses.find(s => s.id === task.statusId);
-    const entity = entities.find((e: any) => e.id === task.entityId);
-    const category = taskCategories.find((c: any) => c.id === task.taskCategoryId);
+    const entity = Array.isArray(entities) ? entities.find((e: any) => e.id === task.entityId) : null;
+    const category = Array.isArray(taskCategories) ? taskCategories.find((c: any) => c.id === task.taskCategoryId) : null;
     
     switch (column.key) {
       case 'taskDetails':
@@ -726,11 +726,19 @@ export function TaskList() {
           </div>
         ) : <span className="text-slate-400">-</span>;
       case 'entity':
-        return entity ? (
-          <span className="text-sm text-slate-900">
-            {(entity as any).name || (entity as any).displayName || `Entity ${task.entityId}`}
-          </span>
-        ) : <span className="text-slate-400">-</span>;
+        const entityData = Array.isArray(entities) ? entities.find((e: any) => e.id === task.entityId) : null;
+        return entityData ? (
+          <div className="flex items-center space-x-2">
+            <Building2 className="h-4 w-4 text-slate-400" />
+            <span className="text-sm text-slate-900">
+              {entityData.name || entityData.displayName || entityData.entityName || `Entity ${task.entityId}`}
+            </span>
+          </div>
+        ) : task.entityId ? (
+          <span className="text-xs text-slate-500">Entity ID: {task.entityId}</span>
+        ) : (
+          <span className="text-slate-400">-</span>
+        );
       case 'assignee':
         return assignee ? (
           <div className="flex items-center space-x-2">
