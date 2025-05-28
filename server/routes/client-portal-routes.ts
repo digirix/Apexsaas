@@ -9,15 +9,12 @@ import {
   payments, 
   tasks
 } from '@shared/schema';
-import { DatabaseStorage } from '../database-storage';
+import { storage } from '../storage';
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 
 // Promisify scrypt
 const scryptAsync = promisify(scrypt);
-
-// Initialize storage instance
-const storage = new DatabaseStorage();
 
 // Helper functions for password management
 async function hashPassword(password: string) {
