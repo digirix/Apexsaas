@@ -265,6 +265,41 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
     }
   });
 
+  // Remove service from entity mutation
+  const removeServiceFromEntity = useMutation({
+    mutationFn: async (serviceId: number) => {
+      if (!entityId) throw new Error("Entity ID is required");
+      
+      const response = await apiRequest(
+        "DELETE",
+        `/api/v1/entities/${entityId}/services/${serviceId}`,
+        {}
+      );
+      
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/v1/entities/${entityId}/services`]
+      });
+      
+      toast({
+        title: "Service removed",
+        description: "Service has been successfully removed from the entity",
+      });
+      
+      refetchServices();
+    },
+    onError: (error: any) => {
+      console.error("Error removing service:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to remove service from entity",
+        variant: "destructive",
+      });
+    }
+  });
+
   // Remove tax jurisdiction mutation
   const removeTaxJurisdiction = useMutation({
     mutationFn: async (taxJurisdictionId: number) => {
@@ -534,7 +569,7 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
                                   </div>
                                 </div>
                                 
-                                <div className="col-span-3 flex items-center">
+                                <div className="col-span-2 flex items-center">
                                   <div className="flex items-center space-x-2">
                                     <Checkbox 
                                       id={`subscribed-${service.id}`}
@@ -554,6 +589,19 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
                                       Subscribed
                                     </label>
                                   </div>
+                                </div>
+                                
+                                <div className="col-span-1 flex items-center justify-end">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeServiceFromEntity.mutate(service.id)}
+                                    disabled={removeServiceFromEntity.isPending}
+                                    className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
+                                    title="Remove service from entity"
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
                                 </div>
                               </CardContent>
                             </Card>
