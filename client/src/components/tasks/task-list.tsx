@@ -941,7 +941,7 @@ export function TaskList() {
 
       return true;
     });
-  }, [tasks, quickFilter, searchTerm, statusFilter, assigneeFilter, clientFilter, priorityFilter, taskStatuses, users, clients, currentUser]);
+  }, [tasks, quickFilter, searchTerm, columnFilters, taskStatuses, users, clients, currentUser]);
 
   // Task metrics using user-defined statuses
   const taskMetrics = useMemo(() => {
@@ -1097,80 +1097,22 @@ export function TaskList() {
               )}
             </div>
 
-            {/* Advanced Filters */}
+            {/* Column Filters Info */}
             <Popover open={showFilters} onOpenChange={setShowFilters}>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8">
                   <Filter className="h-4 w-4 mr-1" />
-                  Filters
+                  About Filters
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-80" align="end">
                 <div className="space-y-3">
-                  <div>
-                    <label className="text-sm font-medium">Status</label>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="h-8">
-                        <SelectValue placeholder="All Statuses" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Statuses</SelectItem>
-                        {taskStatuses.map((status) => (
-                          <SelectItem key={status.id} value={status.id.toString()}>
-                            {status.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Assignee</label>
-                    <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-                      <SelectTrigger className="h-8">
-                        <SelectValue placeholder="All Assignees" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Assignees</SelectItem>
-                        {users.map((user) => (
-                          <SelectItem key={user.id} value={user.id.toString()}>
-                            {user.displayName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Client</label>
-                    <Select value={clientFilter} onValueChange={setClientFilter}>
-                      <SelectTrigger className="h-8">
-                        <SelectValue placeholder="All Clients" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Clients</SelectItem>
-                        {clients.map((client) => (
-                          <SelectItem key={client.id} value={client.id.toString()}>
-                            {client.displayName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Priority</label>
-                    <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                      <SelectTrigger className="h-8">
-                        <SelectValue placeholder="All Priorities" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Priorities</SelectItem>
-                        <SelectItem value="High">High Priority</SelectItem>
-                        <SelectItem value="Medium">Medium Priority</SelectItem>
-                        <SelectItem value="Low">Low Priority</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <h4 className="font-medium text-sm">Individual Column Filters</h4>
+                  <p className="text-sm text-slate-600">
+                    Filters have been moved to individual column headers. Look for the filter icon next to each column title to filter by that specific column.
+                  </p>
+                  <div className="text-xs text-slate-500">
+                    Available filters include: Status, Assignee, Client, Entity, Category, and Compliance Period.
                   </div>
                 </div>
               </PopoverContent>
