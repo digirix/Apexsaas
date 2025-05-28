@@ -343,10 +343,122 @@ export function TaskList() {
     queryKey: ["/api/v1/clients"],
   });
 
+  const { data: entities = [] } = useQuery({
+    queryKey: ["/api/v1/entities"],
+  });
+
+  const { data: taskCategories = [] } = useQuery({
+    queryKey: ["/api/v1/setup/task-categories"],
+  });
+
   // Fetch task status workflow rules to respect user configuration
   const { data: workflowRules = [] } = useQuery({
     queryKey: ["/api/v1/setup/task-status-workflow-rules"],
   });
+
+  // Helper function to render cell content based on column key
+  const renderCellContent = (task: Task, column: TaskColumn) => {
+    const client = clients.find(c => c.id === task.clientId);
+    const assignee = users.find(u => u.id === task.assigneeId);
+    const status = taskStatuses.find(s => s.id === task.statusId);
+    const entity = entities.find((e: any) => e.id === task.entityId);
+    const category = taskCategories.find((c: any) => c.id === task.taskCategoryId);
+    
+    switch (column.key) {
+      case 'taskDetails':
+        return (
+          <div className="max-w-xs truncate">
+            <div className="font-medium text-sm text-slate-900 truncate">
+              {task.taskDetails || 'Untitled Task'}
+            </div>
+            {task.nextToDo && (
+              <div className="text-xs text-slate-500 truncate">
+                Next: {task.nextToDo}
+              </div>
+            )}
+          </div>
+        );
+      case 'client':
+        return client ? (
+          <div className="flex items-center space-x-2">
+            <Building2 className="h-4 w-4 text-slate-400" />
+            <span className="text-sm text-slate-900">{client.name}</span>
+          </div>
+        ) : <span className="text-slate-400">-</span>;
+      case 'entity':
+        return entity ? (
+          <span className="text-sm text-slate-900">{entity.name}</span>
+        ) : <span className="text-slate-400">-</span>;
+      case 'assignee':
+        return assignee ? (
+          <div className="flex items-center space-x-2">
+            <Avatar className="h-6 w-6">
+              <AvatarFallback className="text-xs">
+                {assignee.firstName?.charAt(0)}{assignee.lastName?.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-sm text-slate-900">
+              {assignee.firstName} {assignee.lastName}
+            </span>
+          </div>
+        ) : <span className="text-slate-400">Unassigned</span>;
+      case 'status':
+        return status ? (
+          <Badge 
+            variant="secondary" 
+            className="text-xs"
+            style={{ 
+              backgroundColor: status.color + '20', 
+              color: status.color,
+              border: `1px solid ${status.color}40`
+            }}
+          >
+            {status.name}
+          </Badge>
+        ) : <span className="text-slate-400">-</span>;
+      case 'priority':
+        return (
+          <Badge variant="outline" className="text-xs">
+            Medium
+          </Badge>
+        );
+      case 'dueDate':
+        return (
+          <div className="text-sm">
+            <div className={`${isTaskOverdue(task) ? 'text-red-600 font-medium' : 'text-slate-900'}`}>
+              {new Date(task.dueDate).toLocaleDateString()}
+            </div>
+            {isTaskOverdue(task) && (
+              <div className="text-xs text-red-500">Overdue</div>
+            )}
+          </div>
+        );
+      case 'category':
+        return category ? (
+          <span className="text-sm text-slate-900">{category.name}</span>
+        ) : <span className="text-slate-400">-</span>;
+      case 'serviceType':
+        return task.serviceTypeId ? (
+          <span className="text-sm text-slate-900">Service {task.serviceTypeId}</span>
+        ) : <span className="text-slate-400">-</span>;
+      case 'createdAt':
+        return (
+          <span className="text-sm text-slate-600">
+            {formatDistanceToNow(new Date(task.createdAt))} ago
+          </span>
+        );
+      case 'isRecurring':
+        return task.isRecurring ? (
+          <Badge variant="outline" className="text-xs">Recurring</Badge>
+        ) : <span className="text-slate-400">-</span>;
+      case 'complianceFrequency':
+        return task.complianceFrequency ? (
+          <span className="text-sm text-slate-600">{task.complianceFrequency}</span>
+        ) : <span className="text-slate-400">-</span>;
+      default:
+        return <span className="text-slate-400">-</span>;
+    }
+  };
 
   // Drag and drop handlers
   const updateTaskStatus = useMutation({
