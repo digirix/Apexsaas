@@ -153,7 +153,7 @@ function DraggableTaskCard({
     >
       {/* Hover Tooltip - Comprehensive Task Details */}
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50">
-        <div className="absolute top-2 left-2 bg-gray-900 text-white text-xs px-4 py-3 rounded-lg shadow-2xl border border-gray-700 w-96 max-h-80 overflow-y-auto">
+        <div className="absolute bottom-full left-2 mb-2 bg-gray-900 text-white text-xs px-4 py-3 rounded-lg shadow-2xl border border-gray-700 w-96 max-h-80 overflow-y-auto transform -translate-y-0">
           {/* Task Header */}
           <div className="border-b border-gray-700 pb-2 mb-3">
             <h3 className="font-semibold text-sm text-white mb-1 line-clamp-2">
