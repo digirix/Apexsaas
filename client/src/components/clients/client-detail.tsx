@@ -740,6 +740,14 @@ export function ClientDetail({ clientId }: ClientDetailProps) {
                           </div>
                           <div className="flex gap-2">
                             <Button 
+                              variant="default" 
+                              size="sm"
+                              onClick={() => setLocation(`/entities/${entity.id}`)}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                            <Button 
                               variant="outline" 
                               size="sm"
                               onClick={() => handleConfigureEntity(entity.id)}
