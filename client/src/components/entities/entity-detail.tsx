@@ -173,9 +173,37 @@ export function EntityDetail({ entityId }: EntityDetailProps) {
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{entity.name}</h1>
-            <p className="text-sm text-gray-600">
-              {client?.displayName} • {entityType?.name} • {country?.name}
-            </p>
+            <div className="space-y-1">
+              <p className="text-sm text-gray-600">
+                {client?.displayName} • {entityType?.name} • {country?.name}{state ? `, ${state.name}` : ''}
+              </p>
+              <div className="flex items-center space-x-4 text-xs text-gray-500">
+                {entity.businessTaxId && (
+                  <span>Tax ID: {entity.businessTaxId}</span>
+                )}
+                {entity.isVatRegistered && entity.vatId && (
+                  <span>VAT: {entity.vatId}</span>
+                )}
+                <div className="flex items-center space-x-2">
+                  {entity.fileAccessLink && (
+                    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" asChild>
+                      <a href={entity.fileAccessLink} target="_blank" rel="noopener noreferrer">
+                        <LinkIcon className="h-3 w-3 mr-1" />
+                        Files
+                      </a>
+                    </Button>
+                  )}
+                  {entity.whatsappGroupLink && (
+                    <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" asChild>
+                      <a href={entity.whatsappGroupLink} target="_blank" rel="noopener noreferrer">
+                        <MessageSquare className="h-3 w-3 mr-1" />
+                        WhatsApp
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div className="flex items-center space-x-2">
@@ -202,86 +230,6 @@ export function EntityDetail({ entityId }: EntityDetailProps) {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          {/* Entity Information Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Building className="h-5 w-5 mr-2" />
-                Entity Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Entity Name</label>
-                  <p className="mt-1 text-sm text-gray-900">{entity.name}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Entity Type</label>
-                  <p className="mt-1 text-sm text-gray-900">{entityType?.name || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Business Tax ID</label>
-                  <p className="mt-1 text-sm text-gray-900">{entity.businessTaxId || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">VAT Registration</label>
-                  <div className="mt-1 flex items-center">
-                    {entity.isVatRegistered ? (
-                      <Badge variant="default" className="text-xs">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Registered
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary" className="text-xs">
-                        <XCircle className="h-3 w-3 mr-1" />
-                        Not Registered
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                {entity.isVatRegistered && entity.vatId && (
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">VAT ID</label>
-                    <p className="mt-1 text-sm text-gray-900">{entity.vatId}</p>
-                  </div>
-                )}
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Location</label>
-                  <p className="mt-1 text-sm text-gray-900 flex items-center">
-                    <MapPin className="h-3 w-3 mr-1" />
-                    {country?.name}{state ? `, ${state.name}` : ''}
-                  </p>
-                </div>
-              </div>
-
-              {entity.address && (
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Address</label>
-                  <p className="mt-1 text-sm text-gray-900">{entity.address}</p>
-                </div>
-              )}
-
-              <div className="flex space-x-4">
-                {entity.fileAccessLink && (
-                  <Button variant="outline" size="sm" asChild>
-                    <a href={entity.fileAccessLink} target="_blank" rel="noopener noreferrer">
-                      <LinkIcon className="h-4 w-4 mr-2" />
-                      File Access
-                    </a>
-                  </Button>
-                )}
-                {entity.whatsappGroupLink && (
-                  <Button variant="outline" size="sm" asChild>
-                    <a href={entity.whatsappGroupLink} target="_blank" rel="noopener noreferrer">
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      WhatsApp Group
-                    </a>
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Quick Compliance Overview */}
           {complianceAnalysis && (
