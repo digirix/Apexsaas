@@ -1806,14 +1806,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const existingSubscriptions = await storage.getEntityServiceSubscriptions(tenantId, entityId);
         const existingSub = existingSubscriptions.find(sub => sub.serviceTypeId === serviceTypeId);
         
-        if (!existingSub) {
-          return res.status(404).json({ message: "Service subscription not found" });
+        if (existingSub) {
+          // Delete the existing subscription
+          const success = await storage.deleteServiceSubscription(existingSub.id, tenantId);
+          if (!success) {
+            return res.status(404).json({ message: "Failed to delete service subscription" });
+          }
         }
+        // If no subscription exists, that's fine - the service was never actually configured
         
-        const success = await storage.deleteServiceSubscription(existingSub.id, tenantId);
-        if (!success) {
-          return res.status(404).json({ message: "Failed to delete service subscription" });
-        }
       } catch (error) {
         console.error("Error deleting service subscription:", error);
         return res.status(500).json({ message: "Failed to delete service subscription" });
