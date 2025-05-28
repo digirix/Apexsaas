@@ -44,7 +44,9 @@ import {
   Eye,
   Filter,
   Sparkles,
-  MessageCircle
+  MessageCircle,
+  AlertTriangle,
+  XCircle
 } from "lucide-react";
 import {
   Alert,
@@ -126,158 +128,223 @@ function EntityDetailSection({ entity }: { entity: any }) {
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-6">
-          {/* Compliance Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100">
-              <div className="flex items-center space-x-2 mb-2">
-                <BarChart className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-900">Compliance Rate</span>
-              </div>
-              <p className="text-2xl font-bold text-blue-700">{complianceRate}%</p>
-              <p className="text-xs text-blue-600">{subscribedServices} of {totalServices} services</p>
-            </div>
+        <CardContent>
+          <Tabs defaultValue="overview" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="compliance">Compliance Analysis</TabsTrigger>
+              <TabsTrigger value="history">Compliance History</TabsTrigger>
+              <TabsTrigger value="upcoming">Upcoming Deadlines</TabsTrigger>
+            </TabsList>
 
-            <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100">
-              <div className="flex items-center space-x-2 mb-2">
-                <CheckCircle className="h-4 w-4 text-emerald-600" />
-                <span className="text-sm font-medium text-emerald-900">Required Services</span>
-              </div>
-              <p className="text-2xl font-bold text-emerald-700">{requiredServices}</p>
-              <p className="text-xs text-emerald-600">Essential for compliance</p>
-            </div>
+            <TabsContent value="overview" className="space-y-6">
+              {/* Service Configuration */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <FileText className="h-5 w-5 mr-2" />
+                    Service Configuration
+                  </CardTitle>
+                  <CardDescription>
+                    Services configured for this entity and their current status
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {servicesLoading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="h-20 bg-slate-100 rounded-lg animate-pulse"></div>
+                      ))}
+                    </div>
+                  ) : services.length === 0 ? (
+                    <div className="text-center py-8">
+                      <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500 mb-2">No services configured</p>
+                      <p className="text-sm text-gray-400">Configure services to start tracking compliance</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {services.map((service: any) => (
+                        <div key={service.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3">
+                              <div>
+                                <h4 className="font-medium text-gray-900">{service.name}</h4>
+                                <p className="text-sm text-gray-500">
+                                  {service.description || `Rate: ${service.rate || 'N/A'} • Billing: ${service.billingBasis || 'N/A'}`}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-4">
+                            <div className="text-right">
+                              <div className="flex items-center space-x-2 mt-1">
+                                <Badge variant={service.isRequired ? "default" : "secondary"} className="text-xs">
+                                  {service.isRequired ? "Required" : "Optional"}
+                                </Badge>
+                                <Badge variant={service.isSubscribed ? "default" : "outline"} className="text-xs">
+                                  {service.isSubscribed ? "Subscribed" : "Not Subscribed"}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex items-center">
+                              {service.isSubscribed ? (
+                                <CheckCircle className="h-5 w-5 text-green-500" />
+                              ) : (
+                                <XCircle className="h-5 w-5 text-gray-400" />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-            <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100">
-              <div className="flex items-center space-x-2 mb-2">
-                <Clock className="h-4 w-4 text-amber-600" />
-                <span className="text-sm font-medium text-amber-900">Active Tasks</span>
-              </div>
-              <p className="text-2xl font-bold text-amber-700">{entityTasks?.length || 0}</p>
-              <p className="text-xs text-amber-600">Pending completion</p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100">
-              <div className="flex items-center space-x-2 mb-2">
-                <Shield className="h-4 w-4 text-purple-600" />
-                <span className="text-sm font-medium text-purple-900">Tax Status</span>
-              </div>
-              <p className="text-lg font-semibold text-purple-700">
-                {entity.isVatRegistered ? "VAT Registered" : "Standard"}
-              </p>
-              <p className="text-xs text-purple-600">{entity.businessTaxId || "No Tax ID"}</p>
-            </div>
-          </div>
-
-          {/* Service Configuration */}
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Briefcase className="h-5 w-5 text-slate-600" />
-              <h3 className="text-lg font-semibold text-slate-900">Service Configuration</h3>
-            </div>
-            
-            {servicesLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-20 bg-slate-100 rounded-lg animate-pulse"></div>
-                ))}
-              </div>
-            ) : services.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {services.map((service: any) => (
-                  <div 
-                    key={service.id}
-                    className={`p-4 rounded-lg border transition-all duration-200 ${
-                      service.isSubscribed 
-                        ? 'bg-emerald-50 border-emerald-200' 
-                        : service.isRequired 
-                        ? 'bg-amber-50 border-amber-200'
-                        : 'bg-slate-50 border-slate-200'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <h4 className="font-medium text-slate-900 text-sm">Service {service.serviceTypeId}</h4>
-                      <div className="flex space-x-1">
-                        {service.isRequired && (
-                          <span className="px-2 py-1 text-xs bg-amber-100 text-amber-700 rounded-full">
-                            Required
-                          </span>
-                        )}
-                        {service.isSubscribed && (
-                          <span className="px-2 py-1 text-xs bg-emerald-100 text-emerald-700 rounded-full">
-                            Active
-                          </span>
-                        )}
+              {/* Quick Compliance Overview */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Shield className="h-5 w-5 mr-2" />
+                    Compliance Overview
+                  </CardTitle>
+                  <CardDescription>
+                    Quick summary of compliance status across all services
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium">Overall Compliance</span>
+                        <span className="text-sm text-gray-600">{complianceRate}%</span>
+                      </div>
+                      <Progress value={complianceRate} className="h-2" />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-purple-600">{requiredServices}</div>
+                        <div className="text-xs text-gray-600">Required Services</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">{subscribedServices}</div>
+                        <div className="text-xs text-gray-600">Subscribed Services</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">{subscribedServices}</div>
+                        <div className="text-xs text-gray-600">Compliant</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-amber-600">{entityTasks?.length || 0}</div>
+                        <div className="text-xs text-gray-600">Active Tasks</div>
                       </div>
                     </div>
-                    <p className="text-xs text-slate-600">
-                      Status: {service.isSubscribed ? 'Subscribed' : 'Not Subscribed'}
-                    </p>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-slate-500">
-                <Briefcase className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-                <p>No services configured</p>
-              </div>
-            )}
-          </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          {/* Entity Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <h4 className="font-semibold text-slate-900">Business Information</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Entity Type:</span>
-                  <span className="font-medium">{entity.entityType}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Business Tax ID:</span>
-                  <span className="font-medium">{entity.businessTaxId || "Not provided"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">VAT ID:</span>
-                  <span className="font-medium">{entity.vatId || "Not applicable"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Registration Date:</span>
-                  <span className="font-medium">
-                    {new Date(entity.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            </div>
+            <TabsContent value="compliance" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <TrendingUp className="h-5 w-5 mr-2" />
+                    Detailed Compliance Analysis
+                  </CardTitle>
+                  <CardDescription>
+                    Complete breakdown of compliance status for each service
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Service</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Frequency</TableHead>
+                        <TableHead>Required</TableHead>
+                        <TableHead>Subscribed</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {services.map((service: any) => (
+                        <TableRow key={service.id}>
+                          <TableCell className="font-medium">{service.name}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={service.isSubscribed ? 'default' : 'outline'}
+                              className="capitalize"
+                            >
+                              {service.isSubscribed ? 'Active' : 'Not Subscribed'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{service.billingBasis || 'N/A'}</TableCell>
+                          <TableCell>
+                            {service.isRequired ? (
+                              <Badge variant="destructive" className="text-xs">Required</Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">Optional</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {service.isSubscribed ? (
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <XCircle className="h-4 w-4 text-gray-400" />
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-            <div className="space-y-3">
-              <h4 className="font-semibold text-slate-900">Location & Contact</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Country:</span>
-                  <span className="font-medium">{entity.countryName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">State/Province:</span>
-                  <span className="font-medium">{entity.stateName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Address:</span>
-                  <span className="font-medium">{entity.address || "Not provided"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Communication:</span>
-                  <div className="flex space-x-2">
-                    {entity.whatsappGroupLink && (
-                      <span className="text-green-600 text-xs">WhatsApp</span>
-                    )}
-                    {entity.fileAccessLink && (
-                      <span className="text-blue-600 text-xs">Files</span>
-                    )}
+            <TabsContent value="history" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Calendar className="h-5 w-5 mr-2" />
+                    Compliance History
+                  </CardTitle>
+                  <CardDescription>
+                    Historical compliance data for required services
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-12">
+                    <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Compliance History</h3>
+                    <p className="text-gray-600">Historical compliance data will appear here as tasks are completed.</p>
                   </div>
-                </div>
-              </div>
-            </div>
-          </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="upcoming" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Calendar className="h-5 w-5 mr-2" />
+                    Upcoming Compliance Deadlines
+                  </CardTitle>
+                  <CardDescription>
+                    Next 12 months of compliance requirements
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-12">
+                    <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Upcoming Deadlines</h3>
+                    <p className="text-gray-600">All compliance requirements are up to date or no services are subscribed.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </motion.div>
