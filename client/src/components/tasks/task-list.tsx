@@ -306,7 +306,7 @@ export function TaskList() {
     { id: 'serviceType', label: 'Service Type', key: 'serviceType', visible: false },
     { id: 'created', label: 'Created', key: 'createdAt', visible: false },
     { id: 'recurring', label: 'Recurring', key: 'isRecurring', visible: false },
-    { id: 'compliance', label: 'Compliance', key: 'complianceFrequency', visible: false },
+    { id: 'compliance', label: 'Compliance Period', key: 'complianceFrequency', visible: false },
   ]);
   
   // Drag and drop state
@@ -448,7 +448,17 @@ export function TaskList() {
         ) : <span className="text-slate-400">-</span>;
       case 'complianceFrequency':
         return task.complianceFrequency ? (
-          <span className="text-sm text-slate-600">{task.complianceFrequency}</span>
+          <div className="text-sm">
+            <div className="text-slate-900 font-medium">{task.complianceFrequency}</div>
+            {task.complianceStartDate && task.complianceEndDate && (
+              <div className="text-xs text-slate-500">
+                {new Date(task.complianceStartDate).toLocaleDateString()} - {new Date(task.complianceEndDate).toLocaleDateString()}
+              </div>
+            )}
+            {task.complianceYear && (
+              <div className="text-xs text-slate-500">Year: {task.complianceYear}</div>
+            )}
+          </div>
         ) : <span className="text-slate-400">-</span>;
       default:
         return <span className="text-slate-400">-</span>;
