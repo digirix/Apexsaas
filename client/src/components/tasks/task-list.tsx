@@ -40,7 +40,9 @@ import {
 import {
   SortableContext,
   verticalListSortingStrategy,
+  horizontalListSortingStrategy,
   useSortable,
+  arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Button } from "@/components/ui/button";
@@ -269,6 +271,198 @@ interface TaskColumn {
   width?: number;
   required?: boolean;
   order?: number;
+}
+
+// Sortable column item for drag and drop
+function SortableColumnItem({ 
+  column, 
+  onVisibilityChange, 
+  onWidthChange 
+}: { 
+  column: TaskColumn, 
+  onVisibilityChange: (visible: boolean) => void,
+  onWidthChange: (width: number) => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: column.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div 
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-slate-200 hover:border-slate-300 transition-colors"
+    >
+      <div 
+        {...attributes}
+        {...listeners}
+        className="cursor-grab hover:cursor-grabbing text-slate-400 hover:text-slate-600"
+      >
+        <Grip className="h-4 w-4" />
+      </div>
+      
+      <Checkbox
+        id={column.id}
+        checked={column.visible}
+        disabled={column.required}
+        onCheckedChange={(checked) => onVisibilityChange(checked as boolean)}
+      />
+      
+      <div className="flex-1 min-w-0">
+        <label 
+          htmlFor={column.id} 
+          className={`text-sm font-medium cursor-pointer block ${
+            column.required ? 'text-slate-500' : 'text-slate-900'
+          }`}
+        >
+          {column.label}
+          {column.required && <span className="text-xs text-slate-400 ml-1">(Required)</span>}
+        </label>
+        
+        <div className="flex items-center space-x-2 mt-2">
+          <span className="text-xs text-slate-500 w-10">Width:</span>
+          <input
+            type="range"
+            min="80"
+            max="400"
+            value={column.width || 150}
+            onChange={(e) => onWidthChange(parseInt(e.target.value))}
+            className="flex-1 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+          />
+          <span className="text-xs text-slate-500 w-12 text-right">{column.width || 150}px</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Enhanced column management modal component
+function EnhancedColumnManager({ 
+  columns, 
+  onColumnsChange, 
+  onSaveAsDefault 
+}: { 
+  columns: TaskColumn[], 
+  onColumnsChange: (columns: TaskColumn[]) => void,
+  onSaveAsDefault: (columns: TaskColumn[]) => void
+}) {
+  const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
+  
+  const columnSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
+  const handleColumnDragStart = (event: DragStartEvent) => {
+    setActiveColumnId(event.active.id as string);
+  };
+
+  const handleColumnDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (active.id !== over?.id) {
+      const oldIndex = columns.findIndex(col => col.id === active.id);
+      const newIndex = columns.findIndex(col => col.id === over?.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newColumns = arrayMove(columns, oldIndex, newIndex);
+        const updatedColumns = newColumns.map((col, index) => ({
+          ...col,
+          order: index
+        }));
+        onColumnsChange(updatedColumns);
+      }
+    }
+    
+    setActiveColumnId(null);
+  };
+
+  const handleVisibilityChange = (columnId: string, visible: boolean) => {
+    const newColumns = columns.map(col =>
+      col.id === columnId ? { ...col, visible } : col
+    );
+    onColumnsChange(newColumns);
+  };
+
+  const handleWidthChange = (columnId: string, width: number) => {
+    const newColumns = columns.map(col =>
+      col.id === columnId ? { ...col, width } : col
+    );
+    onColumnsChange(newColumns);
+  };
+
+  return (
+    <div className="p-6 space-y-6 min-w-[400px] max-w-[500px]">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-slate-900">Manage Columns</h3>
+          <p className="text-sm text-slate-500 mt-1">Drag to reorder, adjust widths, and toggle visibility</p>
+        </div>
+        <Button 
+          variant="default" 
+          size="sm"
+          onClick={() => onSaveAsDefault(columns)}
+          className="text-sm"
+        >
+          Set as Default
+        </Button>
+      </div>
+      
+      <DndContext
+        sensors={columnSensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleColumnDragStart}
+        onDragEnd={handleColumnDragEnd}
+      >
+        <SortableContext items={columns.map(col => col.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-3 max-h-[500px] overflow-y-auto">
+            {columns.map((column) => (
+              <SortableColumnItem
+                key={column.id}
+                column={column}
+                onVisibilityChange={(visible) => handleVisibilityChange(column.id, visible)}
+                onWidthChange={(width) => handleWidthChange(column.id, width)}
+              />
+            ))}
+          </div>
+        </SortableContext>
+        
+        <DragOverlay>
+          {activeColumnId ? (
+            <div className="p-3 bg-white rounded-lg border border-slate-300 shadow-lg opacity-90">
+              <div className="flex items-center space-x-2">
+                <Grip className="h-4 w-4 text-slate-400" />
+                <span className="text-sm font-medium">
+                  {columns.find(col => col.id === activeColumnId)?.label}
+                </span>
+              </div>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+      
+      <div className="text-xs text-slate-500 pt-4 border-t border-slate-200">
+        <div className="flex items-center space-x-1">
+          <Settings2 className="h-3 w-3" />
+          <span>Changes are applied instantly. Use "Set as Default" to save preferences.</span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function TaskList() {
