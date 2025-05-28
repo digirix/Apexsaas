@@ -1402,6 +1402,25 @@ export function TaskList() {
                             ))}
                             <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center space-x-1">
+                                {/* File Access Icon */}
+                                {task.entityId && (() => {
+                                  const entityData = entities.find(e => e.id === task.entityId);
+                                  return entityData?.fileAccessLink ? (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 w-6 px-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.open(entityData.fileAccessLink, '_blank');
+                                      }}
+                                      title="Access Entity Files"
+                                    >
+                                      <FileText className="h-4 w-4" />
+                                    </Button>
+                                  ) : null;
+                                })()}
+                                
                                 {/* WhatsApp Icon */}
                                 {task.entityId && (() => {
                                   const entityData = entities.find(e => e.id === task.entityId);
@@ -1491,24 +1510,45 @@ export function TaskList() {
                                 <Building2 className="h-3 w-3" />
                                 <span>{client?.displayName || 'Unknown Client'}</span>
                               </div>
-                              {/* WhatsApp Icon for Cards */}
-                              {task.entityId && (() => {
-                                const entityData = entities.find(e => e.id === task.entityId);
-                                return entityData?.whatsappGroupLink ? (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-5 w-5 px-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      window.open(entityData.whatsappGroupLink, '_blank');
-                                    }}
-                                    title="Open WhatsApp Group"
-                                  >
-                                    <SiWhatsapp className="h-3 w-3" />
-                                  </Button>
-                                ) : null;
-                              })()}
+                              <div className="flex items-center space-x-1">
+                                {/* File Access Icon for Cards */}
+                                {task.entityId && (() => {
+                                  const entityData = entities.find(e => e.id === task.entityId);
+                                  return entityData?.fileAccessLink ? (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-5 w-5 px-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.open(entityData.fileAccessLink, '_blank');
+                                      }}
+                                      title="Access Entity Files"
+                                    >
+                                      <FileText className="h-3 w-3" />
+                                    </Button>
+                                  ) : null;
+                                })()}
+                                
+                                {/* WhatsApp Icon for Cards */}
+                                {task.entityId && (() => {
+                                  const entityData = entities.find(e => e.id === task.entityId);
+                                  return entityData?.whatsappGroupLink ? (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-5 w-5 px-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.open(entityData.whatsappGroupLink, '_blank');
+                                      }}
+                                      title="Open WhatsApp Group"
+                                    >
+                                      <SiWhatsapp className="h-3 w-3" />
+                                    </Button>
+                                  ) : null;
+                                })()}
+                              </div>
                             </div>
                             <div className="flex items-center space-x-1">
                               <Avatar className="h-3 w-3">
