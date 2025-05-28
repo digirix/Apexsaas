@@ -251,19 +251,19 @@ export function EntityDetail({ entityId }: EntityDetailProps) {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {serviceSubscriptions.map((subscription) => {
-                    const serviceType = serviceTypes.find(st => st.id === subscription.serviceTypeId);
-                    const relatedTasks = entityTasks.filter(task => task.serviceTypeId === subscription.serviceTypeId);
-                    const completedTasks = relatedTasks.filter(task => task.statusId === 3).length; // Assuming status 3 is completed
+                  {serviceSubscriptions.map((service) => {
+                    // The API returns services with embedded subscription data
+                    const relatedTasks = entityTasks.filter(task => task.serviceTypeId === service.id);
+                    const completedTasks = relatedTasks.filter(task => task.statusId === 1).length; // Status 1 is "Completed" 
                     
                     return (
-                      <div key={subscription.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
+                      <div key={service.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
                         <div className="flex-1">
                           <div className="flex items-center space-x-3">
                             <div>
-                              <h4 className="font-medium text-gray-900">{serviceType?.name || 'Unknown Service'}</h4>
+                              <h4 className="font-medium text-gray-900">{service.name}</h4>
                               <p className="text-sm text-gray-500">
-                                {serviceType?.description || `Rate: ${serviceType?.rate || 'N/A'} • Billing: ${serviceType?.billingBasis || 'N/A'}`}
+                                {service.description || `Rate: ${service.rate || 'N/A'} • Billing: ${service.billingBasis || 'N/A'}`}
                               </p>
                             </div>
                           </div>
@@ -274,16 +274,16 @@ export function EntityDetail({ entityId }: EntityDetailProps) {
                               {completedTasks}/{relatedTasks.length} tasks completed
                             </div>
                             <div className="flex items-center space-x-2 mt-1">
-                              <Badge variant={subscription.isRequired ? "default" : "secondary"} className="text-xs">
-                                {subscription.isRequired ? "Required" : "Optional"}
+                              <Badge variant={service.isRequired ? "default" : "secondary"} className="text-xs">
+                                {service.isRequired ? "Required" : "Optional"}
                               </Badge>
-                              <Badge variant={subscription.isSubscribed ? "default" : "outline"} className="text-xs">
-                                {subscription.isSubscribed ? "Subscribed" : "Not Subscribed"}
+                              <Badge variant={service.isSubscribed ? "default" : "outline"} className="text-xs">
+                                {service.isSubscribed ? "Subscribed" : "Not Subscribed"}
                               </Badge>
                             </div>
                           </div>
                           <div className="flex items-center">
-                            {subscription.isSubscribed ? (
+                            {service.isSubscribed ? (
                               completedTasks === relatedTasks.length && relatedTasks.length > 0 ? (
                                 <CheckCircle className="h-5 w-5 text-green-500" />
                               ) : relatedTasks.length > 0 ? (
@@ -387,9 +387,8 @@ function calculateComplianceAnalysis(
   // Include all configured services (both required and subscribed)
   const allConfiguredServices = subscriptions;
   
-  const serviceBreakdown = allConfiguredServices.map(subscription => {
-    const service = serviceTypes.find(st => st.id === subscription.serviceTypeId);
-    if (!service) return null;
+  const serviceBreakdown = allConfiguredServices.map(service => {
+    // The API returns services with embedded subscription data, not separate subscriptions
     
     const serviceTasks = tasks.filter(task => task.serviceTypeId === service.id);
     
@@ -439,7 +438,7 @@ function calculateComplianceAnalysis(
 
     // Determine status
     let status: 'compliant' | 'overdue' | 'upcoming' | 'not-subscribed';
-    if (!subscription.isSubscribed) {
+    if (!service.isSubscribed) {
       status = 'not-subscribed';
     } else if (nextDue) {
       const now = new Date();
@@ -452,15 +451,15 @@ function calculateComplianceAnalysis(
         status = 'compliant';
       }
     } else {
-      status = subscription.isSubscribed ? 'upcoming' : 'not-subscribed';
+      status = service.isSubscribed ? 'upcoming' : 'not-subscribed';
     }
 
     return {
       serviceId: service.id,
       serviceName: service.name,
-      isRequired: subscription.isRequired,
-      isSubscribed: subscription.isSubscribed,
-      frequency: serviceTasks[0]?.complianceFrequency || 'N/A',
+      isRequired: service.isRequired,
+      isSubscribed: service.isSubscribed,
+      frequency: serviceTasks[0]?.complianceFrequency || service.billingBasis || 'N/A',
       lastCompleted,
       nextDue,
       status,
