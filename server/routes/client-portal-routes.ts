@@ -682,7 +682,7 @@ export function registerClientPortalRoutes(app: Express) {
     }
   });
   
-  // Get entity services (required and subscribed)
+  // Get entity services (using exact same logic as working admin portal)
   app.get("/api/client-portal/entity/:entityId/services", isClientAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
@@ -694,95 +694,29 @@ export function registerClientPortalRoutes(app: Express) {
       
       console.log(`Fetching services for entity ${entityId} in tenant ${user.tenantId}`);
       
-      // Verify that this entity belongs to the client
-      const entityResults = await db
-        .select()
-        .from(entities)
-        .where(and(
-          eq(entities.id, entityId),
-          eq(entities.clientId, user.clientId),
-          eq(entities.tenantId, user.tenantId)
-        ));
-      
-      if (!entityResults || entityResults.length === 0) {
-        return res.status(403).json({ message: 'You do not have access to this entity' });
+      // Ensure entity exists and belongs to client (same validation as admin portal)
+      const entity = await storage.getEntity(entityId, user.tenantId);
+      if (!entity || entity.clientId !== user.clientId) {
+        return res.status(404).json({ message: "Entity not found or access denied" });
       }
       
-      // Get country-specific services based on entity's country
-      const countryId = entityResults[0].countryId;
+      // Get existing subscriptions for this entity (exact same as admin portal)
+      const subscriptions = await storage.getEntityServiceSubscriptions(user.tenantId, entityId);
       
-      // Get all available services for the country
-      const allServicesResults = await db.execute(sql`
-        SELECT 
-          s.id,
-          s.tenant_id as "tenantId",
-          s.country_id as "countryId",
-          s.name,
-          s.description,
-          s.currency_id as "currencyCode",
-          s.rate,
-          s.billing_basis as "billingBasis",
-          s.created_at as "createdAt",
-          false as "isRequired",
-          c.code as "currencyCode",
-          c.symbol as "currencySymbol"
-        FROM service_types s
-        LEFT JOIN currencies c ON s.currency_id = c.id
-        WHERE 
-          s.country_id = ${countryId}
-          AND s.tenant_id = ${user.tenantId}
-      `);
-      
-      // Get subscribed services for the entity
-      const subscribedServicesResults = await db.execute(sql`
-        SELECT 
-          ess.service_type_id as "serviceId",
-          ess.is_subscribed as "isActive",
-          ess.is_required as "isRequired",
-          ess.created_at as "startDate",
-          null as "endDate"
-        FROM entity_service_subscriptions ess
-        WHERE 
-          ess.entity_id = ${entityId}
-          AND ess.tenant_id = ${user.tenantId}
-      `);
-      
-      // Create a map of subscribed services
-      const subscribedServicesMap: Record<number, any> = {};
-      subscribedServicesResults.rows.forEach(sub => {
-        if (sub && typeof sub.serviceId === 'number') {
-          subscribedServicesMap[sub.serviceId] = sub;
+      // Only show services that have been explicitly added to this entity (same logic as admin)
+      const servicesWithStatus = [];
+      for (const subscription of subscriptions) {
+        const serviceType = await storage.getServiceType(subscription.serviceTypeId, user.tenantId);
+        if (serviceType) {
+          servicesWithStatus.push({
+            ...serviceType,
+            isRequired: subscription.isRequired,
+            isSubscribed: subscription.isSubscribed
+          });
         }
-      });
+      }
       
-      // Combine all services with subscription status
-      const services = allServicesResults.rows.map(service => {
-        if (!service || typeof service.id !== 'number') {
-          return service; // Return as-is if no valid ID
-        }
-        const subscription = subscribedServicesMap[service.id];
-        return {
-          ...service,
-          isSubscribed: Boolean(subscription),
-          subscriptionActive: subscription ? subscription.isActive : false,
-          subscriptionStartDate: subscription ? subscription.startDate : null,
-          subscriptionEndDate: subscription ? subscription.endDate : null
-        };
-      });
-      
-      // Group services by required vs optional
-      const requiredServices = services.filter(service => 
-        service && typeof service === 'object' && 'isRequired' in service && service.isRequired
-      );
-      const optionalServices = services.filter(service => 
-        service && typeof service === 'object' && ('isRequired' in service ? !service.isRequired : false)
-      );
-      
-      res.json({
-        required: requiredServices,
-        optional: optionalServices,
-        entityName: entityResults[0].name
-      });
+      res.json(servicesWithStatus);
     } catch (error) {
       console.error('Error fetching entity services:', error);
       res.status(500).json({ message: 'Failed to fetch entity services' });
