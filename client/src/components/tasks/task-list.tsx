@@ -266,8 +266,9 @@ interface TaskColumn {
   label: string;
   key: string;
   visible: boolean;
-  width?: string;
+  width?: number;
   required?: boolean;
+  order?: number;
 }
 
 export function TaskList() {
@@ -295,24 +296,27 @@ export function TaskList() {
   
   // Column management state with localStorage persistence
   const getDefaultColumns = (): TaskColumn[] => [
-    { id: 'task', label: 'Task', key: 'taskDetails', visible: true, required: true },
-    { id: 'client', label: 'Client', key: 'client', visible: true },
-    { id: 'entity', label: 'Entity', key: 'entity', visible: false },
-    { id: 'assignee', label: 'Assignee', key: 'assignee', visible: true },
-    { id: 'status', label: 'Status', key: 'status', visible: true, required: true },
-    { id: 'priority', label: 'Priority', key: 'priority', visible: true },
-    { id: 'dueDate', label: 'Due Date', key: 'dueDate', visible: true },
-    { id: 'category', label: 'Category', key: 'category', visible: false },
-    { id: 'serviceType', label: 'Service Type', key: 'serviceType', visible: false },
-    { id: 'created', label: 'Created', key: 'createdAt', visible: false },
-    { id: 'recurring', label: 'Recurring', key: 'isRecurring', visible: false },
-    { id: 'compliance', label: 'Compliance Period', key: 'complianceFrequency', visible: false },
+    { id: 'task', label: 'Task', key: 'taskDetails', visible: true, required: true, width: 300, order: 0 },
+    { id: 'client', label: 'Client', key: 'client', visible: true, width: 200, order: 1 },
+    { id: 'entity', label: 'Entity', key: 'entity', visible: false, width: 150, order: 2 },
+    { id: 'assignee', label: 'Assignee', key: 'assignee', visible: true, width: 180, order: 3 },
+    { id: 'status', label: 'Status', key: 'status', visible: true, required: true, width: 120, order: 4 },
+    { id: 'priority', label: 'Priority', key: 'priority', visible: true, width: 100, order: 5 },
+    { id: 'dueDate', label: 'Due Date', key: 'dueDate', visible: true, width: 120, order: 6 },
+    { id: 'category', label: 'Category', key: 'category', visible: false, width: 150, order: 7 },
+    { id: 'serviceType', label: 'Service Type', key: 'serviceType', visible: false, width: 140, order: 8 },
+    { id: 'created', label: 'Created', key: 'createdAt', visible: false, width: 120, order: 9 },
+    { id: 'recurring', label: 'Recurring', key: 'isRecurring', visible: false, width: 100, order: 10 },
+    { id: 'compliance', label: 'Compliance Period', key: 'complianceFrequency', visible: false, width: 200, order: 11 },
   ];
 
   const [columns, setColumns] = useState<TaskColumn[]>(() => getDefaultColumns());
   
-  // Drag and drop state
+  // Drag and drop state for tasks
   const [activeId, setActiveId] = useState<number | null>(null);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -320,6 +324,29 @@ export function TaskList() {
       },
     })
   );
+
+  // Column resizing handlers
+  const handleColumnResize = (columnId: string, newWidth: number) => {
+    const updatedColumns = columns.map(col => 
+      col.id === columnId ? { ...col, width: Math.max(80, newWidth) } : col
+    );
+    setColumns(updatedColumns);
+  };
+
+  // Column reordering function
+  const reorderColumns = (oldIndex: number, newIndex: number) => {
+    const newColumns = [...columns];
+    const [movedColumn] = newColumns.splice(oldIndex, 1);
+    newColumns.splice(newIndex, 0, movedColumn);
+    
+    // Update order property
+    const updatedColumns = newColumns.map((col, index) => ({
+      ...col,
+      order: index
+    }));
+    
+    setColumns(updatedColumns);
+  };
 
   // Get permissions and data
   const permissions = useModulePermissions("tasks");
@@ -365,10 +392,20 @@ export function TaskList() {
       if (saved) {
         const savedColumns = JSON.parse(saved);
         const defaultColumns = getDefaultColumns();
-        return defaultColumns.map(defaultCol => {
+        
+        // Merge saved preferences with defaults, preserving order and width
+        const mergedColumns = defaultColumns.map(defaultCol => {
           const savedCol = savedColumns.find((s: TaskColumn) => s.id === defaultCol.id);
-          return savedCol ? { ...defaultCol, visible: savedCol.visible } : defaultCol;
+          return savedCol ? {
+            ...defaultCol,
+            visible: savedCol.visible,
+            width: savedCol.width || defaultCol.width,
+            order: savedCol.order !== undefined ? savedCol.order : defaultCol.order
+          } : defaultCol;
         });
+        
+        // Sort by order and return
+        return mergedColumns.sort((a, b) => (a.order || 0) - (b.order || 0));
       }
     } catch (error) {
       console.warn('Failed to load column preferences:', error);
@@ -398,6 +435,64 @@ export function TaskList() {
     if (saveAsDefault) {
       saveColumnPreferences(newColumns);
     }
+  };
+
+  // Enhanced filter state based on visible columns
+  const getAvailableFilterOptions = () => {
+    const visibleColumns = columns.filter(col => col.visible);
+    const filterOptions = [];
+
+    if (visibleColumns.find(col => col.key === 'status')) {
+      filterOptions.push({
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        options: [
+          { value: 'pending', label: 'Pending' },
+          { value: 'in_progress', label: 'In Progress' },
+          { value: 'under_review', label: 'Under Review' },
+          { value: 'completed', label: 'Completed' },
+          { value: 'cancelled', label: 'Cancelled' }
+        ]
+      });
+    }
+
+    if (visibleColumns.find(col => col.key === 'assignee')) {
+      filterOptions.push({
+        key: 'assignee',
+        label: 'Assignee',
+        type: 'select',
+        options: users.map(user => ({ value: user.id.toString(), label: user.displayName }))
+      });
+    }
+
+    if (visibleColumns.find(col => col.key === 'client')) {
+      filterOptions.push({
+        key: 'client',
+        label: 'Client',
+        type: 'select',
+        options: clients.map(client => ({ value: client.id.toString(), label: client.displayName }))
+      });
+    }
+
+    if (visibleColumns.find(col => col.key === 'category')) {
+      filterOptions.push({
+        key: 'category',
+        label: 'Category',
+        type: 'select',
+        options: (taskCategories as any[]).map(cat => ({ value: cat.id.toString(), label: cat.name }))
+      });
+    }
+
+    if (visibleColumns.find(col => col.key === 'dueDate')) {
+      filterOptions.push({
+        key: 'dueDate',
+        label: 'Due Date',
+        type: 'date'
+      });
+    }
+
+    return filterOptions;
   };
 
   // Load preferences after currentUser is available
