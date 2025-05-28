@@ -1802,7 +1802,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const existingSub = existingSubscriptions.find(sub => sub.serviceTypeId === serviceTypeId);
         
         if (!existingSub) {
-          return res.status(404).json({ message: "Service subscription not found" });
+          // If no subscription exists, create one with false values first, then delete it
+          // This ensures we have a record to delete
+          console.log(`Creating temporary subscription for entity ${entityId} service ${serviceTypeId} to enable deletion`);
+          
+          try {
+            const tempSub = await storage.createServiceSubscription({
+              tenantId,
+              entityId,
+              serviceTypeId,
+              isRequired: false,
+              isSubscribed: false
+            });
+            
+            if (tempSub) {
+              await storage.deleteServiceSubscription(tempSub.id, tenantId);
+              console.log(`Successfully created and deleted temporary subscription for service ${serviceTypeId}`);
+            }
+          } catch (tempError) {
+            console.error("Error with temporary subscription:", tempError);
+            // If we can't create a temp subscription, just return success since there was nothing to delete anyway
+          }
+          
+          res.status(204).send();
+          return;
         }
         
         const success = await storage.deleteServiceSubscription(existingSub.id, tenantId);
