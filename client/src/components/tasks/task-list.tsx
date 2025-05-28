@@ -309,52 +309,7 @@ export function TaskList() {
     { id: 'compliance', label: 'Compliance Period', key: 'complianceFrequency', visible: false },
   ];
 
-  // Load user's column preferences from localStorage
-  const loadColumnPreferences = (): TaskColumn[] => {
-    try {
-      const saved = localStorage.getItem(`taskColumns_${currentUser?.id || 'default'}`);
-      if (saved) {
-        const savedColumns = JSON.parse(saved);
-        // Merge with default columns to handle new columns added to the system
-        const defaultColumns = getDefaultColumns();
-        return defaultColumns.map(defaultCol => {
-          const savedCol = savedColumns.find((s: TaskColumn) => s.id === defaultCol.id);
-          return savedCol ? { ...defaultCol, visible: savedCol.visible } : defaultCol;
-        });
-      }
-    } catch (error) {
-      console.warn('Failed to load column preferences:', error);
-    }
-    return getDefaultColumns();
-  };
-
-  const [columns, setColumns] = useState<TaskColumn[]>(loadColumnPreferences);
-
-  // Save column preferences to localStorage
-  const saveColumnPreferences = (newColumns: TaskColumn[]) => {
-    try {
-      localStorage.setItem(`taskColumns_${currentUser?.id || 'default'}`, JSON.stringify(newColumns));
-      toast({
-        title: "Preferences Saved",
-        description: "Your column preferences have been saved as default.",
-      });
-    } catch (error) {
-      console.warn('Failed to save column preferences:', error);
-      toast({
-        title: "Save Failed",
-        description: "Failed to save column preferences.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Update columns and optionally save as default
-  const updateColumns = (newColumns: TaskColumn[], saveAsDefault = false) => {
-    setColumns(newColumns);
-    if (saveAsDefault) {
-      saveColumnPreferences(newColumns);
-    }
-  };
+  const [columns, setColumns] = useState<TaskColumn[]>(() => getDefaultColumns());
   
   // Drag and drop state
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -403,6 +358,55 @@ export function TaskList() {
     queryKey: ["/api/v1/setup/task-status-workflow-rules"],
   });
 
+  // Column management functions (after data queries)
+  const loadColumnPreferences = (): TaskColumn[] => {
+    try {
+      const saved = localStorage.getItem(`taskColumns_${currentUser?.id || 'default'}`);
+      if (saved) {
+        const savedColumns = JSON.parse(saved);
+        const defaultColumns = getDefaultColumns();
+        return defaultColumns.map(defaultCol => {
+          const savedCol = savedColumns.find((s: TaskColumn) => s.id === defaultCol.id);
+          return savedCol ? { ...defaultCol, visible: savedCol.visible } : defaultCol;
+        });
+      }
+    } catch (error) {
+      console.warn('Failed to load column preferences:', error);
+    }
+    return getDefaultColumns();
+  };
+
+  const saveColumnPreferences = (newColumns: TaskColumn[]) => {
+    try {
+      localStorage.setItem(`taskColumns_${currentUser?.id || 'default'}`, JSON.stringify(newColumns));
+      toast({
+        title: "Preferences Saved",
+        description: "Your column preferences have been saved as default.",
+      });
+    } catch (error) {
+      console.warn('Failed to save column preferences:', error);
+      toast({
+        title: "Save Failed",
+        description: "Failed to save column preferences.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const updateColumns = (newColumns: TaskColumn[], saveAsDefault = false) => {
+    setColumns(newColumns);
+    if (saveAsDefault) {
+      saveColumnPreferences(newColumns);
+    }
+  };
+
+  // Load preferences after currentUser is available
+  useEffect(() => {
+    if (currentUser?.id) {
+      setColumns(loadColumnPreferences());
+    }
+  }, [currentUser?.id]);
+
   // Helper function to render cell content based on column key
   const renderCellContent = (task: Task, column: TaskColumn) => {
     const client = clients.find(c => c.id === task.clientId);
@@ -434,7 +438,9 @@ export function TaskList() {
         ) : <span className="text-slate-400">-</span>;
       case 'entity':
         return entity ? (
-          <span className="text-sm text-slate-900">{(entity as any).name || (entity as any).displayName}</span>
+          <span className="text-sm text-slate-900">
+            {(entity as any).name || (entity as any).displayName || `Entity ${task.entityId}`}
+          </span>
         ) : <span className="text-slate-400">-</span>;
       case 'assignee':
         return assignee ? (
