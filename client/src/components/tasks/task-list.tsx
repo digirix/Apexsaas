@@ -1097,26 +1097,7 @@ export function TaskList() {
               )}
             </div>
 
-            {/* Column Filters Info */}
-            <Popover open={showFilters} onOpenChange={setShowFilters}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8">
-                  <Filter className="h-4 w-4 mr-1" />
-                  About Filters
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80" align="end">
-                <div className="space-y-3">
-                  <h4 className="font-medium text-sm">Individual Column Filters</h4>
-                  <p className="text-sm text-slate-600">
-                    Filters have been moved to individual column headers. Look for the filter icon next to each column title to filter by that specific column.
-                  </p>
-                  <div className="text-xs text-slate-500">
-                    Available filters include: Status, Assignee, Client, Entity, Category, and Compliance Period.
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+
 
             {/* Column Manager */}
             <Popover open={showColumnManager} onOpenChange={setShowColumnManager}>

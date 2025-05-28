@@ -1379,15 +1379,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // All Entities for tenant (for task list display)
+
+
+  // All entities for a tenant
   app.get("/api/v1/entities", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       console.log(`Fetching all entities for tenant ${tenantId}`);
       
-      const dbStorage = new DatabaseStorage();
-      const entities = await dbStorage.getAllEntities(tenantId);
-      console.log(`Found ${entities.length} entities for tenant ${tenantId}:`, entities.map(e => ({ id: e.id, name: e.name })));
+      const entities = await storage.getAllEntities(tenantId);
+      console.log(`Found ${entities.length} entities for tenant ${tenantId}`);
       res.json(entities);
     } catch (error) {
       console.error(`Error fetching entities for tenant:`, error);
