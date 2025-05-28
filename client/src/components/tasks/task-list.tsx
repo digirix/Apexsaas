@@ -382,7 +382,7 @@ export function TaskList() {
         return client ? (
           <div className="flex items-center space-x-2">
             <Building2 className="h-4 w-4 text-slate-400" />
-            <span className="text-sm text-slate-900">{client.name}</span>
+            <span className="text-sm text-slate-900">{client.displayName}</span>
           </div>
         ) : <span className="text-slate-400">-</span>;
       case 'entity':
@@ -394,11 +394,11 @@ export function TaskList() {
           <div className="flex items-center space-x-2">
             <Avatar className="h-6 w-6">
               <AvatarFallback className="text-xs">
-                {assignee.firstName?.charAt(0)}{assignee.lastName?.charAt(0)}
+                {assignee.displayName?.charAt(0) || 'U'}
               </AvatarFallback>
             </Avatar>
             <span className="text-sm text-slate-900">
-              {assignee.firstName} {assignee.lastName}
+              {assignee.displayName}
             </span>
           </div>
         ) : <span className="text-slate-400">Unassigned</span>;
@@ -407,11 +407,6 @@ export function TaskList() {
           <Badge 
             variant="secondary" 
             className="text-xs"
-            style={{ 
-              backgroundColor: status.color + '20', 
-              color: status.color,
-              border: `1px solid ${status.color}40`
-            }}
           >
             {status.name}
           </Badge>
@@ -444,7 +439,7 @@ export function TaskList() {
       case 'createdAt':
         return (
           <span className="text-sm text-slate-600">
-            {formatDistanceToNow(new Date(task.createdAt))} ago
+            {new Date(task.createdAt).toLocaleDateString()}
           </span>
         );
       case 'isRecurring':
@@ -1063,48 +1058,11 @@ export function TaskList() {
                                 onCheckedChange={(checked) => handleTaskSelect(task.id, checked as boolean)}
                               />
                             </td>
-                            <td className="px-3 py-2">
-                              <div className="max-w-xs">
-                                <p className="text-sm font-medium text-slate-900 truncate">
-                                  {task.taskDetails || 'Untitled Task'}
-                                </p>
-                                {task.isAdmin && (
-                                  <Badge variant="outline" className="text-xs mt-1">Admin</Badge>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-3 py-2">
-                              <span className="text-sm text-slate-900">
-                                {client?.displayName || 'Unknown'}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2">
-                              <div className="flex items-center space-x-2">
-                                <Avatar className="h-5 w-5">
-                                  <AvatarFallback className="text-xs">
-                                    {assignee?.displayName?.charAt(0) || 'U'}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span className="text-sm text-slate-900">
-                                  {assignee?.displayName || 'Unassigned'}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-3 py-2">
-                              <Badge className={getTaskStatusColor(task.statusId)}>
-                                {status?.name || 'Unknown'}
-                              </Badge>
-                            </td>
-                            <td className="px-3 py-2">
-                              <Badge className={getTaskPriorityColor(task.priority || 'Medium')}>
-                                {task.priority || 'Medium'}
-                              </Badge>
-                            </td>
-                            <td className="px-3 py-2">
-                              <div className={`text-sm ${isOverdue ? 'text-red-600 font-medium' : 'text-slate-900'}`}>
-                                {formatDueDate(task.dueDate)}
-                              </div>
-                            </td>
+                            {columns.filter(col => col.visible).map(column => (
+                              <td key={column.id} className="px-3 py-2">
+                                {renderCellContent(task, column)}
+                              </td>
+                            ))}
                             <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
