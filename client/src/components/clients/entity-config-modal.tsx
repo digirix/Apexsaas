@@ -265,6 +265,41 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
     }
   });
 
+  // Remove service from entity mutation
+  const removeServiceFromEntity = useMutation({
+    mutationFn: async (serviceTypeId: number) => {
+      if (!entityId) throw new Error("Entity ID is required");
+      
+      const response = await apiRequest(
+        "DELETE",
+        `/api/v1/entities/${entityId}/services/${serviceTypeId}`,
+        {}
+      );
+      
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/v1/entities/${entityId}/services`]
+      });
+      
+      toast({
+        title: "Service removed",
+        description: "Service has been removed from the entity",
+      });
+      
+      refetchServices();
+    },
+    onError: (error: any) => {
+      console.error("Error removing service:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to remove service",
+        variant: "destructive",
+      });
+    }
+  });
+
   // Remove tax jurisdiction mutation
   const removeTaxJurisdiction = useMutation({
     mutationFn: async (taxJurisdictionId: number) => {
@@ -329,6 +364,12 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
       isRequired,
       isSubscribed
     });
+  };
+
+  const handleRemoveService = (serviceId: number) => {
+    if (window.confirm('Are you sure you want to remove this service from the entity? This action cannot be undone.')) {
+      removeServiceFromEntity.mutate(serviceId);
+    }
   };
   
   // Handle tax jurisdiction add
@@ -498,7 +539,7 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
                           {services.map((service) => (
                             <Card key={service.id} className="overflow-hidden">
                               <CardContent className="p-4 grid grid-cols-12 gap-4 items-center">
-                                <div className="col-span-6">
+                                <div className="col-span-5">
                                   <h4 className="font-medium">{service.name}</h4>
                                   <p className="text-sm text-slate-500 line-clamp-1">
                                     {service.description || "No description"}
@@ -513,7 +554,7 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
                                   </div>
                                 </div>
                                 
-                                <div className="col-span-3 flex items-center">
+                                <div className="col-span-2 flex items-center">
                                   <div className="flex items-center space-x-2">
                                     <Checkbox 
                                       id={`required-${service.id}`}
@@ -554,6 +595,18 @@ export function EntityConfigModal({ isOpen, onClose, entityId, clientId }: Entit
                                       Subscribed
                                     </label>
                                   </div>
+                                </div>
+                                
+                                <div className="col-span-2 flex justify-end">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleRemoveService(service.id)}
+                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                    <span className="sr-only">Remove Service</span>
+                                  </Button>
                                 </div>
                               </CardContent>
                             </Card>
