@@ -41,6 +41,7 @@ import ExpenseReportPage from "@/pages/finance/reports/expenses";
 import TaxSummaryPage from "@/pages/finance/reports/tax-summary";
 import WorkflowAutomationPage from "@/pages/workflow-automation";
 import { NotificationsPage } from "@/pages/notifications-page";
+import { EntityDetailPage } from "@/pages/entity-detail";
 
 function Router() {
   return (
@@ -49,6 +50,7 @@ function Router() {
       <ProtectedRoute path="/" component={DashboardPage} />
       <ProtectedRoute path="/clients" component={ClientsPage} />
       <ProtectedRoute path="/clients/:id" component={ClientDetailPage} />
+      <ProtectedRoute path="/entities/:entityId" component={EntityDetailPage} />
       <ProtectedRoute path="/setup" component={SetupPage} />
       <ProtectedRoute path="/setup/coa-configuration" component={COAConfigurationPage} />
       <ProtectedRoute path="/setup/ai-customization" component={AiCustomizationPage} />
