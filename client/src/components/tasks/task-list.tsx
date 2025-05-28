@@ -260,6 +260,16 @@ function DroppableColumn({
   );
 }
 
+// Column configuration interface
+interface TaskColumn {
+  id: string;
+  label: string;
+  key: string;
+  visible: boolean;
+  width?: string;
+  required?: boolean;
+}
+
 export function TaskList() {
   const { toast } = useToast();
   
@@ -281,6 +291,23 @@ export function TaskList() {
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   const [isTaskDetailsOpen, setIsTaskDetailsOpen] = useState(false);
   const [taskType, setTaskType] = useState<"admin" | "revenue">("admin");
+  const [showColumnManager, setShowColumnManager] = useState(false);
+  
+  // Column management state
+  const [columns, setColumns] = useState<TaskColumn[]>([
+    { id: 'task', label: 'Task', key: 'taskDetails', visible: true, required: true },
+    { id: 'client', label: 'Client', key: 'client', visible: true },
+    { id: 'entity', label: 'Entity', key: 'entity', visible: false },
+    { id: 'assignee', label: 'Assignee', key: 'assignee', visible: true },
+    { id: 'status', label: 'Status', key: 'status', visible: true, required: true },
+    { id: 'priority', label: 'Priority', key: 'priority', visible: true },
+    { id: 'dueDate', label: 'Due Date', key: 'dueDate', visible: true },
+    { id: 'category', label: 'Category', key: 'category', visible: false },
+    { id: 'serviceType', label: 'Service Type', key: 'serviceType', visible: false },
+    { id: 'created', label: 'Created', key: 'createdAt', visible: false },
+    { id: 'recurring', label: 'Recurring', key: 'isRecurring', visible: false },
+    { id: 'compliance', label: 'Compliance', key: 'complianceFrequency', visible: false },
+  ]);
   
   // Drag and drop state
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -652,6 +679,72 @@ export function TaskList() {
               </PopoverContent>
             </Popover>
 
+            {/* Column Manager */}
+            <Popover open={showColumnManager} onOpenChange={setShowColumnManager}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8">
+                  <Columns className="h-4 w-4 mr-1" />
+                  Columns
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64" align="end">
+                <div className="space-y-3">
+                  <h4 className="font-medium text-sm">Manage Columns</h4>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {columns.map((column) => (
+                      <div key={column.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={column.id}
+                          checked={column.visible}
+                          disabled={column.required}
+                          onCheckedChange={(checked) => {
+                            setColumns(prev => prev.map(col => 
+                              col.id === column.id 
+                                ? { ...col, visible: checked as boolean }
+                                : col
+                            ));
+                          }}
+                        />
+                        <label 
+                          htmlFor={column.id}
+                          className={`text-sm ${column.required ? 'text-slate-500' : 'text-slate-900'} cursor-pointer flex-1`}
+                        >
+                          {column.label}
+                          {column.required && (
+                            <span className="text-xs text-slate-400 ml-1">(Required)</span>
+                          )}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="pt-2 border-t border-slate-200">
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setColumns(prev => prev.map(col => ({ ...col, visible: !col.required })));
+                        }}
+                        className="flex-1"
+                      >
+                        Hide All
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setColumns(prev => prev.map(col => ({ ...col, visible: true })));
+                        }}
+                        className="flex-1"
+                      >
+                        Show All
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
             {/* View Mode */}
             <div className="flex items-center bg-slate-100 rounded p-0.5">
               <Button
@@ -831,12 +924,11 @@ export function TaskList() {
                             }}
                           />
                         </th>
-                        <th className="text-left text-xs font-medium text-slate-500 px-3 py-2">Task</th>
-                        <th className="text-left text-xs font-medium text-slate-500 px-3 py-2">Client</th>
-                        <th className="text-left text-xs font-medium text-slate-500 px-3 py-2">Assignee</th>
-                        <th className="text-left text-xs font-medium text-slate-500 px-3 py-2">Status</th>
-                        <th className="text-left text-xs font-medium text-slate-500 px-3 py-2">Priority</th>
-                        <th className="text-left text-xs font-medium text-slate-500 px-3 py-2">Due</th>
+                        {columns.filter(col => col.visible).map(column => (
+                          <th key={column.id} className="text-left text-xs font-medium text-slate-500 px-3 py-2">
+                            {column.label}
+                          </th>
+                        ))}
                         <th className="w-8 px-3 py-2"></th>
                       </tr>
                     </thead>
