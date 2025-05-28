@@ -566,7 +566,7 @@ export function TaskList() {
     queryKey: ["/api/v1/clients"],
   });
 
-  const { data: entities = [], isLoading: isLoadingEntities, error: entitiesError } = useQuery({
+  const { data: entities = [], isLoading: isLoadingEntities, error: entitiesError } = useQuery<Entity[]>({
     queryKey: ["/api/v1/entities"],
   });
 
