@@ -282,6 +282,7 @@ export function TaskList() {
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   const [isTaskDetailsOpen, setIsTaskDetailsOpen] = useState(false);
   const [taskType, setTaskType] = useState<"admin" | "revenue">("admin");
+  const [preselectedClientId, setPreselectedClientId] = useState<string | undefined>();
   
   // Drag and drop state
   const [activeId, setActiveId] = useState<number | null>(null);
