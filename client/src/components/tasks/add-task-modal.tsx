@@ -112,6 +112,7 @@ const revenueTaskSchema = z.object({
   complianceDuration: z.string().optional(),
   complianceStartDate: z.date().optional(),
   complianceEndDate: z.date().optional(),
+  complianceDeadline: z.date().optional(),
   isRecurring: z.boolean().default(false),
   
   // Invoice Information Tab
@@ -158,6 +159,7 @@ export function AddTaskModal({ isOpen, onClose, taskType, preselectedClientId }:
       complianceDuration: "",
       complianceStartDate: undefined,
       complianceEndDate: undefined,
+      complianceDeadline: undefined,
       isRecurring: false,
       
       // Invoice Information Tab
@@ -1282,6 +1284,47 @@ export function AddTaskModal({ isOpen, onClose, taskType, preselectedClientId }:
                               </Popover>
                               <FormDescription>
                                 Auto-calculated based on the frequency and start date
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <div>
+                        <FormField
+                          control={revenueTaskForm.control}
+                          name="complianceDeadline"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                              <FormLabel>Compliance Deadline (Authority Required Date)</FormLabel>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <FormControl>
+                                    <Button
+                                      variant="outline"
+                                      className={`w-full pl-3 text-left font-normal ${!field.value && "text-muted-foreground"}`}
+                                    >
+                                      {field.value ? (
+                                        format(field.value, "PPP")
+                                      ) : (
+                                        <span>Pick compliance deadline</span>
+                                      )}
+                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                  </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={field.value}
+                                    onSelect={field.onChange}
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              <FormDescription>
+                                The official deadline set by tax authorities by which this compliance must be completed
                               </FormDescription>
                               <FormMessage />
                             </FormItem>
