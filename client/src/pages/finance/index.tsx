@@ -226,7 +226,7 @@ function FinancePage() {
     <AppLayout title="Finance">
       <div className="container py-6">
         
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-3 mt-6">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-3 mt-[-10px] mb-[-10px]">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Invoiced</CardTitle>

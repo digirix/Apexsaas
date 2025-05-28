@@ -232,35 +232,51 @@ export function ClientList() {
 
   return (
     <>
-      {/* Header with Statistics Summary */}
-      <div className="mb-6">
-        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start space-y-4 lg:space-y-0">
-          <div>
-            <h2 className="text-xl font-semibold text-slate-900">
-              Client Management
-            </h2>
-            <div className="flex items-center space-x-6 mt-2">
-              <div className="text-sm text-slate-600">
-                <span className="font-medium">{totalItems}</span> total clients
-              </div>
-              <div className="text-sm text-slate-600">
-                <span className="font-medium">{clients.filter(c => c.status === 'Active').length}</span> active
-              </div>
-              <div className="text-sm text-slate-600">
-                <span className="font-medium">
-                  {allTasks.filter(task => 
-                    task.statusId !== 1 && // Not completed
-                    new Date(task.dueDate) < new Date() // Overdue
-                  ).length}
-                </span> overdue tasks
-              </div>
+      {/* Compact Header */}
+      <div className="flex items-center justify-between p-3 border-b border-slate-200 bg-white mb-6">
+        <div className="flex items-center space-x-4">
+          <h2 className="text-lg font-semibold text-slate-900">Clients</h2>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Button onClick={() => setIsAddClientModalOpen(true)} size="sm" className="h-8">
+            <Plus className="h-4 w-4 mr-1" />
+            Add
+          </Button>
+        </div>
+      </div>
+
+      {/* Key Metrics Bar */}
+      <div className="bg-slate-50 border-b border-slate-200 px-4 py-2 mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-slate-400 rounded-full"></div>
+              <span className="text-sm font-semibold text-slate-900">{totalItems}</span>
+              <span className="text-xs text-slate-600">Total</span>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span className="text-sm font-semibold text-slate-900">{clients.filter(c => c.status === 'Active').length}</span>
+              <span className="text-xs text-slate-600">Active</span>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+              <span className="text-sm font-semibold text-slate-900">
+                {allTasks.filter(task => 
+                  task.statusId !== 1 && // Not completed
+                  new Date(task.dueDate) < new Date() // Overdue
+                ).length}
+              </span>
+              <span className="text-xs text-slate-600">Overdue Tasks</span>
             </div>
           </div>
-
-          <Button onClick={() => setIsAddClientModalOpen(true)}>
-            <Plus className="-ml-1 mr-2 h-4 w-4" />
-            Add Client
-          </Button>
+          
+          <div className="text-xs text-slate-500">
+            Last updated: {new Date().toLocaleTimeString()}
+          </div>
         </div>
       </div>
 
