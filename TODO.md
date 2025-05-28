@@ -2,7 +2,34 @@
 
 ## Immediate Priorities (Next 2-4 weeks)
 
-### 1. Complete Workflow Automation Engine (15% remaining)
+### 1. Enhanced AI-Powered Features (Critical Priority)
+**Objective**: Implement comprehensive AI assistance that helps users make informed decisions and performs actions within the application
+
+**Key Requirements from Full Scope:**
+- AI suggestions for required services based on entity data (Country, State, Entity Type, VAT status)
+- AI-powered task detail suggestions and auto-categorization
+- Proactive compliance risk identification based on client data and deadlines
+- Drafting initial client communications for tasks and compliance reminders
+- Workflow optimization suggestions based on observed patterns
+- Enforced learning capabilities to improve suggestions over time
+
+**Tasks:**
+- [ ] Implement AI service requirement suggestions for entity configuration
+- [ ] Create AI-powered task detail auto-completion and categorization
+- [ ] Develop proactive compliance risk assessment system
+- [ ] Build AI-driven client communication drafting
+- [ ] Implement workflow optimization recommendations
+- [ ] Create AI learning feedback loops and performance monitoring
+- [ ] Add AI assistance management interface for Super Admins
+
+**Files to modify:**
+- `server/services/ai-service.ts` - Enhanced AI processing capabilities
+- `client/src/components/ai/ai-suggestions.tsx` - New suggestion interfaces
+- `client/src/components/entities/entity-config-modal.tsx` - AI service suggestions
+- `client/src/components/tasks/add-task-modal.tsx` - AI task detail suggestions
+- `server/api/ai-routes.ts` - New AI assistance endpoints
+
+### 2. Complete Workflow Automation Engine (15% remaining)
 **Objective**: Implement advanced background processing and complex condition evaluation for workflows
 
 **Tasks:**
