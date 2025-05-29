@@ -543,7 +543,7 @@ function ComplianceAnalysisSection({
   const threeMonthsFromNow = new Date();
   threeMonthsFromNow.setMonth(currentDate.getMonth() + 3);
 
-  // Filter tasks with compliance deadlines within next 3 months
+  // Filter tasks with compliance deadlines within next 3 months (any status)
   const upcomingComplianceTasks = entityTasks.filter(task => {
     if (!task.complianceDeadline) return false;
     const deadline = new Date(task.complianceDeadline);
@@ -822,14 +822,15 @@ function ComplianceHistorySection({
   const threeMonthsFromNow = new Date();
   threeMonthsFromNow.setMonth(currentDate.getMonth() + 3);
 
-  // Filter completed tasks that are NOT in the analysis tab (compliance deadline not within next 3 months)
+  // Filter completed tasks that are NOT in the analysis tab
   const historyTasks = entityTasks.filter(task => {
-    // Must be completed
+    // Must be completed (status ID 1)
     if (task.statusId !== 1) return false;
     
-    // If has compliance deadline, should not be within next 3 months (already shown in analysis)
+    // If has compliance deadline, exclude those within next 3 months (already shown in analysis tab)
     if (task.complianceDeadline) {
       const deadline = new Date(task.complianceDeadline);
+      // Only include if deadline is in the past or beyond 3 months
       return deadline < currentDate || deadline > threeMonthsFromNow;
     }
     
