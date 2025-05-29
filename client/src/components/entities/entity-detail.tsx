@@ -508,18 +508,16 @@ function generateFutureComplianceDeadlines(entityTasks: any[]): UpcomingComplian
   
   const futureDeadlines: UpcomingCompliance[] = [];
   
-  // Process recurring tasks that have compliance data
-  const recurringTasks = entityTasks.filter(task => 
+  // Process recurring tasks that have compliance deadline data
+  const tasksWithDeadlines = entityTasks.filter(task => 
     task.isRecurring && 
     task.complianceFrequency && 
-    task.complianceStartDate && 
-    task.complianceEndDate
+    task.complianceDeadline
   );
   
-  recurringTasks.forEach(task => {
+  tasksWithDeadlines.forEach(task => {
     const frequency = task.complianceFrequency;
-    const startDate = new Date(task.complianceStartDate);
-    const endDate = new Date(task.complianceEndDate);
+    const complianceDeadline = new Date(task.complianceDeadline);
     
     // Calculate how many months to add based on frequency
     let monthsToAdd = 0;
@@ -527,20 +525,21 @@ function generateFutureComplianceDeadlines(entityTasks: any[]): UpcomingComplian
     else if (frequency === 'Quarterly') monthsToAdd = 3;
     else if (frequency === 'Semi-Annual') monthsToAdd = 6;
     else if (frequency === 'Annual') monthsToAdd = 12;
+    else if (frequency === 'Bi-Annual') monthsToAdd = 24;
     else return; // Skip unknown frequencies
     
-    // Generate future deadlines based on the pattern
-    let currentDeadline = new Date(endDate);
+    // Start from the existing compliance deadline and generate future deadlines
+    let nextDeadline = new Date(complianceDeadline);
     
-    // If the end date is in the past, calculate the next deadline
-    while (currentDeadline <= now) {
-      currentDeadline.setMonth(currentDeadline.getMonth() + monthsToAdd);
+    // If the deadline is in the past, calculate the next future deadline
+    while (nextDeadline <= now) {
+      nextDeadline.setMonth(nextDeadline.getMonth() + monthsToAdd);
     }
     
     // Generate up to 3 future deadlines within the next 12 months
     let count = 0;
-    while (currentDeadline <= next12Months && count < 3) {
-      const daysUntilDue = Math.ceil((currentDeadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    while (nextDeadline <= next12Months && count < 3) {
+      const daysUntilDue = Math.ceil((nextDeadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       
       let priority: 'high' | 'medium' | 'low';
       if (daysUntilDue <= 7) priority = 'high';
@@ -550,14 +549,14 @@ function generateFutureComplianceDeadlines(entityTasks: any[]): UpcomingComplian
       futureDeadlines.push({
         serviceId: task.serviceTypeId || 0,
         serviceName: task.taskDetails || 'Unknown Service',
-        dueDate: new Date(currentDeadline),
+        dueDate: new Date(nextDeadline),
         frequency: frequency,
         priority: priority,
         daysUntilDue: daysUntilDue
       });
       
-      // Move to next deadline
-      currentDeadline.setMonth(currentDeadline.getMonth() + monthsToAdd);
+      // Move to next deadline by adding the frequency interval
+      nextDeadline.setMonth(nextDeadline.getMonth() + monthsToAdd);
       count++;
     }
   });
