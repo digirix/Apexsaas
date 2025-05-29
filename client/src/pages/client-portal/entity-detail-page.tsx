@@ -32,7 +32,8 @@ import {
   MessageCircle
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { addMonths } from "date-fns";
+import { addMonths, format } from "date-fns";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 // Types
 interface Entity {
