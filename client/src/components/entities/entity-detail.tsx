@@ -547,6 +547,14 @@ function ComplianceAnalysisSection({
   const upcomingComplianceTasks = entityTasks.filter(task => {
     if (!task.complianceDeadline) return false;
     const deadline = new Date(task.complianceDeadline);
+    console.log("Compliance Analysis - Task filtering:", {
+      taskId: task.id,
+      complianceDeadline: task.complianceDeadline,
+      parsedDeadline: deadline.toISOString(),
+      currentDate: currentDate.toISOString(),
+      threeMonthsFromNow: threeMonthsFromNow.toISOString(),
+      isWithinRange: deadline >= currentDate && deadline <= threeMonthsFromNow
+    });
     return deadline >= currentDate && deadline <= threeMonthsFromNow;
   });
 
