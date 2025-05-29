@@ -563,9 +563,10 @@ function ComplianceAnalysisSection({
     return service?.name || 'Unknown Service';
   };
 
-  // Determine compliance status
+  // Determine compliance status - check if task is completed
   const getComplianceStatus = (statusId: number) => {
-    return statusId === 1 ? 'Complied' : 'Pending'; // 1 is Completed status
+    // Status ID 1 is "Completed" - tasks are complied when completed
+    return statusId === 1 ? 'Complied' : 'Pending';
   };
 
   return (
