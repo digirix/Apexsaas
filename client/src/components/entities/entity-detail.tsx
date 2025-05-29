@@ -73,6 +73,7 @@ interface UpcomingCompliance {
   frequency: string;
   priority: 'high' | 'medium' | 'low';
   daysUntilDue: number;
+  compliancePeriod: string;
 }
 
 export function EntityDetail({ entityId }: EntityDetailProps) {
@@ -501,7 +502,7 @@ function calculateComplianceAnalysis(
 }
 
 // Helper function to generate future compliance deadlines from recurring tasks
-function generateFutureComplianceDeadlines(entityTasks: any[]): UpcomingCompliance[] {
+function generateFutureComplianceDeadlines(entityTasks: any[], serviceTypes: any[]): UpcomingCompliance[] {
   const now = new Date();
   const next12Months = new Date();
   next12Months.setMonth(next12Months.getMonth() + 12);
@@ -512,12 +513,18 @@ function generateFutureComplianceDeadlines(entityTasks: any[]): UpcomingComplian
   const tasksWithDeadlines = entityTasks.filter(task => 
     task.isRecurring && 
     task.complianceFrequency && 
-    task.complianceDeadline
+    task.complianceDeadline &&
+    task.complianceYear
   );
   
   tasksWithDeadlines.forEach(task => {
     const frequency = task.complianceFrequency;
     const complianceDeadline = new Date(task.complianceDeadline);
+    const complianceYear = task.complianceYear;
+    
+    // Find the service name from serviceTypes
+    const serviceType = serviceTypes?.find(st => st.id === task.serviceTypeId);
+    const serviceName = serviceType?.name || task.taskDetails || 'Unknown Service';
     
     // Calculate how many months to add based on frequency
     let monthsToAdd = 0;
@@ -530,14 +537,28 @@ function generateFutureComplianceDeadlines(entityTasks: any[]): UpcomingComplian
     
     // Start from the existing compliance deadline and generate future deadlines
     let nextDeadline = new Date(complianceDeadline);
+    let currentYear = parseInt(complianceYear);
+    let currentMonth = complianceDeadline.getMonth();
     
     // If the deadline is in the past, calculate the next future deadline
     while (nextDeadline <= now) {
       nextDeadline.setMonth(nextDeadline.getMonth() + monthsToAdd);
+      if (frequency === 'Annual' || frequency === 'Bi-Annual') {
+        currentYear += frequency === 'Annual' ? 1 : 2;
+      } else {
+        currentMonth += monthsToAdd;
+        if (currentMonth >= 12) {
+          currentYear += Math.floor(currentMonth / 12);
+          currentMonth = currentMonth % 12;
+        }
+      }
     }
     
     // Generate up to 3 future deadlines within the next 12 months
     let count = 0;
+    let periodYear = currentYear;
+    let periodMonth = currentMonth;
+    
     while (nextDeadline <= next12Months && count < 3) {
       const daysUntilDue = Math.ceil((nextDeadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       
@@ -546,17 +567,46 @@ function generateFutureComplianceDeadlines(entityTasks: any[]): UpcomingComplian
       else if (daysUntilDue <= 30) priority = 'medium';
       else priority = 'low';
       
+      // Calculate compliance period based on frequency
+      let compliancePeriod = '';
+      if (frequency === 'Monthly') {
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        compliancePeriod = `${monthNames[periodMonth]} ${periodYear}`;
+      } else if (frequency === 'Quarterly') {
+        const quarter = Math.floor(periodMonth / 3) + 1;
+        compliancePeriod = `Q${quarter} ${periodYear}`;
+      } else if (frequency === 'Semi-Annual') {
+        const half = periodMonth < 6 ? 1 : 2;
+        compliancePeriod = `H${half} ${periodYear}`;
+      } else if (frequency === 'Annual') {
+        compliancePeriod = `${periodYear}`;
+      } else if (frequency === 'Bi-Annual') {
+        compliancePeriod = `${periodYear}`;
+      }
+      
       futureDeadlines.push({
         serviceId: task.serviceTypeId || 0,
-        serviceName: task.taskDetails || 'Unknown Service',
+        serviceName: serviceName,
         dueDate: new Date(nextDeadline),
         frequency: frequency,
         priority: priority,
-        daysUntilDue: daysUntilDue
+        daysUntilDue: daysUntilDue,
+        compliancePeriod: compliancePeriod
       });
       
-      // Move to next deadline by adding the frequency interval
+      // Move to next deadline and period
       nextDeadline.setMonth(nextDeadline.getMonth() + monthsToAdd);
+      if (frequency === 'Annual') {
+        periodYear += 1;
+      } else if (frequency === 'Bi-Annual') {
+        periodYear += 2;
+      } else {
+        periodMonth += monthsToAdd;
+        if (periodMonth >= 12) {
+          periodYear += Math.floor(periodMonth / 12);
+          periodMonth = periodMonth % 12;
+        }
+      }
       count++;
     }
   });
@@ -735,7 +785,7 @@ function UpcomingComplianceSection({
   serviceTypes: ServiceType[];
 }) {
   // Generate future compliance deadlines from recurring tasks
-  const upcomingCompliances = generateFutureComplianceDeadlines(entityTasks);
+  const upcomingCompliances = generateFutureComplianceDeadlines(entityTasks, serviceTypes);
 
   return (
     <Card>
@@ -760,45 +810,38 @@ function UpcomingComplianceSection({
             <TableHeader>
               <TableRow>
                 <TableHead>Service</TableHead>
+                <TableHead>Compliance Period</TableHead>
                 <TableHead>Predicted Due Date</TableHead>
                 <TableHead>Days Until Due</TableHead>
                 <TableHead>Frequency</TableHead>
                 <TableHead>Priority</TableHead>
-                <TableHead>Required</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {upcomingCompliances.map((compliance) => (
-                <TableRow key={compliance!.serviceId}>
-                  <TableCell className="font-medium">{compliance!.serviceName}</TableCell>
-                  <TableCell>{format(compliance!.dueDate, 'MMM dd, yyyy')}</TableCell>
+              {upcomingCompliances.map((compliance, index) => (
+                <TableRow key={`${compliance.serviceId}-${index}`}>
+                  <TableCell className="font-medium">{compliance.serviceName}</TableCell>
+                  <TableCell className="font-medium">{compliance.compliancePeriod}</TableCell>
+                  <TableCell>{format(compliance.dueDate, 'MMM dd, yyyy')}</TableCell>
                   <TableCell>
                     <span className={`font-medium ${
-                      compliance!.daysUntilDue <= 7 ? 'text-red-600' :
-                      compliance!.daysUntilDue <= 30 ? 'text-yellow-600' : 'text-green-600'
+                      compliance.daysUntilDue <= 7 ? 'text-red-600' :
+                      compliance.daysUntilDue <= 30 ? 'text-yellow-600' : 'text-green-600'
                     }`}>
-                      {compliance!.daysUntilDue} days
+                      {compliance.daysUntilDue} days
                     </span>
                   </TableCell>
-                  <TableCell>{compliance!.frequency}</TableCell>
+                  <TableCell>{compliance.frequency}</TableCell>
                   <TableCell>
                     <Badge
                       variant={
-                        compliance!.priority === 'high' ? 'destructive' :
-                        compliance!.priority === 'medium' ? 'secondary' : 'outline'
+                        compliance.priority === 'high' ? 'destructive' :
+                        compliance.priority === 'medium' ? 'secondary' : 'outline'
                       }
                       className="capitalize"
                     >
-                      {compliance!.priority === 'high' && <AlertTriangle className="h-3 w-3 mr-1" />}
-                      {compliance!.priority}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant={compliance!.isRequired ? "destructive" : "outline"} 
-                      className="text-xs"
-                    >
-                      {compliance!.isRequired ? "Required" : "Optional"}
+                      {compliance.priority === 'high' && <AlertTriangle className="h-3 w-3 mr-1" />}
+                      {compliance.priority}
                     </Badge>
                   </TableCell>
                 </TableRow>
