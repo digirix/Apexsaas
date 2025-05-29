@@ -68,6 +68,10 @@ export function ClientList() {
     queryKey: ["/api/v1/invoices"],
   });
 
+  const { data: allEntities = [] } = useQuery<any[]>({
+    queryKey: ["/api/v1/entities"],
+  });
+
   // Advanced filtering and sorting for large datasets
   const filteredAndSortedClients = clients
     .filter((client) => {
@@ -144,7 +148,15 @@ export function ClientList() {
   }
 
   function getClientMetrics(clientId: number) {
-    const clientTasks = allTasks.filter(task => task.clientId === clientId);
+    // Get all entities for this client
+    const clientEntities = allEntities.filter(entity => entity.clientId === clientId);
+    const entityIds = clientEntities.map(entity => entity.id);
+    
+    // Get all tasks for this client across all their entities
+    const clientTasks = allTasks.filter(task => 
+      task.clientId === clientId || entityIds.includes(task.entityId)
+    );
+    
     const clientInvoices = allInvoices.filter(invoice => invoice.clientId === clientId);
     
     const totalOutstanding = clientInvoices
@@ -155,12 +167,14 @@ export function ClientList() {
       .filter(invoice => invoice.status === 'paid')
       .reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
       
+    // Count all incomplete tasks (not completed) across all entities
     const pendingTasks = clientTasks.filter(task => task.statusId !== 1).length;
     const overdueCount = clientTasks.filter(task => 
       task.statusId !== 1 && new Date(task.dueDate) < new Date()
     ).length;
     
-    const entityCount = 1; // Simplified for now
+    // Get actual entity count for this client
+    const entityCount = clientEntities.length;
     
     return {
       totalOutstanding,
