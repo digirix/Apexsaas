@@ -409,30 +409,30 @@ function calculateComplianceAnalysis(
     
     const lastCompleted = recentTasks.length > 0 ? new Date(recentTasks[0].createdAt) : undefined;
 
-    // Use compliance deadline if available, otherwise calculate based on frequency
+    // Use compliance deadline from the last task added by user, otherwise calculate based on frequency
     let nextDue: Date | undefined;
     
-    // First check if any task has a compliance deadline set by authorities
-    const tasksWithDeadlines = serviceTasks.filter(task => task.complianceDeadline);
-    if (tasksWithDeadlines.length > 0) {
-      // Use the nearest upcoming compliance deadline
-      const upcomingDeadlines = tasksWithDeadlines
-        .map(task => task.complianceDeadline ? new Date(task.complianceDeadline) : null)
-        .filter((deadline): deadline is Date => deadline !== null && deadline > new Date())
-        .sort((a, b) => a.getTime() - b.getTime());
+    // Get the compliance deadline from the most recently created task for this service
+    if (serviceTasks.length > 0) {
+      // Sort tasks by creation date (newest first) to get the last task added by user
+      const sortedTasks = serviceTasks.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
       
-      if (upcomingDeadlines.length > 0) {
-        nextDue = upcomingDeadlines[0];
-      }
-    } else if (lastCompleted && serviceTasks.length > 0) {
-      // Fallback to frequency-based calculation
-      const frequency = serviceTasks[0].complianceFrequency;
-      if (frequency === 'Monthly') {
-        nextDue = addMonths(lastCompleted, 1);
-      } else if (frequency === 'Quarterly') {
-        nextDue = addMonths(lastCompleted, 3);
-      } else if (frequency === 'Yearly') {
-        nextDue = addMonths(lastCompleted, 12);
+      // Get the compliance deadline from the most recent task
+      const lastTask = sortedTasks[0];
+      if (lastTask.complianceDeadline) {
+        nextDue = new Date(lastTask.complianceDeadline);
+      } else if (lastCompleted) {
+        // Fallback to frequency-based calculation only if no compliance deadline is set
+        const frequency = lastTask.complianceFrequency;
+        if (frequency === 'Monthly') {
+          nextDue = addMonths(lastCompleted, 1);
+        } else if (frequency === 'Quarterly') {
+          nextDue = addMonths(lastCompleted, 3);
+        } else if (frequency === 'Yearly') {
+          nextDue = addMonths(lastCompleted, 12);
+        }
       }
     }
 
