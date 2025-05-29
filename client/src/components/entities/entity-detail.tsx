@@ -423,9 +423,6 @@ function calculateComplianceAnalysis(
       const lastTask = sortedTasks[0];
       if (lastTask.complianceDeadline) {
         nextDue = new Date(lastTask.complianceDeadline);
-      } else if (lastTask.complianceEndDate) {
-        // Use compliance end date if no specific deadline is set
-        nextDue = new Date(lastTask.complianceEndDate);
       } else if (lastCompleted) {
         // Fallback to frequency-based calculation only if no compliance deadline is set
         const frequency = lastTask.complianceFrequency;
