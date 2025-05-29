@@ -428,6 +428,7 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
         taskType: data.taskType,
         notes: data.notes || null,
         isAdmin: true,
+        complianceDeadline: data.complianceDeadline?.toISOString(),
       };
       
       const response = await apiRequest("PUT", `/api/v1/tasks/${taskId}`, payload);
@@ -475,6 +476,7 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
         complianceDuration: data.complianceDuration,
         complianceStartDate: data.complianceStartDate?.toISOString(),
         complianceEndDate: data.complianceEndDate?.toISOString(),
+        complianceDeadline: data.complianceDeadline?.toISOString(),
         isRecurring: data.isRecurring,
       };
       

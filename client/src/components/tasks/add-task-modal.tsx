@@ -401,6 +401,10 @@ export function AddTaskModal({ isOpen, onClose, taskType, preselectedClientId }:
       if (data.complianceEndDate) {
         payload.complianceEndDate = new Date(data.complianceEndDate);
       }
+      
+      if (data.complianceDeadline) {
+        payload.complianceDeadline = new Date(data.complianceDeadline);
+      }
 
       // Log the payload for debugging
       console.log("Task creation payload:", payload);
