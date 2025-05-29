@@ -85,6 +85,7 @@ const adminTaskSchema = z.object({
   categoryId: z.string().min(1, "Please select a category"),
   taskType: z.string().min(1, "Please select a task type"),
   notes: z.string().optional(),
+  complianceDeadline: z.date().optional(),
 });
 
 const revenueTaskSchema = z.object({
@@ -136,6 +137,7 @@ const revenueTaskSchema = z.object({
   complianceDuration: z.string().optional(),
   complianceStartDate: z.date().optional(),
   complianceEndDate: z.date().optional(),
+  complianceDeadline: z.date().optional(),
   isRecurring: z.boolean().default(false),
   createUpdateInvoice: z.boolean().default(false), // Used to track if we should create/update invoice
 });
@@ -282,6 +284,7 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
           categoryId: task.taskCategoryId?.toString(), // Map taskCategoryId from database to categoryId for form
           taskType: task.taskType,
           notes: task.notes || "",
+          complianceDeadline: task.complianceDeadline ? new Date(task.complianceDeadline) : undefined,
         });
       } else {
         // Get discount and tax values from the invoice if available
@@ -319,6 +322,7 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
           complianceDuration: task.complianceDuration,
           complianceStartDate: task.complianceStartDate ? new Date(task.complianceStartDate) : undefined,
           complianceEndDate: task.complianceEndDate ? new Date(task.complianceEndDate) : undefined,
+          complianceDeadline: task.complianceDeadline ? new Date(task.complianceDeadline) : undefined,
           isRecurring: task.isRecurring || false,
           createUpdateInvoice: activeTab === "invoice", // Set to true if we're in the invoice tab
         });

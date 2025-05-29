@@ -58,6 +58,7 @@ const adminTaskSchema = z.object({
   taskCategoryId: z.string().optional(),
   taskDetails: z.string().min(5, "Task details must be at least 5 characters"),
   nextToDo: z.string().optional(),
+  complianceDeadline: z.date().optional(),
 });
 
 type AdminTaskFormValues = z.infer<typeof adminTaskSchema>;
