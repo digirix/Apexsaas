@@ -500,6 +500,72 @@ function calculateComplianceAnalysis(
   };
 }
 
+// Helper function to generate future compliance deadlines from recurring tasks
+function generateFutureComplianceDeadlines(entityTasks: any[]): UpcomingCompliance[] {
+  const now = new Date();
+  const next12Months = new Date();
+  next12Months.setMonth(next12Months.getMonth() + 12);
+  
+  const futureDeadlines: UpcomingCompliance[] = [];
+  
+  // Process recurring tasks that have compliance data
+  const recurringTasks = entityTasks.filter(task => 
+    task.isRecurring && 
+    task.complianceFrequency && 
+    task.complianceStartDate && 
+    task.complianceEndDate
+  );
+  
+  recurringTasks.forEach(task => {
+    const frequency = task.complianceFrequency;
+    const startDate = new Date(task.complianceStartDate);
+    const endDate = new Date(task.complianceEndDate);
+    
+    // Calculate how many months to add based on frequency
+    let monthsToAdd = 0;
+    if (frequency === 'Monthly') monthsToAdd = 1;
+    else if (frequency === 'Quarterly') monthsToAdd = 3;
+    else if (frequency === 'Semi-Annual') monthsToAdd = 6;
+    else if (frequency === 'Annual') monthsToAdd = 12;
+    else return; // Skip unknown frequencies
+    
+    // Generate future deadlines based on the pattern
+    let currentDeadline = new Date(endDate);
+    
+    // If the end date is in the past, calculate the next deadline
+    while (currentDeadline <= now) {
+      currentDeadline.setMonth(currentDeadline.getMonth() + monthsToAdd);
+    }
+    
+    // Generate up to 3 future deadlines within the next 12 months
+    let count = 0;
+    while (currentDeadline <= next12Months && count < 3) {
+      const daysUntilDue = Math.ceil((currentDeadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      let priority: 'high' | 'medium' | 'low';
+      if (daysUntilDue <= 7) priority = 'high';
+      else if (daysUntilDue <= 30) priority = 'medium';
+      else priority = 'low';
+      
+      futureDeadlines.push({
+        serviceId: task.serviceTypeId || 0,
+        serviceName: task.taskDetails || 'Unknown Service',
+        dueDate: new Date(currentDeadline),
+        frequency: frequency,
+        priority: priority,
+        daysUntilDue: daysUntilDue
+      });
+      
+      // Move to next deadline
+      currentDeadline.setMonth(currentDeadline.getMonth() + monthsToAdd);
+      count++;
+    }
+  });
+  
+  // Sort by due date
+  return futureDeadlines.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+}
+
 // Helper function to calculate upcoming compliance deadlines - only for required services
 function calculateUpcomingCompliances(serviceBreakdown: ComplianceAnalysis['serviceBreakdown']): UpcomingCompliance[] {
   const now = new Date();
@@ -547,15 +613,15 @@ function ComplianceAnalysisSection({
   const upcomingComplianceTasks = entityTasks.filter(task => {
     if (!task.complianceDeadline) return false;
     const deadline = new Date(task.complianceDeadline);
-    console.log("Compliance Analysis - Task filtering:", {
-      taskId: task.id,
-      complianceDeadline: task.complianceDeadline,
-      parsedDeadline: deadline.toISOString(),
-      currentDate: currentDate.toISOString(),
-      threeMonthsFromNow: threeMonthsFromNow.toISOString(),
-      isWithinRange: deadline >= currentDate && deadline <= threeMonthsFromNow
-    });
-    return deadline >= currentDate && deadline <= threeMonthsFromNow;
+    
+    // Compare dates only, not timestamps - set time to start of day for fair comparison
+    const deadlineDate = new Date(deadline.getFullYear(), deadline.getMonth(), deadline.getDate());
+    const currentDateOnly = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+    const threeMonthsFromNowDate = new Date(threeMonthsFromNow.getFullYear(), threeMonthsFromNow.getMonth(), threeMonthsFromNow.getDate());
+    
+
+    
+    return deadlineDate >= currentDateOnly && deadlineDate <= threeMonthsFromNowDate;
   });
 
   // Get task status name
@@ -669,78 +735,8 @@ function UpcomingComplianceSection({
   entityTasks: Task[];
   serviceTypes: ServiceType[];
 }) {
-  const currentDate = new Date();
-  const oneYearFromNow = new Date();
-  oneYearFromNow.setFullYear(currentDate.getFullYear() + 1);
-
-  // Calculate future compliance periods for each subscribed service
-  const upcomingCompliances = serviceSubscriptions
-    .filter(sub => sub.isSubscribed)
-    .map(subscription => {
-      const service = serviceTypes.find(st => st.id === subscription.serviceTypeId);
-      if (!service) return null;
-
-      // Find the most recent task for this service to determine the last deadline
-      const serviceTasks = entityTasks.filter(task => task.serviceTypeId === service.id);
-      const tasksWithDeadlines = serviceTasks.filter(task => task.complianceDeadline);
-      
-      let nextDueDate: Date;
-      let frequency = 'Annual'; // Default frequency
-
-      if (tasksWithDeadlines.length > 0) {
-        // Get the most recent compliance deadline
-        const latestTask = tasksWithDeadlines.sort((a, b) => 
-          new Date(b.complianceDeadline!).getTime() - new Date(a.complianceDeadline!).getTime()
-        )[0];
-        
-        frequency = latestTask.complianceFrequency || 'Annual';
-        
-        // Calculate next due date based on frequency
-        const lastDeadline = new Date(latestTask.complianceDeadline!);
-        nextDueDate = new Date(lastDeadline);
-        
-        switch (frequency) {
-          case 'Monthly':
-            nextDueDate.setMonth(nextDueDate.getMonth() + 1);
-            break;
-          case 'Quarterly':
-            nextDueDate.setMonth(nextDueDate.getMonth() + 3);
-            break;
-          case 'Semi-Annually':
-            nextDueDate.setMonth(nextDueDate.getMonth() + 6);
-            break;
-          case 'Annual':
-          default:
-            nextDueDate.setFullYear(nextDueDate.getFullYear() + 1);
-            break;
-        }
-      } else {
-        // No previous tasks, predict based on common compliance periods
-        nextDueDate = new Date(currentDate);
-        nextDueDate.setMonth(nextDueDate.getMonth() + 3); // Default to 3 months ahead
-      }
-
-      // Only include if within next 12 months
-      if (nextDueDate > oneYearFromNow) return null;
-
-      const daysUntilDue = Math.ceil((nextDueDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      let priority: 'high' | 'medium' | 'low' = 'low';
-      if (daysUntilDue <= 30) priority = 'high';
-      else if (daysUntilDue <= 90) priority = 'medium';
-
-      return {
-        serviceId: service.id,
-        serviceName: service.name,
-        dueDate: nextDueDate,
-        daysUntilDue,
-        frequency,
-        priority,
-        isRequired: subscription.isRequired
-      };
-    })
-    .filter(Boolean)
-    .sort((a, b) => a!.daysUntilDue - b!.daysUntilDue);
+  // Generate future compliance deadlines from recurring tasks
+  const upcomingCompliances = generateFutureComplianceDeadlines(entityTasks);
 
   return (
     <Card>
