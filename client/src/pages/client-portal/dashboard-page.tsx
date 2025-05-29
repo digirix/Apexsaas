@@ -1599,153 +1599,411 @@ export default function ClientPortalDashboardPage() {
               </div>
             </motion.div>
           </TabsContent>
-                            <div className="relative">
-                              <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-xl blur-lg group-hover:blur-xl transition-all duration-300"></div>
-                              <Card className="relative bg-white/80 backdrop-blur-lg border border-white/40 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl overflow-hidden">
-                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
-                                <div className="p-4">
-                                  <div className="flex items-start justify-between mb-3">
-                                    <div className="flex items-center space-x-3">
-                                      <motion.div 
-                                        className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg"
-                                        whileHover={{ rotate: 10, scale: 1.1 }}
-                                        transition={{ type: "spring", stiffness: 400 }}
-                                      >
-                                        <Building2 className="h-4 w-4 text-white" />
-                                      </motion.div>
-                                      <div>
-                                        <h3 className="font-semibold text-slate-900 text-sm">
-                                          {entity.name}
-                                        </h3>
-                                        <p className="text-xs text-slate-500">
-                                          {entity.entityType} • {entity.countryName}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center space-x-1">
-                                      <motion.div
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.95 }}
-                                      >
-                                        <Button 
-                                          variant="ghost" 
-                                          size="sm"
-                                          className="h-7 text-xs px-2 py-1 hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 transition-colors"
-                                          onClick={() => {
-                                            setLocation(`/client-portal/entities/${entity.id}`);
-                                          }}
-                                        >
-                                          <Eye className="h-3 w-3 mr-1" />
-                                          Details
-                                        </Button>
-                                      </motion.div>
-                                      <motion.div
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.95 }}
-                                      >
-                                        <Button 
-                                          variant="ghost" 
-                                          size="sm"
-                                          className="h-7 text-xs px-2 py-1 hover:bg-blue-50 text-slate-600 hover:text-blue-600 transition-colors"
-                                          onClick={() => {
-                                            setSelectedEntityId(entity.id);
-                                            setActiveTab("tasks");
-                                          }}
-                                        >
-                                          <Clock className="h-3 w-3 mr-1" />
-                                          Tasks
-                                        </Button>
-                                      </motion.div>
-                                      <motion.div
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.95 }}
-                                      >
-                                        <Button 
-                                          variant="ghost" 
-                                          size="sm"
-                                          className="h-7 text-xs px-2 py-1 hover:bg-purple-50 text-slate-600 hover:text-purple-600 transition-colors"
-                                          onClick={() => {
-                                            setSelectedEntityId(entity.id);
-                                            setActiveTab("invoices");
-                                          }}
-                                        >
-                                          <Receipt className="h-3 w-3 mr-1" />
-                                          Invoices
-                                        </Button>
-                                      </motion.div>
-                                      {entity.whatsappGroupLink && (
-                                        <motion.div
-                                          whileHover={{ scale: 1.05 }}
-                                          whileTap={{ scale: 0.95 }}
-                                        >
-                                          <Button 
-                                            variant="ghost" 
-                                            size="sm"
-                                            className="h-7 text-xs px-2 py-1 hover:bg-green-50 text-slate-600 hover:text-green-600 transition-colors"
-                                            onClick={() => {
-                                              window.open(entity.whatsappGroupLink, '_blank');
-                                            }}
-                                          >
-                                            <MessageCircle className="h-3 w-3 mr-1" />
-                                            WhatsApp
-                                          </Button>
-                                        </motion.div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                                
-                                <div className="px-4 pb-4">
-                                  <div className="grid grid-cols-3 gap-2 text-xs">
-                                    <div className="flex flex-col">
-                                      <span className="text-slate-500">Tax ID</span>
-                                      <span className="font-medium truncate">
-                                        {entity.businessTaxId || "N/A"}
-                                      </span>
-                                    </div>
-                                    <div className="flex flex-col">
-                                      <span className="text-slate-500">VAT Status</span>
-                                      <span className="font-medium">
-                                        {entity.isVatRegistered ? "Registered" : "Not Reg."}
-                                      </span>
-                                    </div>
-                                    <div className="flex flex-col">
-                                      <span className="text-slate-500">VAT ID</span>
-                                      <span className="font-medium truncate">
-                                        {entity.vatId || "N/A"}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  
-                                  {entity.stats && (
-                                    <div className="mt-3 pt-2 border-t border-slate-100">
-                                      <div className="flex justify-between text-xs">
-                                        <span className="text-slate-500 flex items-center">
-                                          <Clock className="h-3 w-3 mr-1" />
-                                          Tasks: {entity.stats.taskCount || 0}
-                                        </span>
-                                        <span className="text-slate-500 flex items-center">
-                                          <Receipt className="h-3 w-3 mr-1" />
-                                          Invoices: {entity.stats.invoiceCount || 0}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </Card>
-                            </div>
-                          </motion.div>
-                        ))}
+          
+          {/* Tasks Tab */}
+          <TabsContent value="tasks" className="space-y-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-2xl blur-xl"></div>
+                <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl">
+                  <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-5 w-5 text-blue-500" />
+                        <CardTitle>Your Tasks</CardTitle>
+                      </div>
+                      <CardDescription>
+                        Track your compliance and service tasks{selectedEntityId ? ` for ${clientEntities.find(e => e.id === selectedEntityId)?.name || 'selected entity'}` : ""}
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {selectedEntityId && (
+                        <motion.div
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedEntityId(null);
+                              refetchTasks();
+                            }}
+                            className="border-blue-200 hover:border-blue-300 hover:bg-blue-50"
+                          >
+                            Show All Tasks
+                          </Button>
+                        </motion.div>
+                      )}
+                      <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => refetchTasks()}
+                          className="border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                        >
+                          Refresh
+                        </Button>
                       </motion.div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {isTasksLoading ? (
+                      <div className="flex justify-center py-8">
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                          className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"
+                        />
+                      </div>
+                    ) : tasksError ? (
+                      <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Error</AlertTitle>
+                        <AlertDescription>
+                          Failed to load tasks. Please try again later.
+                        </AlertDescription>
+                      </Alert>
+                    ) : !clientTasks || clientTasks.length === 0 ? (
+                      <motion.div 
+                        className="text-center py-8 text-slate-500"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                      >
+                        <Clock className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                        {selectedEntityId 
+                          ? `No tasks found for ${clientEntities.find(e => e.id === selectedEntityId)?.name || 'this entity'}`
+                          : "No tasks found"
+                        }
+                      </motion.div>
+                    ) : (
+                      <div className="space-y-3">
+                        {clientTasks.map((task: any, index: number) => {
+                          const entityName = clientEntities.find(e => e.id === task.entityId)?.name || "Unknown Entity";
+                          
+                          return (
+                            <motion.div
+                              key={task.id}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.3, delay: index * 0.05 }}
+                              whileHover={{ x: 5 }}
+                              className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-white/40 shadow-sm hover:shadow-md transition-all duration-300"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center space-x-2 mb-2">
+                                    <h4 className="font-medium text-slate-900 truncate">
+                                      {task.title || task.taskDetails || 'Task'}
+                                    </h4>
+                                    <span className={`px-2 py-1 text-xs rounded-full ${
+                                      task.statusName === 'Completed' ? 'bg-green-100 text-green-700' :
+                                      task.statusName === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                                      'bg-slate-100 text-slate-700'
+                                    }`}>
+                                      {task.statusName}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-slate-600 mb-2">
+                                    {task.description || 'No description'}
+                                  </p>
+                                  <div className="flex items-center space-x-4 text-xs text-slate-500">
+                                    <span className="flex items-center">
+                                      <Building2 className="h-3 w-3 mr-1" />
+                                      {entityName}
+                                    </span>
+                                    <span className="flex items-center">
+                                      <Calendar className="h-3 w-3 mr-1" />
+                                      Due: {formatDate(task.dueDate)}
+                                    </span>
+                                    <span className="flex items-center">
+                                      <User className="h-3 w-3 mr-1" />
+                                      {task.assigneeName || 'Unassigned'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <motion.div
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                >
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedTaskId(task.id);
+                                      setShowTaskDetails(true);
+                                    }}
+                                    className="text-xs h-8 px-3"
+                                  >
+                                    View Details
+                                  </Button>
+                                </motion.div>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
                     )}
                   </CardContent>
                 </Card>
               </div>
             </motion.div>
           </TabsContent>
-          
-          {/* Tasks Tab */}
-          <TabsContent value="tasks" className="space-y-6">
+
+          {/* Invoices Tab */}
+          <TabsContent value="invoices" className="space-y-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-pink-400/10 rounded-2xl blur-xl"></div>
+                <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl">
+                  <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <Receipt className="h-5 w-5 text-purple-500" />
+                        <CardTitle>Your Invoices</CardTitle>
+                      </div>
+                      <CardDescription>
+                        View and manage your invoices{selectedEntityId ? ` for ${clientEntities.find(e => e.id === selectedEntityId)?.name || 'selected entity'}` : ""}
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {selectedEntityId && (
+                        <motion.div
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedEntityId(null);
+                              refetchInvoices();
+                            }}
+                            className="border-purple-200 hover:border-purple-300 hover:bg-purple-50"
+                          >
+                            Show All Invoices
+                          </Button>
+                        </motion.div>
+                      )}
+                      <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => refetchInvoices()}
+                          className="border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                        >
+                          Refresh
+                        </Button>
+                      </motion.div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {isInvoicesLoading ? (
+                      <div className="flex justify-center py-8">
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                          className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full"
+                        />
+                      </div>
+                    ) : invoicesError ? (
+                      <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Error</AlertTitle>
+                        <AlertDescription>
+                          Failed to load invoices. Please try again later.
+                        </AlertDescription>
+                      </Alert>
+                    ) : !clientInvoices || clientInvoices.length === 0 ? (
+                      <motion.div 
+                        className="text-center py-8 text-slate-500"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                      >
+                        <Receipt className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                        {selectedEntityId 
+                          ? `No invoices found for ${clientEntities.find(e => e.id === selectedEntityId)?.name || 'this entity'}`
+                          : "No invoices found"
+                        }
+                      </motion.div>
+                    ) : (
+                      <div className="space-y-3">
+                        {clientInvoices.map((invoice: any, index: number) => {
+                          const entityName = clientEntities.find(e => e.id === invoice.entityId)?.name || "Unknown Entity";
+                          
+                          return (
+                            <motion.div
+                              key={invoice.id}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.3, delay: index * 0.05 }}
+                              whileHover={{ x: 5 }}
+                              className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-white/40 shadow-sm hover:shadow-md transition-all duration-300"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center space-x-2 mb-2">
+                                    <h4 className="font-medium text-slate-900 truncate">
+                                      Invoice #{invoice.invoiceNumber || invoice.id}
+                                    </h4>
+                                    <span className={`px-2 py-1 text-xs rounded-full ${
+                                      invoice.status === 'Paid' ? 'bg-green-100 text-green-700' :
+                                      invoice.status === 'Overdue' ? 'bg-red-100 text-red-700' :
+                                      'bg-yellow-100 text-yellow-700'
+                                    }`}>
+                                      {invoice.status}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-slate-600 mb-2">
+                                    Amount: ${invoice.amount || '0.00'}
+                                  </p>
+                                  <div className="flex items-center space-x-4 text-xs text-slate-500">
+                                    <span className="flex items-center">
+                                      <Building2 className="h-3 w-3 mr-1" />
+                                      {entityName}
+                                    </span>
+                                    <span className="flex items-center">
+                                      <Calendar className="h-3 w-3 mr-1" />
+                                      Due: {formatDate(invoice.dueDate)}
+                                    </span>
+                                  </div>
+                                </div>
+                                <motion.div
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                >
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedInvoiceId(invoice.id);
+                                      setShowInvoiceDetails(true);
+                                    }}
+                                    className="text-xs h-8 px-3"
+                                  >
+                                    View Details
+                                  </Button>
+                                </motion.div>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </motion.div>
+          </TabsContent>
+        </Tabs>
+
+        {/* Task Details Modal */}
+        <AnimatePresence>
+          {showTaskDetails && (
+            <TaskDetails
+              open={showTaskDetails}
+              onClose={() => setShowTaskDetails(false)}
+              taskId={selectedTaskId}
+              task={clientTasks?.find(t => t.id === selectedTaskId)}
+              entities={clientEntities}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Invoice Details Modal */}
+        <AnimatePresence>
+          {showInvoiceDetails && (
+            <InvoiceDetails
+              open={showInvoiceDetails}
+              onClose={() => setShowInvoiceDetails(false)}
+              invoiceId={selectedInvoiceId}
+              invoice={clientInvoices?.find(i => i.id === selectedInvoiceId)}
+              entities={clientEntities}
+            />
+          )}
+        </AnimatePresence>
+      </motion.main>
+
+      {/* Footer */}
+      {footerEnabled && (
+        <motion.footer 
+          className="relative bg-white/60 backdrop-blur-lg border-t border-white/30 py-6 z-10 mt-16"
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 1 }}
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+              <div className="text-center md:text-left">
+                <p className="text-sm text-slate-600">
+                  {footerCopyright || `© ${new Date().getFullYear()} Client Portal. All rights reserved.`}
+                </p>
+              </div>
+              
+              <div className="flex items-center space-x-6 text-sm text-slate-600">
+                {footerSupportEmail && (
+                  <div className="flex items-center space-x-1">
+                    <Mail className="w-4 h-4" />
+                    <a 
+                      href={`mailto:${footerSupportEmail}`}
+                      className="hover:text-blue-600 transition-colors"
+                    >
+                      {footerSupportEmail}
+                    </a>
+                  </div>
+                )}
+                {footerSupportPhone && (
+                  <div className="flex items-center space-x-1">
+                    <Phone className="w-4 h-4" />
+                    <a 
+                      href={`tel:${footerSupportPhone}`}
+                      className="hover:text-blue-600 transition-colors"
+                    >
+                      {footerSupportPhone}
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {(footerDisclaimerText || footerAdditionalLinks) && (
+              <div className="mt-4 pt-4 border-t border-slate-200/50">
+                {footerDisclaimerText && (
+                  <p className="text-xs text-slate-500 text-center mb-2">
+                    {footerDisclaimerText}
+                  </p>
+                )}
+                {footerAdditionalLinks && (
+                  <div className="flex justify-center space-x-4 text-xs">
+                    {footerAdditionalLinks.split(',').map((link: string, index: number) => (
+                      <span key={index} className="text-slate-500 hover:text-blue-600 cursor-pointer transition-colors">
+                        {link.trim()}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </motion.footer>
+      )}
+    </div>
+  );
+}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
