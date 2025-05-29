@@ -724,6 +724,7 @@ export default function ClientPortalDashboardPage() {
   const [location, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedEntityId, setSelectedEntityId] = useState<number | null>(null);
+  
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
   const [showTaskDetails, setShowTaskDetails] = useState(false);
@@ -738,6 +739,23 @@ export default function ClientPortalDashboardPage() {
   } = useQuery({
     queryKey: ["/api/client-portal/profile"],
   });
+
+  // Fetch client entities
+  const { 
+    data: clientEntities = [],
+    isLoading: isEntitiesLoading,
+    error: entitiesError,
+  } = useQuery<any[]>({
+    queryKey: ["/api/client-portal/entities"],
+    enabled: !!clientProfile
+  });
+
+  // Auto-select first entity when entities load
+  useEffect(() => {
+    if (clientEntities.length > 0 && !selectedEntityId) {
+      setSelectedEntityId(clientEntities[0].id);
+    }
+  }, [clientEntities, selectedEntityId]);
   
   // Fetch client tasks - filter by entity if selected
   const { 
@@ -776,16 +794,7 @@ export default function ClientPortalDashboardPage() {
     },
     enabled: !!clientProfile
   });
-  
-  // Fetch client entities
-  const { 
-    data: clientEntities = [],
-    isLoading: isEntitiesLoading,
-    error: entitiesError,
-  } = useQuery<any[]>({
-    queryKey: ["/api/client-portal/entities"],
-    enabled: !!clientProfile
-  });
+
 
   // Fetch tenant settings for header and footer
   const { data: tenantSettings = [] } = useQuery<TenantSetting[]>({
