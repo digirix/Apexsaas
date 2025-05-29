@@ -3029,6 +3029,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         taskUpdateData.complianceEndDate = new Date(taskUpdateData.complianceEndDate);
       }
       
+      if (taskUpdateData.complianceDeadline && typeof taskUpdateData.complianceDeadline === 'string') {
+        taskUpdateData.complianceDeadline = new Date(taskUpdateData.complianceDeadline);
+      }
+      
       // Update the task first
       const updatedTask = await storage.updateTask(id, taskUpdateData);
       

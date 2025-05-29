@@ -1699,6 +1699,7 @@ export class DatabaseStorage implements IStorage {
       if (task.complianceDuration !== undefined) safeTaskData.complianceDuration = task.complianceDuration;
       if (task.complianceStartDate !== undefined) safeTaskData.complianceStartDate = task.complianceStartDate;
       if (task.complianceEndDate !== undefined) safeTaskData.complianceEndDate = task.complianceEndDate;
+      if (task.complianceDeadline !== undefined) safeTaskData.complianceDeadline = task.complianceDeadline;
       if (task.currency !== undefined) safeTaskData.currency = task.currency;
       if (task.serviceRate !== undefined) safeTaskData.serviceRate = task.serviceRate;
       if (task.invoiceId !== undefined) safeTaskData.invoiceId = task.invoiceId;
