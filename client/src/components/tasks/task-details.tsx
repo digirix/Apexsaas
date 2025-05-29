@@ -275,12 +275,7 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
   // Update form values when task data is loaded
   useEffect(() => {
     if (task && isEditing) {
-      console.log("Resetting form with task data:", {
-        taskId: task.id,
-        complianceDeadline: task.complianceDeadline,
-        isAdmin: task.isAdmin,
-        fullTaskData: task
-      });
+
       
       if (task.isAdmin) {
         const formData = {
