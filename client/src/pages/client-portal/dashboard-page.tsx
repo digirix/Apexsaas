@@ -16,9 +16,6 @@ import {
   MessageCircle, Users
 } from "lucide-react";
 
-// Import compliance components from admin portal
-import { EntityDetailSection } from "@/components/entities/entity-detail";
-
 interface ClientPortalUser {
   id: number;
   clientId: number;
@@ -82,50 +79,49 @@ export default function ClientPortalDashboardPage() {
 
   // Fetch user profile
   const { data: userProfile, isLoading: isProfileLoading, error: profileError } = useQuery({
-    queryKey: ['/api/client-portal/profile'],
-    queryFn: () => apiRequest('/api/client-portal/profile')
+    queryKey: ['/api/client-portal/profile']
   });
 
   // Fetch entities
-  const { data: clientEntities = [], refetch: refetchEntities } = useQuery({
-    queryKey: ['/api/client-portal/entities'],
-    queryFn: () => apiRequest('/api/client-portal/entities')
+  const { data: clientEntitiesData } = useQuery({
+    queryKey: ['/api/client-portal/entities']
   });
+  const clientEntities = Array.isArray(clientEntitiesData) ? clientEntitiesData : [];
 
   // Fetch tasks (all or filtered by entity)
-  const { data: clientTasks = [], isLoading: isTasksLoading, error: tasksError, refetch: refetchTasks } = useQuery({
-    queryKey: ['/api/client-portal/tasks', selectedEntityId],
-    queryFn: () => apiRequest(`/api/client-portal/tasks${selectedEntityId ? `?entityId=${selectedEntityId}` : ''}`)
+  const { data: clientTasksData, isLoading: isTasksLoading, error: tasksError, refetch: refetchTasks } = useQuery({
+    queryKey: ['/api/client-portal/tasks', selectedEntityId]
   });
+  const clientTasks = Array.isArray(clientTasksData) ? clientTasksData : [];
 
   // Fetch invoices (all or filtered by entity)
-  const { data: clientInvoices = [], isLoading: isInvoicesLoading, error: invoicesError, refetch: refetchInvoices } = useQuery({
-    queryKey: ['/api/client-portal/invoices', selectedEntityId],
-    queryFn: () => apiRequest(`/api/client-portal/invoices${selectedEntityId ? `?entityId=${selectedEntityId}` : ''}`)
+  const { data: clientInvoicesData, isLoading: isInvoicesLoading, error: invoicesError, refetch: refetchInvoices } = useQuery({
+    queryKey: ['/api/client-portal/invoices', selectedEntityId]
   });
+  const clientInvoices = Array.isArray(clientInvoicesData) ? clientInvoicesData : [];
 
   // Fetch tenant settings for portal customization
-  const { data: tenantSettings } = useQuery({
-    queryKey: ['/api/v1/tenant/settings'],
-    queryFn: () => apiRequest('/api/v1/tenant/settings')
+  const { data: tenantSettingsData } = useQuery({
+    queryKey: ['/api/v1/tenant/settings']
   });
+  const tenantSettings = tenantSettingsData || {};
 
   // Fetch service types for compliance analysis
-  const { data: serviceTypes = [] } = useQuery({
-    queryKey: ['/api/v1/setup/service-types'],
-    queryFn: () => apiRequest('/api/v1/setup/service-types')
+  const { data: serviceTypesData } = useQuery({
+    queryKey: ['/api/v1/setup/service-types']
   });
+  const serviceTypes = Array.isArray(serviceTypesData) ? serviceTypesData : [];
 
   // Fetch entity services for compliance data
-  const { data: entityServices = [] } = useQuery({
+  const { data: entityServicesData } = useQuery({
     queryKey: ['/api/v1/entities', selectedEntityId, 'services'],
-    queryFn: () => apiRequest(`/api/v1/entities/${selectedEntityId}/services`),
     enabled: !!selectedEntityId
   });
+  const entityServices = Array.isArray(entityServicesData) ? entityServicesData : [];
 
   const handleLogout = async () => {
     try {
-      await apiRequest('/api/client-portal/logout', {
+      await fetch('/api/client-portal/logout', {
         method: 'POST'
       });
       setLocation('/client-portal');
@@ -136,7 +132,7 @@ export default function ClientPortalDashboardPage() {
   };
 
   // Extract customization settings
-  const customization = tenantSettings?.clientPortalSettings || {};
+  const customization = tenantSettings.clientPortalSettings || {};
   const {
     headerTitle = "Client Portal",
     headerSubtitle = "Welcome to your client dashboard",
@@ -158,8 +154,8 @@ export default function ClientPortalDashboardPage() {
     if (!selectedEntityId || !entityServices.length) return null;
 
     const totalServices = serviceTypes.length;
-    const subscribedServices = entityServices.filter(s => s.isSubscribed).length;
-    const requiredServices = entityServices.filter(s => s.isRequired).length;
+    const subscribedServices = entityServices.filter((s: any) => s.isSubscribed).length;
+    const requiredServices = entityServices.filter((s: any) => s.isRequired).length;
     const complianceRate = requiredServices > 0 ? Math.round((subscribedServices / requiredServices) * 100) : 100;
 
     const entityTasks = clientTasks.filter(task => task.entityId === selectedEntityId);
@@ -177,10 +173,10 @@ export default function ClientPortalDashboardPage() {
       return dueDate < today && task.statusName !== 'Completed';
     }).length;
 
-    const serviceBreakdown = entityServices.map(service => {
+    const serviceBreakdown = entityServices.map((service: any) => {
       const serviceTasks = entityTasks.filter(task => 
-        task.title?.toLowerCase().includes(service.name.toLowerCase()) ||
-        task.description?.toLowerCase().includes(service.name.toLowerCase())
+        task.title?.toLowerCase().includes(service.name?.toLowerCase()) ||
+        task.description?.toLowerCase().includes(service.name?.toLowerCase())
       );
       
       const completionRate = getTaskCompletionRate(serviceTasks);
@@ -206,7 +202,7 @@ export default function ClientPortalDashboardPage() {
 
       return {
         id: service.id,
-        name: service.name,
+        name: service.name || 'Unknown Service',
         isRequired: service.isRequired,
         subscribed: service.isSubscribed,
         frequency: service.billingBasis,
@@ -299,8 +295,8 @@ export default function ClientPortalDashboardPage() {
               {userProfile && (
                 <div className="flex items-center space-x-3">
                   <div className="text-right">
-                    <p className="text-sm font-medium text-slate-900">{userProfile.displayName}</p>
-                    <p className="text-xs text-slate-500">{userProfile.email}</p>
+                    <p className="text-sm font-medium text-slate-900">{userProfile.displayName || 'User'}</p>
+                    <p className="text-xs text-slate-500">{userProfile.email || ''}</p>
                   </div>
                   <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                     <User className="h-4 w-4 text-white" />
@@ -400,7 +396,7 @@ export default function ClientPortalDashboardPage() {
               </TabsList>
             </motion.div>
             
-            {/* Entity Selector Dropdown */}
+            {/* Entity Selector Dropdown - Fix #1: Replace stacked entity cards with dropdown selector */}
             <AnimatePresence>
               {clientEntities.length > 0 && (
                 <motion.div 
@@ -446,7 +442,7 @@ export default function ClientPortalDashboardPage() {
                       </SelectContent>
                     </Select>
                   </motion.div>
-                )
+                </motion.div>
               )}
             </AnimatePresence>
           </motion.div>
@@ -480,10 +476,10 @@ export default function ClientPortalDashboardPage() {
                       animate={{ scale: 1 }}
                       transition={{ type: "spring", stiffness: 200, delay: 0.4 }}
                     >
-                      {clientTasks ? clientTasks.length : "0"}
+                      {clientTasks.length}
                     </motion.div>
                     <p className="text-xs text-slate-500 mt-2">
-                      {getTaskCompletionRate(clientTasks || [])}% completion rate
+                      {getTaskCompletionRate(clientTasks)}% completion rate
                     </p>
                   </CardContent>
                 </Card>
@@ -509,10 +505,10 @@ export default function ClientPortalDashboardPage() {
                       animate={{ scale: 1 }}
                       transition={{ type: "spring", stiffness: 200, delay: 0.4 }}
                     >
-                      {clientInvoices ? clientInvoices.length : "0"}
+                      {clientInvoices.length}
                     </motion.div>
                     <p className="text-xs text-slate-500 mt-2">
-                      {formatCurrency(clientInvoices?.reduce((sum: number, inv: any) => sum + (inv.amount || 0), 0) || 0)} total value
+                      {formatCurrency(clientInvoices.reduce((sum: number, inv: any) => sum + (inv.amount || 0), 0))} total value
                     </p>
                   </CardContent>
                 </Card>
@@ -538,7 +534,7 @@ export default function ClientPortalDashboardPage() {
                       animate={{ scale: 1 }}
                       transition={{ type: "spring", stiffness: 200, delay: 0.4 }}
                     >
-                      {clientEntities ? (clientEntities as any[]).length : "0"}
+                      {clientEntities.length}
                     </motion.div>
                     <p className="text-xs text-slate-500 mt-2">
                       Registered entities
@@ -576,150 +572,9 @@ export default function ClientPortalDashboardPage() {
                 </Card>
               </div>
             </motion.div>
-
-            {/* Recent Activity Section */}
-            <motion.div 
-              className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.8 }}
-            >
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-2xl blur-xl"></div>
-                <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl">
-                  <CardHeader>
-                    <div className="flex items-center space-x-2">
-                      <Sparkles className="h-5 w-5 text-blue-500" />
-                      <CardTitle>Recent Activity</CardTitle>
-                    </div>
-                    <CardDescription>
-                      Latest updates on your tasks and invoices
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {clientTasks && clientTasks.slice(0, 3).map((task: any, index: number) => (
-                        <motion.div 
-                          key={task.id} 
-                          className="flex items-start space-x-3 p-3 rounded-xl bg-white/50 hover:bg-white/70 transition-all duration-300"
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ duration: 0.5, delay: 1 + index * 0.1 }}
-                          whileHover={{ x: 5 }}
-                        >
-                          <div className="flex-shrink-0 mt-1">
-                            <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900 truncate">
-                              {task.title || task.taskDetails || 'Task'}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              Due: {formatDate(task.dueDate)} • {task.statusName || 'In Progress'}
-                            </p>
-                          </div>
-                          <motion.div
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                          >
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => setActiveTab("tasks")}
-                              className="text-xs h-6 px-2"
-                            >
-                              View
-                            </Button>
-                          </motion.div>
-                        </motion.div>
-                      ))}
-                      
-                      {(!clientTasks || clientTasks.length === 0) && (
-                        <motion.div 
-                          className="text-center py-6 text-slate-500"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: 1 }}
-                        >
-                          <Clock className="h-8 w-8 mx-auto mb-2 text-slate-300" />
-                          No recent activity
-                        </motion.div>
-                      )}
-                      
-                      {clientTasks && clientTasks.length > 3 && (
-                        <motion.div 
-                          className="text-center pt-2"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: 1.3 }}
-                        >
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => setActiveTab("tasks")}
-                            className="bg-white/50 hover:bg-white/80 border-blue-200 hover:border-blue-400"
-                          >
-                            View All Tasks
-                            <ArrowRight className="h-3 w-3 ml-1" />
-                          </Button>
-                        </motion.div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-green-400/10 to-emerald-400/10 rounded-2xl blur-xl"></div>
-                <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl">
-                  <CardHeader>
-                    <div className="flex items-center space-x-2">
-                      <TrendingUp className="h-5 w-5 text-green-500" />
-                      <CardTitle>Quick Stats</CardTitle>
-                    </div>
-                    <CardDescription>
-                      Overview of your business performance
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-white/50">
-                        <div className="flex items-center space-x-2">
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                          <span className="text-sm font-medium">Completed Tasks</span>
-                        </div>
-                        <span className="text-sm font-bold text-green-600">
-                          {clientTasks ? clientTasks.filter((t: any) => t.statusName === 'Completed').length : 0}
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-white/50">
-                        <div className="flex items-center space-x-2">
-                          <Clock className="h-4 w-4 text-orange-500" />
-                          <span className="text-sm font-medium">Pending Tasks</span>
-                        </div>
-                        <span className="text-sm font-bold text-orange-600">
-                          {clientTasks ? clientTasks.filter((t: any) => t.statusName !== 'Completed').length : 0}
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-white/50">
-                        <div className="flex items-center space-x-2">
-                          <Receipt className="h-4 w-4 text-blue-500" />
-                          <span className="text-sm font-medium">Outstanding Invoices</span>
-                        </div>
-                        <span className="text-sm font-bold text-blue-600">
-                          {clientInvoices ? clientInvoices.filter((i: any) => i.status !== 'Paid').length : 0}
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </motion.div>
           </TabsContent>
           
-          {/* Entities Tab with Compliance Integration */}
+          {/* Entities Tab with Compliance Integration - Fix #2: Add compliance data from admin portal */}
           <TabsContent value="entities" className="space-y-6">
             <motion.div 
               className="grid grid-cols-1 gap-6"
@@ -743,8 +598,84 @@ export default function ClientPortalDashboardPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {selectedEntity ? (
-                      <EntityDetailSection entity={selectedEntity} />
+                    {selectedEntity && complianceAnalysis ? (
+                      <Tabs defaultValue="analysis" className="w-full">
+                        <TabsList className="grid w-full grid-cols-3">
+                          <TabsTrigger value="analysis">Analysis</TabsTrigger>
+                          <TabsTrigger value="upcoming">Upcoming Deadlines</TabsTrigger>
+                          <TabsTrigger value="history">History</TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="analysis" className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-blue-50 rounded-lg p-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-sm font-medium text-blue-700">Services Subscribed</p>
+                                  <p className="text-2xl font-bold text-blue-900">{complianceAnalysis.subscribedServices}</p>
+                                </div>
+                                <CheckCircle className="h-8 w-8 text-blue-500" />
+                              </div>
+                            </div>
+                            
+                            <div className="bg-yellow-50 rounded-lg p-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-sm font-medium text-yellow-700">Upcoming Deadlines</p>
+                                  <p className="text-2xl font-bold text-yellow-900">{complianceAnalysis.upcomingDeadlines}</p>
+                                </div>
+                                <Calendar className="h-8 w-8 text-yellow-500" />
+                              </div>
+                            </div>
+                            
+                            <div className="bg-red-50 rounded-lg p-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-sm font-medium text-red-700">Overdue Items</p>
+                                  <p className="text-2xl font-bold text-red-900">{complianceAnalysis.overdueItems}</p>
+                                </div>
+                                <XCircle className="h-8 w-8 text-red-500" />
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <h4 className="font-semibold text-slate-700">Service Breakdown</h4>
+                            {complianceAnalysis.serviceBreakdown.map((service) => (
+                              <div key={service.id} className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                                <div className="flex items-center space-x-3">
+                                  <div className={`w-3 h-3 rounded-full ${
+                                    service.status === 'compliant' ? 'bg-green-500' :
+                                    service.status === 'due_soon' ? 'bg-yellow-500' :
+                                    service.status === 'overdue' ? 'bg-red-500' :
+                                    'bg-gray-400'
+                                  }`}></div>
+                                  <span className="font-medium">{service.name}</span>
+                                  {service.isRequired && <Badge variant="outline">Required</Badge>}
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-sm text-slate-600">{service.completionRate}% complete</p>
+                                  {service.frequency && <p className="text-xs text-slate-500">{service.frequency}</p>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </TabsContent>
+                        
+                        <TabsContent value="upcoming" className="space-y-4">
+                          <div className="text-center py-8 text-slate-500">
+                            <Calendar className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                            <p>Upcoming compliance deadlines will be displayed here</p>
+                          </div>
+                        </TabsContent>
+                        
+                        <TabsContent value="history" className="space-y-4">
+                          <div className="text-center py-8 text-slate-500">
+                            <Clock className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                            <p>Compliance history will be displayed here</p>
+                          </div>
+                        </TabsContent>
+                      </Tabs>
                     ) : (
                       <motion.div 
                         className="text-center py-12 text-slate-500"
@@ -791,49 +722,14 @@ export default function ClientPortalDashboardPage() {
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-2xl blur-xl"></div>
                 <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl">
-                  <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <Clock className="h-5 w-5 text-blue-500" />
-                        <CardTitle>Your Tasks</CardTitle>
-                      </div>
-                      <CardDescription>
-                        Track your compliance and service tasks{selectedEntityId ? ` for ${clientEntities.find((e: any) => e.id === selectedEntityId)?.name || 'selected entity'}` : ""}
-                      </CardDescription>
-                    </div>
+                  <CardHeader>
                     <div className="flex items-center space-x-2">
-                      {selectedEntityId && (
-                        <motion.div
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                        >
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => {
-                              setSelectedEntityId(null);
-                              refetchTasks();
-                            }}
-                            className="border-blue-200 hover:border-blue-300 hover:bg-blue-50"
-                          >
-                            Show All Tasks
-                          </Button>
-                        </motion.div>
-                      )}
-                      <motion.div
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => refetchTasks()}
-                          className="border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                        >
-                          Refresh
-                        </Button>
-                      </motion.div>
+                      <Clock className="h-5 w-5 text-blue-500" />
+                      <CardTitle>Your Tasks</CardTitle>
                     </div>
+                    <CardDescription>
+                      Track your compliance and service tasks{selectedEntityId ? ` for ${clientEntities.find((e: any) => e.id === selectedEntityId)?.name || 'selected entity'}` : ""}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {isTasksLoading ? (
@@ -948,49 +844,14 @@ export default function ClientPortalDashboardPage() {
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-pink-400/10 rounded-2xl blur-xl"></div>
                 <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl">
-                  <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <Receipt className="h-5 w-5 text-purple-500" />
-                        <CardTitle>Your Invoices</CardTitle>
-                      </div>
-                      <CardDescription>
-                        View and manage your invoices{selectedEntityId ? ` for ${clientEntities.find((e: any) => e.id === selectedEntityId)?.name || 'selected entity'}` : ""}
-                      </CardDescription>
-                    </div>
+                  <CardHeader>
                     <div className="flex items-center space-x-2">
-                      {selectedEntityId && (
-                        <motion.div
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                        >
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => {
-                              setSelectedEntityId(null);
-                              refetchInvoices();
-                            }}
-                            className="border-purple-200 hover:border-purple-300 hover:bg-purple-50"
-                          >
-                            Show All Invoices
-                          </Button>
-                        </motion.div>
-                      )}
-                      <motion.div
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => refetchInvoices()}
-                          className="border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                        >
-                          Refresh
-                        </Button>
-                      </motion.div>
+                      <Receipt className="h-5 w-5 text-purple-500" />
+                      <CardTitle>Your Invoices</CardTitle>
                     </div>
+                    <CardDescription>
+                      View and manage your invoices{selectedEntityId ? ` for ${clientEntities.find((e: any) => e.id === selectedEntityId)?.name || 'selected entity'}` : ""}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {isInvoicesLoading ? (
