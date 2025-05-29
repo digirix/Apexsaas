@@ -80,6 +80,7 @@ interface UpcomingCompliance {
   frequency: string;
   priority: 'high' | 'medium' | 'low';
   daysUntilDue: number;
+  compliancePeriod: string;
 }
 
 export default function ClientPortalEntityDetailPage() {
@@ -104,6 +105,11 @@ export default function ClientPortalEntityDetailPage() {
   const { data: entityTasks = [] } = useQuery<any[]>({
     queryKey: [`/api/client-portal/tasks?entityId=${entityId}`],
     enabled: !!entityId,
+  });
+
+  // Fetch service types for proper service names
+  const { data: serviceTypes = [] } = useQuery<any[]>({
+    queryKey: ['/api/v1/setup/service-types'],
   });
 
   // Fetch client profile for context
@@ -326,9 +332,10 @@ export default function ClientPortalEntityDetailPage() {
 
         {/* Tabs Section */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Service Overview</TabsTrigger>
-            <TabsTrigger value="compliance">Compliance Analysis</TabsTrigger>
+            <TabsTrigger value="analysis">Compliance Analysis</TabsTrigger>
+            <TabsTrigger value="history">Compliance History</TabsTrigger>
             <TabsTrigger value="upcoming">Upcoming Deadlines</TabsTrigger>
           </TabsList>
 
@@ -404,23 +411,37 @@ export default function ClientPortalEntityDetailPage() {
           </TabsContent>
 
           {/* Compliance Analysis Tab */}
-          <TabsContent value="compliance">
+          <TabsContent value="analysis">
             <Card>
               <CardHeader>
-                <CardTitle>Detailed Compliance Analysis</CardTitle>
+                <CardTitle className="flex items-center">
+                  <TrendingUp className="h-5 w-5 mr-2" />
+                  Compliance Analysis
+                </CardTitle>
                 <CardDescription>
-                  Comprehensive breakdown of compliance status for each service
+                  Current compliance status for tasks due within the next 3 months
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {complianceAnalysis ? (
-                  <ComplianceAnalysisSection analysis={complianceAnalysis} />
-                ) : (
-                  <div className="text-center py-8">
-                    <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">No compliance data available</p>
-                  </div>
-                )}
+                <ComplianceAnalysisTable entityTasks={entityTasks} serviceTypes={serviceTypes} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Compliance History Tab */}
+          <TabsContent value="history">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Clock className="h-5 w-5 mr-2" />
+                  Compliance History
+                </CardTitle>
+                <CardDescription>
+                  Recently completed compliance tasks and their details
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ComplianceHistoryTable entityTasks={entityTasks} serviceTypes={serviceTypes} />
               </CardContent>
             </Card>
           </TabsContent>
@@ -429,20 +450,16 @@ export default function ClientPortalEntityDetailPage() {
           <TabsContent value="upcoming">
             <Card>
               <CardHeader>
-                <CardTitle>Upcoming Compliance Deadlines</CardTitle>
+                <CardTitle className="flex items-center">
+                  <Calendar className="h-5 w-5 mr-2" />
+                  Upcoming Compliance Deadlines
+                </CardTitle>
                 <CardDescription>
-                  Important deadlines you should monitor for this entity
+                  Predicted future compliance requirements based on service frequencies
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {upcomingCompliances.length > 0 ? (
-                  <UpcomingComplianceSection upcomingCompliances={upcomingCompliances} />
-                ) : (
-                  <div className="text-center py-8">
-                    <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">No upcoming deadlines</p>
-                  </div>
-                )}
+                <UpcomingComplianceTable entityTasks={entityTasks} serviceTypes={serviceTypes} />
               </CardContent>
             </Card>
           </TabsContent>
@@ -614,35 +631,305 @@ function ComplianceAnalysisSection({ analysis }: { analysis: ComplianceAnalysis 
   );
 }
 
-function UpcomingComplianceSection({ upcomingCompliances }: { upcomingCompliances: UpcomingCompliance[] }) {
+// Enhanced Compliance Analysis Table - Shows tasks due within 3 months
+function ComplianceAnalysisTable({ entityTasks, serviceTypes }: { entityTasks: any[], serviceTypes: any[] }) {
+  const today = new Date();
+  const threeMonthsFromNow = new Date();
+  threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
+
+  // Filter for tasks with compliance deadlines within next 3 months and not completed
+  const upcomingTasks = entityTasks.filter(task => {
+    if (!task.complianceDeadline || task.statusId === 1) return false;
+    const deadline = new Date(task.complianceDeadline);
+    const deadlineDate = new Date(deadline.getFullYear(), deadline.getMonth(), deadline.getDate());
+    const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const threeMonthsDate = new Date(threeMonthsFromNow.getFullYear(), threeMonthsFromNow.getMonth(), threeMonthsFromNow.getDate());
+    
+    return deadlineDate >= todayDate && deadlineDate <= threeMonthsDate;
+  });
+
+  if (upcomingTasks.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No Upcoming Deadlines</h3>
+        <p className="text-gray-600">All compliance tasks are either completed or not due within the next 3 months.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-3">
-      {upcomingCompliances.map((compliance) => (
-        <div key={compliance.serviceId} className="flex items-center justify-between p-4 border rounded-lg">
-          <div className="flex items-center space-x-3">
-            <div className={`w-3 h-3 rounded-full ${
-              compliance.priority === 'high' ? 'bg-red-500' :
-              compliance.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
-            }`} />
-            <div>
-              <h4 className="font-medium text-gray-900">{compliance.serviceName}</h4>
-              <p className="text-sm text-gray-500">Frequency: {compliance.frequency}</p>
-            </div>
-          </div>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Service</TableHead>
+          <TableHead>Task Detail</TableHead>
+          <TableHead>Compliance Period</TableHead>
+          <TableHead>Compliance Deadline</TableHead>
+          <TableHead>Days Until Due</TableHead>
+          <TableHead>Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {upcomingTasks.map((task) => {
+          const serviceType = serviceTypes?.find(st => st.id === task.serviceTypeId);
+          const serviceName = serviceType?.name || 'Unknown Service';
+          const deadline = new Date(task.complianceDeadline);
+          const daysUntilDue = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
           
-          <div className="text-right">
-            <div className="font-medium text-gray-900">
-              {compliance.dueDate.toLocaleDateString()}
-            </div>
-            <div className={`text-sm ${
-              compliance.daysUntilDue <= 7 ? 'text-red-600' :
-              compliance.daysUntilDue <= 30 ? 'text-yellow-600' : 'text-green-600'
-            }`}>
-              {compliance.daysUntilDue} days remaining
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
+          return (
+            <TableRow key={task.id}>
+              <TableCell className="font-medium">{serviceName}</TableCell>
+              <TableCell>{task.taskDetails}</TableCell>
+              <TableCell>{task.complianceYear}</TableCell>
+              <TableCell>{format(deadline, 'MMM dd, yyyy')}</TableCell>
+              <TableCell>
+                <span className={`font-medium ${
+                  daysUntilDue <= 7 ? 'text-red-600' :
+                  daysUntilDue <= 30 ? 'text-yellow-600' : 'text-green-600'
+                }`}>
+                  {daysUntilDue} days
+                </span>
+              </TableCell>
+              <TableCell>
+                <Badge variant={daysUntilDue <= 7 ? 'destructive' : daysUntilDue <= 30 ? 'secondary' : 'outline'}>
+                  {daysUntilDue <= 0 ? 'Overdue' : daysUntilDue <= 7 ? 'Critical' : daysUntilDue <= 30 ? 'Upcoming' : 'Pending'}
+                </Badge>
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
   );
+}
+
+// Compliance History Table - Shows completed tasks
+function ComplianceHistoryTable({ entityTasks, serviceTypes }: { entityTasks: any[], serviceTypes: any[] }) {
+  // Filter for completed tasks that are not in the analysis tab
+  const completedTasks = entityTasks.filter(task => task.statusId === 1 && task.complianceDeadline);
+
+  if (completedTasks.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No Compliance History</h3>
+        <p className="text-gray-600">No completed compliance tasks found.</p>
+      </div>
+    );
+  }
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Service</TableHead>
+          <TableHead>Task Detail</TableHead>
+          <TableHead>Compliance Period</TableHead>
+          <TableHead>Compliance Deadline</TableHead>
+          <TableHead>Completion Date</TableHead>
+          <TableHead>Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {completedTasks.map((task) => {
+          const serviceType = serviceTypes?.find(st => st.id === task.serviceTypeId);
+          const serviceName = serviceType?.name || 'Unknown Service';
+          const deadline = new Date(task.complianceDeadline);
+          const completionDate = task.updatedAt ? new Date(task.updatedAt) : new Date(task.createdAt);
+          
+          return (
+            <TableRow key={task.id}>
+              <TableCell className="font-medium">{serviceName}</TableCell>
+              <TableCell>{task.taskDetails}</TableCell>
+              <TableCell>{task.complianceYear}</TableCell>
+              <TableCell>{format(deadline, 'MMM dd, yyyy')}</TableCell>
+              <TableCell>{format(completionDate, 'MMM dd, yyyy')}</TableCell>
+              <TableCell>
+                <Badge variant="default" className="text-green-700 bg-green-100">
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Completed
+                </Badge>
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+}
+
+// Upcoming Compliance Table - Shows predicted future deadlines
+function UpcomingComplianceTable({ entityTasks, serviceTypes }: { entityTasks: any[], serviceTypes: any[] }) {
+  // Generate future compliance deadlines from recurring tasks
+  const upcomingCompliances = generateFutureComplianceDeadlines(entityTasks, serviceTypes);
+
+  if (upcomingCompliances.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No Upcoming Deadlines</h3>
+        <p className="text-gray-600">No subscribed services or no compliance deadlines to predict.</p>
+      </div>
+    );
+  }
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Service</TableHead>
+          <TableHead>Compliance Period</TableHead>
+          <TableHead>Predicted Due Date</TableHead>
+          <TableHead>Days Until Due</TableHead>
+          <TableHead>Frequency</TableHead>
+          <TableHead>Priority</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {upcomingCompliances.map((compliance, index) => (
+          <TableRow key={`${compliance.serviceId}-${index}`}>
+            <TableCell className="font-medium">{compliance.serviceName}</TableCell>
+            <TableCell className="font-medium">{compliance.compliancePeriod}</TableCell>
+            <TableCell>{format(compliance.dueDate, 'MMM dd, yyyy')}</TableCell>
+            <TableCell>
+              <span className={`font-medium ${
+                compliance.daysUntilDue <= 7 ? 'text-red-600' :
+                compliance.daysUntilDue <= 30 ? 'text-yellow-600' : 'text-green-600'
+              }`}>
+                {compliance.daysUntilDue} days
+              </span>
+            </TableCell>
+            <TableCell>{compliance.frequency}</TableCell>
+            <TableCell>
+              <Badge
+                variant={
+                  compliance.priority === 'high' ? 'destructive' :
+                  compliance.priority === 'medium' ? 'secondary' : 'outline'
+                }
+                className="capitalize"
+              >
+                {compliance.priority === 'high' && <AlertTriangle className="h-3 w-3 mr-1" />}
+                {compliance.priority}
+              </Badge>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+// Helper function to generate future compliance deadlines from recurring tasks
+function generateFutureComplianceDeadlines(entityTasks: any[], serviceTypes: any[]): UpcomingCompliance[] {
+  const now = new Date();
+  const next12Months = new Date();
+  next12Months.setMonth(next12Months.getMonth() + 12);
+  
+  const futureDeadlines: UpcomingCompliance[] = [];
+  
+  // Process recurring tasks that have compliance deadline data
+  const tasksWithDeadlines = entityTasks.filter(task => 
+    task.isRecurring && 
+    task.complianceFrequency && 
+    task.complianceDeadline &&
+    task.complianceYear
+  );
+  
+  tasksWithDeadlines.forEach(task => {
+    const frequency = task.complianceFrequency;
+    const complianceDeadline = new Date(task.complianceDeadline);
+    const complianceYear = task.complianceYear;
+    
+    // Find the service name from serviceTypes
+    const serviceType = serviceTypes?.find(st => st.id === task.serviceTypeId);
+    const serviceName = serviceType?.name || task.taskDetails || 'Unknown Service';
+    
+    // Calculate how many months to add based on frequency
+    let monthsToAdd = 0;
+    if (frequency === 'Monthly') monthsToAdd = 1;
+    else if (frequency === 'Quarterly') monthsToAdd = 3;
+    else if (frequency === 'Semi-Annual') monthsToAdd = 6;
+    else if (frequency === 'Annual') monthsToAdd = 12;
+    else if (frequency === 'Bi-Annual') monthsToAdd = 24;
+    else return; // Skip unknown frequencies
+    
+    // Start from the existing compliance deadline and generate future deadlines
+    let nextDeadline = new Date(complianceDeadline);
+    let currentYear = parseInt(complianceYear);
+    let currentMonth = complianceDeadline.getMonth();
+    
+    // If the deadline is in the past, calculate the next future deadline
+    while (nextDeadline <= now) {
+      nextDeadline.setMonth(nextDeadline.getMonth() + monthsToAdd);
+      if (frequency === 'Annual' || frequency === 'Bi-Annual') {
+        currentYear += frequency === 'Annual' ? 1 : 2;
+      } else {
+        currentMonth += monthsToAdd;
+        if (currentMonth >= 12) {
+          currentYear += Math.floor(currentMonth / 12);
+          currentMonth = currentMonth % 12;
+        }
+      }
+    }
+    
+    // Generate up to 3 future deadlines within the next 12 months
+    let count = 0;
+    let periodYear = currentYear;
+    let periodMonth = currentMonth;
+    
+    while (nextDeadline <= next12Months && count < 3) {
+      const daysUntilDue = Math.ceil((nextDeadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      let priority: 'high' | 'medium' | 'low';
+      if (daysUntilDue <= 7) priority = 'high';
+      else if (daysUntilDue <= 30) priority = 'medium';
+      else priority = 'low';
+      
+      // Calculate compliance period based on frequency
+      let compliancePeriod = '';
+      if (frequency === 'Monthly') {
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        compliancePeriod = `${monthNames[periodMonth]} ${periodYear}`;
+      } else if (frequency === 'Quarterly') {
+        const quarter = Math.floor(periodMonth / 3) + 1;
+        compliancePeriod = `Q${quarter} ${periodYear}`;
+      } else if (frequency === 'Semi-Annual') {
+        const half = periodMonth < 6 ? 1 : 2;
+        compliancePeriod = `H${half} ${periodYear}`;
+      } else if (frequency === 'Annual') {
+        compliancePeriod = `${periodYear}`;
+      } else if (frequency === 'Bi-Annual') {
+        compliancePeriod = `${periodYear}`;
+      }
+      
+      futureDeadlines.push({
+        serviceId: task.serviceTypeId || 0,
+        serviceName: serviceName,
+        dueDate: new Date(nextDeadline),
+        frequency: frequency,
+        priority: priority,
+        daysUntilDue: daysUntilDue,
+        compliancePeriod: compliancePeriod
+      });
+      
+      // Move to next deadline and period
+      nextDeadline.setMonth(nextDeadline.getMonth() + monthsToAdd);
+      if (frequency === 'Annual') {
+        periodYear += 1;
+      } else if (frequency === 'Bi-Annual') {
+        periodYear += 2;
+      } else {
+        periodMonth += monthsToAdd;
+        if (periodMonth >= 12) {
+          periodYear += Math.floor(periodMonth / 12);
+          periodMonth = periodMonth % 12;
+        }
+      }
+      count++;
+    }
+  });
+  
+  // Sort by due date
+  return futureDeadlines.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
 }
