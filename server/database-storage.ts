@@ -1584,6 +1584,7 @@ export class DatabaseStorage implements IStorage {
         complianceDuration: tasks.complianceDuration,
         complianceStartDate: tasks.complianceStartDate,
         complianceEndDate: tasks.complianceEndDate,
+        complianceDeadline: tasks.complianceDeadline,
         currency: tasks.currency,
         serviceRate: tasks.serviceRate,
         invoiceId: tasks.invoiceId,

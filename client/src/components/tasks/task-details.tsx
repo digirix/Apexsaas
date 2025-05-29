@@ -275,8 +275,15 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
   // Update form values when task data is loaded
   useEffect(() => {
     if (task && isEditing) {
+      console.log("Resetting form with task data:", {
+        taskId: task.id,
+        complianceDeadline: task.complianceDeadline,
+        isAdmin: task.isAdmin,
+        fullTaskData: task
+      });
+      
       if (task.isAdmin) {
-        adminTaskForm.reset({
+        const formData = {
           taskDetails: task.taskDetails,
           assigneeId: task.assigneeId?.toString(),
           statusId: task.statusId?.toString(),
@@ -285,7 +292,9 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
           taskType: task.taskType,
           notes: task.notes || "",
           complianceDeadline: task.complianceDeadline ? new Date(task.complianceDeadline) : undefined,
-        });
+        };
+        console.log("Admin form data:", formData);
+        adminTaskForm.reset(formData);
       } else {
         // Get discount and tax values from the invoice if available
         // Note: Tasks don't have discountAmount or taxPercent fields, only invoices do
@@ -303,7 +312,7 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
           taskCategory: task.taskCategoryId
         });
         
-        revenueTaskForm.reset({
+        const revenueFormData = {
           taskDetails: task.taskDetails,
           assigneeId: task.assigneeId?.toString(),
           statusId: task.statusId?.toString(),
@@ -325,7 +334,9 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
           complianceDeadline: task.complianceDeadline ? new Date(task.complianceDeadline) : undefined,
           isRecurring: task.isRecurring || false,
           createUpdateInvoice: activeTab === "invoice", // Set to true if we're in the invoice tab
-        });
+        };
+        console.log("Revenue form data:", revenueFormData);
+        revenueTaskForm.reset(revenueFormData);
       }
     }
   }, [task, invoiceData, isEditing, adminTaskForm, revenueTaskForm, activeTab]);
