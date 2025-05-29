@@ -1,310 +1,677 @@
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { TenantSetting } from "@shared/schema";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Building2, Calendar, Clock, Receipt, BarChart, User, Eye, 
-  AlertCircle, LogOut, Phone, Mail, Home, Shield, Briefcase,
-  Sparkles, ArrowRight, TrendingUp, CheckCircle, XCircle,
-  MessageCircle, Users
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { 
+  AlertCircle, 
+  FileText, 
+  LogOut, 
+  User, 
+  Calendar, 
+  Clock, 
+  CheckCircle, 
+  FileBox, 
+  BarChart, 
+  Mail, 
+  Phone,
+  Building,
+  Building2,
+  CircleDollarSign,
+  Briefcase,
+  Globe,
+  Map,
+  MapPin,
+  Receipt,
+  ExternalLink,
+  ChevronRight,
+  TrendingUp,
+  Shield,
+  Star,
+  Zap,
+  ArrowRight,
+  Eye,
+  Filter,
+  Sparkles,
+  MessageCircle,
+  AlertTriangle,
+  XCircle
 } from "lucide-react";
+import {
+  Alert,
+  AlertTitle,
+  AlertDescription,
+} from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-interface ClientPortalUser {
-  id: number;
-  clientId: number;
-  tenantId: number;
-  username: string;
-  displayName: string;
-  email: string;
-  passwordResetRequired: boolean;
-}
+// Format currency amount safely, handling both string and number inputs
+const formatCurrencyAmount = (amount: any): string => {
+  if (!amount) return '0.00';
+  
+  // Convert to number if it's a string
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  
+  // Check if it's a valid number
+  if (isNaN(numAmount)) return '0.00';
+  
+  return numAmount.toFixed(2);
+};
 
-interface ComplianceAnalysis {
-  totalServices: number;
-  requiredServices: number;
-  subscribedServices: number;
-  complianceRate: number;
-  upcomingDeadlines: number;
-  overdueItems: number;
-  serviceBreakdown: {
-    id: number;
-    name: string;
-    isRequired: boolean;
-    subscribed: boolean;
-    frequency: string | null;
-    nextDueDate: Date | null;
-    status: 'compliant' | 'due_soon' | 'overdue' | 'not_subscribed';
-    tasks: any[];
-    completionRate: number;
-  }[];
-}
-
-// Helper functions
+// Helper function to format date
 const formatDate = (date: string | Date) => {
-  if (!date) return "No date";
-  const d = new Date(date);
-  return d.toLocaleDateString();
-};
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD'
-  }).format(amount);
-};
-
-const getTaskCompletionRate = (tasks: any[]) => {
-  if (!tasks || tasks.length === 0) return 0;
-  const completed = tasks.filter(task => task.statusName === 'Completed').length;
-  return Math.round((completed / tasks.length) * 100);
-};
-
-export default function ClientPortalDashboardPage() {
-  const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState("overview");
-  const [selectedEntityId, setSelectedEntityId] = useState<number | null>(null);
-  const [showTaskDetails, setShowTaskDetails] = useState(false);
-  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
-  const [showInvoiceDetails, setShowInvoiceDetails] = useState(false);
-  const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
-
-  const queryClient = useQueryClient();
-
-  // Fetch user profile
-  const { data: userProfile, isLoading: isProfileLoading, error: profileError } = useQuery({
-    queryKey: ['/api/client-portal/profile']
-  });
-
-  // Fetch entities
-  const { data: clientEntitiesData } = useQuery({
-    queryKey: ['/api/client-portal/entities']
-  });
-  const clientEntities = Array.isArray(clientEntitiesData) ? clientEntitiesData : [];
-
-  // Fetch tasks (all or filtered by entity)
-  const { data: clientTasksData, isLoading: isTasksLoading, error: tasksError, refetch: refetchTasks } = useQuery({
-    queryKey: ['/api/client-portal/tasks', selectedEntityId]
-  });
-  const clientTasks = Array.isArray(clientTasksData) ? clientTasksData : [];
-
-  // Fetch invoices (all or filtered by entity)
-  const { data: clientInvoicesData, isLoading: isInvoicesLoading, error: invoicesError, refetch: refetchInvoices } = useQuery({
-    queryKey: ['/api/client-portal/invoices', selectedEntityId]
-  });
-  const clientInvoices = Array.isArray(clientInvoicesData) ? clientInvoicesData : [];
-
-  // Fetch tenant settings for portal customization
-  const { data: tenantSettingsData } = useQuery({
-    queryKey: ['/api/v1/tenant/settings']
-  });
-  const tenantSettings = tenantSettingsData || {};
-
-  // Fetch service types for compliance analysis
-  const { data: serviceTypesData } = useQuery({
-    queryKey: ['/api/v1/setup/service-types']
-  });
-  const serviceTypes = Array.isArray(serviceTypesData) ? serviceTypesData : [];
-
-  // Fetch entity services for compliance data
-  const { data: entityServicesData } = useQuery({
-    queryKey: ['/api/v1/entities', selectedEntityId, 'services'],
-    enabled: !!selectedEntityId
-  });
-  const entityServices = Array.isArray(entityServicesData) ? entityServicesData : [];
-
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/client-portal/logout', {
-        method: 'POST'
-      });
-      setLocation('/client-portal');
-    } catch (error) {
-      console.error('Logout error:', error);
-      setLocation('/client-portal');
-    }
-  };
-
-  // Extract customization settings
-  const customization = tenantSettings.clientPortalSettings || {};
-  const {
-    headerTitle = "Client Portal",
-    headerSubtitle = "Welcome to your client dashboard",
-    headerLogo,
-    companyName,
-    companyEmail,
-    companyPhone,
-    headerBusinessHours,
-    footerEnabled = true,
-    footerCopyright,
-    footerSupportEmail,
-    footerSupportPhone,
-    footerDisclaimerText,
-    footerAdditionalLinks
-  } = customization;
-
-  // Generate compliance analysis for selected entity
-  const generateComplianceAnalysis = (): ComplianceAnalysis | null => {
-    if (!selectedEntityId || !entityServices.length) return null;
-
-    const totalServices = serviceTypes.length;
-    const subscribedServices = entityServices.filter((s: any) => s.isSubscribed).length;
-    const requiredServices = entityServices.filter((s: any) => s.isRequired).length;
-    const complianceRate = requiredServices > 0 ? Math.round((subscribedServices / requiredServices) * 100) : 100;
-
-    const entityTasks = clientTasks.filter(task => task.entityId === selectedEntityId);
-    const upcomingDeadlines = entityTasks.filter(task => {
-      const dueDate = new Date(task.dueDate);
-      const today = new Date();
-      const diffTime = dueDate.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays >= 0 && diffDays <= 30;
-    }).length;
-
-    const overdueItems = entityTasks.filter(task => {
-      const dueDate = new Date(task.dueDate);
-      const today = new Date();
-      return dueDate < today && task.statusName !== 'Completed';
-    }).length;
-
-    const serviceBreakdown = entityServices.map((service: any) => {
-      const serviceTasks = entityTasks.filter(task => 
-        task.title?.toLowerCase().includes(service.name?.toLowerCase()) ||
-        task.description?.toLowerCase().includes(service.name?.toLowerCase())
-      );
-      
-      const completionRate = getTaskCompletionRate(serviceTasks);
-      
-      let status: 'compliant' | 'due_soon' | 'overdue' | 'not_subscribed' = 'compliant';
-      if (!service.isSubscribed) {
-        status = 'not_subscribed';
-      } else if (serviceTasks.some(task => {
-        const dueDate = new Date(task.dueDate);
-        const today = new Date();
-        return dueDate < today && task.statusName !== 'Completed';
-      })) {
-        status = 'overdue';
-      } else if (serviceTasks.some(task => {
-        const dueDate = new Date(task.dueDate);
-        const today = new Date();
-        const diffTime = dueDate.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays >= 0 && diffDays <= 7;
-      })) {
-        status = 'due_soon';
-      }
-
-      return {
-        id: service.id,
-        name: service.name || 'Unknown Service',
-        isRequired: service.isRequired,
-        subscribed: service.isSubscribed,
-        frequency: service.billingBasis,
-        nextDueDate: serviceTasks.length > 0 ? new Date(serviceTasks[0].dueDate) : null,
-        status,
-        tasks: serviceTasks,
-        completionRate
-      };
-    });
-
-    return {
-      totalServices,
-      requiredServices,
-      subscribedServices,
-      complianceRate,
-      upcomingDeadlines,
-      overdueItems,
-      serviceBreakdown
-    };
-  };
-
-  const selectedEntity = selectedEntityId ? clientEntities.find((e: any) => e.id === selectedEntityId) : null;
-  const complianceAnalysis = generateComplianceAnalysis();
-
-  if (isProfileLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full"
-        />
-      </div>
-    );
+  try {
+    return new Date(date).toLocaleDateString();
+  } catch {
+    return "Invalid Date";
   }
+};
 
-  if (profileError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
-        <Alert variant="destructive" className="max-w-md">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Authentication Error</AlertTitle>
-          <AlertDescription>
-            Please log in to access the client portal.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
+// Entity Detail Section Component
+function EntityDetailSection({ entity }: { entity: any }) {
+  const { data: entityServices, isLoading: servicesLoading } = useQuery({
+    queryKey: [`/api/v1/entities/${entity.id}/services`],
+    enabled: !!entity.id
+  });
+
+  const { data: entityTasks } = useQuery({
+    queryKey: [`/api/client-portal/tasks?entityId=${entity.id}`],
+    enabled: !!entity.id
+  });
+
+  // Calculate compliance metrics using actual service data (same as admin portal)
+  const services = entityServices || [];
+  const totalServices = services.length;
+  const requiredServices = services.filter((s: any) => s.isRequired).length;
+  const subscribedServices = services.filter((s: any) => s.isSubscribed).length;
+  const complianceRate = totalServices > 0 ? Math.round((subscribedServices / totalServices) * 100) : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 relative overflow-hidden">
-      {/* Background Effects */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-100/20 via-white/30 to-purple-100/20"></div>
-      <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-full blur-3xl transform -translate-x-1/2 -translate-y-1/2"></div>
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-br from-purple-400/10 to-pink-400/10 rounded-full blur-3xl transform translate-x-1/2 translate-y-1/2"></div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="mb-8"
+    >
+      <Card className="bg-white/80 backdrop-blur-lg border border-white/40 shadow-xl rounded-2xl overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+        
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl">
+                <Building2 className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-xl font-bold text-slate-900">{entity.name}</CardTitle>
+                <CardDescription className="text-slate-600">
+                  Complete entity overview and service configuration
+                </CardDescription>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          <Tabs defaultValue="overview" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="compliance">Compliance Analysis</TabsTrigger>
+              <TabsTrigger value="history">Compliance History</TabsTrigger>
+              <TabsTrigger value="upcoming">Upcoming Deadlines</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview" className="space-y-6">
+              {/* Service Configuration */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <FileText className="h-5 w-5 mr-2" />
+                    Service Configuration
+                  </CardTitle>
+                  <CardDescription>
+                    Services configured for this entity and their current status
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {servicesLoading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="h-20 bg-slate-100 rounded-lg animate-pulse"></div>
+                      ))}
+                    </div>
+                  ) : services.length === 0 ? (
+                    <div className="text-center py-8">
+                      <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500 mb-2">No services configured</p>
+                      <p className="text-sm text-gray-400">Configure services to start tracking compliance</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {services.map((service: any) => (
+                        <div key={service.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3">
+                              <div>
+                                <h4 className="font-medium text-gray-900">{service.name}</h4>
+                                <p className="text-sm text-gray-500">
+                                  {service.description || `Rate: ${service.rate || 'N/A'} • Billing: ${service.billingBasis || 'N/A'}`}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-4">
+                            <div className="text-right">
+                              <div className="flex items-center space-x-2 mt-1">
+                                <Badge variant={service.isRequired ? "default" : "secondary"} className="text-xs">
+                                  {service.isRequired ? "Required" : "Optional"}
+                                </Badge>
+                                <Badge variant={service.isSubscribed ? "default" : "outline"} className="text-xs">
+                                  {service.isSubscribed ? "Subscribed" : "Not Subscribed"}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex items-center">
+                              {service.isSubscribed ? (
+                                <CheckCircle className="h-5 w-5 text-green-500" />
+                              ) : (
+                                <XCircle className="h-5 w-5 text-gray-400" />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Quick Compliance Overview */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Shield className="h-5 w-5 mr-2" />
+                    Compliance Overview
+                  </CardTitle>
+                  <CardDescription>
+                    Quick summary of compliance status across all services
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium">Overall Compliance</span>
+                        <span className="text-sm text-gray-600">{complianceRate}%</span>
+                      </div>
+                      <Progress value={complianceRate} className="h-2" />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-purple-600">{requiredServices}</div>
+                        <div className="text-xs text-gray-600">Required Services</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">{subscribedServices}</div>
+                        <div className="text-xs text-gray-600">Subscribed Services</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">{subscribedServices}</div>
+                        <div className="text-xs text-gray-600">Compliant</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-amber-600">{entityTasks?.length || 0}</div>
+                        <div className="text-xs text-gray-600">Active Tasks</div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="compliance" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <TrendingUp className="h-5 w-5 mr-2" />
+                    Detailed Compliance Analysis
+                  </CardTitle>
+                  <CardDescription>
+                    Complete breakdown of compliance status for each service
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Service</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Frequency</TableHead>
+                        <TableHead>Required</TableHead>
+                        <TableHead>Subscribed</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {services.map((service: any) => (
+                        <TableRow key={service.id}>
+                          <TableCell className="font-medium">{service.name}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={service.isSubscribed ? 'default' : 'outline'}
+                              className="capitalize"
+                            >
+                              {service.isSubscribed ? 'Active' : 'Not Subscribed'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{service.billingBasis || 'N/A'}</TableCell>
+                          <TableCell>
+                            {service.isRequired ? (
+                              <Badge variant="destructive" className="text-xs">Required</Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">Optional</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {service.isSubscribed ? (
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <XCircle className="h-4 w-4 text-gray-400" />
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="history" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Calendar className="h-5 w-5 mr-2" />
+                    Compliance History
+                  </CardTitle>
+                  <CardDescription>
+                    Historical compliance data for required services
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-12">
+                    <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Compliance History</h3>
+                    <p className="text-gray-600">Historical compliance data will appear here as tasks are completed.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="upcoming" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Calendar className="h-5 w-5 mr-2" />
+                    Upcoming Compliance Deadlines
+                  </CardTitle>
+                  <CardDescription>
+                    Next 12 months of compliance requirements
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-12">
+                    <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Upcoming Deadlines</h3>
+                    <p className="text-gray-600">All compliance requirements are up to date or no services are subscribed.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
+export default function ClientPortalDashboardPage() {
+  const { toast } = useToast();
+  const [location, setLocation] = useLocation();
+  const [activeTab, setActiveTab] = useState("overview");
+  const [selectedEntityId, setSelectedEntityId] = useState<number | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
+  const [showTaskDetails, setShowTaskDetails] = useState(false);
+  const [showInvoiceDetails, setShowInvoiceDetails] = useState(false);
+  
+  // Fetch client profile
+  const { 
+    data: clientProfile, 
+    isLoading: isProfileLoading,
+    error: profileError,
+    refetch: refetchProfile
+  } = useQuery({
+    queryKey: ["/api/client-portal/profile"],
+  });
+  
+  // Fetch client tasks - filter by entity if selected
+  const { 
+    data: clientTasks = [], 
+    isLoading: isTasksLoading,
+    error: tasksError,
+    refetch: refetchTasks
+  } = useQuery<any[]>({
+    queryKey: ["/api/client-portal/tasks", selectedEntityId],
+    queryFn: async () => {
+      const url = selectedEntityId 
+        ? `/api/client-portal/tasks?entityId=${selectedEntityId}`
+        : '/api/client-portal/tasks';
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch tasks');
+      return response.json();
+    },
+    enabled: !!clientProfile
+  });
+  
+  // Fetch client invoices - filter by entity if selected
+  const {
+    data: clientInvoices = [],
+    isLoading: isInvoicesLoading,
+    error: invoicesError,
+    refetch: refetchInvoices
+  } = useQuery<any[]>({
+    queryKey: ["/api/client-portal/invoices", selectedEntityId],
+    queryFn: async () => {
+      const url = selectedEntityId 
+        ? `/api/client-portal/invoices?entityId=${selectedEntityId}`
+        : '/api/client-portal/invoices';
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch invoices');
+      return response.json();
+    },
+    enabled: !!clientProfile
+  });
+  
+  // Fetch client entities
+  const { 
+    data: clientEntities = [],
+    isLoading: isEntitiesLoading,
+    error: entitiesError,
+  } = useQuery<any[]>({
+    queryKey: ["/api/client-portal/entities"],
+    enabled: !!clientProfile
+  });
+
+  // Fetch tenant settings for header and footer
+  const { data: tenantSettings = [] } = useQuery<TenantSetting[]>({
+    queryKey: ["/api/v1/tenant/settings"],
+    refetchOnWindowFocus: false
+  });
+
+  // Helper function to get setting value
+  const getSetting = (key: string) => {
+    const setting = tenantSettings.find(s => s.key === key);
+    return setting ? setting.value : "";
+  };
+
+  // Header and footer configuration
+  const headerEnabled = getSetting("header_enabled") !== "false";
+  const headerTitle = getSetting("header_title") || "Welcome to Client Portal";
+  const headerSubtitle = getSetting("header_subtitle") || "";
+  const headerLogoText = getSetting("header_logo_text") || "";
+  const headerContactInfo = getSetting("header_contact_info") !== "false";
+  const headerBusinessHours = getSetting("header_business_hours") || "";
+  
+  const footerEnabled = getSetting("footer_enabled") !== "false";
+  const footerCompanyInfo = getSetting("footer_company_info") !== "false";
+  const footerCopyright = getSetting("footer_copyright") || "";
+  const footerSupportEmail = getSetting("footer_support_email") || "";
+  const footerSupportPhone = getSetting("footer_support_phone") || "";
+  const footerDisclaimerText = getSetting("footer_disclaimer_text") || "";
+  const footerAdditionalLinks = getSetting("footer_additional_links") || "";
+
+  // Company information from settings
+  const companyName = getSetting("company_name") || "";
+  const companyEmail = getSetting("email") || "";
+  const companyPhone = getSetting("phone") || "";
+  const companyAddress = getSetting("address") || "";
+  const companyWebsite = getSetting("website") || "";
+  
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await apiRequest({
+        url: "/api/client-portal/logout",
+        method: "POST",
+      });
+      
+      toast({
+        title: "Logged out successfully",
+        description: "You have been safely logged out of the client portal",
+      });
+      
+      setLocation("/client-portal/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Force logout even if request fails
+      setLocation("/client-portal/login");
+    }
+  };
+  
+  // Get entity selection text
+  const getEntityFilterText = () => {
+    if (!selectedEntityId) return "All entities";
+    const entity = (clientEntities as any[]).find((e: any) => e.id === selectedEntityId);
+    return entity ? entity.name : "Unknown entity";
+  };
+  
+  // Calculate task completion rate
+  const getTaskCompletionRate = () => {
+    if (!clientTasks || clientTasks.length === 0) return 0;
+    
+    const completedTasks = clientTasks.filter(
+      (task: any) => task.statusName?.toLowerCase().includes("completed") || task.statusName?.toLowerCase().includes("done")
+    ).length;
+    
+    return Math.round((completedTasks / clientTasks.length) * 100);
+  };
+  
+  // If the user is not authenticated, redirect to login
+  useEffect(() => {
+    if (profileError) {
+      toast({
+        title: "Authentication error",
+        description: "You need to log in to access the client portal",
+        variant: "destructive",
+      });
+      setLocation("/client-portal/login");
+    }
+  }, [profileError, setLocation, toast]);
+  
+  // Loading state
+  if (isProfileLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="text-center"
+        >
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"
+          />
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="text-slate-600 font-medium"
+          >
+            Loading your portal...
+          </motion.p>
+        </motion.div>
+      </div>
+    );
+  }
+  
+  // Error state (if not redirected)
+  if (profileError && !clientProfile) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-br from-red-50 to-pink-50">
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Alert variant="destructive" className="max-w-md mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Authentication Error</AlertTitle>
+            <AlertDescription>
+              Please log in to access the client portal.
+            </AlertDescription>
+          </Alert>
+          <Button onClick={() => setLocation("/client-portal/login")}>
+            Go to Login
+          </Button>
+        </motion.div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40 relative overflow-hidden">
+      
+
+      {/* Animated Background Elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          className="absolute -top-4 -right-4 w-72 h-72 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl"
+          animate={{
+            scale: [1, 1.1, 1],
+            rotate: [0, 180, 360],
+          }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            ease: "linear"
+          }}
+        />
+        <motion.div
+          className="absolute -bottom-4 -left-4 w-96 h-96 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-3xl"
+          animate={{
+            scale: [1.1, 1, 1.1],
+            rotate: [360, 180, 0],
+          }}
+          transition={{
+            duration: 25,
+            repeat: Infinity,
+            ease: "linear"
+          }}
+        />
+        <motion.div
+          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-br from-green-400/10 to-blue-400/10 rounded-full blur-3xl"
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.3, 0.6, 0.3],
+          }}
+          transition={{
+            duration: 15,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+      </div>
 
       {/* Header */}
       <motion.header 
-        className="relative bg-white/60 backdrop-blur-lg border-b border-white/30 shadow-lg z-20"
-        initial={{ opacity: 0, y: -50 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
+        className="relative bg-white/80 backdrop-blur-xl shadow-lg border-b border-white/20 z-10"
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
+          <div className="flex justify-between items-center py-6">
             <motion.div 
-              className="flex items-center space-x-4"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
+              className="flex items-center"
+              initial={{ x: -50, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
             >
-              {headerLogo && (
-                <img src={headerLogo} alt="Logo" className="h-10 w-auto" />
-              )}
+              <motion.div
+                className="relative mr-4"
+                whileHover={{ scale: 1.05, rotate: 5 }}
+                transition={{ type: "spring", stiffness: 300 }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-purple-600 rounded-xl blur-lg opacity-75"></div>
+                <div className="relative bg-gradient-to-br from-blue-500 to-purple-600 p-2 rounded-xl">
+                  <Building className="h-8 w-8 text-white" />
+                </div>
+              </motion.div>
               <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  {headerTitle}
-                </h1>
-                <p className="text-sm text-slate-600">{headerSubtitle}</p>
+                {headerLogoText && (
+                  <motion.div 
+                    className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 1, delay: 0.3 }}
+                  >
+                    {headerLogoText}
+                  </motion.div>
+                )}
+                <motion.h1 
+                  className="text-3xl font-bold bg-gradient-to-r from-slate-900 via-blue-900 to-purple-900 bg-clip-text text-transparent"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 1, delay: 0.5 }}
+                >
+                  {headerTitle || `Welcome, ${clientProfile?.client?.displayName || "Client"}`}
+                </motion.h1>
+                <motion.p 
+                  className="text-sm text-slate-600 flex items-center mt-1"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 1, delay: 0.7 }}
+                >
+                  <Shield className="h-4 w-4 mr-2 text-green-500" />
+                  {headerSubtitle || `Secure Client Portal - ${clientProfile?.client?.email || ""}`}
+                </motion.p>
               </div>
             </motion.div>
-            
             <motion.div 
-              className="flex items-center space-x-6"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
+              className="flex items-center space-x-4"
+              initial={{ x: 50, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
             >
-              {userProfile && (
-                <div className="flex items-center space-x-3">
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-slate-900">{userProfile.displayName || 'User'}</p>
-                    <p className="text-xs text-slate-500">{userProfile.email || ''}</p>
-                  </div>
-                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                    <User className="h-4 w-4 text-white" />
-                  </div>
-                </div>
-              )}
-              {(companyEmail || companyPhone || headerBusinessHours) && (
-                <div className="hidden lg:flex items-center space-x-4 text-xs text-slate-600">
+              {headerContactInfo && (companyEmail || companyPhone || headerBusinessHours) && (
+                <div className="hidden lg:flex items-center space-x-6 text-sm text-slate-600 mr-4">
                   {companyEmail && (
                     <div className="flex items-center space-x-1">
                       <Mail className="w-4 h-4" />
@@ -377,7 +744,7 @@ export default function ClientPortalDashboardPage() {
                   className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300 rounded-xl px-6 py-2 font-medium"
                 >
                   <Building2 className="h-4 w-4 mr-2" />
-                  {selectedEntityId ? 'Entity Details' : 'Entities'}
+                  Entities
                 </TabsTrigger>
                 <TabsTrigger 
                   value="tasks" 
@@ -396,9 +763,9 @@ export default function ClientPortalDashboardPage() {
               </TabsList>
             </motion.div>
             
-            {/* Entity Selector Dropdown - Fix #1: Replace stacked entity cards with dropdown selector */}
+            {/* Entity Filter - Show on tasks and invoices tabs */}
             <AnimatePresence>
-              {clientEntities.length > 0 && (
+              {(activeTab === "tasks" || activeTab === "invoices") && (
                 <motion.div 
                   className="flex items-center space-x-3"
                   initial={{ opacity: 0, x: 20, scale: 0.9 }}
@@ -407,36 +774,45 @@ export default function ClientPortalDashboardPage() {
                   transition={{ duration: 0.3 }}
                 >
                   <div className="flex items-center space-x-2 bg-white/60 backdrop-blur-lg rounded-full px-4 py-2 border border-white/30 shadow-lg">
-                    <Building2 className="h-4 w-4 text-slate-600" />
-                    <span className="text-sm font-medium text-slate-700">Entity:</span>
+                    <Filter className="h-4 w-4 text-slate-600" />
+                    <span className="text-sm font-medium text-slate-700">Filter by Entity:</span>
                   </div>
                   <motion.div
                     whileHover={{ scale: 1.02 }}
-                    className="min-w-[280px]"
+                    transition={{ type: "spring", stiffness: 300 }}
                   >
-                    <Select 
-                      value={selectedEntityId?.toString() || ""} 
-                      onValueChange={(value) => setSelectedEntityId(value ? parseInt(value) : null)}
+                    <Select
+                      value={selectedEntityId ? selectedEntityId.toString() : "all"}
+                      onValueChange={(value) => {
+                        try {
+                          if (value === "all") {
+                            setSelectedEntityId(null);
+                          } else if (value && value !== "") {
+                            const entityId = parseInt(value, 10);
+                            if (!isNaN(entityId) && entityId > 0) {
+                              setSelectedEntityId(entityId);
+                            }
+                          }
+                        } catch (error) {
+                          console.error("Entity filter error:", error);
+                          setSelectedEntityId(null);
+                        }
+                      }}
                     >
-                      <SelectTrigger className="bg-white/80 backdrop-blur-lg border border-white/40 shadow-lg rounded-xl px-4 py-2 h-10 hover:bg-white/90 transition-all duration-300">
-                        <SelectValue placeholder="Select an entity..." />
+                      <SelectTrigger className="w-48 bg-white/70 backdrop-blur-lg border border-white/30 shadow-lg rounded-xl hover:bg-white/80 transition-all duration-300">
+                        <SelectValue placeholder="Select entity" />
                       </SelectTrigger>
-                      <SelectContent className="bg-white/95 backdrop-blur-xl border border-white/50 shadow-xl rounded-xl">
-                        <SelectItem value="">
-                          <div className="flex items-center space-x-2">
-                            <Home className="h-4 w-4 text-slate-500" />
-                            <span>All Entities</span>
-                          </div>
+                      <SelectContent className="bg-white/90 backdrop-blur-xl border border-white/30 shadow-xl rounded-xl">
+                        <SelectItem value="all" className="hover:bg-blue-50/80 rounded-lg">
+                          All Entities
                         </SelectItem>
-                        {clientEntities.map((entity: any) => (
-                          <SelectItem key={entity.id} value={entity.id.toString()}>
-                            <div className="flex items-center space-x-2">
-                              <Building2 className="h-4 w-4 text-blue-500" />
-                              <span className="font-medium">{entity.name}</span>
-                              <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                                {entity.entityType}
-                              </span>
-                            </div>
+                        {clientEntities && Array.isArray(clientEntities) && clientEntities.map((entity: any) => (
+                          <SelectItem 
+                            key={entity?.id || Math.random()} 
+                            value={entity?.id?.toString() || ""}
+                            className="hover:bg-blue-50/80 rounded-lg"
+                          >
+                            {entity?.name || "Unknown Entity"}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -449,132 +825,328 @@ export default function ClientPortalDashboardPage() {
           
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-8">
-            {/* Summary Cards */}
+            {/* Entity Overview Section */}
+            {clientEntities && (clientEntities as any[]).length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+                className="space-y-6"
+              >
+                <div className="flex items-center space-x-3">
+                  <Building2 className="h-6 w-6 text-blue-600" />
+                  <h2 className="text-2xl font-bold text-slate-900">Your Business Entities</h2>
+                </div>
+                
+{/* Compact Entity Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
+                  {(clientEntities as any[]).map((entity: any, index: number) => (
+                    <motion.div
+                      key={entity.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.1 }}
+                      whileHover={{ y: -2, scale: 1.02 }}
+                      className="group"
+                    >
+                      <Card className="h-24 bg-white/90 backdrop-blur-sm border border-slate-200 shadow-sm hover:shadow-md transition-all duration-300 rounded-lg overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                        <div className="p-3 h-full flex items-center justify-between">
+                          <div className="flex items-center space-x-3 min-w-0 flex-1">
+                            <div className="p-1.5 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex-shrink-0">
+                              <Building2 className="h-3.5 w-3.5 text-white" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h3 className="font-semibold text-sm text-slate-900 truncate">
+                                {entity.name}
+                              </h3>
+                              <p className="text-xs text-slate-500 truncate">
+                                {entity.entityType} • {entity.countryName}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-1 flex-shrink-0">
+                            {entity.whatsappGroupLink && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                className="h-6 w-6 p-0 text-green-600 hover:bg-green-50"
+                                onClick={() => window.open(entity.whatsappGroupLink, '_blank')}
+                              >
+                                <MessageCircle className="h-3 w-3" />
+                              </Button>
+                            )}
+                            {entity.fileAccessLink && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                className="h-6 w-6 p-0 text-blue-600 hover:bg-blue-50"
+                                onClick={() => window.open(entity.fileAccessLink, '_blank')}
+                              >
+                                <FileBox className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {/* Detailed Entity Information */}
+                {(clientEntities as any[]).map((entity: any, index: number) => (
+                  <EntityDetailSection key={`detail-${entity.id}`} entity={entity} />
+                ))}
+              </motion.div>
+            )}
+
             <motion.div 
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, staggerChildren: 0.1 }}
+            >
+              {/* Active Tasks Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+                whileHover={{ y: -8, scale: 1.02 }}
+                className="group"
+              >
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-400/30 to-cyan-400/30 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+                  <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-500 overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm font-medium text-slate-600">
+                          Active Tasks
+                        </CardTitle>
+                        <motion.div 
+                          className="p-2 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl"
+                          whileHover={{ rotate: 10, scale: 1.1 }}
+                          transition={{ type: "spring", stiffness: 400 }}
+                        >
+                          <Clock className="h-4 w-4 text-white" />
+                        </motion.div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <motion.div 
+                        className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
+                      >
+                        {clientTasks ? clientTasks.length : "0"}
+                      </motion.div>
+                      <p className="text-xs text-slate-500 mt-2 flex items-center">
+                        <TrendingUp className="h-3 w-3 mr-1 text-green-500" />
+                        {getTaskCompletionRate()}% completed
+                      </p>
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: "100%" }}
+                        transition={{ duration: 1.5, delay: 0.5 }}
+                        className="mt-3"
+                      >
+                        <Progress 
+                          value={getTaskCompletionRate()} 
+                          className="h-2 bg-slate-200/50"
+                        />
+                      </motion.div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </motion.div>
+
+              {/* Open Invoices Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                whileHover={{ y: -8, scale: 1.02 }}
+                className="group"
+              >
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-400/30 to-pink-400/30 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+                  <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-500 overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-pink-500"></div>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm font-medium text-slate-600">
+                          Open Invoices
+                        </CardTitle>
+                        <motion.div 
+                          className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl"
+                          whileHover={{ rotate: -10, scale: 1.1 }}
+                          transition={{ type: "spring", stiffness: 400 }}
+                        >
+                          <Receipt className="h-4 w-4 text-white" />
+                        </motion.div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <motion.div 
+                        className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", stiffness: 200, delay: 0.3 }}
+                      >
+                        {clientInvoices ? clientInvoices.filter((inv: any) => inv.status !== 'Paid').length : "0"}
+                      </motion.div>
+                      <p className="text-xs text-slate-500 mt-2">
+                        {clientInvoices && clientInvoices.length > 0
+                          ? `Total: ${clientInvoices.length} invoices`
+                          : "No invoices available"}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </motion.div>
+
+              {/* Business Entities Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                whileHover={{ y: -8, scale: 1.02 }}
+                className="group"
+              >
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-green-400/30 to-emerald-400/30 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+                  <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-500 overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-emerald-500"></div>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm font-medium text-slate-600">
+                          Business Entities
+                        </CardTitle>
+                        <motion.div 
+                          className="p-2 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl"
+                          whileHover={{ rotate: 5, scale: 1.1 }}
+                          transition={{ type: "spring", stiffness: 400 }}
+                        >
+                          <Building2 className="h-4 w-4 text-white" />
+                        </motion.div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <motion.div 
+                        className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", stiffness: 200, delay: 0.4 }}
+                      >
+                        {clientEntities ? (clientEntities as any[]).length : "0"}
+                      </motion.div>
+                      <p className="text-xs text-slate-500 mt-2">
+                        Registered entities
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </motion.div>
+
+
+            </motion.div>
+            
+            {/* Recent Activity Section */}
+            <motion.div 
+              className="grid grid-cols-1 lg:grid-cols-2 gap-6"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
+              transition={{ duration: 0.8, delay: 0.8 }}
             >
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-2xl blur-xl"></div>
-                <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-300">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-slate-600">Active Tasks</CardTitle>
-                    <motion.div
-                      whileHover={{ rotate: 10, scale: 1.1 }}
-                      transition={{ type: "spring", stiffness: 400 }}
-                      className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg"
-                    >
-                      <Clock className="h-4 w-4 text-white" />
-                    </motion.div>
+                <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl">
+                  <CardHeader>
+                    <div className="flex items-center space-x-2">
+                      <Sparkles className="h-5 w-5 text-blue-500" />
+                      <CardTitle>Recent Activity</CardTitle>
+                    </div>
+                    <CardDescription>
+                      Latest updates on your tasks and invoices
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <motion.div 
-                      className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 200, delay: 0.4 }}
-                    >
-                      {clientTasks.length}
-                    </motion.div>
-                    <p className="text-xs text-slate-500 mt-2">
-                      {getTaskCompletionRate(clientTasks)}% completion rate
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-green-400/10 to-emerald-400/10 rounded-2xl blur-xl"></div>
-                <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-300">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-slate-600">Total Invoices</CardTitle>
-                    <motion.div
-                      whileHover={{ rotate: -10, scale: 1.1 }}
-                      transition={{ type: "spring", stiffness: 400 }}
-                      className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg"
-                    >
-                      <Receipt className="h-4 w-4 text-white" />
-                    </motion.div>
-                  </CardHeader>
-                  <CardContent>
-                    <motion.div 
-                      className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 200, delay: 0.4 }}
-                    >
-                      {clientInvoices.length}
-                    </motion.div>
-                    <p className="text-xs text-slate-500 mt-2">
-                      {formatCurrency(clientInvoices.reduce((sum: number, inv: any) => sum + (inv.amount || 0), 0))} total value
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-pink-400/10 rounded-2xl blur-xl"></div>
-                <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-300">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-slate-600">Business Entities</CardTitle>
-                    <motion.div
-                      whileHover={{ rotate: 15, scale: 1.1 }}
-                      transition={{ type: "spring", stiffness: 400 }}
-                      className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg"
-                    >
-                      <Building2 className="h-4 w-4 text-white" />
-                    </motion.div>
-                  </CardHeader>
-                  <CardContent>
-                    <motion.div 
-                      className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 200, delay: 0.4 }}
-                    >
-                      {clientEntities.length}
-                    </motion.div>
-                    <p className="text-xs text-slate-500 mt-2">
-                      Registered entities
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-orange-400/10 to-red-400/10 rounded-2xl blur-xl"></div>
-                <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-300">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-slate-600">Compliance Rate</CardTitle>
-                    <motion.div
-                      whileHover={{ rotate: -15, scale: 1.1 }}
-                      transition={{ type: "spring", stiffness: 400 }}
-                      className="p-2 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg"
-                    >
-                      <Shield className="h-4 w-4 text-white" />
-                    </motion.div>
-                  </CardHeader>
-                  <CardContent>
-                    <motion.div 
-                      className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 200, delay: 0.4 }}
-                    >
-                      {complianceAnalysis ? `${complianceAnalysis.complianceRate}%` : "—"}
-                    </motion.div>
-                    <p className="text-xs text-slate-500 mt-2">
-                      {selectedEntity ? `For ${selectedEntity.name}` : "Select entity to view"}
-                    </p>
+                    <div className="space-y-4">
+                      {clientTasks && clientTasks.slice(0, 3).map((task: any, index: number) => (
+                        <motion.div 
+                          key={task.id} 
+                          className="flex items-start space-x-3 p-3 rounded-xl bg-white/50 hover:bg-white/70 transition-all duration-300"
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.5, delay: 1 + index * 0.1 }}
+                          whileHover={{ x: 5 }}
+                        >
+                          <div className="flex-shrink-0 mt-1">
+                            <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-900 truncate">
+                              {task.title || task.taskDetails || 'Task'}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              Due: {formatDate(task.dueDate)} • {task.statusName || 'In Progress'}
+                            </p>
+                          </div>
+                          <motion.div
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                          >
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => setActiveTab("tasks")}
+                              className="text-xs h-6 px-2"
+                            >
+                              View
+                            </Button>
+                          </motion.div>
+                        </motion.div>
+                      ))}
+                      
+                      {(!clientTasks || clientTasks.length === 0) && (
+                        <motion.div 
+                          className="text-center py-6 text-slate-500"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 1 }}
+                        >
+                          <Clock className="h-8 w-8 mx-auto mb-2 text-slate-300" />
+                          No recent activity
+                        </motion.div>
+                      )}
+                      
+                      {clientTasks && clientTasks.length > 3 && (
+                        <motion.div 
+                          className="text-center pt-2"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 1.3 }}
+                        >
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => setActiveTab("tasks")}
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            View all tasks
+                            <ArrowRight className="h-3 w-3 ml-1" />
+                          </Button>
+                        </motion.div>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               </div>
             </motion.div>
           </TabsContent>
           
-          {/* Entities Tab with Compliance Integration - Fix #2: Add compliance data from admin portal */}
+          {/* Entities Tab */}
           <TabsContent value="entities" className="space-y-6">
             <motion.div 
               className="grid grid-cols-1 gap-6"
@@ -588,122 +1160,191 @@ export default function ClientPortalDashboardPage() {
                   <CardHeader>
                     <div className="flex items-center space-x-2">
                       <Building2 className="h-5 w-5 text-blue-500" />
-                      <CardTitle>Entity Compliance Details</CardTitle>
+                      <CardTitle>Your Business Entities</CardTitle>
                     </div>
                     <CardDescription>
-                      {selectedEntityId 
-                        ? `Detailed compliance overview for ${clientEntities.find((e: any) => e.id === selectedEntityId)?.name || 'selected entity'}`
-                        : 'Select an entity above to view compliance details, service subscriptions, and upcoming deadlines'
-                      }
+                      View and manage your registered businesses
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {selectedEntity && complianceAnalysis ? (
-                      <Tabs defaultValue="analysis" className="w-full">
-                        <TabsList className="grid w-full grid-cols-3">
-                          <TabsTrigger value="analysis">Analysis</TabsTrigger>
-                          <TabsTrigger value="upcoming">Upcoming Deadlines</TabsTrigger>
-                          <TabsTrigger value="history">History</TabsTrigger>
-                        </TabsList>
-                        
-                        <TabsContent value="analysis" className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="bg-blue-50 rounded-lg p-4">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="text-sm font-medium text-blue-700">Services Subscribed</p>
-                                  <p className="text-2xl font-bold text-blue-900">{complianceAnalysis.subscribedServices}</p>
-                                </div>
-                                <CheckCircle className="h-8 w-8 text-blue-500" />
-                              </div>
-                            </div>
-                            
-                            <div className="bg-yellow-50 rounded-lg p-4">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="text-sm font-medium text-yellow-700">Upcoming Deadlines</p>
-                                  <p className="text-2xl font-bold text-yellow-900">{complianceAnalysis.upcomingDeadlines}</p>
-                                </div>
-                                <Calendar className="h-8 w-8 text-yellow-500" />
-                              </div>
-                            </div>
-                            
-                            <div className="bg-red-50 rounded-lg p-4">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="text-sm font-medium text-red-700">Overdue Items</p>
-                                  <p className="text-2xl font-bold text-red-900">{complianceAnalysis.overdueItems}</p>
-                                </div>
-                                <XCircle className="h-8 w-8 text-red-500" />
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <h4 className="font-semibold text-slate-700">Service Breakdown</h4>
-                            {complianceAnalysis.serviceBreakdown.map((service) => (
-                              <div key={service.id} className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                                <div className="flex items-center space-x-3">
-                                  <div className={`w-3 h-3 rounded-full ${
-                                    service.status === 'compliant' ? 'bg-green-500' :
-                                    service.status === 'due_soon' ? 'bg-yellow-500' :
-                                    service.status === 'overdue' ? 'bg-red-500' :
-                                    'bg-gray-400'
-                                  }`}></div>
-                                  <span className="font-medium">{service.name}</span>
-                                  {service.isRequired && <Badge variant="outline">Required</Badge>}
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-sm text-slate-600">{service.completionRate}% complete</p>
-                                  {service.frequency && <p className="text-xs text-slate-500">{service.frequency}</p>}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </TabsContent>
-                        
-                        <TabsContent value="upcoming" className="space-y-4">
-                          <div className="text-center py-8 text-slate-500">
-                            <Calendar className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-                            <p>Upcoming compliance deadlines will be displayed here</p>
-                          </div>
-                        </TabsContent>
-                        
-                        <TabsContent value="history" className="space-y-4">
-                          <div className="text-center py-8 text-slate-500">
-                            <Clock className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-                            <p>Compliance history will be displayed here</p>
-                          </div>
-                        </TabsContent>
-                      </Tabs>
-                    ) : (
+                    {isEntitiesLoading ? (
+                      <div className="flex justify-center py-8">
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                          className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"
+                        />
+                      </div>
+                    ) : entitiesError ? (
+                      <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Error</AlertTitle>
+                        <AlertDescription>
+                          Failed to load entities. Please try again later.
+                        </AlertDescription>
+                      </Alert>
+                    ) : (clientEntities as any[]).length === 0 ? (
                       <motion.div 
-                        className="text-center py-12 text-slate-500"
+                        className="text-center py-8 text-slate-500"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                       >
-                        <Building2 className="h-16 w-16 mx-auto mb-4 text-slate-300" />
-                        <h3 className="text-lg font-semibold text-slate-700 mb-2">Select an Entity</h3>
-                        <p className="text-sm mb-6 max-w-md mx-auto">
-                          Choose an entity from the dropdown above to view:
-                        </p>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto mb-6">
-                          <div className="bg-blue-50 rounded-lg p-4">
-                            <Shield className="h-8 w-8 text-blue-500 mx-auto mb-2" />
-                            <h4 className="font-medium text-slate-700">Compliance Analysis</h4>
-                            <p className="text-xs text-slate-500">Service subscriptions and compliance rates</p>
-                          </div>
-                          <div className="bg-green-50 rounded-lg p-4">
-                            <Calendar className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                            <h4 className="font-medium text-slate-700">Upcoming Deadlines</h4>
-                            <p className="text-xs text-slate-500">Future compliance requirements</p>
-                          </div>
-                          <div className="bg-purple-50 rounded-lg p-4">
-                            <Clock className="h-8 w-8 text-purple-500 mx-auto mb-2" />
-                            <h4 className="font-medium text-slate-700">Compliance History</h4>
-                            <p className="text-xs text-slate-500">Past submissions and completions</p>
-                          </div>
-                        </div>
+                        <Building2 className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                        No entities found
+                      </motion.div>
+                    ) : (
+                      <motion.div 
+                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ staggerChildren: 0.1 }}
+                      >
+                        {(clientEntities as any[]).map((entity: any, index: number) => (
+                          <motion.div
+                            key={entity.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: index * 0.1 }}
+                            whileHover={{ y: -5, scale: 1.02 }}
+                            className="group"
+                          >
+                            <div className="relative">
+                              <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-xl blur-lg group-hover:blur-xl transition-all duration-300"></div>
+                              <Card className="relative bg-white/80 backdrop-blur-lg border border-white/40 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl overflow-hidden">
+                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                                <div className="p-4">
+                                  <div className="flex items-start justify-between mb-3">
+                                    <div className="flex items-center space-x-3">
+                                      <motion.div 
+                                        className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg"
+                                        whileHover={{ rotate: 10, scale: 1.1 }}
+                                        transition={{ type: "spring", stiffness: 400 }}
+                                      >
+                                        <Building2 className="h-4 w-4 text-white" />
+                                      </motion.div>
+                                      <div>
+                                        <h3 className="font-semibold text-slate-900 text-sm">
+                                          {entity.name}
+                                        </h3>
+                                        <p className="text-xs text-slate-500">
+                                          {entity.entityType} • {entity.countryName}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center space-x-1">
+                                      <motion.div
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                      >
+                                        <Button 
+                                          variant="ghost" 
+                                          size="sm"
+                                          className="h-7 text-xs px-2 py-1 hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 transition-colors"
+                                          onClick={() => {
+                                            setLocation(`/client-portal/entities/${entity.id}`);
+                                          }}
+                                        >
+                                          <Eye className="h-3 w-3 mr-1" />
+                                          Details
+                                        </Button>
+                                      </motion.div>
+                                      <motion.div
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                      >
+                                        <Button 
+                                          variant="ghost" 
+                                          size="sm"
+                                          className="h-7 text-xs px-2 py-1 hover:bg-blue-50 text-slate-600 hover:text-blue-600 transition-colors"
+                                          onClick={() => {
+                                            setSelectedEntityId(entity.id);
+                                            setActiveTab("tasks");
+                                          }}
+                                        >
+                                          <Clock className="h-3 w-3 mr-1" />
+                                          Tasks
+                                        </Button>
+                                      </motion.div>
+                                      <motion.div
+                                        whileHover={{ scale: 1.05 }}
+                                        whileTap={{ scale: 0.95 }}
+                                      >
+                                        <Button 
+                                          variant="ghost" 
+                                          size="sm"
+                                          className="h-7 text-xs px-2 py-1 hover:bg-purple-50 text-slate-600 hover:text-purple-600 transition-colors"
+                                          onClick={() => {
+                                            setSelectedEntityId(entity.id);
+                                            setActiveTab("invoices");
+                                          }}
+                                        >
+                                          <Receipt className="h-3 w-3 mr-1" />
+                                          Invoices
+                                        </Button>
+                                      </motion.div>
+                                      {entity.whatsappGroupLink && (
+                                        <motion.div
+                                          whileHover={{ scale: 1.05 }}
+                                          whileTap={{ scale: 0.95 }}
+                                        >
+                                          <Button 
+                                            variant="ghost" 
+                                            size="sm"
+                                            className="h-7 text-xs px-2 py-1 hover:bg-green-50 text-slate-600 hover:text-green-600 transition-colors"
+                                            onClick={() => {
+                                              window.open(entity.whatsappGroupLink, '_blank');
+                                            }}
+                                          >
+                                            <MessageCircle className="h-3 w-3 mr-1" />
+                                            WhatsApp
+                                          </Button>
+                                        </motion.div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div className="px-4 pb-4">
+                                  <div className="grid grid-cols-3 gap-2 text-xs">
+                                    <div className="flex flex-col">
+                                      <span className="text-slate-500">Tax ID</span>
+                                      <span className="font-medium truncate">
+                                        {entity.businessTaxId || "N/A"}
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-slate-500">VAT Status</span>
+                                      <span className="font-medium">
+                                        {entity.isVatRegistered ? "Registered" : "Not Reg."}
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-slate-500">VAT ID</span>
+                                      <span className="font-medium truncate">
+                                        {entity.vatId || "N/A"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  
+                                  {entity.stats && (
+                                    <div className="mt-3 pt-2 border-t border-slate-100">
+                                      <div className="flex justify-between text-xs">
+                                        <span className="text-slate-500 flex items-center">
+                                          <Clock className="h-3 w-3 mr-1" />
+                                          Tasks: {entity.stats.taskCount || 0}
+                                        </span>
+                                        <span className="text-slate-500 flex items-center">
+                                          <Receipt className="h-3 w-3 mr-1" />
+                                          Invoices: {entity.stats.invoiceCount || 0}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </Card>
+                            </div>
+                          </motion.div>
+                        ))}
                       </motion.div>
                     )}
                   </CardContent>
@@ -722,14 +1363,49 @@ export default function ClientPortalDashboardPage() {
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-2xl blur-xl"></div>
                 <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl">
-                  <CardHeader>
-                    <div className="flex items-center space-x-2">
-                      <Clock className="h-5 w-5 text-blue-500" />
-                      <CardTitle>Your Tasks</CardTitle>
+                  <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-5 w-5 text-blue-500" />
+                        <CardTitle>Your Tasks</CardTitle>
+                      </div>
+                      <CardDescription>
+                        Track your compliance and service tasks{selectedEntityId ? ` for ${getEntityFilterText()}` : ""}
+                      </CardDescription>
                     </div>
-                    <CardDescription>
-                      Track your compliance and service tasks{selectedEntityId ? ` for ${clientEntities.find((e: any) => e.id === selectedEntityId)?.name || 'selected entity'}` : ""}
-                    </CardDescription>
+                    <div className="flex items-center space-x-2">
+                      {selectedEntityId && (
+                        <motion.div
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedEntityId(null);
+                              refetchTasks();
+                            }}
+                            className="border-blue-200 hover:border-blue-300 hover:bg-blue-50"
+                          >
+                            Show All Tasks
+                          </Button>
+                        </motion.div>
+                      )}
+                      <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => refetchTasks()}
+                          className="border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                        >
+                          Refresh
+                        </Button>
+                      </motion.div>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     {isTasksLoading ? (
@@ -748,92 +1424,106 @@ export default function ClientPortalDashboardPage() {
                           Failed to load tasks. Please try again later.
                         </AlertDescription>
                       </Alert>
-                    ) : !clientTasks || clientTasks.length === 0 ? (
+                    ) : clientTasks.length === 0 ? (
                       <motion.div 
                         className="text-center py-8 text-slate-500"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                       >
                         <Clock className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-                        {selectedEntityId 
-                          ? `No tasks found for ${clientEntities.find((e: any) => e.id === selectedEntityId)?.name || 'this entity'}`
-                          : "No tasks found"
-                        }
+                        {selectedEntityId ? "No tasks found for this entity" : "No tasks available"}
                       </motion.div>
                     ) : (
-                      <div className="space-y-3">
-                        {clientTasks.map((task: any, index: number) => {
-                          const entityName = clientEntities.find((e: any) => e.id === task.entityId)?.name || "Unknown Entity";
-                          
-                          return (
-                            <motion.div
-                              key={task.id}
-                              initial={{ opacity: 0, y: 10 }}
+                      <motion.div 
+                        className="space-y-4"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ staggerChildren: 0.1 }}
+                      >
+                        <div className="grid grid-cols-1 gap-4">
+                          {clientTasks.map((task: any, index: number) => (
+                            <motion.div 
+                              key={task.id} 
+                              className="relative group"
+                              initial={{ opacity: 0, y: 20 }}
                               animate={{ opacity: 1, y: 0 }}
-                              transition={{ duration: 0.3, delay: index * 0.05 }}
-                              whileHover={{ x: 5 }}
-                              className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-white/40 shadow-sm hover:shadow-md transition-all duration-300"
+                              transition={{ duration: 0.5, delay: index * 0.1 }}
+                              whileHover={{ y: -2 }}
                             >
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center space-x-2 mb-2">
-                                    <h4 className="font-medium text-slate-900 truncate">
-                                      {task.title || task.taskDetails || 'Task'}
-                                    </h4>
-                                    <span className={`px-2 py-1 text-xs rounded-full ${
-                                      task.statusName === 'Completed' ? 'bg-green-100 text-green-700' :
-                                      task.statusName === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                                      'bg-slate-100 text-slate-700'
-                                    }`}>
-                                      {task.statusName}
-                                    </span>
+                              <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-xl blur-lg group-hover:blur-xl transition-all duration-300"></div>
+                              <div className="relative border rounded-xl p-4 bg-white/80 backdrop-blur-lg border-white/40 hover:shadow-lg transition-all duration-300">
+                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-t-xl"></div>
+                                <div className="flex items-start justify-between pt-2">
+                                  <div className="flex-1">
+                                    <div className="flex items-center space-x-3 mb-2">
+                                      <motion.div
+                                        whileHover={{ rotate: 10, scale: 1.1 }}
+                                        transition={{ type: "spring", stiffness: 400 }}
+                                      >
+                                        <Clock className="h-4 w-4 text-blue-500" />
+                                      </motion.div>
+                                      <h3 className="font-medium text-slate-900">
+                                        {task.title || task.taskDetails || 'Task'}
+                                      </h3>
+                                      {task.statusName && (
+                                        <Badge variant="outline" className="bg-white/50">
+                                          {task.statusName}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-slate-600 ml-7">
+                                      <div className="flex items-center">
+                                        <Calendar className="h-3 w-3 mr-1" />
+                                        Due: {formatDate(task.dueDate)}
+                                      </div>
+                                      {task.entityId && (
+                                        <div className="flex items-center">
+                                          <Building2 className="h-3 w-3 mr-1" />
+                                          Entity: {(clientEntities as any[]).find((e: any) => e.id === task.entityId)?.name || 'Unknown'}
+                                        </div>
+                                      )}
+                                      <div className="flex items-center">
+                                        <Briefcase className="h-3 w-3 mr-1" />
+                                        Type: {task.taskType || 'Regular'}
+                                      </div>
+                                      {task.assigneeName && (
+                                        <div className="flex items-center">
+                                          <User className="h-3 w-3 mr-1" />
+                                          Assigned: {task.assigneeName}
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
-                                  <p className="text-sm text-slate-600 mb-2">
-                                    {task.description || 'No description'}
-                                  </p>
-                                  <div className="flex items-center space-x-4 text-xs text-slate-500">
-                                    <span className="flex items-center">
-                                      <Building2 className="h-3 w-3 mr-1" />
-                                      {entityName}
-                                    </span>
-                                    <span className="flex items-center">
-                                      <Calendar className="h-3 w-3 mr-1" />
-                                      Due: {formatDate(task.dueDate)}
-                                    </span>
-                                    <span className="flex items-center">
-                                      <User className="h-3 w-3 mr-1" />
-                                      {task.assigneeName || 'Unassigned'}
-                                    </span>
-                                  </div>
-                                </div>
-                                <motion.div
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                                >
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedTaskId(task.id);
-                                      setShowTaskDetails(true);
-                                    }}
-                                    className="text-xs h-8 px-3"
+                                  <motion.div
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
                                   >
-                                    View Details
-                                  </Button>
-                                </motion.div>
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline" 
+                                      className="ml-2 border-blue-200 hover:border-blue-300 hover:bg-blue-50"
+                                      onClick={() => {
+                                        setSelectedTaskId(task.id);
+                                        setShowTaskDetails(true);
+                                      }}
+                                    >
+                                      <Eye className="h-3 w-3 mr-1" />
+                                      View Details
+                                    </Button>
+                                  </motion.div>
+                                </div>
                               </div>
                             </motion.div>
-                          );
-                        })}
-                      </div>
+                          ))}
+                        </div>
+                      </motion.div>
                     )}
                   </CardContent>
                 </Card>
               </div>
             </motion.div>
           </TabsContent>
-
+          
           {/* Invoices Tab */}
           <TabsContent value="invoices" className="space-y-6">
             <motion.div
@@ -844,14 +1534,49 @@ export default function ClientPortalDashboardPage() {
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-pink-400/10 rounded-2xl blur-xl"></div>
                 <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl">
-                  <CardHeader>
-                    <div className="flex items-center space-x-2">
-                      <Receipt className="h-5 w-5 text-purple-500" />
-                      <CardTitle>Your Invoices</CardTitle>
+                  <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <Receipt className="h-5 w-5 text-purple-500" />
+                        <CardTitle>Your Invoices</CardTitle>
+                      </div>
+                      <CardDescription>
+                        View and manage your billing{selectedEntityId ? ` for ${getEntityFilterText()}` : ""}
+                      </CardDescription>
                     </div>
-                    <CardDescription>
-                      View and manage your invoices{selectedEntityId ? ` for ${clientEntities.find((e: any) => e.id === selectedEntityId)?.name || 'selected entity'}` : ""}
-                    </CardDescription>
+                    <div className="flex items-center space-x-2">
+                      {selectedEntityId && (
+                        <motion.div
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedEntityId(null);
+                              refetchInvoices();
+                            }}
+                            className="border-purple-200 hover:border-purple-300 hover:bg-purple-50"
+                          >
+                            Show All Invoices
+                          </Button>
+                        </motion.div>
+                      )}
+                      <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => refetchInvoices()}
+                          className="border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                        >
+                          Refresh
+                        </Button>
+                      </motion.div>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     {isInvoicesLoading ? (
@@ -870,147 +1595,383 @@ export default function ClientPortalDashboardPage() {
                           Failed to load invoices. Please try again later.
                         </AlertDescription>
                       </Alert>
-                    ) : !clientInvoices || clientInvoices.length === 0 ? (
+                    ) : clientInvoices.length === 0 ? (
                       <motion.div 
                         className="text-center py-8 text-slate-500"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                       >
                         <Receipt className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-                        {selectedEntityId 
-                          ? `No invoices found for ${clientEntities.find((e: any) => e.id === selectedEntityId)?.name || 'this entity'}`
-                          : "No invoices found"
-                        }
+                        {selectedEntityId ? "No invoices found for this entity" : "No invoices available"}
                       </motion.div>
                     ) : (
-                      <div className="space-y-3">
-                        {clientInvoices.map((invoice: any, index: number) => {
-                          const entityName = clientEntities.find((e: any) => e.id === invoice.entityId)?.name || "Unknown Entity";
-                          
-                          return (
-                            <motion.div
-                              key={invoice.id}
-                              initial={{ opacity: 0, y: 10 }}
+                      <motion.div 
+                        className="space-y-4"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ staggerChildren: 0.1 }}
+                      >
+                        <div className="grid grid-cols-1 gap-4">
+                          {clientInvoices.map((invoice: any, index: number) => (
+                            <motion.div 
+                              key={invoice.id} 
+                              className="relative group"
+                              initial={{ opacity: 0, y: 20 }}
                               animate={{ opacity: 1, y: 0 }}
-                              transition={{ duration: 0.3, delay: index * 0.05 }}
-                              whileHover={{ x: 5 }}
-                              className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-white/40 shadow-sm hover:shadow-md transition-all duration-300"
+                              transition={{ duration: 0.5, delay: index * 0.1 }}
+                              whileHover={{ y: -2 }}
                             >
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center space-x-2 mb-2">
-                                    <h4 className="font-medium text-slate-900 truncate">
-                                      Invoice #{invoice.invoiceNumber || invoice.id}
-                                    </h4>
-                                    <span className={`px-2 py-1 text-xs rounded-full ${
-                                      invoice.status === 'Paid' ? 'bg-green-100 text-green-700' :
-                                      invoice.status === 'Overdue' ? 'bg-red-100 text-red-700' :
-                                      'bg-yellow-100 text-yellow-700'
-                                    }`}>
-                                      {invoice.status}
-                                    </span>
+                              <div className="absolute inset-0 bg-gradient-to-br from-purple-400/10 to-pink-400/10 rounded-xl blur-lg group-hover:blur-xl transition-all duration-300"></div>
+                              <div className="relative border rounded-xl p-4 bg-white/80 backdrop-blur-lg border-white/40 hover:shadow-lg transition-all duration-300">
+                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-t-xl"></div>
+                                <div className="flex items-start justify-between pt-2">
+                                  <div className="flex-1">
+                                    <div className="flex items-center space-x-3 mb-2">
+                                      <motion.div
+                                        whileHover={{ rotate: -10, scale: 1.1 }}
+                                        transition={{ type: "spring", stiffness: 400 }}
+                                      >
+                                        <Receipt className="h-4 w-4 text-purple-500" />
+                                      </motion.div>
+                                      <h3 className="font-medium text-slate-900">
+                                        Invoice #{invoice.invoiceNumber || invoice.id}
+                                      </h3>
+                                      <Badge variant={invoice.status === 'Paid' ? 'default' : 'secondary'} className="bg-white/50">
+                                        {invoice.status || 'Draft'}
+                                      </Badge>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-slate-600 ml-7">
+                                      <div className="flex items-center">
+                                        <Calendar className="h-3 w-3 mr-1" />
+                                        Date: {formatDate(invoice.invoiceDate)}
+                                      </div>
+                                      <div className="flex items-center">
+                                        <CircleDollarSign className="h-3 w-3 mr-1" />
+                                        Amount: ${formatCurrencyAmount(invoice.totalAmount)}
+                                      </div>
+                                      {invoice.entityId && (
+                                        <div className="flex items-center">
+                                          <Building2 className="h-3 w-3 mr-1" />
+                                          Entity: {(clientEntities as any[]).find((e: any) => e.id === invoice.entityId)?.name || 'Unknown'}
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
-                                  <p className="text-sm text-slate-600 mb-2">
-                                    Amount: {formatCurrency(invoice.amount || 0)}
-                                  </p>
-                                  <div className="flex items-center space-x-4 text-xs text-slate-500">
-                                    <span className="flex items-center">
-                                      <Building2 className="h-3 w-3 mr-1" />
-                                      {entityName}
-                                    </span>
-                                    <span className="flex items-center">
-                                      <Calendar className="h-3 w-3 mr-1" />
-                                      Due: {formatDate(invoice.dueDate)}
-                                    </span>
-                                  </div>
-                                </div>
-                                <motion.div
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                                >
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedInvoiceId(invoice.id);
-                                      setShowInvoiceDetails(true);
-                                    }}
-                                    className="text-xs h-8 px-3"
+                                  <motion.div
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
                                   >
-                                    View Details
-                                  </Button>
-                                </motion.div>
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline" 
+                                      className="ml-2 border-purple-200 hover:border-purple-300 hover:bg-purple-50"
+                                      onClick={() => {
+                                        setSelectedInvoiceId(invoice.id);
+                                        setShowInvoiceDetails(true);
+                                      }}
+                                    >
+                                      <Eye className="h-3 w-3 mr-1" />
+                                      View Details
+                                    </Button>
+                                  </motion.div>
+                                </div>
                               </div>
                             </motion.div>
-                          );
-                        })}
-                      </div>
+                          ))}
+                        </div>
+                      </motion.div>
                     )}
                   </CardContent>
                 </Card>
               </div>
             </motion.div>
           </TabsContent>
+          
         </Tabs>
+        
+        {/* Task Details Modal */}
+        <AnimatePresence>
+          {showTaskDetails && (
+            <Dialog open={showTaskDetails} onOpenChange={setShowTaskDetails}>
+              <DialogContent className="max-w-2xl bg-white/95 backdrop-blur-xl border border-white/30">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <DialogHeader>
+                    <div className="flex items-center space-x-2">
+                      <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg">
+                        <Clock className="h-4 w-4 text-white" />
+                      </div>
+                      <DialogTitle className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        Task Details
+                      </DialogTitle>
+                    </div>
+                    <DialogDescription>
+                      Complete information about your task
+                    </DialogDescription>
+                  </DialogHeader>
+                  {selectedTaskId && (
+                    <div className="space-y-4 mt-4">
+                      {(() => {
+                        const task = clientTasks.find((t: any) => t.id === selectedTaskId);
+                        if (!task) return <p>Task not found</p>;
+                        
+                        return (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="p-3 rounded-lg bg-blue-50/50 border border-blue-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Task Title</h4>
+                                <p className="text-slate-600">{task.title || task.taskDetails || 'No title available'}</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-purple-50/50 border border-purple-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Status</h4>
+                                <Badge variant="outline">{task.statusName || 'Unknown'}</Badge>
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="p-3 rounded-lg bg-green-50/50 border border-green-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Due Date</h4>
+                                <p className="text-slate-600">{formatDate(task.dueDate)}</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-orange-50/50 border border-orange-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Task Type</h4>
+                                <p className="text-slate-600">{task.taskType || 'Regular Task'}</p>
+                              </div>
+                            </div>
+                            
+                            {task.entityId && (
+                              <div className="p-3 rounded-lg bg-indigo-50/50 border border-indigo-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Related Entity</h4>
+                                <p className="text-slate-600">
+                                  {(clientEntities as any[]).find((e: any) => e.id === task.entityId)?.name || 'Unknown Entity'}
+                                </p>
+                              </div>
+                            )}
+                            
+                            {task.description && (
+                              <div className="p-3 rounded-lg bg-slate-50/50 border border-slate-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Description</h4>
+                                <p className="text-slate-600">{task.description}</p>
+                              </div>
+                            )}
+                            
+                            <div className="pt-4 border-t border-slate-200">
+                              <div className="flex items-start space-x-3 p-3 rounded-lg bg-gradient-to-br from-blue-50/50 to-purple-50/50 border border-blue-100">
+                                <Star className="h-5 w-5 text-blue-500 mt-0.5" />
+                                <div>
+                                  <h4 className="font-semibold text-slate-900 mb-1">Next Steps</h4>
+                                  <p className="text-slate-600">
+                                    Please contact your account manager if you need assistance with this task or have any questions.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </motion.div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </AnimatePresence>
+        
+        {/* Invoice Details Modal */}
+        <AnimatePresence>
+          {showInvoiceDetails && (
+            <Dialog open={showInvoiceDetails} onOpenChange={setShowInvoiceDetails}>
+              <DialogContent className="max-w-2xl bg-white/95 backdrop-blur-xl border border-white/30">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <DialogHeader>
+                    <div className="flex items-center space-x-2">
+                      <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg">
+                        <Receipt className="h-4 w-4 text-white" />
+                      </div>
+                      <DialogTitle className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                        Invoice Details
+                      </DialogTitle>
+                    </div>
+                    <DialogDescription>
+                      Complete information about your invoice
+                    </DialogDescription>
+                  </DialogHeader>
+                  {selectedInvoiceId && (
+                    <div className="space-y-4 mt-4">
+                      {(() => {
+                        const invoice = clientInvoices.find((i: any) => i.id === selectedInvoiceId);
+                        if (!invoice) return <p>Invoice not found</p>;
+                        
+                        return (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="p-3 rounded-lg bg-purple-50/50 border border-purple-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Invoice Number</h4>
+                                <p className="text-slate-600">{invoice.invoiceNumber || `INV-${invoice.id}`}</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-blue-50/50 border border-blue-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Status</h4>
+                                <Badge variant={invoice.status === 'Paid' ? 'default' : 'secondary'}>
+                                  {invoice.status || 'Draft'}
+                                </Badge>
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="p-3 rounded-lg bg-green-50/50 border border-green-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Issue Date</h4>
+                                <p className="text-slate-600">{formatDate(invoice.issueDate || invoice.invoiceDate)}</p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-orange-50/50 border border-orange-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Due Date</h4>
+                                <p className="text-slate-600">{formatDate(invoice.dueDate)}</p>
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="p-3 rounded-lg bg-emerald-50/50 border border-emerald-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Total Amount</h4>
+                                <p className="text-lg font-semibold text-emerald-700">
+                                  ${formatCurrencyAmount(invoice.totalAmount)} {invoice.currencyCode || 'USD'}
+                                </p>
+                              </div>
+                              <div className="p-3 rounded-lg bg-red-50/50 border border-red-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Amount Due</h4>
+                                <p className="text-lg font-semibold text-red-600">
+                                  ${formatCurrencyAmount(invoice.amountDue || invoice.totalAmount)} {invoice.currencyCode || 'USD'}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            {invoice.entityId && (
+                              <div className="p-3 rounded-lg bg-indigo-50/50 border border-indigo-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Related Entity</h4>
+                                <p className="text-slate-600">
+                                  {(clientEntities as any[]).find((e: any) => e.id === invoice.entityId)?.name || 'Unknown Entity'}
+                                </p>
+                              </div>
+                            )}
+                            
+                            {invoice.notes && (
+                              <div className="p-3 rounded-lg bg-slate-50/50 border border-slate-100">
+                                <h4 className="font-semibold text-slate-900 mb-1">Notes</h4>
+                                <p className="text-slate-600">{invoice.notes}</p>
+                              </div>
+                            )}
+                            
+                            <div className="pt-4 border-t border-slate-200">
+                              <div className="flex items-start space-x-3 p-3 rounded-lg bg-gradient-to-br from-purple-50/50 to-pink-50/50 border border-purple-100">
+                                <CircleDollarSign className="h-5 w-5 text-purple-500 mt-0.5" />
+                                <div>
+                                  <h4 className="font-semibold text-slate-900 mb-1">Payment Information</h4>
+                                  <p className="text-slate-600">
+                                    For payment inquiries or to request payment instructions, please contact your account manager.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </motion.div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </AnimatePresence>
       </motion.main>
-
+      
       {/* Footer */}
       {footerEnabled && (
         <motion.footer 
-          className="relative bg-white/60 backdrop-blur-lg border-t border-white/30 py-6 z-10 mt-16"
+          className="relative bg-white/80 backdrop-blur-xl border-t border-white/20 mt-12"
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 1 }}
         >
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-              <div className="text-center md:text-left">
-                <p className="text-sm text-slate-600">
-                  {footerCopyright || `© ${new Date().getFullYear()} Client Portal. All rights reserved.`}
-                </p>
-              </div>
-              
-              <div className="flex items-center space-x-6 text-sm text-slate-600">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex flex-col md:flex-row justify-between items-center">
+              <motion.div 
+                className="text-sm text-slate-500"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.2 }}
+              >
+                {footerCopyright || "© 2025 Client Portal. All rights reserved."}
+              </motion.div>
+              <motion.div 
+                className="flex items-center space-x-4 mt-4 md:mt-0"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.4 }}
+              >
                 {footerSupportEmail && (
-                  <div className="flex items-center space-x-1">
-                    <Mail className="w-4 h-4" />
-                    <a 
-                      href={`mailto:${footerSupportEmail}`}
-                      className="hover:text-blue-600 transition-colors"
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="hover:bg-blue-50"
+                      onClick={() => window.location.href = `mailto:${footerSupportEmail}`}
                     >
+                      <Mail className="h-4 w-4 mr-2" />
                       {footerSupportEmail}
-                    </a>
-                  </div>
+                    </Button>
+                  </motion.div>
                 )}
                 {footerSupportPhone && (
-                  <div className="flex items-center space-x-1">
-                    <Phone className="w-4 h-4" />
-                    <a 
-                      href={`tel:${footerSupportPhone}`}
-                      className="hover:text-blue-600 transition-colors"
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="hover:bg-blue-50"
+                      onClick={() => window.location.href = `tel:${footerSupportPhone}`}
                     >
+                      <Phone className="h-4 w-4 mr-2" />
                       {footerSupportPhone}
-                    </a>
-                  </div>
+                    </Button>
+                  </motion.div>
                 )}
-              </div>
+              </motion.div>
             </div>
             
+            {/* Footer disclaimer and additional links */}
             {(footerDisclaimerText || footerAdditionalLinks) && (
               <div className="mt-4 pt-4 border-t border-slate-200/50">
                 {footerDisclaimerText && (
-                  <p className="text-xs text-slate-500 text-center mb-2">
+                  <motion.p 
+                    className="text-xs text-slate-400 text-center mb-2"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1.6 }}
+                  >
                     {footerDisclaimerText}
-                  </p>
+                  </motion.p>
                 )}
                 {footerAdditionalLinks && (
-                  <div className="flex justify-center space-x-4 text-xs">
-                    {footerAdditionalLinks.split(',').map((link: string, index: number) => (
-                      <span key={index} className="text-slate-500 hover:text-blue-600 cursor-pointer transition-colors">
-                        {link.trim()}
-                      </span>
-                    ))}
-                  </div>
+                  <motion.div 
+                    className="text-xs text-slate-500 text-center"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1.8 }}
+                  >
+                    {footerAdditionalLinks}
+                  </motion.div>
                 )}
               </div>
             )}
