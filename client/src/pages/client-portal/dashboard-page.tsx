@@ -1132,9 +1132,9 @@ export default function ClientPortalDashboardPage() {
               </TabsList>
             </motion.div>
             
-            {/* Entity Filter - Show on tasks and invoices tabs */}
+            {/* Global Entity Selector - Always visible */}
             <AnimatePresence>
-              {(activeTab === "tasks" || activeTab === "invoices") && (
+              {clientEntities.length > 0 && (
                 <motion.div 
                   className="flex items-center space-x-3"
                   initial={{ opacity: 0, x: 20, scale: 0.9 }}
@@ -1143,8 +1143,8 @@ export default function ClientPortalDashboardPage() {
                   transition={{ duration: 0.3 }}
                 >
                   <div className="flex items-center space-x-2 bg-white/60 backdrop-blur-lg rounded-full px-4 py-2 border border-white/30 shadow-lg">
-                    <Filter className="h-4 w-4 text-slate-600" />
-                    <span className="text-sm font-medium text-slate-700">Filter by Entity:</span>
+                    <Building2 className="h-4 w-4 text-slate-600" />
+                    <span className="text-sm font-medium text-slate-700">Current Entity:</span>
                   </div>
                   <motion.div
                     whileHover={{ scale: 1.02 }}
@@ -1529,54 +1529,76 @@ export default function ClientPortalDashboardPage() {
                   <CardHeader>
                     <div className="flex items-center space-x-2">
                       <Building2 className="h-5 w-5 text-blue-500" />
-                      <CardTitle>Your Business Entities</CardTitle>
+                      <CardTitle>Entity Compliance Details</CardTitle>
                     </div>
                     <CardDescription>
-                      View and manage your registered businesses
+                      {selectedEntityId 
+                        ? `Detailed compliance overview for ${clientEntities.find(e => e.id === selectedEntityId)?.name || 'selected entity'}`
+                        : 'Select an entity above to view compliance details, service subscriptions, and upcoming deadlines'
+                      }
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {isEntitiesLoading ? (
-                      <div className="flex justify-center py-8">
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                          className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"
-                        />
-                      </div>
-                    ) : entitiesError ? (
-                      <Alert variant="destructive">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertTitle>Error</AlertTitle>
-                        <AlertDescription>
-                          Failed to load entities. Please try again later.
-                        </AlertDescription>
-                      </Alert>
-                    ) : (clientEntities as any[]).length === 0 ? (
-                      <motion.div 
-                        className="text-center py-8 text-slate-500"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                      >
-                        <Building2 className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-                        No entities found
-                      </motion.div>
+                    {selectedEntityId ? (
+                      <EntityDetailSection 
+                        key={selectedEntityId} 
+                        entity={clientEntities.find(e => e.id === selectedEntityId)} 
+                      />
                     ) : (
                       <motion.div 
-                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                        className="text-center py-12 text-slate-500"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ staggerChildren: 0.1 }}
                       >
-                        {(clientEntities as any[]).map((entity: any, index: number) => (
-                          <motion.div
-                            key={entity.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: index * 0.1 }}
-                            whileHover={{ y: -5, scale: 1.02 }}
-                            className="group"
-                          >
+                        <Building2 className="h-16 w-16 mx-auto mb-4 text-slate-300" />
+                        <h3 className="text-lg font-semibold text-slate-700 mb-2">Select an Entity</h3>
+                        <p className="text-sm mb-6 max-w-md mx-auto">
+                          Choose an entity from the dropdown above to view:
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto mb-6">
+                          <div className="bg-blue-50 rounded-lg p-4">
+                            <Shield className="h-8 w-8 text-blue-500 mx-auto mb-2" />
+                            <h4 className="font-medium text-slate-700">Compliance Analysis</h4>
+                            <p className="text-xs text-slate-500">Service subscriptions and compliance rates</p>
+                          </div>
+                          <div className="bg-green-50 rounded-lg p-4">
+                            <Calendar className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                            <h4 className="font-medium text-slate-700">Upcoming Deadlines</h4>
+                            <p className="text-xs text-slate-500">Future compliance requirements</p>
+                          </div>
+                          <div className="bg-purple-50 rounded-lg p-4">
+                            <Clock className="h-8 w-8 text-purple-500 mx-auto mb-2" />
+                            <h4 className="font-medium text-slate-700">Compliance History</h4>
+                            <p className="text-xs text-slate-500">Past submissions and completions</p>
+                          </div>
+                        </div>
+                        {clientEntities.length > 0 && (
+                          <div className="flex flex-wrap justify-center gap-3">
+                            {clientEntities.map((entity: any) => (
+                              <motion.div
+                                key={entity.id}
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setSelectedEntityId(entity.id)}
+                                  className="bg-white/50 hover:bg-white/80 border-blue-200 hover:border-blue-400 transition-all duration-300"
+                                >
+                                  <Building2 className="h-4 w-4 mr-2" />
+                                  {entity.name}
+                                </Button>
+                              </motion.div>
+                            ))}
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </motion.div>
+          </TabsContent>
                             <div className="relative">
                               <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-xl blur-lg group-hover:blur-xl transition-all duration-300"></div>
                               <Card className="relative bg-white/80 backdrop-blur-lg border border-white/40 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl overflow-hidden">
