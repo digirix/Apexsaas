@@ -252,6 +252,8 @@ function ClientTasks({ clientId }: { clientId: number }) {
           onClose={() => {
             setIsTaskDetailsOpen(false);
             setTimeout(() => setSelectedTaskId(null), 300);
+            // Refresh tasks data to show updated status
+            queryClient.invalidateQueries({ queryKey: [`/api/v1/tasks?clientId=${clientId}`] });
           }}
         />
       )}
