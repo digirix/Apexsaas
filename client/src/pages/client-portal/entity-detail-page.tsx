@@ -33,6 +33,8 @@ import {
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { addMonths } from "date-fns";
+import { DocumentManager } from "@/components/client-portal/document-manager";
+import { MessagingCenter } from "@/components/client-portal/messaging-center";
 
 // Types
 interface Entity {
@@ -325,10 +327,12 @@ export default function ClientPortalEntityDetailPage() {
 
         {/* Tabs Section */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Service Overview</TabsTrigger>
             <TabsTrigger value="compliance">Compliance Analysis</TabsTrigger>
             <TabsTrigger value="upcoming">Upcoming Deadlines</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
+            <TabsTrigger value="messages">Messages</TabsTrigger>
           </TabsList>
 
           {/* Service Overview Tab */}
@@ -444,6 +448,16 @@ export default function ClientPortalEntityDetailPage() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Documents Tab */}
+          <TabsContent value="documents">
+            <DocumentManager entityId={entity?.id} />
+          </TabsContent>
+
+          {/* Messages Tab */}
+          <TabsContent value="messages">
+            <MessagingCenter entityId={entity?.id} entityName={entity?.name} />
           </TabsContent>
         </Tabs>
       </motion.main>

@@ -68,8 +68,8 @@ export function DocumentManager({ entityId }: DocumentManagerProps) {
   });
 
   // Get unique years and types for filters
-  const availableYears = [...new Set(documents.map(doc => doc.documentYear).filter(Boolean))].sort((a, b) => b - a);
-  const availableTypes = [...new Set(documents.map(doc => doc.documentType).filter(Boolean))];
+  const availableYears = Array.from(new Set(documents.map(doc => doc.documentYear).filter(Boolean))).sort((a, b) => b - a);
+  const availableTypes = Array.from(new Set(documents.map(doc => doc.documentType).filter(Boolean)));
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -101,13 +101,13 @@ export function DocumentManager({ entityId }: DocumentManagerProps) {
         // Handle file download
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const a = window.document.createElement('a');
         a.href = url;
         a.download = document.originalFileName;
-        document.body.appendChild(a);
+        window.document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        window.document.body.removeChild(a);
       } else {
         const errorData = await response.json();
         alert(errorData.message || 'Download failed');
