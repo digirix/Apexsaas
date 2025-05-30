@@ -972,6 +972,28 @@ export default function ClientPortalDashboardPage() {
 
   const client = clientData?.client || {};
   const clientEntities = clientData?.entities || [];
+  
+  // Show login prompt if not authenticated
+  if (!clientData && !isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold text-gray-900">Client Portal Access</CardTitle>
+            <CardDescription>Please log in to access your account dashboard</CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Button 
+              onClick={() => window.location.href = '/client-portal/login'} 
+              className="w-full"
+            >
+              Go to Login
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
