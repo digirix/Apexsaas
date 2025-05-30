@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -174,10 +174,14 @@ export default function ClientPortalDashboardPage() {
     }).length;
 
     const serviceBreakdown = entityServices.map((service: any) => {
-      const serviceTasks = entityTasks.filter(task => 
-        task.title?.toLowerCase().includes(service.name?.toLowerCase()) ||
-        task.description?.toLowerCase().includes(service.name?.toLowerCase())
-      );
+      const serviceTasks = entityTasks.filter(task => {
+        if (!task || !service) return false;
+        const taskTitle = task.title || '';
+        const taskDesc = task.description || '';
+        const serviceName = service.name || '';
+        return taskTitle.toLowerCase().includes(serviceName.toLowerCase()) ||
+               taskDesc.toLowerCase().includes(serviceName.toLowerCase());
+      });
       
       const completionRate = getTaskCompletionRate(serviceTasks);
       
@@ -224,8 +228,26 @@ export default function ClientPortalDashboardPage() {
     };
   };
 
-  const selectedEntity = selectedEntityId ? clientEntities.find((e: any) => e.id === selectedEntityId) : null;
-  const complianceAnalysis = generateComplianceAnalysis();
+  // Filter entities and related data based on selection with error handling
+  const selectedEntity = useMemo(() => {
+    try {
+      return selectedEntityId && Array.isArray(clientEntities) 
+        ? clientEntities.find((e: any) => e && e.id === selectedEntityId) 
+        : null;
+    } catch (error) {
+      console.error('Error finding selected entity:', error);
+      return null;
+    }
+  }, [selectedEntityId, clientEntities]);
+  
+  const complianceAnalysis = useMemo(() => {
+    try {
+      return generateComplianceAnalysis();
+    } catch (error) {
+      console.error('Error generating compliance analysis:', error);
+      return null;
+    }
+  }, [selectedEntityId, entityServices, serviceTypes, clientTasks]);
 
   if (isProfileLoading) {
     return (
@@ -416,7 +438,15 @@ export default function ClientPortalDashboardPage() {
                   >
                     <Select 
                       value={selectedEntityId?.toString() || "all"} 
-                      onValueChange={(value) => setSelectedEntityId(value === "all" ? null : parseInt(value))}
+                      onValueChange={(value) => {
+                        try {
+                          const newEntityId = value === "all" || !value ? null : parseInt(value);
+                          setSelectedEntityId(newEntityId);
+                        } catch (error) {
+                          console.error('Error setting entity ID:', error);
+                          setSelectedEntityId(null);
+                        }
+                      }}
                     >
                       <SelectTrigger className="bg-white/80 backdrop-blur-lg border border-white/40 shadow-lg rounded-xl px-4 py-2 h-10 hover:bg-white/90 transition-all duration-300">
                         <SelectValue placeholder="Select an entity..." />
