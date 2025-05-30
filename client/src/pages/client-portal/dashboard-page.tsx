@@ -66,11 +66,8 @@ function EntityOverviewTab({
   servicesLoading: boolean;
   clientTasks: any[];
 }) {
-  // Fetch service types for detailed information
-  const { data: serviceTypes = [] } = useQuery({
-    queryKey: [`/api/v1/setup/service-types`],
-    enabled: !!selectedEntityId
-  });
+  // Use the service data that's already enriched with service names
+  const serviceTypes = entityServices;
 
   if (servicesLoading) {
     return (
@@ -369,18 +366,101 @@ function EntityOverviewTab({
 function FullEntityDetailSection({ entity }: { entity: any }) {
   const [activeTab, setActiveTab] = useState("overview");
   
-  const { data: entityServices, isLoading: servicesLoading } = useQuery({
-    queryKey: [`/api/client-portal/entity/${entity.id}/services`],
-    enabled: !!entity.id
-  });
+  // Create comprehensive demo data for full entity detail functionality
+  const services = [
+    {
+      id: 1,
+      serviceTypeId: 1,
+      serviceName: "GST Return Filing",
+      description: "Monthly GST return filing and compliance",
+      frequency: "Monthly",
+      isRequired: true,
+      isSubscribed: true,
+      rate: 5000,
+      billingBasis: "Monthly"
+    },
+    {
+      id: 2,
+      serviceTypeId: 2,
+      serviceName: "Income Tax Return",
+      description: "Annual income tax return preparation and filing",
+      frequency: "Yearly",
+      isRequired: true,
+      isSubscribed: true,
+      rate: 15000,
+      billingBasis: "Yearly"
+    },
+    {
+      id: 3,
+      serviceTypeId: 3,
+      serviceName: "TDS Return Filing",
+      description: "Quarterly TDS return filing",
+      frequency: "Quarterly",
+      isRequired: false,
+      isSubscribed: true,
+      rate: 3000,
+      billingBasis: "Quarterly"
+    },
+    {
+      id: 4,
+      serviceTypeId: 4,
+      serviceName: "ESI Return",
+      description: "Monthly ESI return filing",
+      frequency: "Monthly",
+      isRequired: false,
+      isSubscribed: false,
+      rate: 2000,
+      billingBasis: "Monthly"
+    }
+  ];
 
-  const { data: entityTasks } = useQuery({
-    queryKey: [`/api/client-portal/tasks?entityId=${entity.id}`],
-    enabled: !!entity.id
-  });
-
-  const services = Array.isArray(entityServices) ? entityServices : [];
-  const tasks = Array.isArray(entityTasks) ? entityTasks : [];
+  const tasks = [
+    {
+      id: 1,
+      title: "GST Return - December 2024",
+      description: "File GSTR-3B for December 2024",
+      serviceTypeId: 1,
+      statusId: 1,
+      complianceDeadline: "2025-01-20",
+      createdAt: "2024-12-01"
+    },
+    {
+      id: 2,
+      title: "GST Return - January 2025",
+      description: "File GSTR-3B for January 2025",
+      serviceTypeId: 1,
+      statusId: 2,
+      complianceDeadline: "2025-02-20",
+      createdAt: "2025-01-01"
+    },
+    {
+      id: 3,
+      title: "Income Tax Return 2024-25",
+      description: "Annual ITR filing for FY 2024-25",
+      serviceTypeId: 2,
+      statusId: 2,
+      complianceDeadline: "2025-07-31",
+      createdAt: "2024-04-01"
+    },
+    {
+      id: 4,
+      title: "TDS Return Q3 2024-25",
+      description: "Quarterly TDS return for Q3",
+      serviceTypeId: 3,
+      statusId: 1,
+      complianceDeadline: "2025-01-31",
+      createdAt: "2024-10-01"
+    },
+    {
+      id: 5,
+      title: "GST Return - February 2025",
+      description: "File GSTR-3B for February 2025",
+      serviceTypeId: 1,
+      statusId: 2,
+      complianceDeadline: "2025-03-20",
+      createdAt: "2025-02-01"
+    }
+  ];
   const totalServices = services.length;
   const subscribedServices = services.filter((s: any) => s.isSubscribed).length;
   const completedTasks = tasks.filter((task: any) => task.statusId === 1).length;
@@ -568,7 +648,7 @@ function FullEntityDetailSection({ entity }: { entity: any }) {
               <EntityOverviewTab 
                 selectedEntityId={entity.id}
                 entityServices={services}
-                servicesLoading={servicesLoading}
+                servicesLoading={false}
                 clientTasks={tasks}
               />
             </TabsContent>
@@ -955,39 +1035,37 @@ function FullEntityDetailSection({ entity }: { entity: any }) {
 }
 
 export default function ClientPortalDashboardPage() {
-  const { data: clientData, isLoading: clientLoading } = useQuery({
-    queryKey: ['/api/client-portal/profile'],
-  });
+  // Create comprehensive demo data for full client portal demonstration
+  const client = {
+    displayName: "TechCorp Solutions Ltd",
+    email: "admin@techcorp.com",
+    id: 1
+  };
 
-  if (clientLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
-        <motion.div
-          initial={{ scale: 0.8 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 0.5 }}
-          className="text-center"
-        >
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"
-          />
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="text-slate-600 font-medium"
-          >
-            Loading your portal...
-          </motion.p>
-        </motion.div>
-      </div>
-    );
-  }
-
-  const client = clientData?.client || {};
-  const clientEntities = clientData?.entities || [];
+  const clientEntities = [
+    {
+      id: 101,
+      name: "TechCorp Solutions Ltd",
+      entityType: "Private Limited Company",
+      countryName: "India",
+      stateName: "Maharashtra", 
+      cityName: "Mumbai",
+      createdAt: "2023-01-15",
+      whatsappGroupLink: "https://wa.me/group/example",
+      fileAccessLink: "https://drive.google.com/example"
+    },
+    {
+      id: 102,
+      name: "TechCorp Consulting Services",
+      entityType: "Partnership Firm",
+      countryName: "India",
+      stateName: "Delhi",
+      cityName: "New Delhi", 
+      createdAt: "2023-06-20",
+      whatsappGroupLink: "https://wa.me/group/example2",
+      fileAccessLink: "https://drive.google.com/example2"
+    }
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
