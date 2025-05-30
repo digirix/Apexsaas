@@ -1595,3 +1595,110 @@ export const createNotificationSchema = z.object({
 });
 
 export type CreateNotification = z.infer<typeof createNotificationSchema>;
+
+// Client Documents table for Client Portal document management
+export const clientDocuments = pgTable("client_documents", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  clientId: integer("client_id").notNull().references(() => clients.id),
+  entityId: integer("entity_id").references(() => entities.id), // Optional: document can be entity-specific
+  fileName: text("file_name").notNull(),
+  originalFileName: text("original_file_name").notNull(),
+  filePath: text("file_path").notNull(), // Storage path or reference
+  fileSize: integer("file_size"), // File size in bytes
+  mimeType: text("mime_type"),
+  description: text("description"),
+  uploadedBy: integer("uploaded_by"), // admin user ID who uploaded, null if uploaded by client
+  isClientVisible: boolean("is_client_visible").default(true).notNull(),
+  documentType: text("document_type"), // e.g., 'Tax Return', 'Financial Statement', 'Supporting Document'
+  documentYear: integer("document_year"), // For tax returns, financial statements
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+}, (table) => {
+  return {
+    tenantFk: foreignKey({ columns: [table.tenantId], foreignColumns: [tenants.id] }),
+    clientFk: foreignKey({ columns: [table.clientId], foreignColumns: [clients.id] }),
+    entityFk: foreignKey({ columns: [table.entityId], foreignColumns: [entities.id] }),
+  };
+});
+
+export const insertClientDocumentSchema = createInsertSchema(clientDocuments).pick({
+  tenantId: true,
+  clientId: true,
+  entityId: true,
+  fileName: true,
+  originalFileName: true,
+  filePath: true,
+  fileSize: true,
+  mimeType: true,
+  description: true,
+  uploadedBy: true,
+  isClientVisible: true,
+  documentType: true,
+  documentYear: true,
+});
+
+export type ClientDocument = typeof clientDocuments.$inferSelect;
+export type InsertClientDocument = z.infer<typeof insertClientDocumentSchema>;
+
+// Client Messages to Firm table for direct communication
+export const clientMessagesToFirm = pgTable("client_messages_to_firm", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  clientId: integer("client_id").notNull().references(() => clients.id),
+  entityId: integer("entity_id").references(() => entities.id), // Optional: message can be entity-specific
+  messageContent: text("message_content").notNull(),
+  isReadByAdmin: boolean("is_read_by_admin").default(false).notNull(),
+  adminResponse: text("admin_response"),
+  respondedBy: integer("responded_by"), // admin user ID who responded
+  respondedAt: timestamp("responded_at"),
+  priority: text("priority").default("normal"), // 'low', 'normal', 'high', 'urgent'
+  subject: text("subject"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantFk: foreignKey({ columns: [table.tenantId], foreignColumns: [tenants.id] }),
+    clientFk: foreignKey({ columns: [table.clientId], foreignColumns: [clients.id] }),
+    entityFk: foreignKey({ columns: [table.entityId], foreignColumns: [entities.id] }),
+    respondedByFk: foreignKey({ columns: [table.respondedBy], foreignColumns: [users.id] }),
+  };
+});
+
+export const insertClientMessageToFirmSchema = createInsertSchema(clientMessagesToFirm).pick({
+  tenantId: true,
+  clientId: true,
+  entityId: true,
+  messageContent: true,
+  priority: true,
+  subject: true,
+});
+
+export type ClientMessageToFirm = typeof clientMessagesToFirm.$inferSelect;
+export type InsertClientMessageToFirm = z.infer<typeof insertClientMessageToFirmSchema>;
+
+// Task acknowledgments table for client task interactions
+export const taskAcknowledgments = pgTable("task_acknowledgments", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  taskId: integer("task_id").notNull().references(() => tasks.id),
+  clientId: integer("client_id").notNull().references(() => clients.id),
+  acknowledgedAt: timestamp("acknowledged_at").defaultNow().notNull(),
+  comments: text("comments"),
+}, (table) => {
+  return {
+    taskClientUnique: unique().on(table.taskId, table.clientId),
+    tenantFk: foreignKey({ columns: [table.tenantId], foreignColumns: [tenants.id] }),
+    taskFk: foreignKey({ columns: [table.taskId], foreignColumns: [tasks.id] }),
+    clientFk: foreignKey({ columns: [table.clientId], foreignColumns: [clients.id] }),
+  };
+});
+
+export const insertTaskAcknowledgmentSchema = createInsertSchema(taskAcknowledgments).pick({
+  tenantId: true,
+  taskId: true,
+  clientId: true,
+  comments: true,
+});
+
+export type TaskAcknowledgment = typeof taskAcknowledgments.$inferSelect;
+export type InsertTaskAcknowledgment = z.infer<typeof insertTaskAcknowledgmentSchema>;

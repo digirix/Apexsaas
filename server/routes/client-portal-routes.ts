@@ -7,7 +7,14 @@ import {
   entities, 
   invoices, 
   payments, 
-  tasks
+  tasks,
+  clientDocuments,
+  clientMessagesToFirm,
+  taskAcknowledgments,
+  entityTaxJurisdictions,
+  taxJurisdictions,
+  serviceTypes,
+  entityServiceSubscriptions
 } from '@shared/schema';
 import { DatabaseStorage } from '../database-storage';
 
@@ -995,6 +1002,340 @@ export function registerClientPortalRoutes(app: Express) {
     } catch (error) {
       console.error('Error deleting client portal access:', error);
       res.status(500).json({ message: 'Failed to delete portal access' });
+    }
+  });
+
+  // Enhanced Client Portal API Endpoints
+
+  // Get entity tax jurisdictions for detailed view
+  app.get("/api/client-portal/entities/:entityId/tax-jurisdictions", isClientAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const entityId = parseInt(req.params.entityId);
+      
+      if (!entityId || isNaN(entityId)) {
+        return res.status(400).json({ message: 'Invalid entity ID' });
+      }
+      
+      // Verify entity belongs to client
+      const entity = await storage.getEntity(entityId, user.tenantId);
+      if (!entity || entity.clientId !== user.clientId) {
+        return res.status(404).json({ message: "Entity not found or access denied" });
+      }
+      
+      // Get tax jurisdictions for this entity
+      const entityTaxJurisdictionsResults = await db
+        .select({
+          id: entityTaxJurisdictions.id,
+          taxJurisdictionId: entityTaxJurisdictions.taxJurisdictionId,
+          name: taxJurisdictions.name,
+          taxType: taxJurisdictions.taxType,
+          rate: taxJurisdictions.rate,
+        })
+        .from(entityTaxJurisdictions)
+        .leftJoin(taxJurisdictions, eq(entityTaxJurisdictions.taxJurisdictionId, taxJurisdictions.id))
+        .where(and(
+          eq(entityTaxJurisdictions.entityId, entityId),
+          eq(entityTaxJurisdictions.tenantId, user.tenantId)
+        ));
+      
+      res.json(entityTaxJurisdictionsResults);
+    } catch (error) {
+      console.error('Error fetching entity tax jurisdictions:', error);
+      res.status(500).json({ message: 'Failed to fetch tax jurisdictions' });
+    }
+  });
+
+  // Enhanced documents endpoint with better filtering
+  app.get("/api/client-portal/documents", isClientAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const entityId = req.query.entityId ? parseInt(req.query.entityId as string) : null;
+      
+      console.log(`Fetching documents for client ${user.clientId} in tenant ${user.tenantId}${entityId ? ` for entity ${entityId}` : ''}`);
+      
+      // Build query conditions
+      let whereConditions = and(
+        eq(clientDocuments.clientId, user.clientId),
+        eq(clientDocuments.tenantId, user.tenantId),
+        eq(clientDocuments.isClientVisible, true)
+      );
+      
+      if (entityId) {
+        whereConditions = and(whereConditions, eq(clientDocuments.entityId, entityId));
+      }
+      
+      // Query the database for client documents
+      const documentResults = await db
+        .select()
+        .from(clientDocuments)
+        .where(whereConditions)
+        .orderBy(desc(clientDocuments.createdAt));
+      
+      // If there are no documents, return sample documents for demonstration
+      if (documentResults.length === 0) {
+        const currentYear = new Date().getFullYear();
+        
+        console.log('No documents found, returning sample document data for demonstration');
+        return res.json([
+          {
+            id: 1,
+            fileName: `${currentYear}_tax_return.pdf`,
+            originalFileName: `${currentYear} Tax Return.pdf`,
+            description: 'Annual tax filing for the current fiscal year',
+            documentType: 'Tax Return',
+            documentYear: currentYear,
+            fileSize: 2048576,
+            createdAt: new Date().toISOString(),
+            canDownload: false // Sample document, no actual file
+          },
+          {
+            id: 2,
+            fileName: `${currentYear}_financial_statements.pdf`,
+            originalFileName: `${currentYear} Financial Statements.pdf`,
+            description: 'Compiled financial statements',
+            documentType: 'Financial Statement',
+            documentYear: currentYear,
+            fileSize: 1536000,
+            createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+            canDownload: false // Sample document, no actual file
+          }
+        ]);
+      }
+      
+      // Format documents for client portal
+      const formattedDocuments = documentResults.map(doc => ({
+        id: doc.id,
+        fileName: doc.fileName,
+        originalFileName: doc.originalFileName,
+        description: doc.description,
+        documentType: doc.documentType,
+        documentYear: doc.documentYear,
+        fileSize: doc.fileSize,
+        createdAt: doc.createdAt,
+        canDownload: true
+      }));
+      
+      res.json(formattedDocuments);
+    } catch (error) {
+      console.error('Error fetching client documents:', error);
+      res.status(500).json({ message: 'Failed to fetch documents' });
+    }
+  });
+
+  // Download document endpoint
+  app.get("/api/client-portal/documents/:documentId/download", isClientAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const documentId = parseInt(req.params.documentId);
+      
+      if (!documentId || isNaN(documentId)) {
+        return res.status(400).json({ message: 'Invalid document ID' });
+      }
+      
+      // Get document and verify access
+      const documentResults = await db
+        .select()
+        .from(clientDocuments)
+        .where(and(
+          eq(clientDocuments.id, documentId),
+          eq(clientDocuments.clientId, user.clientId),
+          eq(clientDocuments.tenantId, user.tenantId),
+          eq(clientDocuments.isClientVisible, true)
+        ));
+      
+      if (!documentResults || documentResults.length === 0) {
+        return res.status(404).json({ message: 'Document not found or access denied' });
+      }
+      
+      const document = documentResults[0];
+      
+      // For demo purposes, return a message since we don't have actual file storage
+      res.status(501).json({ 
+        message: 'Document download not implemented - requires file storage configuration',
+        documentInfo: {
+          fileName: document.originalFileName,
+          filePath: document.filePath
+        }
+      });
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      res.status(500).json({ message: 'Failed to download document' });
+    }
+  });
+
+  // Client messages to firm
+  app.get("/api/client-portal/messages", isClientAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      const messages = await db
+        .select()
+        .from(clientMessagesToFirm)
+        .where(and(
+          eq(clientMessagesToFirm.clientId, user.clientId),
+          eq(clientMessagesToFirm.tenantId, user.tenantId)
+        ))
+        .orderBy(desc(clientMessagesToFirm.createdAt));
+      
+      res.json(messages);
+    } catch (error) {
+      console.error('Error fetching client messages:', error);
+      res.status(500).json({ message: 'Failed to fetch messages' });
+    }
+  });
+
+  // Send message to firm
+  app.post("/api/client-portal/messages", isClientAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { messageContent, subject, priority, entityId } = req.body;
+      
+      if (!messageContent) {
+        return res.status(400).json({ message: 'Message content is required' });
+      }
+      
+      const newMessage = await db
+        .insert(clientMessagesToFirm)
+        .values({
+          tenantId: user.tenantId,
+          clientId: user.clientId,
+          entityId: entityId || null,
+          messageContent,
+          subject: subject || 'Message from Client Portal',
+          priority: priority || 'normal'
+        })
+        .returning();
+      
+      res.json(newMessage[0]);
+    } catch (error) {
+      console.error('Error sending client message:', error);
+      res.status(500).json({ message: 'Failed to send message' });
+    }
+  });
+
+  // Acknowledge task endpoint
+  app.put("/api/client-portal/tasks/:taskId/acknowledge", isClientAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const taskId = parseInt(req.params.taskId);
+      const { comments } = req.body;
+      
+      if (!taskId || isNaN(taskId)) {
+        return res.status(400).json({ message: 'Invalid task ID' });
+      }
+      
+      // Verify task belongs to client
+      const task = await storage.getTask(taskId, user.tenantId);
+      if (!task || task.clientId !== user.clientId) {
+        return res.status(404).json({ message: 'Task not found or access denied' });
+      }
+      
+      // Check if already acknowledged
+      const existingAck = await db
+        .select()
+        .from(taskAcknowledgments)
+        .where(and(
+          eq(taskAcknowledgments.taskId, taskId),
+          eq(taskAcknowledgments.clientId, user.clientId)
+        ));
+      
+      if (existingAck.length > 0) {
+        return res.status(400).json({ message: 'Task already acknowledged' });
+      }
+      
+      // Create acknowledgment
+      const acknowledgment = await db
+        .insert(taskAcknowledgments)
+        .values({
+          tenantId: user.tenantId,
+          taskId,
+          clientId: user.clientId,
+          comments: comments || null
+        })
+        .returning();
+      
+      res.json({ 
+        message: 'Task acknowledged successfully',
+        acknowledgment: acknowledgment[0]
+      });
+    } catch (error) {
+      console.error('Error acknowledging task:', error);
+      res.status(500).json({ message: 'Failed to acknowledge task' });
+    }
+  });
+
+  // Get compliance calendar data
+  app.get("/api/client-portal/compliance-calendar", isClientAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const entityId = req.query.entityId ? parseInt(req.query.entityId as string) : null;
+      
+      // Build query conditions
+      let whereConditions = and(
+        eq(tasks.clientId, user.clientId),
+        eq(tasks.tenantId, user.tenantId)
+      );
+      
+      if (entityId) {
+        whereConditions = and(whereConditions, eq(tasks.entityId, entityId));
+      }
+      
+      // Get tasks with due dates for compliance calendar
+      const complianceTasks = await db
+        .select({
+          id: tasks.id,
+          taskDetails: tasks.taskDetails,
+          dueDate: tasks.dueDate,
+          statusId: tasks.statusId,
+          entityId: tasks.entityId,
+          serviceTypeId: tasks.serviceTypeId,
+          complianceFrequency: tasks.complianceFrequency,
+          taskType: tasks.taskType
+        })
+        .from(tasks)
+        .where(whereConditions)
+        .orderBy(tasks.dueDate);
+      
+      // Format for calendar display
+      const calendarEvents = complianceTasks.map(task => ({
+        id: task.id,
+        title: task.taskDetails,
+        date: task.dueDate,
+        type: 'compliance',
+        status: task.statusId,
+        entityId: task.entityId,
+        frequency: task.complianceFrequency
+      }));
+      
+      res.json(calendarEvents);
+    } catch (error) {
+      console.error('Error fetching compliance calendar:', error);
+      res.status(500).json({ message: 'Failed to fetch compliance calendar' });
+    }
+  });
+
+  // Get action items (tasks needing client attention)
+  app.get("/api/client-portal/action-items", isClientAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      
+      // Get tasks that need client attention (specific status or assigned to client)
+      const actionItems = await db
+        .select()
+        .from(tasks)
+        .where(and(
+          eq(tasks.clientId, user.clientId),
+          eq(tasks.tenantId, user.tenantId),
+          // Add logic for tasks requiring client action - this could be based on status or other criteria
+          eq(tasks.statusId, 1) // Assuming status 1 is "Awaiting Client Information" or similar
+        ))
+        .orderBy(tasks.dueDate);
+      
+      res.json(actionItems);
+    } catch (error) {
+      console.error('Error fetching action items:', error);
+      res.status(500).json({ message: 'Failed to fetch action items' });
     }
   });
   

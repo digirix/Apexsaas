@@ -1,0 +1,100 @@
+Project Goal:
+Significantly enhance the Client Portal by:
+Replicating the key informational and functional aspects of the Admin Portal's "Entity Detailed View" within the Client Portal's "Entity Details" section (accessible after selecting an entity from the Client Portal Dashboard).
+Adding new value-added features to the Client Portal to make it an indispensable tool for clients.
+Core Philosophy:
+Client-Centric Value: All enhancements should directly benefit the client by providing clarity, convenience, and actionable insights.
+Leverage Existing Data & APIs: Maximize reuse of existing backend data sources and APIs (both Client Portal specific and shared Admin APIs) as outlined in the provided documentation.
+Consistent but Distinct UX: The Client Portal should maintain its own branding and user experience, even when presenting data similar to the Admin Portal. It's for clients, not internal staff.
+Security First: All data access must strictly adhere to the Client Portal's authentication, tenant_id, and client_id isolation.
+Read-Focused (Mostly): While displaying rich information, the Client Portal's primary role for entity details will be informational. Any interactive elements should be carefully considered for client-appropriateness (e.g., downloading documents, acknowledging tasks, but not editing core entity setup done by the firm).
+I. Replicating Admin Portal's Entity Detailed View in Client Portal Dashboard:
+Context: The Client Portal already has an "Entity Details" section with "Overview," "Tasks," "Documents," and "Invoices" tabs. We want to enrich the "Overview" tab and potentially add more relevant information across all tabs, drawing inspiration from the Admin Portal's comprehensive entity view.
+Instructions for AI:
+Analyze Admin Portal's Entity View:
+AI Task: Review the "Admin Portal Documentation," specifically the "Client Management System" -> "Entity Management" -> "Entity Configuration" and "Service Subscription System" sections. Identify all key data points and UI elements presented to an admin for a single entity.
+Key Data Points to Consider (from Admin Portal to replicate display for Client):
+Basic Entity Info: Name, Country/State, Entity Type, Business Tax ID, VAT ID.
+Service Subscriptions: Clear display of "Required Services" vs. "Subscribed Services" (similar to current Client Portal but potentially with more detail from service_types like service descriptions).
+Tax Jurisdictions: List of registered tax jurisdictions for the entity.
+File Access Links/Document Pointers: (If applicable and client-facing).
+Contact Information (Entity Specific, if any): Beyond the main client contact.
+Enhance Client Portal "Entity Details - Overview Tab":
+AI Task: Modify the frontend React components for the Client Portal's "Entity Details - Overview Tab" (Client Portal -> Entity Details -> Overview Tab).
+Layout: Design a clear, client-friendly layout to present the replicated information. Use Shadcn/UI components for consistency. It doesn't need to be an exact visual copy of the admin view but should convey the same information effectively.
+Data Fetching:
+Utilize existing TanStack Query hooks and API endpoints.
+For basic entity details: GET /api/client-portal/entities (already used for the list, now for the selected entity's details).
+For service subscriptions: GET /api/v1/entities/{id}/services (shared admin endpoint, ensure selectedEntityId is correctly passed).
+For service_types details (like descriptions): GET /api/v1/setup/service-types (shared admin endpoint).
+For tax jurisdictions: This might require a new Client Portal API endpoint (GET /api/client-portal/entities/:entityId/tax-jurisdictions) that queries entity_tax_jurisdictions filtered by tenant_id and the specific entity_id. The backend handler for this new endpoint must ensure the authenticated client portal user is authorized to view this entity.
+Presentation:
+Use clear labels and potentially info tooltips (Shadcn/UI Tooltip) to explain terms if needed (e.g., "Entity Type," "VAT ID").
+For service subscriptions, clearly differentiate between "Required" and "Subscribed," and show the status (e.g., "Subscribed," "Not Subscribed," "Pending").
+Enhance Other "Entity Details" Tabs (Tasks, Documents, Invoices):
+AI Task: Review how these are presented in the Admin Portal for a specific entity and see if any client-relevant display enhancements can be made in the Client Portal.
+Tasks Tab: Ensure it clearly shows assignee (if relevant for client to know which firm member is on it), status, due date, and potentially priority.
+Documents Tab: This is a key area for value. See Section II.
+Invoices Tab: Ensure it clearly shows invoice number, date, due date, amount, status (Paid, Unpaid, Overdue), and a download link for the PDF.
+II. Adding More Value to the Client Portal (New Features & Enhancements):
+Enhanced Document Management (Client Portal "Documents Tab"):
+Goal: Provide a secure and organized way for clients to access documents shared by the firm and potentially upload documents requested by the firm.
+AI Task (Backend):
+If not already present, design a client_documents table (or similar): id, tenantId, clientId, entityId (optional, if document is entity-specific), fileName, filePath (or storage reference like S3 key), uploadedBy (admin user ID or 'client'), createdAt, description (optional).
+Create new Client Portal API endpoints:
+GET /api/client-portal/documents?entityId=...: List documents (filtered by client, and optionally entity).
+GET /api/client-portal/documents/:documentId/download: Securely download a document.
+(Optional Advanced) POST /api/client-portal/documents/upload: Allow clients to upload documents (requires file handling, storage integration, and security scanning). This action should likely create a task or notification for the admin team to review the uploaded document.
+AI Task (Frontend):
+On the "Documents Tab," display a list/table of documents with name, upload date, and a download button.
+Implement filtering or grouping (e.g., by year, category if you add that).
+(Optional Advanced) If upload is implemented, provide a clear upload interface.
+Client-Side Task Interaction:
+Goal: Allow clients to perform limited, safe interactions with their tasks.
+AI Task:
+Acknowledge Task: Add a button for clients to "Acknowledge" certain types of tasks (e.g., "Information Request from Client"). This would update a flag on the task and potentially notify the admin. Requires a new backend API endpoint PUT /api/client-portal/tasks/:taskId/acknowledge.
+Comment on Task (Simple): Allow clients to add comments to tasks visible to them. This would use the same task_messages system you are building for the Admin portal, but the API endpoint POST /api/client-portal/tasks/:taskId/messages would ensure the userId is the client_portal_access.id (or a link to it). Mentioning @firm_member could notify the internal team.
+Security Note: Ensure clients cannot @mention other clients or see messages not intended for them. The WebSocket events for new messages would need careful scoping.
+Direct Communication Channel (Simple Secure Messaging):
+Goal: Provide a basic, secure way for clients to send messages to the firm, linked to their account (not necessarily a specific task).
+AI Task:
+Consider a "Messages" or "Contact Us" tab in the Client Portal.
+Backend: A new table client_messages_to_firm: id, tenantId, clientId, messageContent, createdAt, isReadByAdmin.
+API: POST /api/client-portal/messages to send, GET /api/client-portal/messages to view their sent messages.
+Admin side: A new section in the Admin Portal to view and reply to these messages, creating notifications for the admin team.
+Compliance Calendar View (Simplified):
+Goal: Give clients a visual overview of their important upcoming compliance deadlines that the firm is managing.
+AI Task:
+Add a "Calendar" tab or section to the Client Portal.
+API: Create GET /api/client-portal/compliance-calendar?entityId=... that fetches tasks with due dates relevant to the client/entity, focusing on key compliance deadlines (perhaps filtered by a specific task category).
+Frontend: Display these on a simple calendar view (e.g., using a lightweight React calendar component). Clicking a date could show tasks due.
+Profile Management by Client:
+Goal: Allow clients to update limited profile information and manage their password.
+AI Task:
+The /api/client-portal/profile endpoint and UI likely exists.
+Ensure clients can update their contact details (if appropriate for the firm's workflow – some firms prefer to manage this).
+Robust password change/reset functionality (already mentioned in your docs, ensure it's user-friendly).
+"What We Need From You" Section:
+Goal: Clearly highlight any outstanding items or information the firm needs from the client.
+AI Task:
+On the Client Portal Dashboard, add a prominent section.
+This could be populated by tasks assigned to the "Client" or tasks with a specific status like "Awaiting Client Information."
+API: GET /api/client-portal/action-items to fetch these specific tasks.
+III. General Implementation Guidance for AI:
+API First for New Features: For any new functionality (like enhanced documents, client messaging), define the backend API endpoints and data models first. The Client Portal frontend will consume these.
+Permissions & Authorization (Backend):
+For every Client Portal API endpoint, rigorously check:
+User is authenticated via client-portal-local strategy.
+The req.user (from client_portal_access) contains tenant_id and client_id.
+All database queries are strictly filtered by this tenant_id and client_id.
+For entity-specific data, further filter by entity_id and verify the entity belongs to the client_id.
+Error Handling: Ensure user-friendly error messages on the Client Portal if data can't be fetched or an action fails.
+UI Consistency: Use existing Shadcn/UI components and adhere to the Client Portal's established design language.
+Review Shared Endpoints: For any shared admin endpoint (e.g., /api/v1/entities/{id}/services), double-check that the data returned does not contain sensitive internal admin-only information before it's consumed by the Client Portal. If necessary, create specific Client Portal "view" DTOs or refine the queries.
+Tenant Settings for Portal Features: Consider if some new Client Portal features should be configurable per tenant via tenant_settings (e.g., "Enable Client Document Uploads").
+Instruction to AI (Example Phrasing):
+"AI, based on the Admin Portal and Client Portal documentation I've provided:
+I want to enrich the 'Entity Details - Overview Tab' in the Client Portal. Analyze the Admin Portal's entity view (Client Management -> Entity Config & Service Subscriptions) and replicate the display of key information like detailed service subscriptions and tax jurisdictions for the client. Ensure you use existing Client Portal APIs where possible (e.g., /api/client-portal/entities, /api/v1/entities/:id/services, /api/v1/setup/service-types) and propose new Client Portal-specific APIs if needed (e.g., for tax jurisdictions), ensuring strict tenant_id and client_id filtering in the backend.
+I also want to add more value. Let's start by enhancing the 'Documents Tab' in the Client Portal. Design the necessary backend table (client_documents) and Client Portal APIs (/api/client-portal/documents for listing, /api/client-portal/documents/:id/download for downloading). The frontend should list documents with download links.
+Then, let's consider allowing clients to 'Acknowledge' specific tasks. This will need a new Client Portal API endpoint (PUT /api/client-portal/tasks/:taskId/acknowledge) and a button in the task view.
+Focus on client-friendly presentation, reusing Shadcn/UI components, and maintaining the Client Portal's security model throughout. Let's iterate on these features."
