@@ -334,6 +334,24 @@ export function registerClientPortalRoutes(app: Express) {
       res.status(500).json({ message: 'Failed to change password' });
     }
   });
+
+  // Logout endpoint
+  app.post("/api/client-portal/logout", (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        console.error('Logout error:', err);
+        return res.status(500).json({ message: 'Failed to logout' });
+      }
+      req.session.destroy((err) => {
+        if (err) {
+          console.error('Session destroy error:', err);
+          return res.status(500).json({ message: 'Failed to clear session' });
+        }
+        res.clearCookie('connect.sid');
+        res.json({ message: 'Logged out successfully' });
+      });
+    });
+  });
   
   // Client Portal Data Routes
   
