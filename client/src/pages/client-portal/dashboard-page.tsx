@@ -313,8 +313,10 @@ function EntityOverviewTab({
   );
 }
 
-// Entity Detail Section Component
-function EntityDetailSection({ entity }: { entity: any }) {
+// Full Entity Detail Section Component (Admin Portal Style)
+function FullEntityDetailSection({ entity }: { entity: any }) {
+  const [activeTab, setActiveTab] = useState("overview");
+  
   const { data: entityServices, isLoading: servicesLoading } = useQuery({
     queryKey: [`/api/v1/entities/${entity.id}/services`],
     enabled: !!entity.id
@@ -326,11 +328,78 @@ function EntityDetailSection({ entity }: { entity: any }) {
   });
 
   // Calculate compliance metrics using actual service data (same as admin portal)
-  const services = entityServices || [];
+  const services = Array.isArray(entityServices) ? entityServices : [];
+  const tasks = Array.isArray(entityTasks) ? entityTasks : [];
   const totalServices = services.length;
   const requiredServices = services.filter((s: any) => s.isRequired).length;
   const subscribedServices = services.filter((s: any) => s.isSubscribed).length;
   const complianceRate = totalServices > 0 ? Math.round((subscribedServices / totalServices) * 100) : 0;
+
+  // Compliance analysis calculations
+  const getComplianceAnalysis = () => {
+    const completedTasks = tasks.filter((task: any) => task.statusId === 1).length;
+    const overdueTasks = tasks.filter((task: any) => {
+      if (!task.complianceDeadline || task.statusId === 1) return false;
+      return new Date(task.complianceDeadline) < new Date();
+    }).length;
+    
+    const upcomingTasks = tasks.filter((task: any) => {
+      if (!task.complianceDeadline || task.statusId === 1) return false;
+      const deadline = new Date(task.complianceDeadline);
+      const now = new Date();
+      const thirtyDaysFromNow = new Date();
+      thirtyDaysFromNow.setDate(now.getDate() + 30);
+      return deadline >= now && deadline <= thirtyDaysFromNow;
+    }).length;
+
+    return {
+      overallScore: tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0,
+      totalServices,
+      subscribedServices,
+      requiredServices,
+      completedTasks,
+      overdueTasks,
+      upcomingTasks,
+      totalTasks: tasks.length
+    };
+  };
+
+  const complianceAnalysis = getComplianceAnalysis();
+
+  // Upcoming compliance deadlines
+  const getUpcomingCompliance = () => {
+    const now = new Date();
+    const ninetyDaysFromNow = new Date();
+    ninetyDaysFromNow.setDate(now.getDate() + 90);
+
+    return tasks
+      .filter((task: any) => {
+        if (!task.complianceDeadline || task.statusId === 1) return false;
+        const deadline = new Date(task.complianceDeadline);
+        return deadline >= now && deadline <= ninetyDaysFromNow;
+      })
+      .map((task: any) => {
+        const deadline = new Date(task.complianceDeadline);
+        const daysUntilDue = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 3600 * 24));
+        let priority: 'high' | 'medium' | 'low' = 'low';
+        
+        if (daysUntilDue <= 7) priority = 'high';
+        else if (daysUntilDue <= 30) priority = 'medium';
+
+        return {
+          serviceId: task.serviceTypeId,
+          serviceName: task.title || 'Unknown Service',
+          dueDate: deadline,
+          frequency: task.complianceFrequency || 'Unknown',
+          priority,
+          daysUntilDue,
+          compliancePeriod: task.complianceYear || new Date().getFullYear().toString()
+        };
+      })
+      .sort((a, b) => a.daysUntilDue - b.daysUntilDue);
+  };
+
+  const upcomingCompliance = getUpcomingCompliance();
 
   return (
     <motion.div
@@ -342,25 +411,56 @@ function EntityDetailSection({ entity }: { entity: any }) {
       <Card className="bg-white/80 backdrop-blur-lg border border-white/40 shadow-xl rounded-2xl overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
         
-        <CardHeader className="pb-4">
+        {/* Entity Header */}
+        <CardHeader className="bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl">
-                <Building2 className="h-6 w-6 text-white" />
+                <Building className="h-6 w-6 text-white" />
               </div>
               <div>
-                <CardTitle className="text-xl font-bold text-slate-900">{entity.name}</CardTitle>
-                <CardDescription className="text-slate-600">
-                  Complete entity overview and service configuration
+                <CardTitle className="text-2xl text-slate-900">{entity.name}</CardTitle>
+                <CardDescription className="text-slate-600 mt-1">
+                  {entity.entityType} • {entity.countryName}, {entity.stateName}
                 </CardDescription>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                {totalServices} Services
+              </Badge>
+              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                {complianceAnalysis.completedTasks}/{complianceAnalysis.totalTasks} Tasks Complete
+              </Badge>
+              <div className="flex items-center space-x-2">
+                {entity.whatsappGroupLink && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => window.open(entity.whatsappGroupLink, '_blank')}
+                    className="text-green-600 hover:text-green-700"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                  </Button>
+                )}
+                {entity.fileAccessLink && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => window.open(entity.fileAccessLink, '_blank')}
+                    className="text-blue-600 hover:text-blue-700"
+                  >
+                    <LinkIcon className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent>
-          <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
+        <CardContent className="p-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-4 mb-6">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="compliance">Compliance Analysis</TabsTrigger>
               <TabsTrigger value="history">Compliance History</TabsTrigger>
@@ -370,9 +470,9 @@ function EntityDetailSection({ entity }: { entity: any }) {
             <TabsContent value="overview" className="space-y-6">
               <EntityOverviewTab 
                 selectedEntityId={entity.id}
-                entityServices={Array.isArray(entityServices) ? entityServices : []}
+                entityServices={services}
                 servicesLoading={servicesLoading}
-                clientTasks={Array.isArray(entityTasks) ? entityTasks : []}
+                clientTasks={tasks}
               />
             </TabsContent>
 
@@ -384,15 +484,292 @@ function EntityDetailSection({ entity }: { entity: any }) {
                     Detailed Compliance Analysis
                   </CardTitle>
                   <CardDescription>
-                    Complete breakdown of compliance status for each service
+                    Comprehensive view of compliance status across all services
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Service</TableHead>
-                        <TableHead>Status</TableHead>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-blue-600">{complianceAnalysis.overallScore}%</div>
+                      <div className="text-sm text-gray-600">Overall Compliance Score</div>
+                      <Progress value={complianceAnalysis.overallScore} className="mt-2" />
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-green-600">{complianceAnalysis.completedTasks}</div>
+                      <div className="text-sm text-gray-600">Completed Tasks</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-red-600">{complianceAnalysis.overdueTasks}</div>
+                      <div className="text-sm text-gray-600">Overdue Tasks</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-yellow-600">{complianceAnalysis.upcomingTasks}</div>
+                      <div className="text-sm text-gray-600">Upcoming (30 days)</div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="font-semibold text-gray-900">Service Configuration</h4>
+                    <div className="space-y-3">
+                      {services.map((service: any) => {
+                        const relatedTasks = tasks.filter((task: any) => task.serviceTypeId === service.id);
+                        const completedTasks = relatedTasks.filter((task: any) => task.statusId === 1);
+                        const completionRate = relatedTasks.length > 0 ? (completedTasks.length / relatedTasks.length) * 100 : 0;
+                        
+                        return (
+                          <div key={service.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3">
+                                <div>
+                                  <h4 className="font-medium text-gray-900">{service.name}</h4>
+                                  <p className="text-sm text-gray-500">
+                                    Rate: ${service.rate} • {service.billingBasis}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                              <div className="text-right">
+                                <div className="text-sm text-gray-600">
+                                  {completedTasks.length}/{relatedTasks.length} tasks completed
+                                </div>
+                                <Progress value={completionRate} className="w-20 h-2 mt-1" />
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Badge variant={service.isRequired ? "default" : "secondary"}>
+                                  {service.isRequired ? "Required" : "Optional"}
+                                </Badge>
+                                <Badge variant={service.isSubscribed ? "default" : "outline"}>
+                                  {service.isSubscribed ? "Subscribed" : "Not Subscribed"}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center">
+                                {service.isSubscribed ? (
+                                  completionRate === 100 && relatedTasks.length > 0 ? (
+                                    <CheckCircle className="h-5 w-5 text-green-500" />
+                                  ) : relatedTasks.length > 0 ? (
+                                    <Clock className="h-5 w-5 text-yellow-500" />
+                                  ) : (
+                                    <AlertTriangle className="h-5 w-5 text-red-500" />
+                                  )
+                                ) : (
+                                  <XCircle className="h-5 w-5 text-gray-400" />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="history" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Shield className="h-5 w-5 mr-2" />
+                    Compliance History
+                  </CardTitle>
+                  <CardDescription>
+                    Track record of completed compliance activities
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {tasks.filter((task: any) => task.statusId === 1).length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Service</TableHead>
+                          <TableHead>Task Details</TableHead>
+                          <TableHead>Due Date</TableHead>
+                          <TableHead>Completed</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {tasks
+                          .filter((task: any) => task.statusId === 1)
+                          .map((task: any) => (
+                            <TableRow key={task.id}>
+                              <TableCell className="font-medium">
+                                {task.title || 'Unknown Service'}
+                              </TableCell>
+                              <TableCell>{task.description || 'No description'}</TableCell>
+                              <TableCell>
+                                {task.dueDate ? formatDate(task.dueDate) : 'No due date'}
+                              </TableCell>
+                              <TableCell>
+                                {task.updatedAt ? formatDate(task.updatedAt) : 'Unknown'}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="default" className="bg-green-100 text-green-800">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  Completed
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Shield className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500 mb-2">No completed tasks</p>
+                      <p className="text-sm text-gray-400">Completed compliance activities will appear here</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="upcoming" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Calendar className="h-5 w-5 mr-2" />
+                    Upcoming Compliance Deadlines
+                  </CardTitle>
+                  <CardDescription>
+                    Upcoming deadlines for the next 90 days
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {upcomingCompliance.length > 0 ? (
+                    <div className="space-y-3">
+                      {upcomingCompliance.map((item: any, index: number) => (
+                        <div key={index} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
+                          <div className="flex items-center space-x-3">
+                            <div className={`w-3 h-3 rounded-full ${
+                              item.priority === 'high' ? 'bg-red-500' :
+                              item.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                            }`}></div>
+                            <div>
+                              <h4 className="font-medium text-gray-900">{item.serviceName}</h4>
+                              <p className="text-sm text-gray-500">
+                                {item.frequency} • Period: {item.compliancePeriod}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-medium text-gray-900">
+                              {formatDate(item.dueDate)}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {item.daysUntilDue} days remaining
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500 mb-2">No upcoming deadlines</p>
+                      <p className="text-sm text-gray-400">All compliance requirements are up to date</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
+// Upcoming Compliance Section Component (for Overview tab)
+function UpcomingComplianceSection({ selectedEntityId }: { selectedEntityId: number }) {
+  const { data: clientTasks } = useQuery({
+    queryKey: [`/api/client-portal/tasks?entityId=${selectedEntityId}`],
+    enabled: !!selectedEntityId
+  });
+
+  const tasks = Array.isArray(clientTasks) ? clientTasks : [];
+  
+  // Calculate upcoming compliance deadlines (next 3 months)
+  const now = new Date();
+  const threeMonthsFromNow = new Date();
+  threeMonthsFromNow.setMonth(now.getMonth() + 3);
+
+  const upcomingCompliance = tasks
+    .filter((task: any) => {
+      if (!task.complianceDeadline || task.statusId === 1) return false;
+      const deadline = new Date(task.complianceDeadline);
+      return deadline >= now && deadline <= threeMonthsFromNow;
+    })
+    .map((task: any) => {
+      const deadline = new Date(task.complianceDeadline);
+      const daysUntilDue = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 3600 * 24));
+      
+      let priority: 'high' | 'medium' | 'low' = 'low';
+      if (daysUntilDue <= 7) priority = 'high';
+      else if (daysUntilDue <= 30) priority = 'medium';
+
+      return {
+        serviceId: task.serviceTypeId,
+        serviceName: task.title || 'Unknown Service',
+        dueDate: deadline,
+        frequency: task.complianceFrequency || 'Unknown',
+        priority,
+        daysUntilDue,
+        compliancePeriod: task.complianceYear || new Date().getFullYear().toString()
+      };
+    })
+    .sort((a, b) => a.daysUntilDue - b.daysUntilDue);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center">
+          <Calendar className="h-5 w-5 mr-2" />
+          Upcoming Compliance
+        </CardTitle>
+        <CardDescription>
+          Important deadlines in the next 3 months
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {upcomingCompliance.length > 0 ? (
+          <div className="space-y-3">
+            {upcomingCompliance.slice(0, 5).map((item: any, index: number) => (
+              <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className={`w-3 h-3 rounded-full ${
+                    item.priority === 'high' ? 'bg-red-500' :
+                    item.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                  }`}></div>
+                  <div>
+                    <h4 className="font-medium text-gray-900">{item.serviceName}</h4>
+                    <p className="text-sm text-gray-500">
+                      {item.frequency} • {item.compliancePeriod}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-medium text-gray-900">
+                    {formatDate(item.dueDate)}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {item.daysUntilDue} days
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-6">
+            <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-500">No upcoming deadlines</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
                         <TableHead>Frequency</TableHead>
                         <TableHead>Required</TableHead>
                         <TableHead>Subscribed</TableHead>
@@ -1094,7 +1471,7 @@ export default function ClientPortalDashboardPage() {
 
                 {/* Detailed Entity Information */}
                 {(clientEntities as any[]).map((entity: any, index: number) => (
-                  <EntityDetailSection key={`detail-${entity.id}`} entity={entity} />
+                  <FullEntityDetailSection key={`detail-${entity.id}`} entity={entity} />
                 ))}
               </motion.div>
             )}
