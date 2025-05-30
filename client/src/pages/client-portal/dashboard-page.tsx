@@ -415,14 +415,14 @@ export default function ClientPortalDashboardPage() {
                     className="min-w-[280px]"
                   >
                     <Select 
-                      value={selectedEntityId?.toString() || ""} 
-                      onValueChange={(value) => setSelectedEntityId(value ? parseInt(value) : null)}
+                      value={selectedEntityId?.toString() || "all"} 
+                      onValueChange={(value) => setSelectedEntityId(value === "all" ? null : parseInt(value))}
                     >
                       <SelectTrigger className="bg-white/80 backdrop-blur-lg border border-white/40 shadow-lg rounded-xl px-4 py-2 h-10 hover:bg-white/90 transition-all duration-300">
                         <SelectValue placeholder="Select an entity..." />
                       </SelectTrigger>
                       <SelectContent className="bg-white/95 backdrop-blur-xl border border-white/50 shadow-xl rounded-xl">
-                        <SelectItem value="">
+                        <SelectItem value="all">
                           <div className="flex items-center space-x-2">
                             <Home className="h-4 w-4 text-slate-500" />
                             <span>All Entities</span>
