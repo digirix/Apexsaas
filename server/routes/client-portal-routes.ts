@@ -233,16 +233,27 @@ export function registerClientPortalRoutes(app: Express) {
         LIMIT 1
       `);
       
-      // Return combined client profile data
+      console.log(`Found ${entityResults.length} entities for client ${user.clientId}`);
+      
+      // Return combined client profile data with full entity information
       res.json({
-        client: client,
+        client: {
+          id: client.id,
+          displayName: client.displayName,
+          email: client.email,
+          status: client.status || 'Active'
+        },
         entities: entityResults,
         stats: {
           openTaskCount: parseInt(openTaskCount.rows[0]?.count || '0'),
           upcomingInvoiceCount: parseInt(upcomingInvoiceCount.rows[0]?.count || '0'),
           entityCount: entityResults.length
         },
-        latestTask: latestTaskResult.rows[0] || null
+        latestTask: latestTaskResult.rows[0] || null,
+        accountManager: {
+          name: "Your Account Manager",
+          email: "accountmanager@example.com"
+        }
       });
     } catch (error) {
       console.error('Error fetching client profile:', error);

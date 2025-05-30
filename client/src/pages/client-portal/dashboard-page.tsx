@@ -991,7 +991,7 @@ export default function ClientPortalDashboardPage() {
           </p>
         </motion.div>
 
-        {/* Client Overview Card */}
+        {/* Comprehensive Client Overview Dashboard */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1000,22 +1000,54 @@ export default function ClientPortalDashboardPage() {
         >
           <Card className="bg-white/80 backdrop-blur-lg border border-white/40 shadow-xl">
             <CardHeader>
-              <CardTitle className="text-xl text-slate-900">Client Overview</CardTitle>
-              <CardDescription>Your account information and entities</CardDescription>
+              <CardTitle className="text-xl text-slate-900 flex items-center">
+                <Users className="h-5 w-5 mr-2" />
+                Account Dashboard
+              </CardTitle>
+              <CardDescription>Complete overview of your account, entities, and compliance status</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{clientEntities.length}</div>
-                  <div className="text-sm text-gray-600">Total Entities</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+                  <Building className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-blue-700">{clientEntities.length}</div>
+                  <div className="text-sm text-blue-600">Business Entities</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">Active</div>
-                  <div className="text-sm text-gray-600">Account Status</div>
+                <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200">
+                  <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-green-700">{clientData?.stats?.openTaskCount || 0}</div>
+                  <div className="text-sm text-green-600">Open Tasks</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">{client.email}</div>
-                  <div className="text-sm text-gray-600">Contact Email</div>
+                <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200">
+                  <FileText className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-purple-700">{clientData?.stats?.upcomingInvoiceCount || 0}</div>
+                  <div className="text-sm text-purple-600">Pending Invoices</div>
+                </div>
+                <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg border border-orange-200">
+                  <Shield className="h-8 w-8 text-orange-600 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-orange-700">Active</div>
+                  <div className="text-sm text-orange-600">Account Status</div>
+                </div>
+              </div>
+              
+              {/* Contact Information Section */}
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h4 className="font-semibold text-gray-900 mb-4">Contact Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center space-x-3">
+                    <Mail className="h-4 w-4 text-gray-400" />
+                    <div>
+                      <div className="text-sm text-gray-500">Email Address</div>
+                      <div className="font-medium text-gray-900">{client.email}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Phone className="h-4 w-4 text-gray-400" />
+                    <div>
+                      <div className="text-sm text-gray-500">Account Manager</div>
+                      <div className="font-medium text-gray-900">{clientData?.accountManager?.name || 'Not Assigned'}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
