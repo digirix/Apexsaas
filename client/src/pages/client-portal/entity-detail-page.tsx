@@ -130,15 +130,10 @@ export default function ClientPortalEntityDetailPage() {
     queryKey: ['/api/v1/setup/entity-types'],
   });
 
-  // Calculate compliance analysis
-  const complianceAnalysis: ComplianceAnalysis | null = entity && serviceSubscriptions && entityTasks
-    ? calculateComplianceAnalysis(entity, serviceSubscriptions, entityTasks)
+  // Calculate compliance analysis using the same logic as admin portal
+  const complianceAnalysis = entity && serviceSubscriptions && entityTasks && serviceTypes
+    ? calculateEntityComplianceAnalysis(entity, serviceSubscriptions, entityTasks, serviceTypes)
     : null;
-
-  // Calculate upcoming compliance deadlines
-  const upcomingCompliances: UpcomingCompliance[] = complianceAnalysis
-    ? calculateUpcomingCompliances(complianceAnalysis.serviceBreakdown)
-    : [];
 
   if (isEntityLoading) {
     return (
@@ -330,7 +325,7 @@ export default function ClientPortalEntityDetailPage() {
           )}
         </div>
 
-        {/* Tabs Section */}
+        {/* Compliance Tracking Section - Exact Mirror of Admin Portal */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Service Overview</TabsTrigger>
@@ -357,18 +352,20 @@ export default function ClientPortalEntityDetailPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {serviceSubscriptions.map((service) => {
-                      const relatedTasks = entityTasks.filter(task => task.serviceTypeId === service.id);
+                    {serviceSubscriptions.map((subscription) => {
+                      const serviceType = serviceTypes.find(st => st.id === subscription.serviceTypeId);
+                      const serviceName = serviceType?.name || 'Unknown Service';
+                      const relatedTasks = entityTasks.filter(task => task.serviceTypeId === subscription.serviceTypeId);
                       const completedTasks = relatedTasks.filter(task => task.statusId === 1).length;
                       
                       return (
-                        <div key={service.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
+                        <div key={subscription.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
                           <div className="flex-1">
                             <div className="flex items-center space-x-3">
                               <div>
-                                <h4 className="font-medium text-gray-900">{service.name}</h4>
+                                <h4 className="font-medium text-gray-900">{serviceName}</h4>
                                 <p className="text-sm text-gray-500">
-                                  {service.description || `Rate: ${service.rate || 'N/A'} • Billing: ${service.billingBasis || 'N/A'}`}
+                                  {serviceType?.description || `Rate: ${serviceType?.rate || 'N/A'} • Billing: ${serviceType?.billingBasis || 'N/A'}`}
                                 </p>
                               </div>
                             </div>
@@ -379,16 +376,16 @@ export default function ClientPortalEntityDetailPage() {
                                 {completedTasks}/{relatedTasks.length} tasks completed
                               </div>
                               <div className="flex items-center space-x-2 mt-1">
-                                <Badge variant={service.isRequired ? "default" : "secondary"} className="text-xs">
-                                  {service.isRequired ? "Required" : "Optional"}
+                                <Badge variant={subscription.isRequired ? "default" : "secondary"} className="text-xs">
+                                  {subscription.isRequired ? "Required" : "Optional"}
                                 </Badge>
-                                <Badge variant={service.isSubscribed ? "default" : "outline"} className="text-xs">
-                                  {service.isSubscribed ? "Subscribed" : "Not Subscribed"}
+                                <Badge variant={subscription.isSubscribed ? "default" : "outline"} className="text-xs">
+                                  {subscription.isSubscribed ? "Subscribed" : "Not Subscribed"}
                                 </Badge>
                               </div>
                             </div>
                             <div className="flex items-center">
-                              {service.isSubscribed ? (
+                              {subscription.isSubscribed ? (
                                 completedTasks === relatedTasks.length && relatedTasks.length > 0 ? (
                                   <CheckCircle className="h-5 w-5 text-green-500" />
                                 ) : relatedTasks.length > 0 ? (
@@ -410,7 +407,7 @@ export default function ClientPortalEntityDetailPage() {
             </Card>
           </TabsContent>
 
-          {/* Compliance Analysis Tab */}
+          {/* Compliance Analysis Tab - Mirror of Admin Portal */}
           <TabsContent value="analysis">
             <Card>
               <CardHeader>
@@ -423,12 +420,12 @@ export default function ClientPortalEntityDetailPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ComplianceAnalysisTable entityTasks={entityTasks} serviceTypes={serviceTypes} />
+                <ClientPortalComplianceAnalysisTable entityTasks={entityTasks} serviceTypes={serviceTypes} />
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Compliance History Tab */}
+          {/* Compliance History Tab - Mirror of Admin Portal */}
           <TabsContent value="history">
             <Card>
               <CardHeader>
@@ -441,12 +438,12 @@ export default function ClientPortalEntityDetailPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ComplianceHistoryTable entityTasks={entityTasks} serviceTypes={serviceTypes} />
+                <ClientPortalComplianceHistoryTable entityTasks={entityTasks} serviceTypes={serviceTypes} />
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Upcoming Deadlines Tab */}
+          {/* Upcoming Deadlines Tab - Mirror of Admin Portal */}
           <TabsContent value="upcoming">
             <Card>
               <CardHeader>
@@ -459,7 +456,7 @@ export default function ClientPortalEntityDetailPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <UpcomingComplianceTable entityTasks={entityTasks} serviceTypes={serviceTypes} />
+                <ClientPortalUpcomingComplianceTable entityTasks={entityTasks} serviceTypes={serviceTypes} />
               </CardContent>
             </Card>
           </TabsContent>
@@ -469,14 +466,17 @@ export default function ClientPortalEntityDetailPage() {
   );
 }
 
-// Helper function to calculate compliance analysis
-function calculateComplianceAnalysis(
+// Client Portal Compliance Analysis - Exact Mirror of Admin Portal
+function calculateEntityComplianceAnalysis(
   entity: Entity,
   serviceSubscriptions: any[],
-  entityTasks: any[]
+  entityTasks: any[],
+  serviceTypes: any[]
 ): ComplianceAnalysis {
-  const serviceBreakdown = serviceSubscriptions.map(service => {
-    const serviceTasks = entityTasks.filter(task => task.serviceTypeId === service.id);
+  const serviceBreakdown = serviceSubscriptions.map(subscription => {
+    const serviceType = serviceTypes.find(st => st.id === subscription.serviceTypeId);
+    const serviceName = serviceType?.name || 'Unknown Service';
+    const serviceTasks = entityTasks.filter(task => task.serviceTypeId === subscription.serviceTypeId);
     const completedTasks = serviceTasks.filter(task => task.statusId === 1);
     
     const completionRate = serviceTasks.length > 0 ? (completedTasks.length / serviceTasks.length) * 100 : 0;
@@ -503,7 +503,7 @@ function calculateComplianceAnalysis(
     }
 
     let status: 'compliant' | 'overdue' | 'upcoming' | 'not-subscribed';
-    if (!service.isSubscribed) {
+    if (!subscription.isSubscribed) {
       status = 'not-subscribed';
     } else if (nextDue) {
       const now = new Date();
@@ -516,15 +516,15 @@ function calculateComplianceAnalysis(
         status = 'compliant';
       }
     } else {
-      status = service.isSubscribed ? 'upcoming' : 'not-subscribed';
+      status = subscription.isSubscribed ? 'upcoming' : 'not-subscribed';
     }
 
     return {
-      serviceId: service.id,
-      serviceName: service.name,
-      isRequired: service.isRequired,
-      isSubscribed: service.isSubscribed,
-      frequency: service.billingBasis || 'N/A',
+      serviceId: subscription.serviceTypeId,
+      serviceName: serviceName,
+      isRequired: subscription.isRequired,
+      isSubscribed: subscription.isSubscribed,
+      frequency: serviceType?.billingBasis || 'N/A',
       lastCompleted,
       nextDue,
       status,
@@ -631,8 +631,8 @@ function ComplianceAnalysisSection({ analysis }: { analysis: ComplianceAnalysis 
   );
 }
 
-// Enhanced Compliance Analysis Table - Shows tasks due within 3 months
-function ComplianceAnalysisTable({ entityTasks, serviceTypes }: { entityTasks: any[], serviceTypes: any[] }) {
+// Client Portal Enhanced Compliance Analysis Table - Exact Mirror of Admin Portal
+function ClientPortalComplianceAnalysisTable({ entityTasks, serviceTypes }: { entityTasks: any[], serviceTypes: any[] }) {
   const today = new Date();
   const threeMonthsFromNow = new Date();
   threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
@@ -680,7 +680,7 @@ function ComplianceAnalysisTable({ entityTasks, serviceTypes }: { entityTasks: a
           return (
             <TableRow key={task.id}>
               <TableCell className="font-medium">{serviceName}</TableCell>
-              <TableCell>{task.taskDetails}</TableCell>
+              <TableCell>{task.description || task.title}</TableCell>
               <TableCell>{task.complianceYear}</TableCell>
               <TableCell>{format(deadline, 'MMM dd, yyyy')}</TableCell>
               <TableCell>
@@ -704,8 +704,8 @@ function ComplianceAnalysisTable({ entityTasks, serviceTypes }: { entityTasks: a
   );
 }
 
-// Compliance History Table - Shows completed tasks
-function ComplianceHistoryTable({ entityTasks, serviceTypes }: { entityTasks: any[], serviceTypes: any[] }) {
+// Client Portal Compliance History Table - Exact Mirror of Admin Portal
+function ClientPortalComplianceHistoryTable({ entityTasks, serviceTypes }: { entityTasks: any[], serviceTypes: any[] }) {
   // Filter for completed tasks that are not in the analysis tab
   const completedTasks = entityTasks.filter(task => task.statusId === 1 && task.complianceDeadline);
 
@@ -741,7 +741,7 @@ function ComplianceHistoryTable({ entityTasks, serviceTypes }: { entityTasks: an
           return (
             <TableRow key={task.id}>
               <TableCell className="font-medium">{serviceName}</TableCell>
-              <TableCell>{task.taskDetails}</TableCell>
+              <TableCell>{task.description || task.title}</TableCell>
               <TableCell>{task.complianceYear}</TableCell>
               <TableCell>{format(deadline, 'MMM dd, yyyy')}</TableCell>
               <TableCell>{format(completionDate, 'MMM dd, yyyy')}</TableCell>
@@ -759,10 +759,10 @@ function ComplianceHistoryTable({ entityTasks, serviceTypes }: { entityTasks: an
   );
 }
 
-// Upcoming Compliance Table - Shows predicted future deadlines
-function UpcomingComplianceTable({ entityTasks, serviceTypes }: { entityTasks: any[], serviceTypes: any[] }) {
+// Client Portal Upcoming Compliance Table - Exact Mirror of Admin Portal
+function ClientPortalUpcomingComplianceTable({ entityTasks, serviceTypes }: { entityTasks: any[], serviceTypes: any[] }) {
   // Generate future compliance deadlines from recurring tasks
-  const upcomingCompliances = generateFutureComplianceDeadlines(entityTasks, serviceTypes);
+  const upcomingCompliances = generateClientPortalFutureComplianceDeadlines(entityTasks, serviceTypes);
 
   if (upcomingCompliances.length === 0) {
     return (
@@ -820,8 +820,8 @@ function UpcomingComplianceTable({ entityTasks, serviceTypes }: { entityTasks: a
   );
 }
 
-// Helper function to generate future compliance deadlines from recurring tasks
-function generateFutureComplianceDeadlines(entityTasks: any[], serviceTypes: any[]): UpcomingCompliance[] {
+// Helper function to generate future compliance deadlines for client portal
+function generateClientPortalFutureComplianceDeadlines(entityTasks: any[], serviceTypes: any[]): UpcomingCompliance[] {
   const now = new Date();
   const next12Months = new Date();
   next12Months.setMonth(next12Months.getMonth() + 12);
@@ -843,7 +843,7 @@ function generateFutureComplianceDeadlines(entityTasks: any[], serviceTypes: any
     
     // Find the service name from serviceTypes
     const serviceType = serviceTypes?.find(st => st.id === task.serviceTypeId);
-    const serviceName = serviceType?.name || task.taskDetails || 'Unknown Service';
+    const serviceName = serviceType?.name || task.description || task.title || 'Unknown Service';
     
     // Calculate how many months to add based on frequency
     let monthsToAdd = 0;
