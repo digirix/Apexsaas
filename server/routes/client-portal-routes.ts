@@ -233,53 +233,16 @@ export function registerClientPortalRoutes(app: Express) {
         LIMIT 1
       `);
       
-      // Get enhanced entity information with types and addresses
-      const enhancedEntities = await db.execute(sql`
-        SELECT 
-          e.*,
-          et.name as "entityTypeName",
-          c.name as "countryName", 
-          s.name as "stateName",
-          COUNT(DISTINCT ess.id) as "serviceCount",
-          COUNT(DISTINCT CASE WHEN ess.is_subscribed = true THEN ess.id END) as "subscribedServiceCount",
-          COUNT(DISTINCT t.id) as "taskCount",
-          COUNT(DISTINCT CASE WHEN t.status_id = 1 THEN t.id END) as "completedTaskCount"
-        FROM entities e
-        LEFT JOIN entity_types et ON et.id = e.entity_type_id AND et.tenant_id = e.tenant_id
-        LEFT JOIN countries c ON c.id = e.country_id
-        LEFT JOIN states s ON s.id = e.state_id
-        LEFT JOIN entity_service_subscriptions ess ON ess.entity_id = e.id
-        LEFT JOIN tasks t ON t.entity_id = e.id
-        WHERE e.client_id = ${user.clientId} AND e.tenant_id = ${user.tenantId}
-        GROUP BY e.id, et.name, c.name, s.name
-        ORDER BY e.id
-      `);
-
-      console.log(`Found ${enhancedEntities.rows.length} entities for client ${user.clientId}`);
-      
-      // Return comprehensive client portal data
+      // Return combined client profile data
       res.json({
-        client: {
-          id: client.id,
-          displayName: client.displayName,
-          email: client.email,
-          status: client.status || 'Active'
-        },
-        entities: enhancedEntities.rows,
+        client: client,
+        entities: entityResults,
         stats: {
           openTaskCount: parseInt(openTaskCount.rows[0]?.count || '0'),
           upcomingInvoiceCount: parseInt(upcomingInvoiceCount.rows[0]?.count || '0'),
-          entityCount: enhancedEntities.rows.length,
-          totalServices: enhancedEntities.rows.reduce((sum, e) => sum + parseInt(e.serviceCount || '0'), 0),
-          totalSubscribedServices: enhancedEntities.rows.reduce((sum, e) => sum + parseInt(e.subscribedServiceCount || '0'), 0),
-          totalTasks: enhancedEntities.rows.reduce((sum, e) => sum + parseInt(e.taskCount || '0'), 0),
-          totalCompletedTasks: enhancedEntities.rows.reduce((sum, e) => sum + parseInt(e.completedTaskCount || '0'), 0)
+          entityCount: entityResults.length
         },
-        latestTask: latestTaskResult.rows[0] || null,
-        accountManager: {
-          name: "Your Account Manager",
-          email: "accountmanager@example.com"
-        }
+        latestTask: latestTaskResult.rows[0] || null
       });
     } catch (error) {
       console.error('Error fetching client profile:', error);
@@ -333,24 +296,6 @@ export function registerClientPortalRoutes(app: Express) {
       console.error('Error changing password:', error);
       res.status(500).json({ message: 'Failed to change password' });
     }
-  });
-
-  // Logout endpoint
-  app.post("/api/client-portal/logout", (req, res) => {
-    req.logout((err) => {
-      if (err) {
-        console.error('Logout error:', err);
-        return res.status(500).json({ message: 'Failed to logout' });
-      }
-      req.session.destroy((err) => {
-        if (err) {
-          console.error('Session destroy error:', err);
-          return res.status(500).json({ message: 'Failed to clear session' });
-        }
-        res.clearCookie('connect.sid');
-        res.json({ message: 'Logged out successfully' });
-      });
-    });
   });
   
   // Client Portal Data Routes
@@ -694,7 +639,7 @@ export function registerClientPortalRoutes(app: Express) {
         whereClause += ` AND t.entity_id = ${entityId}`;
       }
       
-      // Query the tasks table with available compliance fields
+      // Query the tasks table and join with task statuses, entities, and users to get rich data
       const taskResults = await db.execute(sql`
         SELECT 
           t.id,
@@ -710,12 +655,7 @@ export function registerClientPortalRoutes(app: Express) {
           t.entity_id as "entityId",
           e.name as "entityName",
           t.created_at as "createdAt",
-          t.updated_at as "updatedAt",
-          t.service_type_id as "serviceTypeId",
-          t.compliance_deadline as "complianceDeadline",
-          t.compliance_year as "complianceYear",
-          t.compliance_frequency as "complianceFrequency",
-          t.is_recurring as "isRecurring"
+          t.updated_at as "updatedAt" 
         FROM tasks t
         LEFT JOIN task_statuses ts ON t.status_id = ts.id AND t.tenant_id = ts.tenant_id
         LEFT JOIN entities e ON t.entity_id = e.id AND t.tenant_id = e.tenant_id
