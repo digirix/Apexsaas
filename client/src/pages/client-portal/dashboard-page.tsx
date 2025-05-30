@@ -535,40 +535,54 @@ export default function ClientPortalDashboardPage() {
             </AnimatePresence>
           </motion.div>
           
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-8">
-            {/* Summary Cards */}
+          {/* Overview Tab - Interactive Dashboard */}
+          <TabsContent value="overview" className="space-y-6">
+            {/* Enhanced Key Metrics */}
             <motion.div 
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
+              transition={{ duration: 0.6 }}
             >
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-2xl blur-xl"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-indigo-400/10 rounded-2xl blur-xl"></div>
                 <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-300">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium text-slate-600">Active Tasks</CardTitle>
                     <motion.div
                       whileHover={{ rotate: 10, scale: 1.1 }}
                       transition={{ type: "spring", stiffness: 400 }}
-                      className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg"
+                      className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg"
                     >
-                      <Clock className="h-4 w-4 text-white" />
+                      <Calendar className="h-4 w-4 text-white" />
                     </motion.div>
                   </CardHeader>
                   <CardContent>
                     <motion.div 
-                      className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
+                      className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      transition={{ type: "spring", stiffness: 200, delay: 0.4 }}
+                      transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
                     >
-                      {clientTasks.length}
+                      {clientTasks.filter(task => task.statusName !== 'Completed').length}
                     </motion.div>
-                    <p className="text-xs text-slate-500 mt-2">
-                      {getTaskCompletionRate(clientTasks)}% completion rate
-                    </p>
+                    <div className="mt-2 space-y-1">
+                      <p className="text-xs text-slate-500">
+                        {clientTasks.filter(task => {
+                          if (!task.dueDate) return false;
+                          const dueDate = new Date(task.dueDate);
+                          const today = new Date();
+                          return dueDate < today && task.statusName !== 'Completed';
+                        }).length} overdue • {clientTasks.filter(task => {
+                          if (!task.dueDate) return false;
+                          const dueDate = new Date(task.dueDate);
+                          const today = new Date();
+                          const diffTime = dueDate.getTime() - today.getTime();
+                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                          return diffDays >= 0 && diffDays <= 7;
+                        }).length} due this week
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
@@ -577,7 +591,7 @@ export default function ClientPortalDashboardPage() {
                 <div className="absolute inset-0 bg-gradient-to-br from-green-400/10 to-emerald-400/10 rounded-2xl blur-xl"></div>
                 <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-300">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-slate-600">Total Invoices</CardTitle>
+                    <CardTitle className="text-sm font-medium text-slate-600">Financial Summary</CardTitle>
                     <motion.div
                       whileHover={{ rotate: -10, scale: 1.1 }}
                       transition={{ type: "spring", stiffness: 400 }}
@@ -588,15 +602,15 @@ export default function ClientPortalDashboardPage() {
                   </CardHeader>
                   <CardContent>
                     <motion.div 
-                      className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent"
+                      className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent"
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={{ type: "spring", stiffness: 200, delay: 0.4 }}
                     >
-                      {clientInvoices.length}
+                      {formatCurrency(clientInvoices.reduce((sum: number, inv: any) => sum + (inv.amount || 0), 0))}
                     </motion.div>
                     <p className="text-xs text-slate-500 mt-2">
-                      {formatCurrency(clientInvoices.reduce((sum: number, inv: any) => sum + (inv.amount || 0), 0))} total value
+                      {clientInvoices.length} invoices • {clientInvoices.filter((inv: any) => inv.status === 'paid').length} paid
                     </p>
                   </CardContent>
                 </Card>
@@ -625,7 +639,7 @@ export default function ClientPortalDashboardPage() {
                       {clientEntities.length}
                     </motion.div>
                     <p className="text-xs text-slate-500 mt-2">
-                      Registered entities
+                      {clientEntities.filter((entity: any) => entity.stats?.taskCount > 0).length} active • {clientEntities.filter((entity: any) => entity.isVatRegistered).length} VAT registered
                     </p>
                   </CardContent>
                 </Card>
@@ -635,7 +649,7 @@ export default function ClientPortalDashboardPage() {
                 <div className="absolute inset-0 bg-gradient-to-br from-orange-400/10 to-red-400/10 rounded-2xl blur-xl"></div>
                 <Card className="relative bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-300">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-slate-600">Compliance Rate</CardTitle>
+                    <CardTitle className="text-sm font-medium text-slate-600">Completion Rate</CardTitle>
                     <motion.div
                       whileHover={{ rotate: -15, scale: 1.1 }}
                       transition={{ type: "spring", stiffness: 400 }}
@@ -651,15 +665,317 @@ export default function ClientPortalDashboardPage() {
                       animate={{ scale: 1 }}
                       transition={{ type: "spring", stiffness: 200, delay: 0.4 }}
                     >
-                      {complianceAnalysis ? `${complianceAnalysis.complianceRate}%` : "—"}
+                      {(() => {
+                        const totalTasks = clientTasks.length;
+                        const completedTasks = clientTasks.filter(task => task.statusName === 'Completed').length;
+                        return totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+                      })()}%
                     </motion.div>
                     <p className="text-xs text-slate-500 mt-2">
-                      {selectedEntity ? `For ${selectedEntity.name}` : "Select entity to view"}
+                      {clientTasks.filter(task => task.statusName === 'Completed').length} of {clientTasks.length} tasks completed
                     </p>
                   </CardContent>
                 </Card>
               </div>
             </motion.div>
+
+            {/* Dashboard Content Sections */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Recent Activity */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+              >
+                <Card className="bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-5 w-5 text-blue-500" />
+                        <CardTitle className="text-lg">Recent Activity</CardTitle>
+                      </div>
+                      <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                        {clientTasks.length} tasks
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="max-h-80 overflow-y-auto">
+                    <div className="space-y-4">
+                      {clientTasks.slice(0, 5).map((task: any) => (
+                        <div key={task.id} className="flex items-start space-x-3 p-3 bg-white/50 rounded-xl border border-white/40">
+                          <div className={`w-2 h-2 rounded-full mt-2 ${
+                            task.statusName === 'Completed' ? 'bg-green-500' :
+                            task.dueDate && new Date(task.dueDate) < new Date() ? 'bg-red-500' : 'bg-yellow-500'
+                          }`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-900 truncate">
+                              {task.taskDetails || task.title || 'Task'}
+                            </p>
+                            <div className="flex items-center justify-between mt-1">
+                              <p className="text-xs text-slate-500">
+                                {task.entityName} • Due: {formatDate(task.dueDate)}
+                              </p>
+                              <Badge 
+                                variant={task.statusName === 'Completed' ? 'default' : 'secondary'}
+                                className={`text-xs ${
+                                  task.statusName === 'Completed' ? 'bg-green-100 text-green-700' :
+                                  'bg-yellow-100 text-yellow-700'
+                                }`}
+                              >
+                                {task.statusName}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {clientTasks.length === 0 && (
+                        <div className="text-center py-8 text-slate-500">
+                          <Calendar className="h-12 w-12 mx-auto mb-3 text-slate-400" />
+                          <p className="font-medium">No tasks yet</p>
+                          <p className="text-sm">Tasks will appear here when assigned.</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              {/* Entity Performance */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+              >
+                <Card className="bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl">
+                  <CardHeader>
+                    <div className="flex items-center space-x-2">
+                      <BarChart className="h-5 w-5 text-purple-500" />
+                      <CardTitle className="text-lg">Entity Performance</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {clientEntities.map((entity: any) => {
+                        const entityTasks = clientTasks.filter(task => task.entityId === entity.id);
+                        const completedTasks = entityTasks.filter(task => task.statusName === 'Completed').length;
+                        const completionRate = entityTasks.length > 0 ? (completedTasks / entityTasks.length) * 100 : 0;
+                        
+                        return (
+                          <div key={entity.id} className="p-4 bg-white/50 rounded-xl border border-white/40 hover:bg-white/60 transition-colors cursor-pointer"
+                               onClick={() => setLocation(`/client-portal/entity/${entity.id}`)}>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center space-x-2">
+                                <Building2 className="h-4 w-4 text-purple-500" />
+                                <span className="font-medium text-slate-900">{entity.name}</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <Badge variant="outline" className="text-xs">
+                                  {entity.entityType}
+                                </Badge>
+                                {entity.isVatRegistered && (
+                                  <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
+                                    VAT
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-slate-600">Task Progress</span>
+                                <span className="font-medium">{Math.round(completionRate)}%</span>
+                              </div>
+                              <div className="w-full bg-slate-200 rounded-full h-2">
+                                <div 
+                                  className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500"
+                                  style={{ width: `${completionRate}%` }}
+                                />
+                              </div>
+                              <div className="flex justify-between text-xs text-slate-500">
+                                <span>{entityTasks.length} total tasks</span>
+                                <span>{completedTasks} completed</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {clientEntities.length === 0 && (
+                        <div className="text-center py-8 text-slate-500">
+                          <Building2 className="h-12 w-12 mx-auto mb-3 text-slate-400" />
+                          <p className="font-medium">No entities registered</p>
+                          <p className="text-sm">Your business entities will appear here.</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
+
+            {/* Upcoming Deadlines & Quick Actions */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Upcoming Deadlines */}
+              <motion.div
+                className="lg:col-span-2"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.5 }}
+              >
+                <Card className="bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <AlertCircle className="h-5 w-5 text-orange-500" />
+                        <CardTitle className="text-lg">Upcoming Deadlines</CardTitle>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => setActiveTab("tasks")}>
+                        View All
+                        <ArrowRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {clientTasks
+                        .filter(task => {
+                          if (!task.dueDate) return false;
+                          const dueDate = new Date(task.dueDate);
+                          const today = new Date();
+                          const diffTime = dueDate.getTime() - today.getTime();
+                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                          return diffDays >= -7 && diffDays <= 30 && task.statusName !== 'Completed';
+                        })
+                        .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+                        .slice(0, 6)
+                        .map((task: any) => {
+                          const dueDate = new Date(task.dueDate);
+                          const today = new Date();
+                          const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                          const isOverdue = diffDays < 0;
+                          const isDueSoon = diffDays <= 7 && diffDays >= 0;
+                          
+                          return (
+                            <div key={task.id} className={`p-3 rounded-xl border ${
+                              isOverdue ? 'bg-red-50 border-red-200' :
+                              isDueSoon ? 'bg-yellow-50 border-yellow-200' :
+                              'bg-blue-50 border-blue-200'
+                            }`}>
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <p className="font-medium text-slate-900 text-sm">
+                                    {task.taskDetails || task.title || 'Task'}
+                                  </p>
+                                  <p className="text-xs text-slate-600 mt-1">
+                                    {task.entityName} • {formatDate(task.dueDate)}
+                                  </p>
+                                </div>
+                                <Badge 
+                                  variant="secondary"
+                                  className={`text-xs ml-2 ${
+                                    isOverdue ? 'bg-red-100 text-red-700' :
+                                    isDueSoon ? 'bg-yellow-100 text-yellow-700' :
+                                    'bg-blue-100 text-blue-700'
+                                  }`}
+                                >
+                                  {isOverdue ? `${Math.abs(diffDays)} days overdue` :
+                                   diffDays === 0 ? 'Due today' :
+                                   `${diffDays} days left`}
+                                </Badge>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      {clientTasks.filter(task => {
+                        if (!task.dueDate) return false;
+                        const dueDate = new Date(task.dueDate);
+                        const today = new Date();
+                        const diffTime = dueDate.getTime() - today.getTime();
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        return diffDays >= -7 && diffDays <= 30 && task.statusName !== 'Completed';
+                      }).length === 0 && (
+                        <div className="text-center py-8 text-slate-500">
+                          <CheckCircle className="h-12 w-12 mx-auto mb-3 text-green-500" />
+                          <p className="font-medium">All caught up!</p>
+                          <p className="text-sm">No upcoming deadlines in the next 30 days.</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              {/* Quick Actions & Info */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.6 }}
+              >
+                <Card className="bg-white/70 backdrop-blur-xl border border-white/30 shadow-xl rounded-2xl">
+                  <CardHeader>
+                    <div className="flex items-center space-x-2">
+                      <Sparkles className="h-5 w-5 text-indigo-500" />
+                      <CardTitle className="text-lg">Quick Actions</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start bg-blue-50 border-blue-200 hover:bg-blue-100"
+                      onClick={() => setActiveTab("tasks")}
+                    >
+                      <Calendar className="h-4 w-4 mr-2" />
+                      View All Tasks
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start bg-purple-50 border-purple-200 hover:bg-purple-100"
+                      onClick={() => setActiveTab("entities")}
+                    >
+                      <Building2 className="h-4 w-4 mr-2" />
+                      Manage Entities
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start bg-green-50 border-green-200 hover:bg-green-100"
+                      onClick={() => setActiveTab("invoices")}
+                    >
+                      <Receipt className="h-4 w-4 mr-2" />
+                      View Invoices
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start bg-orange-50 border-orange-200 hover:bg-orange-100"
+                      onClick={() => {
+                        const firstEntity = clientEntities[0];
+                        if (firstEntity) {
+                          setLocation(`/client-portal/entity/${firstEntity.id}`);
+                        }
+                      }}
+                      disabled={clientEntities.length === 0}
+                    >
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      Contact Support
+                    </Button>
+                    
+                    <div className="pt-3 border-t border-slate-200">
+                      <p className="text-xs text-slate-500 mb-2">Account Manager</p>
+                      <div className="flex items-center space-x-2 p-2 bg-white/50 rounded-lg">
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
+                          <User className="h-4 w-4 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-slate-900">
+                            {userProfile?.accountManager?.name || 'Your Account Manager'}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {userProfile?.accountManager?.email || 'accountmanager@example.com'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
           </TabsContent>
           
           {/* Entities Tab with Compliance Integration - Fix #2: Add compliance data from admin portal */}
