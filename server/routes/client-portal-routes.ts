@@ -233,9 +233,31 @@ export function registerClientPortalRoutes(app: Express) {
         LIMIT 1
       `);
       
-      console.log(`Found ${entityResults.length} entities for client ${user.clientId}`);
+      // Get enhanced entity information with types and addresses
+      const enhancedEntities = await db.execute(sql`
+        SELECT 
+          e.*,
+          et.name as "entityTypeName",
+          c.name as "countryName", 
+          s.name as "stateName",
+          COUNT(DISTINCT ess.id) as "serviceCount",
+          COUNT(DISTINCT CASE WHEN ess.is_subscribed = true THEN ess.id END) as "subscribedServiceCount",
+          COUNT(DISTINCT t.id) as "taskCount",
+          COUNT(DISTINCT CASE WHEN t.status_id = 1 THEN t.id END) as "completedTaskCount"
+        FROM entities e
+        LEFT JOIN entity_types et ON et.id = e.entity_type_id AND et.tenant_id = e.tenant_id
+        LEFT JOIN countries c ON c.id = e.country_id
+        LEFT JOIN states s ON s.id = e.state_id
+        LEFT JOIN entity_service_subscriptions ess ON ess.entity_id = e.id
+        LEFT JOIN tasks t ON t.entity_id = e.id
+        WHERE e.client_id = ${user.clientId} AND e.tenant_id = ${user.tenantId}
+        GROUP BY e.id, et.name, c.name, s.name
+        ORDER BY e.id
+      `);
+
+      console.log(`Found ${enhancedEntities.rows.length} entities for client ${user.clientId}`);
       
-      // Return combined client profile data with full entity information
+      // Return comprehensive client portal data
       res.json({
         client: {
           id: client.id,
@@ -243,11 +265,15 @@ export function registerClientPortalRoutes(app: Express) {
           email: client.email,
           status: client.status || 'Active'
         },
-        entities: entityResults,
+        entities: enhancedEntities.rows,
         stats: {
           openTaskCount: parseInt(openTaskCount.rows[0]?.count || '0'),
           upcomingInvoiceCount: parseInt(upcomingInvoiceCount.rows[0]?.count || '0'),
-          entityCount: entityResults.length
+          entityCount: enhancedEntities.rows.length,
+          totalServices: enhancedEntities.rows.reduce((sum, e) => sum + parseInt(e.serviceCount || '0'), 0),
+          totalSubscribedServices: enhancedEntities.rows.reduce((sum, e) => sum + parseInt(e.subscribedServiceCount || '0'), 0),
+          totalTasks: enhancedEntities.rows.reduce((sum, e) => sum + parseInt(e.taskCount || '0'), 0),
+          totalCompletedTasks: enhancedEntities.rows.reduce((sum, e) => sum + parseInt(e.completedTaskCount || '0'), 0)
         },
         latestTask: latestTaskResult.rows[0] || null,
         accountManager: {

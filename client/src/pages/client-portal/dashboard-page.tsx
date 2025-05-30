@@ -44,7 +44,8 @@ import {
   Star,
   Globe,
   Phone,
-  Mail
+  Mail,
+  Hash
 } from "lucide-react";
 import { format, addMonths, parseISO, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
 
@@ -1032,23 +1033,44 @@ export default function ClientPortalDashboardPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200">
                   <Building className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-blue-700">{clientEntities.length}</div>
+                  <div className="text-2xl font-bold text-blue-700">{clientData?.stats?.entityCount || 0}</div>
                   <div className="text-sm text-blue-600">Business Entities</div>
                 </div>
                 <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200">
                   <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-green-700">{clientData?.stats?.openTaskCount || 0}</div>
-                  <div className="text-sm text-green-600">Open Tasks</div>
+                  <div className="text-2xl font-bold text-green-700">{clientData?.stats?.totalSubscribedServices || 0}</div>
+                  <div className="text-sm text-green-600">Active Services</div>
                 </div>
                 <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200">
-                  <FileText className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-purple-700">{clientData?.stats?.upcomingInvoiceCount || 0}</div>
-                  <div className="text-sm text-purple-600">Pending Invoices</div>
+                  <Calendar className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-purple-700">{clientData?.stats?.totalTasks || 0}</div>
+                  <div className="text-sm text-purple-600">Total Tasks</div>
                 </div>
                 <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg border border-orange-200">
-                  <Shield className="h-8 w-8 text-orange-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-orange-700">Active</div>
-                  <div className="text-sm text-orange-600">Account Status</div>
+                  <TrendingUp className="h-8 w-8 text-orange-600 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-orange-700">
+                    {clientData?.stats?.totalTasks > 0 ? Math.round((clientData.stats.totalCompletedTasks / clientData.stats.totalTasks) * 100) : 0}%
+                  </div>
+                  <div className="text-sm text-orange-600">Completion Rate</div>
+                </div>
+              </div>
+              
+              {/* Additional Metrics Row */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                <div className="text-center p-4 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg border border-indigo-200">
+                  <FileText className="h-8 w-8 text-indigo-600 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-indigo-700">{clientData?.stats?.upcomingInvoiceCount || 0}</div>
+                  <div className="text-sm text-indigo-600">Pending Invoices</div>
+                </div>
+                <div className="text-center p-4 bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg border border-emerald-200">
+                  <Clock className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-emerald-700">{clientData?.stats?.openTaskCount || 0}</div>
+                  <div className="text-sm text-emerald-600">Open Tasks</div>
+                </div>
+                <div className="text-center p-4 bg-gradient-to-br from-rose-50 to-rose-100 rounded-lg border border-rose-200">
+                  <Shield className="h-8 w-8 text-rose-600 mx-auto mb-2" />
+                  <div className="text-2xl font-bold text-rose-700">Active</div>
+                  <div className="text-sm text-rose-600">Account Status</div>
                 </div>
               </div>
               
@@ -1076,7 +1098,87 @@ export default function ClientPortalDashboardPage() {
           </Card>
         </motion.div>
 
-        {/* Entity Details - Full Admin Portal Style */}
+        {/* Business Entities Section */}
+        {clientEntities.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="mb-8"
+          >
+            <Card className="bg-white/80 backdrop-blur-lg border border-white/40 shadow-xl">
+              <CardHeader>
+                <CardTitle className="text-xl text-slate-900 flex items-center">
+                  <Building className="h-5 w-5 mr-2" />
+                  Your Business Entities
+                </CardTitle>
+                <CardDescription>Manage and monitor all your registered business entities</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {clientEntities.map((entity: any) => (
+                    <div 
+                      key={entity.id} 
+                      className="p-6 bg-gradient-to-br from-slate-50 to-slate-100 rounded-lg border border-slate-200 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <h3 className="text-lg font-semibold text-slate-900">{entity.name}</h3>
+                          <p className="text-sm text-slate-600">{entity.entityTypeName || 'Business Entity'}</p>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => window.location.href = `/client-portal/entities/${entity.id}`}
+                        >
+                          View Details
+                        </Button>
+                      </div>
+                      
+                      <div className="space-y-2 mb-4">
+                        {entity.address && (
+                          <div className="flex items-center text-sm text-slate-600">
+                            <MapPin className="h-4 w-4 mr-2" />
+                            {entity.address}
+                          </div>
+                        )}
+                        {entity.businessTaxId && (
+                          <div className="flex items-center text-sm text-slate-600">
+                            <FileText className="h-4 w-4 mr-2" />
+                            Tax ID: {entity.businessTaxId}
+                          </div>
+                        )}
+                        {entity.vatId && (
+                          <div className="flex items-center text-sm text-slate-600">
+                            <Hash className="h-4 w-4 mr-2" />
+                            VAT ID: {entity.vatId}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-4 pt-4 border-t border-slate-200">
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-blue-600">{entity.subscribedServiceCount || 0}</div>
+                          <div className="text-xs text-slate-500">Active Services</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-green-600">{entity.completedTaskCount || 0}</div>
+                          <div className="text-xs text-slate-500">Completed Tasks</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-orange-600">{entity.taskCount || 0}</div>
+                          <div className="text-xs text-slate-500">Total Tasks</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Enhanced Entity Details - Full Admin Portal Style */}
         {clientEntities.map((entity: any, index: number) => (
           <FullEntityDetailSection key={`detail-${entity.id}`} entity={entity} />
         ))}
