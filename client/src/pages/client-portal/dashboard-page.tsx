@@ -158,13 +158,19 @@ function EntityDetailSection({ entity }: { entity: any }) {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {servicesLoading ? (
+                  {selectedEntityId && servicesLoading ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {[1, 2, 3].map((i) => (
                         <div key={i} className="h-20 bg-slate-100 rounded-lg animate-pulse"></div>
                       ))}
                     </div>
-                  ) : services.length === 0 ? (
+                  ) : !selectedEntityId ? (
+                    <div className="text-center py-8">
+                      <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500 mb-2">No entity selected</p>
+                      <p className="text-sm text-gray-400">Please select an entity to view its details</p>
+                    </div>
+                  ) : entityServices.length === 0 ? (
                     <div className="text-center py-8">
                       <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                       <p className="text-gray-500 mb-2">No services configured</p>
@@ -172,86 +178,106 @@ function EntityDetailSection({ entity }: { entity: any }) {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {services.map((service: any) => (
-                        <div key={service.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3">
-                              <div>
-                                <h4 className="font-medium text-gray-900">{service.name}</h4>
-                                <p className="text-sm text-gray-500">
-                                  {service.description || `Rate: ${service.rate || 'N/A'} • Billing: ${service.billingBasis || 'N/A'}`}
-                                </p>
+                      {entityServices.map((service: any) => {
+                        const relatedTasks = entityTasks?.filter(task => task.serviceTypeId === service.serviceTypeId) || [];
+                        const completedTasks = relatedTasks.filter(task => task.statusId === 1).length;
+                        
+                        return (
+                          <div key={service.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3">
+                                <div>
+                                  <h4 className="font-medium text-gray-900">{service.serviceName || 'Unknown Service'}</h4>
+                                  <p className="text-sm text-gray-500">
+                                    Rate: {service.rate || 'N/A'} • Billing: {service.billingBasis || 'N/A'}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                              <div className="text-right">
+                                <div className="text-sm text-gray-600">
+                                  {completedTasks}/{relatedTasks.length} tasks completed
+                                </div>
+                                <div className="flex items-center space-x-2 mt-1">
+                                  <Badge variant={service.isRequired ? "default" : "secondary"} className="text-xs">
+                                    {service.isRequired ? "Required" : "Optional"}
+                                  </Badge>
+                                  <Badge variant={service.isSubscribed ? "default" : "outline"} className="text-xs">
+                                    {service.isSubscribed ? "Subscribed" : "Not Subscribed"}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div className="flex items-center">
+                                {service.isSubscribed ? (
+                                  completedTasks === relatedTasks.length && relatedTasks.length > 0 ? (
+                                    <CheckCircle className="h-5 w-5 text-green-500" />
+                                  ) : relatedTasks.length > 0 ? (
+                                    <Clock className="h-5 w-5 text-yellow-500" />
+                                  ) : (
+                                    <AlertTriangle className="h-5 w-5 text-red-500" />
+                                  )
+                                ) : (
+                                  <XCircle className="h-5 w-5 text-gray-400" />
+                                )}
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-4">
-                            <div className="text-right">
-                              <div className="flex items-center space-x-2 mt-1">
-                                <Badge variant={service.isRequired ? "default" : "secondary"} className="text-xs">
-                                  {service.isRequired ? "Required" : "Optional"}
-                                </Badge>
-                                <Badge variant={service.isSubscribed ? "default" : "outline"} className="text-xs">
-                                  {service.isSubscribed ? "Subscribed" : "Not Subscribed"}
-                                </Badge>
-                              </div>
-                            </div>
-                            <div className="flex items-center">
-                              {service.isSubscribed ? (
-                                <CheckCircle className="h-5 w-5 text-green-500" />
-                              ) : (
-                                <XCircle className="h-5 w-5 text-gray-400" />
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </CardContent>
               </Card>
 
               {/* Quick Compliance Overview */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Shield className="h-5 w-5 mr-2" />
-                    Compliance Overview
-                  </CardTitle>
-                  <CardDescription>
-                    Quick summary of compliance status across all services
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium">Overall Compliance</span>
-                        <span className="text-sm text-gray-600">{complianceRate}%</span>
+              {selectedEntityId && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Shield className="h-5 w-5 mr-2" />
+                      Compliance Overview
+                    </CardTitle>
+                    <CardDescription>
+                      Quick summary of compliance status across all services
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium">Overall Compliance</span>
+                          <span className="text-sm text-gray-600">{getComplianceRate(selectedEntityId)}%</span>
+                        </div>
+                        <Progress value={getComplianceRate(selectedEntityId)} className="h-2" />
                       </div>
-                      <Progress value={complianceRate} className="h-2" />
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-purple-600">{getRequiredServices(selectedEntityId)}</div>
+                          <div className="text-xs text-gray-600">Required Services</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-blue-600">{getSubscribedServices(selectedEntityId)}</div>
+                          <div className="text-xs text-gray-600">Subscribed Services</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-green-600">{getCompliantServices(selectedEntityId)}</div>
+                          <div className="text-xs text-gray-600">Compliant</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-red-600">{getOverdueServices(selectedEntityId)}</div>
+                          <div className="text-xs text-gray-600">Overdue</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-yellow-600">{getUpcomingDeadlines(selectedEntityId)}</div>
+                          <div className="text-xs text-gray-600">Upcoming</div>
+                        </div>
+                      </div>
                     </div>
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-purple-600">{requiredServices}</div>
-                        <div className="text-xs text-gray-600">Required Services</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">{subscribedServices}</div>
-                        <div className="text-xs text-gray-600">Subscribed Services</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-green-600">{subscribedServices}</div>
-                        <div className="text-xs text-gray-600">Compliant</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-amber-600">{entityTasks?.length || 0}</div>
-                        <div className="text-xs text-gray-600">Active Tasks</div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
 
             <TabsContent value="compliance" className="space-y-6">
@@ -427,6 +453,15 @@ export default function ClientPortalDashboardPage() {
     enabled: !!clientProfile
   });
 
+  // Fetch entity services when entity is selected
+  const { 
+    data: entityServices = [],
+    isLoading: servicesLoading
+  } = useQuery<any[]>({
+    queryKey: [`/api/client-portal/entity/${selectedEntityId}/services`],
+    enabled: !!selectedEntityId && !!clientProfile
+  });
+
   // Fetch tenant settings for header and footer
   const { data: tenantSettings = [] } = useQuery<TenantSetting[]>({
     queryKey: ["/api/v1/tenant/settings"],
@@ -488,6 +523,74 @@ export default function ClientPortalDashboardPage() {
     if (!selectedEntityId) return "All entities";
     const entity = (clientEntities as any[]).find((e: any) => e.id === selectedEntityId);
     return entity ? entity.name : "Unknown entity";
+  };
+  
+  // Helper functions for compliance calculations
+  const getComplianceRate = (entityId: number | null) => {
+    if (!entityId || !entityServices || !Array.isArray(entityServices)) return 0;
+    
+    const subscribedServices = entityServices.filter((s: any) => s.isSubscribed);
+    if (subscribedServices.length === 0) return 0;
+    
+    const entityTasks = clientTasks.filter((task: any) => task.entityId === entityId);
+    const compliantServices = subscribedServices.filter((service: any) => {
+      const serviceTasks = entityTasks.filter((task: any) => task.serviceTypeId === service.serviceTypeId);
+      const completedTasks = serviceTasks.filter((task: any) => task.statusId === 1);
+      return completedTasks.length === serviceTasks.length && serviceTasks.length > 0;
+    });
+    
+    return Math.round((compliantServices.length / subscribedServices.length) * 100);
+  };
+  
+  const getRequiredServices = (entityId: number | null) => {
+    if (!entityId || !entityServices || !Array.isArray(entityServices)) return 0;
+    return entityServices.filter((s: any) => s.isRequired).length;
+  };
+  
+  const getSubscribedServices = (entityId: number | null) => {
+    if (!entityId || !entityServices || !Array.isArray(entityServices)) return 0;
+    return entityServices.filter((s: any) => s.isSubscribed).length;
+  };
+  
+  const getCompliantServices = (entityId: number | null) => {
+    if (!entityId || !entityServices || !Array.isArray(entityServices)) return 0;
+    
+    const subscribedServices = entityServices.filter((s: any) => s.isSubscribed);
+    const entityTasks = clientTasks.filter((task: any) => task.entityId === entityId);
+    
+    return subscribedServices.filter((service: any) => {
+      const serviceTasks = entityTasks.filter((task: any) => task.serviceTypeId === service.serviceTypeId);
+      const completedTasks = serviceTasks.filter((task: any) => task.statusId === 1);
+      return completedTasks.length === serviceTasks.length && serviceTasks.length > 0;
+    }).length;
+  };
+  
+  const getOverdueServices = (entityId: number | null) => {
+    if (!entityId || !entityServices || !Array.isArray(entityServices)) return 0;
+    
+    const entityTasks = clientTasks.filter((task: any) => task.entityId === entityId);
+    const now = new Date();
+    
+    return entityTasks.filter((task: any) => {
+      if (!task.complianceDeadline || task.statusId === 1) return false;
+      const deadline = new Date(task.complianceDeadline);
+      return deadline < now;
+    }).length;
+  };
+  
+  const getUpcomingDeadlines = (entityId: number | null) => {
+    if (!entityId || !entityServices || !Array.isArray(entityServices)) return 0;
+    
+    const entityTasks = clientTasks.filter((task: any) => task.entityId === entityId);
+    const now = new Date();
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(now.getDate() + 30);
+    
+    return entityTasks.filter((task: any) => {
+      if (!task.complianceDeadline || task.statusId === 1) return false;
+      const deadline = new Date(task.complianceDeadline);
+      return deadline >= now && deadline <= thirtyDaysFromNow;
+    }).length;
   };
   
   // Calculate task completion rate
