@@ -1067,48 +1067,258 @@ export default function ClientPortalDashboardPage() {
                         </TabsContent>
                         
                         <TabsContent value="upcoming" className="space-y-4">
-                          <div className="text-center py-8 text-slate-500">
-                            <Calendar className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-                            <p>Upcoming compliance deadlines will be displayed here</p>
+                          <div className="space-y-3">
+                            {(() => {
+                              const entityTasks = clientTasks.filter(task => task.entityId === selectedEntityId);
+                              const upcomingTasks = entityTasks
+                                .filter(task => {
+                                  if (!task.dueDate || task.statusName === 'Completed') return false;
+                                  const dueDate = new Date(task.dueDate);
+                                  const today = new Date();
+                                  const diffTime = dueDate.getTime() - today.getTime();
+                                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                  return diffDays >= -7 && diffDays <= 60;
+                                })
+                                .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+
+                              return upcomingTasks.length > 0 ? upcomingTasks.map((task: any) => {
+                                const dueDate = new Date(task.dueDate);
+                                const today = new Date();
+                                const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                                const isOverdue = diffDays < 0;
+                                const isDueSoon = diffDays <= 7 && diffDays >= 0;
+                                
+                                return (
+                                  <div key={task.id} className={`p-4 rounded-xl border ${
+                                    isOverdue ? 'bg-red-50 border-red-200' :
+                                    isDueSoon ? 'bg-yellow-50 border-yellow-200' :
+                                    'bg-blue-50 border-blue-200'
+                                  }`}>
+                                    <div className="flex items-center justify-between mb-2">
+                                      <h4 className="font-medium text-slate-900">{task.title || task.description}</h4>
+                                      <Badge 
+                                        variant="secondary"
+                                        className={`${
+                                          isOverdue ? 'bg-red-100 text-red-700' :
+                                          isDueSoon ? 'bg-yellow-100 text-yellow-700' :
+                                          'bg-blue-100 text-blue-700'
+                                        }`}
+                                      >
+                                        {isOverdue ? `${Math.abs(diffDays)} days overdue` :
+                                         diffDays === 0 ? 'Due today' :
+                                         `${diffDays} days left`}
+                                      </Badge>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3 text-sm">
+                                      <div>
+                                        <p className="text-slate-500">Due Date</p>
+                                        <p className="font-medium">{formatDate(task.dueDate)}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-slate-500">Status</p>
+                                        <p className="font-medium">{task.statusName}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-slate-500">Assignee</p>
+                                        <p className="font-medium">{task.assigneeName}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-slate-500">Task Type</p>
+                                        <p className="font-medium">{task.taskType}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              }) : (
+                                <div className="text-center py-8 text-slate-500">
+                                  <Calendar className="h-12 w-12 mx-auto mb-3 text-green-500" />
+                                  <p className="font-medium">No upcoming deadlines</p>
+                                  <p className="text-sm">All compliance requirements are up to date</p>
+                                </div>
+                              );
+                            })()}
                           </div>
                         </TabsContent>
                         
                         <TabsContent value="history" className="space-y-4">
-                          <div className="text-center py-8 text-slate-500">
-                            <Clock className="h-12 w-12 mx-auto mb-3 text-slate-300" />
-                            <p>Compliance history will be displayed here</p>
+                          <div className="space-y-3">
+                            {(() => {
+                              const entityTasks = clientTasks.filter(task => task.entityId === selectedEntityId);
+                              const completedTasks = entityTasks
+                                .filter(task => task.statusName === 'Completed')
+                                .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+                              return completedTasks.length > 0 ? completedTasks.map((task: any) => (
+                                <div key={task.id} className="p-4 bg-green-50 rounded-xl border border-green-200">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <h4 className="font-medium text-slate-900">{task.title || task.description}</h4>
+                                    <Badge className="bg-green-100 text-green-700">
+                                      Completed
+                                    </Badge>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-3 text-sm">
+                                    <div>
+                                      <p className="text-slate-500">Completed Date</p>
+                                      <p className="font-medium">{formatDate(task.updatedAt)}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-slate-500">Original Due Date</p>
+                                      <p className="font-medium">{formatDate(task.dueDate)}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-slate-500">Completed By</p>
+                                      <p className="font-medium">{task.assigneeName}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-slate-500">Task Type</p>
+                                      <p className="font-medium">{task.taskType}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )) : (
+                                <div className="text-center py-8 text-slate-500">
+                                  <Clock className="h-12 w-12 mx-auto mb-3 text-slate-400" />
+                                  <p className="font-medium">No completed tasks</p>
+                                  <p className="text-sm">Completed compliance tasks will appear here</p>
+                                </div>
+                              );
+                            })()}
                           </div>
                         </TabsContent>
                       </Tabs>
                     ) : (
-                      <motion.div 
-                        className="text-center py-12 text-slate-500"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                      >
-                        <Building2 className="h-16 w-16 mx-auto mb-4 text-slate-300" />
-                        <h3 className="text-lg font-semibold text-slate-700 mb-2">Select an Entity</h3>
-                        <p className="text-sm mb-6 max-w-md mx-auto">
-                          Choose an entity from the dropdown above to view:
-                        </p>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto mb-6">
-                          <div className="bg-blue-50 rounded-lg p-4">
-                            <Shield className="h-8 w-8 text-blue-500 mx-auto mb-2" />
-                            <h4 className="font-medium text-slate-700">Compliance Analysis</h4>
-                            <p className="text-xs text-slate-500">Service subscriptions and compliance rates</p>
+                      <div className="space-y-6">
+                        {/* Entity Summary Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="text-center p-4 bg-white/50 rounded-xl border border-white/40">
+                            <h3 className="text-sm font-medium text-slate-600 mb-1">Total Entities</h3>
+                            <p className="text-2xl font-bold text-purple-600">{clientEntities.length}</p>
+                            <p className="text-xs text-slate-500">
+                              {clientEntities.filter((entity: any) => entity.isVatRegistered).length} VAT registered
+                            </p>
                           </div>
-                          <div className="bg-green-50 rounded-lg p-4">
-                            <Calendar className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                            <h4 className="font-medium text-slate-700">Upcoming Deadlines</h4>
-                            <p className="text-xs text-slate-500">Future compliance requirements</p>
+                          <div className="text-center p-4 bg-white/50 rounded-xl border border-white/40">
+                            <h3 className="text-sm font-medium text-slate-600 mb-1">Active Tasks</h3>
+                            <p className="text-2xl font-bold text-blue-600">
+                              {clientTasks.filter(task => task.statusName !== 'Completed').length}
+                            </p>
+                            <p className="text-xs text-slate-500">Across all entities</p>
                           </div>
-                          <div className="bg-purple-50 rounded-lg p-4">
-                            <Clock className="h-8 w-8 text-purple-500 mx-auto mb-2" />
-                            <h4 className="font-medium text-slate-700">Compliance History</h4>
-                            <p className="text-xs text-slate-500">Past submissions and completions</p>
+                          <div className="text-center p-4 bg-white/50 rounded-xl border border-white/40">
+                            <h3 className="text-sm font-medium text-slate-600 mb-1">Overdue Items</h3>
+                            <p className="text-2xl font-bold text-red-600">
+                              {clientTasks.filter(task => {
+                                if (!task.dueDate || task.statusName === 'Completed') return false;
+                                const dueDate = new Date(task.dueDate);
+                                const today = new Date();
+                                return dueDate < today;
+                              }).length}
+                            </p>
+                            <p className="text-xs text-slate-500">Require attention</p>
                           </div>
                         </div>
-                      </motion.div>
+
+                        {/* Entity List */}
+                        <div>
+                          <h3 className="text-lg font-semibold text-slate-900 mb-4">Your Business Entities</h3>
+                          {clientEntities.length > 0 ? (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                              {clientEntities.map((entity: any) => {
+                                const entityTasks = clientTasks.filter(task => task.entityId === entity.id);
+                                const completedTasks = entityTasks.filter(task => task.statusName === 'Completed').length;
+                                const completionRate = entityTasks.length > 0 ? (completedTasks / entityTasks.length) * 100 : 100;
+                                const overdueTasks = entityTasks.filter(task => {
+                                  if (!task.dueDate || task.statusName === 'Completed') return false;
+                                  const dueDate = new Date(task.dueDate);
+                                  const today = new Date();
+                                  return dueDate < today;
+                                }).length;
+
+                                return (
+                                  <div key={entity.id} className="p-4 bg-white/60 rounded-xl border border-white/50 hover:bg-white/70 transition-colors cursor-pointer"
+                                       onClick={() => setLocation(`/client-portal/entity/${entity.id}`)}>
+                                    <div className="flex items-center justify-between mb-3">
+                                      <div className="flex items-center space-x-3">
+                                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                                          <Building2 className="h-5 w-5 text-white" />
+                                        </div>
+                                        <div>
+                                          <h4 className="font-semibold text-slate-900">{entity.name}</h4>
+                                          <p className="text-sm text-slate-600">{entity.entityType} • {entity.stateName}</p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center space-x-2">
+                                        {entity.isVatRegistered && (
+                                          <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
+                                            VAT
+                                          </Badge>
+                                        )}
+                                        {overdueTasks > 0 && (
+                                          <Badge variant="destructive" className="text-xs">
+                                            {overdueTasks} Overdue
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Task Progress */}
+                                    <div className="space-y-2">
+                                      <div className="flex justify-between text-sm">
+                                        <span className="text-slate-600">Task Progress</span>
+                                        <span className="font-medium">{Math.round(completionRate)}%</span>
+                                      </div>
+                                      <div className="w-full bg-slate-200 rounded-full h-2">
+                                        <div 
+                                          className={`h-2 rounded-full transition-all duration-500 ${
+                                            completionRate === 100 ? 'bg-green-500' :
+                                            completionRate >= 70 ? 'bg-blue-500' :
+                                            completionRate >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+                                          }`}
+                                          style={{ width: `${completionRate}%` }}
+                                        />
+                                      </div>
+                                      <div className="flex justify-between text-xs text-slate-500">
+                                        <span>{entityTasks.length} total tasks</span>
+                                        <span>{completedTasks} completed</span>
+                                      </div>
+                                    </div>
+
+                                    {/* Entity Details */}
+                                    <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-slate-200">
+                                      <div>
+                                        <p className="text-xs text-slate-500">Tax ID</p>
+                                        <p className="text-sm font-medium text-slate-900">{entity.businessTaxId || 'N/A'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-slate-500">Location</p>
+                                        <p className="text-sm font-medium text-slate-900">{entity.countryName}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="text-center py-12 text-slate-500">
+                              <Building2 className="h-16 w-16 mx-auto mb-4 text-slate-400" />
+                              <h3 className="text-lg font-medium text-slate-900 mb-2">No Entities Found</h3>
+                              <p className="text-sm max-w-md mx-auto mb-6">
+                                You don't have any registered business entities yet. Contact your account manager to add entities.
+                              </p>
+                              <Button 
+                                variant="outline" 
+                                onClick={() => {
+                                  const accountManagerEmail = userProfile?.accountManager?.email || 'accountmanager@example.com';
+                                  window.location.href = `mailto:${accountManagerEmail}?subject=Entity Registration Request`;
+                                }}
+                              >
+                                <Users className="h-4 w-4 mr-2" />
+                                Contact Account Manager
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
