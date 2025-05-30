@@ -974,7 +974,7 @@ export default function ClientPortalDashboardPage() {
   const clientEntities = clientData?.entities || [];
   
   // Show login prompt if not authenticated
-  if (!clientData && !isLoading) {
+  if (!clientData && !clientLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
         <Card className="w-full max-w-md">
