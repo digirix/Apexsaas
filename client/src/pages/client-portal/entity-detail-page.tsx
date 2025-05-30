@@ -157,26 +157,38 @@ export default function ClientPortalEntityDetailPage() {
   const upcomingCompliances = useMemo(() => {
     return entityTasks
       .filter(task => {
-        if (!task.dueDate || task.statusName === 'Completed') return false;
-        const dueDate = new Date(task.dueDate);
+        if (task.statusName === 'Completed') return false;
+        
+        // Prioritize compliance deadline over regular due date
+        const relevantDate = task.complianceDeadline ? new Date(task.complianceDeadline) : (task.dueDate ? new Date(task.dueDate) : null);
+        if (!relevantDate) return false;
+        
         const today = new Date();
-        const diffTime = dueDate.getTime() - today.getTime();
+        const diffTime = relevantDate.getTime() - today.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         return diffDays >= 0 && diffDays <= 60;
       })
       .map(task => {
-        const dueDate = new Date(task.dueDate);
+        // Use compliance deadline if available, otherwise fall back to due date
+        const relevantDate = task.complianceDeadline ? new Date(task.complianceDeadline) : new Date(task.dueDate);
         const today = new Date();
-        const diffTime = dueDate.getTime() - today.getTime();
+        const diffTime = relevantDate.getTime() - today.getTime();
         const daysUntilDue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
         return {
           serviceId: task.id,
           serviceName: task.title || task.description || 'Task',
-          dueDate: dueDate,
+          dueDate: relevantDate,
           frequency: task.taskType || 'One-time',
+          complianceFrequency: task.complianceFrequency,
+          compliancePeriod: task.complianceStartDate && task.complianceEndDate 
+            ? `${new Date(task.complianceStartDate).toLocaleDateString()} - ${new Date(task.complianceEndDate).toLocaleDateString()}`
+            : task.complianceYear 
+            ? `Year ${task.complianceYear}`
+            : null,
           priority: (daysUntilDue <= 7 ? 'high' : daysUntilDue <= 30 ? 'medium' : 'low') as 'high' | 'medium' | 'low',
-          daysUntilDue
+          daysUntilDue,
+          isComplianceDeadline: !!task.complianceDeadline
         };
       })
       .sort((a, b) => a.daysUntilDue - b.daysUntilDue);
@@ -442,7 +454,7 @@ export default function ClientPortalEntityDetailPage() {
                               )}
                             </div>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 text-sm">
                             <div>
                               <span className="text-gray-600">Assignee:</span>
                               <span className="ml-2 text-gray-900">{task.assigneeName || 'Unassigned'}</span>
@@ -454,10 +466,32 @@ export default function ClientPortalEntityDetailPage() {
                               </span>
                             </div>
                             <div>
+                              <span className="text-gray-600">Compliance Deadline:</span>
+                              <span className="ml-2 text-gray-900">
+                                {task.complianceDeadline ? new Date(task.complianceDeadline).toLocaleDateString() : 'Not set'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Compliance Period:</span>
+                              <span className="ml-2 text-gray-900">
+                                {task.complianceStartDate && task.complianceEndDate 
+                                  ? `${new Date(task.complianceStartDate).toLocaleDateString()} - ${new Date(task.complianceEndDate).toLocaleDateString()}`
+                                  : task.complianceYear 
+                                  ? `Year ${task.complianceYear}`
+                                  : 'Not set'}
+                              </span>
+                            </div>
+                            <div>
                               <span className="text-gray-600">Task Type:</span>
                               <span className="ml-2 text-gray-900">{task.taskType || 'Regular'}</span>
                             </div>
                           </div>
+                          {task.complianceFrequency && (
+                            <div className="mt-2 text-sm">
+                              <span className="text-gray-600">Compliance Frequency:</span>
+                              <span className="ml-2 text-blue-600 font-medium">{task.complianceFrequency}</span>
+                            </div>
+                          )}
                           {task.description && task.title !== task.description && (
                             <div className="mt-2 text-sm text-gray-600">
                               <span className="font-medium">Description:</span> {task.description}
@@ -567,11 +601,27 @@ export default function ClientPortalEntityDetailPage() {
                                 </div>
                               </div>
                               
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                                 <div>
                                   <span className="font-medium text-gray-600">Due Date:</span>
                                   <p className="text-gray-900">
                                     {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="font-medium text-gray-600">Compliance Deadline:</span>
+                                  <p className="text-gray-900">
+                                    {task.complianceDeadline ? new Date(task.complianceDeadline).toLocaleDateString() : 'Not set'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="font-medium text-gray-600">Compliance Period:</span>
+                                  <p className="text-gray-900">
+                                    {task.complianceStartDate && task.complianceEndDate 
+                                      ? `${new Date(task.complianceStartDate).toLocaleDateString()} - ${new Date(task.complianceEndDate).toLocaleDateString()}`
+                                      : task.complianceYear 
+                                      ? `Year ${task.complianceYear}`
+                                      : 'Not set'}
                                   </p>
                                 </div>
                                 <div>
@@ -580,13 +630,13 @@ export default function ClientPortalEntityDetailPage() {
                                     {new Date(task.createdAt).toLocaleDateString()}
                                   </p>
                                 </div>
-                                <div>
-                                  <span className="font-medium text-gray-600">Last Updated:</span>
-                                  <p className="text-gray-900">
-                                    {new Date(task.updatedAt).toLocaleDateString()}
-                                  </p>
-                                </div>
                               </div>
+                              {task.complianceFrequency && (
+                                <div className="mt-2 text-sm">
+                                  <span className="font-medium text-gray-600">Compliance Frequency:</span>
+                                  <span className="ml-2 text-blue-600 font-medium">{task.complianceFrequency}</span>
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -629,12 +679,21 @@ export default function ClientPortalEntityDetailPage() {
                           <div>
                             <h4 className="font-medium text-gray-900">{task.serviceName}</h4>
                             <p className="text-sm text-gray-500">Type: {task.frequency}</p>
+                            {task.complianceFrequency && (
+                              <p className="text-xs text-blue-600">Compliance: {task.complianceFrequency}</p>
+                            )}
                           </div>
                         </div>
                         <div className="text-right">
                           <p className="font-medium text-gray-900">
                             {task.dueDate.toLocaleDateString()}
                           </p>
+                          {task.isComplianceDeadline && (
+                            <p className="text-xs text-blue-600 mb-1">Compliance Deadline</p>
+                          )}
+                          {task.compliancePeriod && (
+                            <p className="text-xs text-gray-500 mb-1">Period: {task.compliancePeriod}</p>
+                          )}
                           <p className={`text-sm ${
                             task.priority === 'high' ? 'text-red-600' :
                             task.priority === 'medium' ? 'text-yellow-600' :
