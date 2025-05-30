@@ -103,14 +103,18 @@ function EntityOverviewTab({
   servicesLoading: boolean;
   clientTasks: any[];
 }) {
+  // Ensure arrays are properly initialized
+  const services = Array.isArray(entityServices) ? entityServices : [];
+  const tasks = Array.isArray(clientTasks) ? clientTasks : [];
+
   // Helper functions for compliance calculations
   const getComplianceRate = (entityId: number | null) => {
-    if (!entityId || !entityServices || !Array.isArray(entityServices)) return 0;
+    if (!entityId || services.length === 0) return 0;
     
-    const subscribedServices = entityServices.filter((s: any) => s.isSubscribed);
+    const subscribedServices = services.filter((s: any) => s.isSubscribed);
     if (subscribedServices.length === 0) return 0;
     
-    const entityTasks = clientTasks.filter((task: any) => task.entityId === entityId);
+    const entityTasks = tasks.filter((task: any) => task.entityId === entityId);
     const compliantServices = subscribedServices.filter((service: any) => {
       const serviceTasks = entityTasks.filter((task: any) => task.serviceTypeId === service.serviceTypeId);
       const completedTasks = serviceTasks.filter((task: any) => task.statusId === 1);
@@ -121,20 +125,20 @@ function EntityOverviewTab({
   };
   
   const getRequiredServices = (entityId: number | null) => {
-    if (!entityId || !entityServices || !Array.isArray(entityServices)) return 0;
-    return entityServices.filter((s: any) => s.isRequired).length;
+    if (!entityId) return 0;
+    return services.filter((s: any) => s.isRequired).length;
   };
   
   const getSubscribedServices = (entityId: number | null) => {
-    if (!entityId || !entityServices || !Array.isArray(entityServices)) return 0;
-    return entityServices.filter((s: any) => s.isSubscribed).length;
+    if (!entityId) return 0;
+    return services.filter((s: any) => s.isSubscribed).length;
   };
   
   const getCompliantServices = (entityId: number | null) => {
-    if (!entityId || !entityServices || !Array.isArray(entityServices)) return 0;
+    if (!entityId) return 0;
     
-    const subscribedServices = entityServices.filter((s: any) => s.isSubscribed);
-    const entityTasks = clientTasks.filter((task: any) => task.entityId === entityId);
+    const subscribedServices = services.filter((s: any) => s.isSubscribed);
+    const entityTasks = tasks.filter((task: any) => task.entityId === entityId);
     
     return subscribedServices.filter((service: any) => {
       const serviceTasks = entityTasks.filter((task: any) => task.serviceTypeId === service.serviceTypeId);
@@ -144,9 +148,9 @@ function EntityOverviewTab({
   };
   
   const getOverdueServices = (entityId: number | null) => {
-    if (!entityId || !entityServices || !Array.isArray(entityServices)) return 0;
+    if (!entityId) return 0;
     
-    const entityTasks = clientTasks.filter((task: any) => task.entityId === entityId);
+    const entityTasks = tasks.filter((task: any) => task.entityId === entityId);
     const now = new Date();
     
     return entityTasks.filter((task: any) => {
@@ -157,9 +161,9 @@ function EntityOverviewTab({
   };
   
   const getUpcomingDeadlines = (entityId: number | null) => {
-    if (!entityId || !entityServices || !Array.isArray(entityServices)) return 0;
+    if (!entityId) return 0;
     
-    const entityTasks = clientTasks.filter((task: any) => task.entityId === entityId);
+    const entityTasks = tasks.filter((task: any) => task.entityId === entityId);
     const now = new Date();
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(now.getDate() + 30);
@@ -197,7 +201,7 @@ function EntityOverviewTab({
               <p className="text-gray-500 mb-2">No entity selected</p>
               <p className="text-sm text-gray-400">Please select an entity to view its details</p>
             </div>
-          ) : !Array.isArray(entityServices) || entityServices.length === 0 ? (
+          ) : services.length === 0 ? (
             <div className="text-center py-8">
               <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500 mb-2">No services configured</p>
@@ -205,8 +209,8 @@ function EntityOverviewTab({
             </div>
           ) : (
             <div className="space-y-3">
-              {entityServices.map((service: any) => {
-                const relatedTasks = clientTasks?.filter((task: any) => task.serviceTypeId === service.serviceTypeId) || [];
+              {services.map((service: any) => {
+                const relatedTasks = tasks.filter((task: any) => task.serviceTypeId === service.serviceTypeId) || [];
                 const completedTasks = relatedTasks.filter((task: any) => task.statusId === 1).length;
                 
                 return (
@@ -214,7 +218,7 @@ function EntityOverviewTab({
                     <div className="flex-1">
                       <div className="flex items-center space-x-3">
                         <div>
-                          <h4 className="font-medium text-gray-900">{service.serviceName || 'Unknown Service'}</h4>
+                          <h4 className="font-medium text-gray-900">{service.name || 'Unknown Service'}</h4>
                           <p className="text-sm text-gray-500">
                             Rate: {service.rate || 'N/A'} • Billing: {service.billingBasis || 'N/A'}
                           </p>
@@ -365,10 +369,10 @@ function EntityDetailSection({ entity }: { entity: any }) {
 
             <TabsContent value="overview" className="space-y-6">
               <EntityOverviewTab 
-                selectedEntityId={selectedEntityId}
-                entityServices={entityServices}
+                selectedEntityId={entity.id}
+                entityServices={Array.isArray(entityServices) ? entityServices : []}
                 servicesLoading={servicesLoading}
-                clientTasks={clientTasks}
+                clientTasks={Array.isArray(entityTasks) ? entityTasks : []}
               />
             </TabsContent>
 
