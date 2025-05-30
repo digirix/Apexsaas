@@ -89,23 +89,19 @@ export default function ClientPortalEntityDetailPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const entityId = params.id;
 
-  // Fetch entity details
-  const { data: entity, isLoading: isEntityLoading } = useQuery<Entity>({
-    queryKey: [`/api/client-portal/entities/${entityId}`],
-    enabled: !!entityId,
+  // Fetch all entities and find the specific one
+  const { data: entities = [], isLoading: isEntityLoading } = useQuery<Entity[]>({
+    queryKey: ["/api/client-portal/entities"],
   });
 
-  // Fetch entity services
-  const { data: serviceSubscriptions = [] } = useQuery<any[]>({
-    queryKey: [`/api/client-portal/entity/${entityId}/services`],
-    enabled: !!entityId,
+  const entity = entities.find((e: any) => e.id.toString() === entityId);
+
+  // Fetch all tasks and filter for this entity
+  const { data: allTasks = [] } = useQuery<any[]>({
+    queryKey: ["/api/client-portal/tasks"],
   });
 
-  // Fetch entity tasks
-  const { data: entityTasks = [] } = useQuery<any[]>({
-    queryKey: [`/api/client-portal/tasks?entityId=${entityId}`],
-    enabled: !!entityId,
-  });
+  const entityTasks = allTasks.filter((task: any) => task.entityId.toString() === entityId);
 
   // Fetch client profile for context
   const { data: clientProfile } = useQuery({
@@ -125,15 +121,66 @@ export default function ClientPortalEntityDetailPage() {
     queryKey: ['/api/v1/setup/entity-types'],
   });
 
-  // Calculate compliance analysis
-  const complianceAnalysis: ComplianceAnalysis | null = entity && serviceSubscriptions && entityTasks
-    ? calculateComplianceAnalysis(entity, serviceSubscriptions, entityTasks)
-    : null;
+  // Calculate compliance analysis based on actual task data
+  const complianceAnalysis = useMemo(() => {
+    if (!entity || entityTasks.length === 0) return null;
+    
+    const completedTasks = entityTasks.filter(task => task.statusName === 'Completed').length;
+    const totalTasks = entityTasks.length;
+    const overallScore = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+    
+    const overdueTasks = entityTasks.filter(task => {
+      if (!task.dueDate || task.statusName === 'Completed') return false;
+      return new Date(task.dueDate) < new Date();
+    }).length;
+    
+    const upcomingTasks = entityTasks.filter(task => {
+      if (!task.dueDate || task.statusName === 'Completed') return false;
+      const dueDate = new Date(task.dueDate);
+      const today = new Date();
+      const diffTime = dueDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays >= 0 && diffDays <= 30;
+    }).length;
+    
+    return {
+      overallScore,
+      requiredServices: totalTasks,
+      subscribedServices: totalTasks,
+      compliantServices: completedTasks,
+      overdueServices: overdueTasks,
+      upcomingDeadlines: upcomingTasks
+    };
+  }, [entity, entityTasks]);
 
-  // Calculate upcoming compliance deadlines
-  const upcomingCompliances: UpcomingCompliance[] = complianceAnalysis
-    ? calculateUpcomingCompliances(complianceAnalysis.serviceBreakdown)
-    : [];
+  // Calculate upcoming compliance deadlines from actual tasks
+  const upcomingCompliances = useMemo(() => {
+    return entityTasks
+      .filter(task => {
+        if (!task.dueDate || task.statusName === 'Completed') return false;
+        const dueDate = new Date(task.dueDate);
+        const today = new Date();
+        const diffTime = dueDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays >= 0 && diffDays <= 60;
+      })
+      .map(task => {
+        const dueDate = new Date(task.dueDate);
+        const today = new Date();
+        const diffTime = dueDate.getTime() - today.getTime();
+        const daysUntilDue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        return {
+          serviceId: task.id,
+          serviceName: task.title || task.description || 'Task',
+          dueDate: dueDate,
+          frequency: task.taskType || 'One-time',
+          priority: daysUntilDue <= 7 ? 'high' : daysUntilDue <= 30 ? 'medium' : 'low',
+          daysUntilDue
+        };
+      })
+      .sort((a, b) => a.daysUntilDue - b.daysUntilDue);
+  }, [entityTasks]);
 
   if (isEntityLoading) {
     return (
@@ -327,76 +374,95 @@ export default function ClientPortalEntityDetailPage() {
 
         {/* Tabs Section */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="overview">Service Overview</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="overview">Task Overview</TabsTrigger>
             <TabsTrigger value="compliance">Compliance Analysis</TabsTrigger>
             <TabsTrigger value="upcoming">Upcoming Deadlines</TabsTrigger>
-            <TabsTrigger value="documents">Documents</TabsTrigger>
-            <TabsTrigger value="messages">Messages</TabsTrigger>
           </TabsList>
 
-          {/* Service Overview Tab */}
+          {/* Task Overview Tab */}
           <TabsContent value="overview">
             <Card>
               <CardHeader>
-                <CardTitle>Configured Services</CardTitle>
+                <CardTitle>Task Overview</CardTitle>
                 <CardDescription>
-                  Services configured for this entity and their current status
+                  All tasks and activities for this entity
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {serviceSubscriptions.length === 0 ? (
+                {entityTasks.length === 0 ? (
                   <div className="text-center py-8">
                     <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500 mb-2">No services configured</p>
-                    <p className="text-sm text-gray-400">Contact your accounting firm to configure services</p>
+                    <p className="text-gray-500">No tasks found for this entity</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {serviceSubscriptions.map((service) => {
-                      const relatedTasks = entityTasks.filter(task => task.serviceTypeId === service.id);
-                      const completedTasks = relatedTasks.filter(task => task.statusId === 1).length;
+                  <div className="space-y-4">
+                    {entityTasks.map((task: any) => {
+                      const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.statusName !== 'Completed';
+                      const isDueSoon = task.dueDate && (() => {
+                        const dueDate = new Date(task.dueDate);
+                        const today = new Date();
+                        const diffTime = dueDate.getTime() - today.getTime();
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        return diffDays >= 0 && diffDays <= 7;
+                      })();
                       
                       return (
-                        <div key={service.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3">
-                              <div>
-                                <h4 className="font-medium text-gray-900">{service.name}</h4>
-                                <p className="text-sm text-gray-500">
-                                  {service.description || `Rate: ${service.rate || 'N/A'} • Billing: ${service.billingBasis || 'N/A'}`}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-4">
-                            <div className="text-right">
-                              <div className="text-sm text-gray-600">
-                                {completedTasks}/{relatedTasks.length} tasks completed
-                              </div>
-                              <div className="flex items-center space-x-2 mt-1">
-                                <Badge variant={service.isRequired ? "default" : "secondary"} className="text-xs">
-                                  {service.isRequired ? "Required" : "Optional"}
+                        <div key={task.id} className={`border rounded-lg p-4 transition-colors ${
+                          isOverdue ? 'bg-red-50 border-red-200' :
+                          isDueSoon ? 'bg-yellow-50 border-yellow-200' :
+                          task.statusName === 'Completed' ? 'bg-green-50 border-green-200' :
+                          'hover:bg-gray-50'
+                        }`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="font-medium text-gray-900">{task.title || task.description}</h3>
+                            <div className="flex items-center space-x-2">
+                              <Badge variant={
+                                task.statusName === 'Completed' ? 'default' :
+                                task.statusName === 'In Progress' ? 'secondary' :
+                                'outline'
+                              } className={
+                                task.statusName === 'Completed' ? 'bg-green-100 text-green-700' :
+                                task.statusName === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                                'bg-gray-100 text-gray-700'
+                              }>
+                                {task.statusName}
+                              </Badge>
+                              {isOverdue && (
+                                <Badge variant="destructive">
+                                  <XCircle className="h-3 w-3 mr-1" />
+                                  Overdue
                                 </Badge>
-                                <Badge variant={service.isSubscribed ? "default" : "outline"} className="text-xs">
-                                  {service.isSubscribed ? "Subscribed" : "Not Subscribed"}
+                              )}
+                              {isDueSoon && !isOverdue && (
+                                <Badge variant="outline" className="text-orange-600 border-orange-600">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  Due Soon
                                 </Badge>
-                              </div>
-                            </div>
-                            <div className="flex items-center">
-                              {service.isSubscribed ? (
-                                completedTasks === relatedTasks.length && relatedTasks.length > 0 ? (
-                                  <CheckCircle className="h-5 w-5 text-green-500" />
-                                ) : relatedTasks.length > 0 ? (
-                                  <Clock className="h-5 w-5 text-yellow-500" />
-                                ) : (
-                                  <AlertTriangle className="h-5 w-5 text-red-500" />
-                                )
-                              ) : (
-                                <XCircle className="h-5 w-5 text-gray-400" />
                               )}
                             </div>
                           </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <span className="text-gray-600">Assignee:</span>
+                              <span className="ml-2 text-gray-900">{task.assigneeName || 'Unassigned'}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Due Date:</span>
+                              <span className="ml-2 text-gray-900">
+                                {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Task Type:</span>
+                              <span className="ml-2 text-gray-900">{task.taskType || 'Regular'}</span>
+                            </div>
+                          </div>
+                          {task.description && task.title !== task.description && (
+                            <div className="mt-2 text-sm text-gray-600">
+                              <span className="font-medium">Description:</span> {task.description}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -450,15 +516,7 @@ export default function ClientPortalEntityDetailPage() {
             </Card>
           </TabsContent>
 
-          {/* Documents Tab */}
-          <TabsContent value="documents">
-            <DocumentManager entityId={entity?.id} />
-          </TabsContent>
 
-          {/* Messages Tab */}
-          <TabsContent value="messages">
-            <MessagingCenter entityId={entity?.id} entityName={entity?.name} />
-          </TabsContent>
         </Tabs>
       </motion.main>
     </div>
