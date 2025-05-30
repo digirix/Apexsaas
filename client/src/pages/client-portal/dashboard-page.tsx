@@ -762,7 +762,7 @@ export default function ClientPortalDashboardPage() {
                         
                         return (
                           <div key={entity.id} className="p-4 bg-white/50 rounded-xl border border-white/40 hover:bg-white/60 transition-colors cursor-pointer"
-                               onClick={() => setLocation(`/client-portal/entity/${entity.id}`)}>
+                               onClick={() => setLocation(`/client-portal/entities/${entity.id}`)}>
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center space-x-2">
                                 <Building2 className="h-4 w-4 text-purple-500" />
@@ -947,7 +947,7 @@ export default function ClientPortalDashboardPage() {
                       onClick={() => {
                         const firstEntity = clientEntities[0];
                         if (firstEntity) {
-                          setLocation(`/client-portal/entity/${firstEntity.id}`);
+                          setLocation(`/client-portal/entities/${firstEntity.id}`);
                         }
                       }}
                       disabled={clientEntities.length === 0}
@@ -1236,7 +1236,7 @@ export default function ClientPortalDashboardPage() {
 
                                 return (
                                   <div key={entity.id} className="p-4 bg-white/60 rounded-xl border border-white/50 hover:bg-white/70 transition-colors cursor-pointer"
-                                       onClick={() => setLocation(`/client-portal/entity/${entity.id}`)}>
+                                       onClick={() => setLocation(`/client-portal/entities/${entity.id}`)}>
                                     <div className="flex items-center justify-between mb-3">
                                       <div className="flex items-center space-x-3">
                                         <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
