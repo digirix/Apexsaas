@@ -175,7 +175,7 @@ export default function ClientPortalEntityDetailPage() {
           serviceName: task.title || task.description || 'Task',
           dueDate: dueDate,
           frequency: task.taskType || 'One-time',
-          priority: daysUntilDue <= 7 ? 'high' : daysUntilDue <= 30 ? 'medium' : 'low',
+          priority: (daysUntilDue <= 7 ? 'high' : daysUntilDue <= 30 ? 'medium' : 'low') as 'high' | 'medium' | 'low',
           daysUntilDue
         };
       })
@@ -478,16 +478,125 @@ export default function ClientPortalEntityDetailPage() {
               <CardHeader>
                 <CardTitle>Detailed Compliance Analysis</CardTitle>
                 <CardDescription>
-                  Comprehensive breakdown of compliance status for each service
+                  Task completion breakdown and compliance metrics for this entity
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {complianceAnalysis ? (
-                  <ComplianceAnalysisSection analysis={complianceAnalysis} />
+                {complianceAnalysis && entityTasks.length > 0 ? (
+                  <div className="space-y-6">
+                    {/* Compliance Metrics */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <h3 className="text-sm font-medium text-blue-700 mb-1">Total Tasks</h3>
+                        <p className="text-2xl font-bold text-blue-900">{complianceAnalysis.requiredServices}</p>
+                      </div>
+                      <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+                        <h3 className="text-sm font-medium text-green-700 mb-1">Completed</h3>
+                        <p className="text-2xl font-bold text-green-900">{complianceAnalysis.compliantServices}</p>
+                      </div>
+                      <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <h3 className="text-sm font-medium text-yellow-700 mb-1">Upcoming</h3>
+                        <p className="text-2xl font-bold text-yellow-900">{complianceAnalysis.upcomingDeadlines}</p>
+                      </div>
+                      <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
+                        <h3 className="text-sm font-medium text-red-700 mb-1">Overdue</h3>
+                        <p className="text-2xl font-bold text-red-900">{complianceAnalysis.overdueServices}</p>
+                      </div>
+                    </div>
+
+                    {/* Overall Score */}
+                    <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                      <h3 className="text-lg font-semibold text-blue-900 mb-2">Overall Compliance Score</h3>
+                      <div className="text-4xl font-bold text-blue-600 mb-2">{complianceAnalysis.overallScore}%</div>
+                      <Progress value={complianceAnalysis.overallScore} className="h-3 max-w-md mx-auto" />
+                      <p className="text-sm text-blue-700 mt-2">
+                        {complianceAnalysis.compliantServices} of {complianceAnalysis.requiredServices} tasks completed
+                      </p>
+                    </div>
+
+                    {/* Task Breakdown */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Task Status Breakdown</h3>
+                      <div className="space-y-3">
+                        {entityTasks.map((task: any) => {
+                          const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.statusName !== 'Completed';
+                          const isDueSoon = task.dueDate && (() => {
+                            const dueDate = new Date(task.dueDate);
+                            const today = new Date();
+                            const diffTime = dueDate.getTime() - today.getTime();
+                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            return diffDays >= 0 && diffDays <= 7;
+                          })();
+
+                          return (
+                            <div key={task.id} className={`border rounded-lg p-4 ${
+                              task.statusName === 'Completed' ? 'bg-green-50 border-green-200' :
+                              isOverdue ? 'bg-red-50 border-red-200' :
+                              isDueSoon ? 'bg-yellow-50 border-yellow-200' :
+                              'bg-gray-50 border-gray-200'
+                            }`}>
+                              <div className="flex items-center justify-between mb-3">
+                                <div>
+                                  <h4 className="font-medium text-gray-900">{task.title || task.description}</h4>
+                                  <p className="text-sm text-gray-600">
+                                    Type: {task.taskType} • Assignee: {task.assigneeName}
+                                  </p>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <Badge variant={
+                                    task.statusName === 'Completed' ? 'default' :
+                                    task.statusName === 'In Progress' ? 'secondary' :
+                                    'outline'
+                                  } className={
+                                    task.statusName === 'Completed' ? 'bg-green-100 text-green-700' :
+                                    task.statusName === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                                    'bg-gray-100 text-gray-700'
+                                  }>
+                                    {task.statusName}
+                                  </Badge>
+                                  {isOverdue && (
+                                    <Badge variant="destructive">
+                                      Overdue
+                                    </Badge>
+                                  )}
+                                  {isDueSoon && !isOverdue && (
+                                    <Badge variant="outline" className="text-orange-600 border-orange-600">
+                                      Due Soon
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                <div>
+                                  <span className="font-medium text-gray-600">Due Date:</span>
+                                  <p className="text-gray-900">
+                                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="font-medium text-gray-600">Created:</span>
+                                  <p className="text-gray-900">
+                                    {new Date(task.createdAt).toLocaleDateString()}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="font-medium text-gray-600">Last Updated:</span>
+                                  <p className="text-gray-900">
+                                    {new Date(task.updatedAt).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <div className="text-center py-8">
                     <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">No compliance data available</p>
+                    <p className="text-gray-500">No tasks found for compliance analysis</p>
                   </div>
                 )}
               </CardContent>
@@ -498,18 +607,51 @@ export default function ClientPortalEntityDetailPage() {
           <TabsContent value="upcoming">
             <Card>
               <CardHeader>
-                <CardTitle>Upcoming Compliance Deadlines</CardTitle>
+                <CardTitle>Upcoming Deadlines</CardTitle>
                 <CardDescription>
-                  Important deadlines you should monitor for this entity
+                  Important task deadlines you should monitor for this entity
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {upcomingCompliances.length > 0 ? (
-                  <UpcomingComplianceSection upcomingCompliances={upcomingCompliances} />
+                  <div className="space-y-3">
+                    {upcomingCompliances.map((task) => (
+                      <div key={task.serviceId} className={`flex items-center justify-between p-4 border rounded-lg ${
+                        task.priority === 'high' ? 'border-red-200 bg-red-50' :
+                        task.priority === 'medium' ? 'border-yellow-200 bg-yellow-50' :
+                        'border-blue-200 bg-blue-50'
+                      }`}>
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-3 h-3 rounded-full ${
+                            task.priority === 'high' ? 'bg-red-500' :
+                            task.priority === 'medium' ? 'bg-yellow-500' : 'bg-blue-500'
+                          }`} />
+                          <div>
+                            <h4 className="font-medium text-gray-900">{task.serviceName}</h4>
+                            <p className="text-sm text-gray-500">Type: {task.frequency}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium text-gray-900">
+                            {task.dueDate.toLocaleDateString()}
+                          </p>
+                          <p className={`text-sm ${
+                            task.priority === 'high' ? 'text-red-600' :
+                            task.priority === 'medium' ? 'text-yellow-600' :
+                            'text-blue-600'
+                          }`}>
+                            {task.daysUntilDue === 0 ? 'Due today' :
+                             task.daysUntilDue === 1 ? '1 day left' :
+                             `${task.daysUntilDue} days left`}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <div className="text-center py-8">
                     <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">No upcoming deadlines</p>
+                    <p className="text-gray-500">No upcoming deadlines in the next 60 days</p>
                   </div>
                 )}
               </CardContent>
