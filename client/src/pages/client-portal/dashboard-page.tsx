@@ -48,6 +48,9 @@ import {
   Hash
 } from "lucide-react";
 import { format, addMonths, parseISO, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
+import { ClientPortalHeader } from "@/components/client-portal/client-portal-header";
+import { ClientProfileModal } from "@/components/client-portal/client-profile-modal";
+import { queryClient } from "@/lib/queryClient";
 
 // Helper function to format dates
 const formatDate = (date: string | Date) => {
@@ -955,10 +958,25 @@ function FullEntityDetailSection({ entity }: { entity: any }) {
 }
 
 export default function ClientPortalDashboardPage() {
-  // Fetch actual client profile data
-  const { data: clientData, isLoading: clientLoading } = useQuery({
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  
+  // Fetch actual client profile data with real entities
+  const { data: clientData, isLoading: clientLoading, refetch } = useQuery({
     queryKey: ['/api/client-portal/profile'],
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/client-portal/logout', { method: 'POST' });
+      window.location.href = '/client-portal/login';
+    } catch (error) {
+      console.error('Logout error:', error);
+      window.location.href = '/client-portal/login';
+    }
+  };
 
   if (clientLoading) {
     return (
@@ -998,6 +1016,21 @@ export default function ClientPortalDashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      {/* Header with Navigation and Profile */}
+      <ClientPortalHeader 
+        client={client}
+        onLogout={handleLogout}
+        onProfileClick={() => setIsProfileModalOpen(true)}
+      />
+      
+      {/* Profile Modal */}
+      <ClientProfileModal 
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        client={client}
+        stats={clientData?.stats}
+      />
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <motion.div
