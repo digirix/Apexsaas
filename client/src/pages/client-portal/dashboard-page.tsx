@@ -170,7 +170,7 @@ function EntityDetailSection({ entity }: { entity: any }) {
                       <p className="text-gray-500 mb-2">No entity selected</p>
                       <p className="text-sm text-gray-400">Please select an entity to view its details</p>
                     </div>
-                  ) : entityServices.length === 0 ? (
+                  ) : !Array.isArray(entityServices) || entityServices.length === 0 ? (
                     <div className="text-center py-8">
                       <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                       <p className="text-gray-500 mb-2">No services configured</p>
