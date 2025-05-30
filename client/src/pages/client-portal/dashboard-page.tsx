@@ -151,71 +151,126 @@ export default function ClientPortalDashboardPage() {
 
   // Generate compliance analysis for selected entity
   const generateComplianceAnalysis = (): ComplianceAnalysis | null => {
-    if (!selectedEntityId || !entityServices.length) return null;
+    if (!selectedEntityId || !Array.isArray(entityServices) || entityServices.length === 0) return null;
 
-    const totalServices = serviceTypes.length;
-    const subscribedServices = entityServices.filter((s: any) => s.isSubscribed).length;
-    const requiredServices = entityServices.filter((s: any) => s.isRequired).length;
+    const totalServices = Array.isArray(serviceTypes) ? serviceTypes.length : 0;
+    const subscribedServices = entityServices.filter((s: any) => s && s.isSubscribed).length;
+    const requiredServices = entityServices.filter((s: any) => s && s.isRequired).length;
     const complianceRate = requiredServices > 0 ? Math.round((subscribedServices / requiredServices) * 100) : 100;
 
-    const entityTasks = clientTasks.filter(task => task.entityId === selectedEntityId);
+    const entityTasks = Array.isArray(clientTasks) ? clientTasks.filter(task => task && task.entityId === selectedEntityId) : [];
     const upcomingDeadlines = entityTasks.filter(task => {
-      const dueDate = new Date(task.dueDate);
-      const today = new Date();
-      const diffTime = dueDate.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays >= 0 && diffDays <= 30;
-    }).length;
-
-    const overdueItems = entityTasks.filter(task => {
-      const dueDate = new Date(task.dueDate);
-      const today = new Date();
-      return dueDate < today && task.statusName !== 'Completed';
-    }).length;
-
-    const serviceBreakdown = entityServices.map((service: any) => {
-      const serviceTasks = entityTasks.filter(task => {
-        if (!task || !service) return false;
-        const taskTitle = task.title || '';
-        const taskDesc = task.description || '';
-        const serviceName = service.name || '';
-        return taskTitle.toLowerCase().includes(serviceName.toLowerCase()) ||
-               taskDesc.toLowerCase().includes(serviceName.toLowerCase());
-      });
-      
-      const completionRate = getTaskCompletionRate(serviceTasks);
-      
-      let status: 'compliant' | 'due_soon' | 'overdue' | 'not_subscribed' = 'compliant';
-      if (!service.isSubscribed) {
-        status = 'not_subscribed';
-      } else if (serviceTasks.some(task => {
-        const dueDate = new Date(task.dueDate);
-        const today = new Date();
-        return dueDate < today && task.statusName !== 'Completed';
-      })) {
-        status = 'overdue';
-      } else if (serviceTasks.some(task => {
+      if (!task || !task.dueDate) return false;
+      try {
         const dueDate = new Date(task.dueDate);
         const today = new Date();
         const diffTime = dueDate.getTime() - today.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays >= 0 && diffDays <= 7;
-      })) {
-        status = 'due_soon';
+        return diffDays >= 0 && diffDays <= 30;
+      } catch (error) {
+        return false;
       }
+    }).length;
 
-      return {
-        id: service.id,
-        name: service.name || 'Unknown Service',
-        isRequired: service.isRequired,
-        subscribed: service.isSubscribed,
-        frequency: service.billingBasis,
-        nextDueDate: serviceTasks.length > 0 ? new Date(serviceTasks[0].dueDate) : null,
-        status,
-        tasks: serviceTasks,
-        completionRate
-      };
-    });
+    const overdueItems = entityTasks.filter(task => {
+      if (!task || !task.dueDate) return false;
+      try {
+        const dueDate = new Date(task.dueDate);
+        const today = new Date();
+        return dueDate < today && task.statusName !== 'Completed';
+      } catch (error) {
+        return false;
+      }
+    }).length;
+
+    const serviceBreakdown = entityServices.map((service: any) => {
+      try {
+        if (!service) {
+          return {
+            id: 0,
+            name: 'Unknown Service',
+            isRequired: false,
+            subscribed: false,
+            frequency: null,
+            nextDueDate: null,
+            status: 'not_subscribed' as const,
+            tasks: [],
+            completionRate: 0
+          };
+        }
+
+        const serviceTasks = entityTasks.filter(task => {
+          if (!task || !service) return false;
+          const taskTitle = task.title || '';
+          const taskDesc = task.description || '';
+          const serviceName = service.name || '';
+          return taskTitle.toLowerCase().includes(serviceName.toLowerCase()) ||
+                 taskDesc.toLowerCase().includes(serviceName.toLowerCase());
+        });
+        
+        const completionRate = getTaskCompletionRate(serviceTasks);
+        
+        let status: 'compliant' | 'due_soon' | 'overdue' | 'not_subscribed' = 'compliant';
+        if (!service.isSubscribed) {
+          status = 'not_subscribed';
+        } else if (serviceTasks.some(task => {
+          if (!task || !task.dueDate) return false;
+          try {
+            const dueDate = new Date(task.dueDate);
+            const today = new Date();
+            return dueDate < today && task.statusName !== 'Completed';
+          } catch (error) {
+            return false;
+          }
+        })) {
+          status = 'overdue';
+        } else if (serviceTasks.some(task => {
+          if (!task || !task.dueDate) return false;
+          try {
+            const dueDate = new Date(task.dueDate);
+            const today = new Date();
+            const diffTime = dueDate.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays >= 0 && diffDays <= 7;
+          } catch (error) {
+            return false;
+          }
+        })) {
+          status = 'due_soon';
+        }
+
+        return {
+          id: service.id || 0,
+          name: service.name || 'Unknown Service',
+          isRequired: Boolean(service.isRequired),
+          subscribed: Boolean(service.isSubscribed),
+          frequency: service.billingBasis || null,
+          nextDueDate: serviceTasks.length > 0 && serviceTasks[0]?.dueDate ? (() => {
+            try {
+              return new Date(serviceTasks[0].dueDate);
+            } catch (error) {
+              return null;
+            }
+          })() : null,
+          status,
+          tasks: serviceTasks || [],
+          completionRate
+        };
+      } catch (error) {
+        console.error('Error processing service in breakdown:', error, service);
+        return {
+          id: 0,
+          name: 'Unknown Service',
+          isRequired: false,
+          subscribed: false,
+          frequency: null,
+          nextDueDate: null,
+          status: 'not_subscribed' as const,
+          tasks: [],
+          completionRate: 0
+        };
+      }
+    }).filter(Boolean);
 
     return {
       totalServices,
@@ -242,6 +297,9 @@ export default function ClientPortalDashboardPage() {
   
   const complianceAnalysis = useMemo(() => {
     try {
+      if (!selectedEntityId || !Array.isArray(entityServices) || !Array.isArray(serviceTypes) || !Array.isArray(clientTasks)) {
+        return null;
+      }
       return generateComplianceAnalysis();
     } catch (error) {
       console.error('Error generating compliance analysis:', error);
