@@ -639,7 +639,7 @@ export function registerClientPortalRoutes(app: Express) {
         whereClause += ` AND t.entity_id = ${entityId}`;
       }
       
-      // Query the tasks table with ALL compliance fields - exact mirror of admin portal
+      // Query the tasks table with available compliance fields
       const taskResults = await db.execute(sql`
         SELECT 
           t.id,
@@ -660,11 +660,7 @@ export function registerClientPortalRoutes(app: Express) {
           t.compliance_deadline as "complianceDeadline",
           t.compliance_year as "complianceYear",
           t.compliance_frequency as "complianceFrequency",
-          t.is_recurring as "isRecurring",
-          t.recurring_start_date as "recurringStartDate",
-          t.recurring_end_date as "recurringEndDate",
-          t.period_start_date as "periodStartDate",
-          t.period_end_date as "periodEndDate"
+          t.is_recurring as "isRecurring"
         FROM tasks t
         LEFT JOIN task_statuses ts ON t.status_id = ts.id AND t.tenant_id = ts.tenant_id
         LEFT JOIN entities e ON t.entity_id = e.id AND t.tenant_id = e.tenant_id
