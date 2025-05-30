@@ -370,7 +370,7 @@ function FullEntityDetailSection({ entity }: { entity: any }) {
   const [activeTab, setActiveTab] = useState("overview");
   
   const { data: entityServices, isLoading: servicesLoading } = useQuery({
-    queryKey: [`/api/v1/entities/${entity.id}/services`],
+    queryKey: [`/api/client-portal/entity/${entity.id}/services`],
     enabled: !!entity.id
   });
 
@@ -956,7 +956,7 @@ function FullEntityDetailSection({ entity }: { entity: any }) {
 
 export default function ClientPortalDashboardPage() {
   const { data: clientData, isLoading: clientLoading } = useQuery({
-    queryKey: ['/api/client-portal/dashboard'],
+    queryKey: ['/api/client-portal/profile'],
   });
 
   if (clientLoading) {
