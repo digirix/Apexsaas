@@ -13,7 +13,7 @@ import {
   Building2, Calendar, Clock, Receipt, BarChart, User, Eye, 
   AlertCircle, LogOut, Phone, Mail, Home, Shield, Briefcase,
   Sparkles, ArrowRight, TrendingUp, CheckCircle, XCircle,
-  MessageCircle, Users
+  MessageCircle, Users, MessageSquare, FileText
 } from "lucide-react";
 
 interface ClientPortalUser {
@@ -1293,6 +1293,37 @@ export default function ClientPortalDashboardPage() {
                                         <p className="text-xs text-slate-500">Location</p>
                                         <p className="text-sm font-medium text-slate-900">{entity.countryName}</p>
                                       </div>
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div className="flex items-center space-x-2 mt-3 pt-3 border-t border-slate-200">
+                                      {entity.whatsappGroupLink && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            window.open(entity.whatsappGroupLink, '_blank');
+                                          }}
+                                          className="flex-1 text-xs"
+                                        >
+                                          <MessageCircle className="h-3 w-3 mr-1" />
+                                          WhatsApp
+                                        </Button>
+                                      )}
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          // Navigate to documents section for this entity
+                                          setLocation(`/client-portal/entities/${entity.id}#documents`);
+                                        }}
+                                        className="flex-1 text-xs"
+                                      >
+                                        <Receipt className="h-3 w-3 mr-1" />
+                                        Documents
+                                      </Button>
                                     </div>
                                   </div>
                                 );
