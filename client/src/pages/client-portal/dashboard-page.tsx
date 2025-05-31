@@ -494,43 +494,54 @@ export default function ClientPortalDashboardPage() {
                     whileHover={{ scale: 1.02 }}
                     className="min-w-[280px]"
                   >
-                    <Select 
-                      value="all"
-                      onValueChange={(value) => {
-                        if (value === "all" || !value) {
-                          // Stay on dashboard
-                          return;
-                        } else {
-                          // Navigate to entity detail page
-                          setLocation(`/client-portal/entities/${value}`);
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="bg-white/80 backdrop-blur-lg border border-white/40 shadow-lg rounded-xl px-4 py-2 h-10 hover:bg-white/90 transition-all duration-300">
-                        <SelectValue placeholder="Select an entity..." />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white/95 backdrop-blur-xl border border-white/50 shadow-xl rounded-xl">
-                        <SelectItem value="all">
-                          <div className="flex items-center space-x-2">
-                            <Home className="h-4 w-4 text-slate-500" />
-                            <span>All Entities</span>
-                          </div>
-                        </SelectItem>
-                        {Array.isArray(clientEntities) && clientEntities.map((entity: any) => (
-                          entity && entity.id && entity.name ? (
-                            <SelectItem key={entity.id} value={entity.id.toString()}>
-                              <div className="flex items-center space-x-2">
-                                <Building2 className="h-4 w-4 text-blue-500" />
-                                <span className="font-medium">{entity.name}</span>
-                                <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                                  {entity.entityType || 'Unknown'}
-                                </span>
+                    <div className="relative">
+                      <button
+                        onClick={() => {
+                          // Create a simple menu with entity options
+                          const menu = document.createElement('div');
+                          menu.className = 'absolute top-full left-0 right-0 bg-white/95 backdrop-blur-xl border border-white/50 shadow-xl rounded-xl mt-1 z-50 max-h-60 overflow-y-auto';
+                          menu.innerHTML = `
+                            <div class="p-2">
+                              <div class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer" onclick="this.parentElement.parentElement.remove()">
+                                <svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                                <span>All Entities</span>
                               </div>
-                            </SelectItem>
-                          ) : null
-                        ))}
-                      </SelectContent>
-                    </Select>
+                              ${clientEntities.map(entity => entity && entity.id && entity.name ? `
+                                <div class="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer" onclick="window.location.href='/client-portal/entities/${entity.id}'; this.parentElement.parentElement.remove();">
+                                  <svg class="h-4 w-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                                  <span class="font-medium">${entity.name}</span>
+                                  <span class="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">${entity.entityType || 'Unknown'}</span>
+                                </div>
+                              ` : '').join('')}
+                            </div>
+                          `;
+                          
+                          // Remove any existing menus
+                          document.querySelectorAll('[data-entity-menu]').forEach(el => el.remove());
+                          menu.setAttribute('data-entity-menu', 'true');
+                          
+                          // Position and show menu
+                          const button = event.currentTarget;
+                          button.parentElement.appendChild(menu);
+                          
+                          // Close menu when clicking outside
+                          setTimeout(() => {
+                            document.addEventListener('click', function closeMenu(e) {
+                              if (!menu.contains(e.target)) {
+                                menu.remove();
+                                document.removeEventListener('click', closeMenu);
+                              }
+                            });
+                          }, 0);
+                        }}
+                        className="w-full bg-white/80 backdrop-blur-lg border border-white/40 shadow-lg rounded-xl px-4 py-2 h-10 hover:bg-white/90 transition-all duration-300 text-left flex items-center justify-between"
+                      >
+                        <span className="text-slate-600">Select an entity...</span>
+                        <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    </div>
                   </motion.div>
                 </motion.div>
               )}
