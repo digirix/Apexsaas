@@ -478,7 +478,7 @@ export default function ClientPortalDashboardPage() {
             
             {/* Entity Selector Dropdown - Fix #1: Replace stacked entity cards with dropdown selector */}
             <AnimatePresence>
-              {clientEntities.length > 0 && (
+              {Array.isArray(clientEntities) && clientEntities.length > 0 && (
                 <motion.div 
                   className="flex items-center space-x-3"
                   initial={{ opacity: 0, x: 20, scale: 0.9 }}
@@ -520,16 +520,18 @@ export default function ClientPortalDashboardPage() {
                             <span>All Entities</span>
                           </div>
                         </SelectItem>
-                        {clientEntities.map((entity: any) => (
-                          <SelectItem key={entity.id} value={entity.id.toString()}>
-                            <div className="flex items-center space-x-2">
-                              <Building2 className="h-4 w-4 text-blue-500" />
-                              <span className="font-medium">{entity.name}</span>
-                              <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                                {entity.entityType}
-                              </span>
-                            </div>
-                          </SelectItem>
+                        {Array.isArray(clientEntities) && clientEntities.map((entity: any) => (
+                          entity && entity.id && entity.name ? (
+                            <SelectItem key={entity.id} value={entity.id.toString()}>
+                              <div className="flex items-center space-x-2">
+                                <Building2 className="h-4 w-4 text-blue-500" />
+                                <span className="font-medium">{entity.name}</span>
+                                <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                                  {entity.entityType || 'Unknown'}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ) : null
                         ))}
                       </SelectContent>
                     </Select>
