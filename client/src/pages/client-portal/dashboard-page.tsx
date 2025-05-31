@@ -498,8 +498,12 @@ export default function ClientPortalDashboardPage() {
                       value={selectedEntityId?.toString() || "all"} 
                       onValueChange={(value) => {
                         try {
-                          const newEntityId = value === "all" || !value ? null : parseInt(value);
-                          setSelectedEntityId(newEntityId);
+                          if (value === "all" || !value) {
+                            setSelectedEntityId(null);
+                          } else {
+                            // Navigate to entity detail page instead of showing embedded content
+                            setLocation(`/client-portal/entities/${value}`);
+                          }
                         } catch (error) {
                           console.error('Error setting entity ID:', error);
                           setSelectedEntityId(null);
