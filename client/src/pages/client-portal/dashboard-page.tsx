@@ -530,38 +530,45 @@ export default function ClientPortalDashboardPage() {
                       </button>
                       
                       {isEntityDropdownOpen && (
-                        <div className="absolute top-full left-0 right-0 bg-white/95 backdrop-blur-xl border border-white/50 shadow-xl rounded-xl mt-1 z-50 max-h-60 overflow-y-auto">
-                          <div className="p-2">
-                            <div 
-                              className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer" 
-                              onClick={() => {
-                                setIsEntityDropdownOpen(false);
-                                // Stay on dashboard showing all entities
-                              }}
-                            >
-                              <Home className="h-4 w-4 text-slate-500" />
-                              <span>All Entities</span>
+                        <>
+                          <div 
+                            className="fixed inset-0 z-40 bg-black/20"
+                            onClick={() => setIsEntityDropdownOpen(false)}
+                          />
+                          <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 shadow-2xl rounded-xl mt-1 z-50 max-h-60 overflow-y-auto">
+                            <div className="p-2">
+                              <div 
+                                className="flex items-center space-x-2 p-3 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setIsEntityDropdownOpen(false);
+                                }}
+                              >
+                                <Home className="h-4 w-4 text-slate-500" />
+                                <span className="text-sm font-medium">All Entities</span>
+                              </div>
+                              {Array.isArray(clientEntities) && clientEntities.map((entity: any) => (
+                                entity && entity.id && entity.name ? (
+                                  <div 
+                                    key={entity.id}
+                                    className="flex items-center space-x-2 p-3 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors" 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setIsEntityDropdownOpen(false);
+                                      setLocation(`/client-portal/entities/${entity.id}`);
+                                    }}
+                                  >
+                                    <Building2 className="h-4 w-4 text-blue-500" />
+                                    <span className="font-medium text-sm">{entity.name}</span>
+                                    <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
+                                      {entity.entityType || 'Unknown'}
+                                    </span>
+                                  </div>
+                                ) : null
+                              ))}
                             </div>
-                            {clientEntities.map((entity: any) => (
-                              entity && entity.id && entity.name ? (
-                                <div 
-                                  key={entity.id}
-                                  className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded cursor-pointer" 
-                                  onClick={() => {
-                                    setIsEntityDropdownOpen(false);
-                                    setLocation(`/client-portal/entities/${entity.id}`);
-                                  }}
-                                >
-                                  <Building2 className="h-4 w-4 text-blue-500" />
-                                  <span className="font-medium">{entity.name}</span>
-                                  <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                                    {entity.entityType || 'Unknown'}
-                                  </span>
-                                </div>
-                              ) : null
-                            ))}
                           </div>
-                        </div>
+                        </>
                       )}
                     </div>
                   </motion.div>
