@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -15,6 +15,7 @@ import {
   Sparkles, ArrowRight, TrendingUp, CheckCircle, XCircle,
   MessageCircle, Users, MessageSquare, FileText
 } from "lucide-react";
+import { EntityFilterDropdown } from "@/components/client-portal/entity-filter-dropdown";
 
 interface ClientPortalUser {
   id: number;
@@ -74,27 +75,7 @@ export default function ClientPortalDashboardPage() {
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [showInvoiceDetails, setShowInvoiceDetails] = useState(false);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<number | null>(null);
-  const [isEntityDropdownOpen, setIsEntityDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
   const queryClient = useQueryClient();
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsEntityDropdownOpen(false);
-      }
-    };
-
-    if (isEntityDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isEntityDropdownOpen]);
 
   // Fetch user profile
   const { data: userProfile, isLoading: isProfileLoading, error: profileError } = useQuery({
@@ -509,69 +490,7 @@ export default function ClientPortalDashboardPage() {
                     <Building2 className="h-4 w-4 text-slate-600" />
                     <span className="text-sm font-medium text-slate-700">Entity:</span>
                   </div>
-                  <motion.div
-                    whileHover={{ scale: 1.02 }}
-                    className="min-w-[280px]"
-                  >
-                    <div className="relative" ref={dropdownRef}>
-                      <button
-                        onClick={() => setIsEntityDropdownOpen(!isEntityDropdownOpen)}
-                        className="w-full bg-white/80 backdrop-blur-lg border border-white/40 shadow-lg rounded-xl px-4 py-2 h-10 hover:bg-white/90 transition-all duration-300 text-left flex items-center justify-between"
-                      >
-                        <span className="text-slate-600">Select an entity...</span>
-                        <svg 
-                          className={`h-4 w-4 text-slate-400 transition-transform ${isEntityDropdownOpen ? 'rotate-180' : ''}`} 
-                          fill="none" 
-                          stroke="currentColor" 
-                          viewBox="0 0 24 24"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                      
-                      {isEntityDropdownOpen && (
-                        <>
-                          <div 
-                            className="fixed inset-0 z-40 bg-black/20"
-                            onClick={() => setIsEntityDropdownOpen(false)}
-                          />
-                          <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 shadow-2xl rounded-xl mt-1 z-50 max-h-60 overflow-y-auto">
-                            <div className="p-2">
-                              <div 
-                                className="flex items-center space-x-2 p-3 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors" 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setIsEntityDropdownOpen(false);
-                                }}
-                              >
-                                <Home className="h-4 w-4 text-slate-500" />
-                                <span className="text-sm font-medium">All Entities</span>
-                              </div>
-                              {Array.isArray(clientEntities) && clientEntities.map((entity: any) => (
-                                entity && entity.id && entity.name ? (
-                                  <div 
-                                    key={entity.id}
-                                    className="flex items-center space-x-2 p-3 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors" 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setIsEntityDropdownOpen(false);
-                                      setLocation(`/client-portal/entities/${entity.id}`);
-                                    }}
-                                  >
-                                    <Building2 className="h-4 w-4 text-blue-500" />
-                                    <span className="font-medium text-sm">{entity.name}</span>
-                                    <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
-                                      {entity.entityType || 'Unknown'}
-                                    </span>
-                                  </div>
-                                ) : null
-                              ))}
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </motion.div>
+                  <EntityFilterDropdown entities={clientEntities || []} />
                 </motion.div>
               )}
             </AnimatePresence>
