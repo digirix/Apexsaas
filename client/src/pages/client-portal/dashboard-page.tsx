@@ -495,18 +495,14 @@ export default function ClientPortalDashboardPage() {
                     className="min-w-[280px]"
                   >
                     <Select 
-                      value={selectedEntityId?.toString() || "all"} 
+                      value="all"
                       onValueChange={(value) => {
-                        try {
-                          if (value === "all" || !value) {
-                            setSelectedEntityId(null);
-                          } else {
-                            // Navigate to entity detail page instead of showing embedded content
-                            setLocation(`/client-portal/entities/${value}`);
-                          }
-                        } catch (error) {
-                          console.error('Error setting entity ID:', error);
-                          setSelectedEntityId(null);
+                        if (value === "all" || !value) {
+                          // Stay on dashboard
+                          return;
+                        } else {
+                          // Navigate to entity detail page
+                          setLocation(`/client-portal/entities/${value}`);
                         }
                       }}
                     >
