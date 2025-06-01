@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   Calendar,
   CheckCircle,
+  CheckCircle2,
   Clock,
   TrendingUp,
   Building2,
@@ -1206,7 +1207,7 @@ const CriticalAlerts = ({ tasks, taskStatuses, invoices, clients, entities }: an
       
       {allAlerts.length === 0 && (
         <div className="text-center py-6 text-gray-500">
-          <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-500" />
+          <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-500" />
           <p className="text-sm font-medium">All clear!</p>
           <p className="text-xs">No urgent items require attention</p>
         </div>
