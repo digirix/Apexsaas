@@ -43,6 +43,13 @@ import TaxSummaryPage from "@/pages/finance/reports/tax-summary";
 import WorkflowAutomationPage from "@/pages/workflow-automation";
 import { NotificationsPage } from "@/pages/notifications-page";
 import { EntityDetailPage } from "@/pages/entity-detail";
+import ReportsPage from "@/pages/reports/reports-page";
+import TaskPerformanceReport from "@/pages/reports/task-performance-report";
+import ComplianceOverviewReport from "@/pages/reports/compliance-overview-report";
+import TeamEfficiencyReport from "@/pages/reports/team-efficiency-report";
+import TaskLifecycleReport from "@/pages/reports/task-lifecycle-report";
+import RiskAssessmentReport from "@/pages/reports/risk-assessment-report";
+import JurisdictionAnalysisReport from "@/pages/reports/jurisdiction-analysis-report";
 
 function Router() {
   return (
