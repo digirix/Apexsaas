@@ -658,7 +658,7 @@ function ComplianceAnalysisSection({
   const threeMonthsFromNow = new Date();
   threeMonthsFromNow.setMonth(currentDate.getMonth() + 3);
 
-  // Filter tasks with compliance deadlines within next 3 months (any status)
+  // Filter tasks with compliance deadlines - include overdue tasks and upcoming tasks within 6 months
   const upcomingComplianceTasks = entityTasks.filter(task => {
     if (!task.complianceDeadline) return false;
     const deadline = new Date(task.complianceDeadline);
@@ -666,11 +666,19 @@ function ComplianceAnalysisSection({
     // Compare dates only, not timestamps - set time to start of day for fair comparison
     const deadlineDate = new Date(deadline.getFullYear(), deadline.getMonth(), deadline.getDate());
     const currentDateOnly = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
-    const threeMonthsFromNowDate = new Date(threeMonthsFromNow.getFullYear(), threeMonthsFromNow.getMonth(), threeMonthsFromNow.getDate());
     
-
+    // Extend range to 6 months to show more compliance tasks
+    const sixMonthsFromNow = new Date();
+    sixMonthsFromNow.setMonth(currentDate.getMonth() + 6);
+    const sixMonthsFromNowDate = new Date(sixMonthsFromNow.getFullYear(), sixMonthsFromNow.getMonth(), sixMonthsFromNow.getDate());
     
-    return deadlineDate >= currentDateOnly && deadlineDate <= threeMonthsFromNowDate;
+    // Include overdue tasks (deadline before current date) AND upcoming tasks within 6 months
+    return deadlineDate <= sixMonthsFromNowDate;
+  }).sort((a, b) => {
+    // Sort by deadline: overdue tasks first, then by date
+    const deadlineA = new Date(a.complianceDeadline!);
+    const deadlineB = new Date(b.complianceDeadline!);
+    return deadlineA.getTime() - deadlineB.getTime();
   });
 
   // Get task status name
@@ -700,7 +708,7 @@ function ComplianceAnalysisSection({
           Compliance Analysis
         </CardTitle>
         <CardDescription>
-          Tasks with compliance deadlines within the next 3 months
+          Overdue tasks and upcoming compliance deadlines within the next 6 months
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -738,10 +746,13 @@ function ComplianceAnalysisSection({
                   </TableCell>
                   <TableCell>
                     <span className={`font-medium ${
-                      new Date(task.complianceDeadline!) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) ? 'text-red-600' :
-                      new Date(task.complianceDeadline!) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) ? 'text-yellow-600' : 'text-green-600'
+                      new Date(task.complianceDeadline!) < new Date() ? 'text-red-700 bg-red-50 px-2 py-1 rounded' :
+                      new Date(task.complianceDeadline!) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) ? 'text-orange-600 bg-orange-50 px-2 py-1 rounded' :
+                      new Date(task.complianceDeadline!) <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) ? 'text-yellow-600 bg-yellow-50 px-2 py-1 rounded' : 'text-green-600'
                     }`}>
+                      {new Date(task.complianceDeadline!) < new Date() && '⚠️ '}
                       {format(new Date(task.complianceDeadline!), 'MMM dd, yyyy')}
+                      {new Date(task.complianceDeadline!) < new Date() && ' (OVERDUE)'}
                     </span>
                   </TableCell>
                   <TableCell>
