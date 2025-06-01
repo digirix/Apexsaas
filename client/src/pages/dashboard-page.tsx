@@ -289,21 +289,41 @@ export default function DashboardPage() {
     return periods;
   }, [tasks, taskStatuses, performanceTimeFilter]);
 
-  // Generate clients by country data
-  const clientsByCountryData = useMemo(() => {
-    const countryMap = new Map();
+  // Generate entity performance analytics data
+  const entityPerformanceData = useMemo(() => {
+    if (!entities || entities.length === 0) return [];
     
-    entities.forEach(entity => {
+    return entities.map(entity => {
+      const entityTasks = tasks.filter(task => task.entityId === entity.id) || [];
+      const completedTasks = entityTasks.filter(task => {
+        const status = taskStatuses.find(s => s.id === task.statusId);
+        return status && status.rank === 3;
+      });
+      const overdueTasks = entityTasks.filter(task => {
+        const dueDate = new Date(task.dueDate);
+        const status = taskStatuses.find(s => s.id === task.statusId);
+        return dueDate < new Date() && status && status.rank !== 3;
+      });
+      
+      const client = clients.find(c => c.id === entity.clientId);
       const country = countries.find(c => c.id === entity.countryId);
-      const countryName = country?.name || 'Unknown';
-      countryMap.set(countryName, (countryMap.get(countryName) || 0) + 1);
-    });
-    
-    return Array.from(countryMap.entries())
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 10); // Top 10 countries
-  }, [entities, countries]);
+      
+      return {
+        id: entity.id,
+        name: entity.name,
+        clientName: client?.displayName || 'Unknown Client',
+        countryName: country?.name || 'Unknown',
+        totalTasks: entityTasks.length,
+        completedTasks: completedTasks.length,
+        overdueTasks: overdueTasks.length,
+        completionRate: entityTasks.length > 0 ? Math.round((completedTasks.length / entityTasks.length) * 100) : 0,
+        riskScore: overdueTasks.length > 0 ? Math.min(overdueTasks.length * 20, 100) : 0,
+        lastActivity: entityTasks.length > 0 ? 
+          Math.max(...entityTasks.map(t => new Date(t.createdAt).getTime())) : 
+          new Date(entity.createdAt).getTime()
+      };
+    }).sort((a, b) => b.totalTasks - a.totalTasks);
+  }, [entities, tasks, taskStatuses, clients, countries]);
 
   // Generate monthly revenue trend (last 6 months)
   const monthlyRevenueData = useMemo(() => {
@@ -888,30 +908,74 @@ export default function DashboardPage() {
       
       {/* Additional Insights Section */}
       <div className="grid gap-4 md:grid-cols-2 mb-6">
-        {/* Entities by Country Chart - only show if user has client permission */}
+        {/* Entity Performance Analytics - only show if user has client permission */}
         {(canViewClients || user?.isSuperAdmin) && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div>
-                <CardTitle className="text-lg font-medium">Entities by Country</CardTitle>
-                <p className="text-sm text-slate-500">Geographic distribution</p>
+                <CardTitle className="text-lg font-medium">Entity Performance Analytics</CardTitle>
+                <p className="text-sm text-slate-500">Task completion and risk assessment</p>
               </div>
-              <Building2 className="h-5 w-5 text-slate-500" />
+              <TrendingUp className="h-5 w-5 text-slate-500" />
             </CardHeader>
             <CardContent>
-              <div className="h-[280px]">
-                {clientsByCountryData.length > 0 ? (
-                  <BarChart
-                    data={clientsByCountryData}
-                    xAxis={{ dataKey: "name" }}
-                    series={[{ dataKey: "value", color: "#3B82F6" }]}
-                    tooltip
-                  />
+              <div className="space-y-4">
+                {entityPerformanceData.length > 0 ? (
+                  entityPerformanceData.slice(0, 5).map((entity) => (
+                    <div key={entity.id} className="p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                         onClick={() => window.location.href = `/entities/${entity.id}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <Building2 className="h-4 w-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-sm">{entity.name}</h4>
+                            <p className="text-xs text-slate-500">{entity.clientName} • {entity.countryName}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {entity.riskScore > 50 && (
+                            <Badge variant="destructive" className="text-xs">
+                              High Risk
+                            </Badge>
+                          )}
+                          <span className="text-xs text-slate-500">{entity.totalTasks} tasks</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 mr-3">
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full transition-all duration-300 ${
+                                entity.completionRate >= 80 ? 'bg-green-500' :
+                                entity.completionRate >= 60 ? 'bg-blue-500' :
+                                entity.completionRate >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+                              }`}
+                              style={{ width: `${entity.completionRate}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2 text-xs">
+                          <span className="text-green-600">{entity.completedTasks}</span>
+                          <span className="text-slate-400">/</span>
+                          <span className="text-slate-600">{entity.totalTasks}</span>
+                          {entity.overdueTasks > 0 && (
+                            <>
+                              <span className="text-slate-400">•</span>
+                              <span className="text-red-600">{entity.overdueTasks} overdue</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
                 ) : (
-                  <div className="flex items-center justify-center h-full text-slate-500">
+                  <div className="flex items-center justify-center h-40 text-slate-500">
                     <div className="text-center">
                       <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No entity data available</p>
+                      <p className="text-xs">Entities will appear here once created</p>
                     </div>
                   </div>
                 )}
