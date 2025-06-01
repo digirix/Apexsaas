@@ -2,7 +2,23 @@
 
 ## Immediate Priorities (Next 2-4 weeks)
 
-### 1. Enhanced AI-Powered Features (Critical Priority)
+### 1. Client Portal Invoice Branding Enhancement (Urgent)
+**Objective**: Restore professional invoice branding with payment information section
+
+**Current Status**: Client Portal logout functionality has been completely fixed. Now need to restore the comprehensive payment details and firm branding that should be populated from tenant settings.
+
+**Tasks:**
+- [ ] Add professional invoice footer with payment information section
+- [ ] Integrate bank details, account information, and payment instructions from tenant settings
+- [ ] Include firm branding with copyright and website link
+- [ ] Add notes section for invoice-specific information
+- [ ] Ensure consistent styling with firm color scheme and professional presentation
+
+**Files to modify:**
+- `client/src/pages/client-portal/dashboard-page.tsx` - Invoice modal enhancement
+- `server/routes/client-portal-routes.ts` - Ensure proper tenant settings access
+
+### 2. Enhanced AI-Powered Features (Critical Priority)
 **Objective**: Implement comprehensive AI assistance that helps users make informed decisions and performs actions within the application
 
 **Key Requirements from Full Scope:**
