@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
 import { 
   Building2, Calendar, Clock, Receipt, BarChart, User, Eye, 
@@ -1651,24 +1652,71 @@ export default function ClientPortalDashboardPage() {
                                     }`}>
                                       {task.statusName}
                                     </span>
+                                    {(() => {
+                                      if (!task.dueDate) return null;
+                                      const dueDate = new Date(task.dueDate);
+                                      const today = new Date();
+                                      const diffTime = dueDate.getTime() - today.getTime();
+                                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                      
+                                      if (diffDays < 0 && task.statusName !== 'Completed') {
+                                        return (
+                                          <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-700">
+                                            {Math.abs(diffDays)} days overdue
+                                          </span>
+                                        );
+                                      } else if (diffDays >= 0 && diffDays <= 7 && task.statusName !== 'Completed') {
+                                        return (
+                                          <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700">
+                                            {diffDays === 0 ? 'Due today' : `${diffDays} days left`}
+                                          </span>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
                                   </div>
                                   <p className="text-sm text-slate-600 mb-2">
-                                    {task.description || 'No description'}
+                                    {task.description || task.taskDetails || 'No description'}
                                   </p>
-                                  <div className="flex items-center space-x-4 text-xs text-slate-500">
+                                  <div className="grid grid-cols-2 gap-3 text-xs text-slate-500 mb-2">
                                     <span className="flex items-center">
-                                      <Building2 className="h-3 w-3 mr-1" />
-                                      {entityName}
+                                      <Building2 className="h-3 w-3 mr-1 text-blue-500" />
+                                      <span className="font-medium">Entity:</span>&nbsp;{entityName}
                                     </span>
                                     <span className="flex items-center">
-                                      <Calendar className="h-3 w-3 mr-1" />
-                                      Due: {formatDate(task.dueDate)}
+                                      <Calendar className="h-3 w-3 mr-1 text-green-500" />
+                                      <span className="font-medium">Due:</span>&nbsp;{formatDate(task.dueDate)}
                                     </span>
                                     <span className="flex items-center">
-                                      <User className="h-3 w-3 mr-1" />
-                                      {task.assigneeName || 'Unassigned'}
+                                      <User className="h-3 w-3 mr-1 text-purple-500" />
+                                      <span className="font-medium">Assignee:</span>&nbsp;{task.assigneeName || 'Unassigned'}
                                     </span>
+                                    {task.complianceYear && (
+                                      <span className="flex items-center">
+                                        <Shield className="h-3 w-3 mr-1 text-orange-500" />
+                                        <span className="font-medium">Year:</span>&nbsp;{task.complianceYear}
+                                      </span>
+                                    )}
                                   </div>
+                                  {(task.complianceStartDate || task.complianceEndDate || task.complianceFrequency) && (
+                                    <div className="flex items-center space-x-4 text-xs text-slate-500 bg-slate-50 rounded-lg p-2">
+                                      {task.complianceStartDate && (
+                                        <span>
+                                          <span className="font-medium">Start:</span> {formatDate(task.complianceStartDate)}
+                                        </span>
+                                      )}
+                                      {task.complianceEndDate && (
+                                        <span>
+                                          <span className="font-medium">End:</span> {formatDate(task.complianceEndDate)}
+                                        </span>
+                                      )}
+                                      {task.complianceFrequency && (
+                                        <span>
+                                          <span className="font-medium">Frequency:</span> {task.complianceFrequency}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                                 <motion.div
                                   whileHover={{ scale: 1.05 }}
@@ -2228,6 +2276,202 @@ export default function ClientPortalDashboardPage() {
           </div>
         </motion.footer>
       )}
+
+      {/* Task Details Modal */}
+      <Dialog open={showTaskDetails} onOpenChange={setShowTaskDetails}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-blue-500" />
+              Task Details
+            </DialogTitle>
+          </DialogHeader>
+          
+          {(() => {
+            const task = clientTasks.find((t: any) => t.id === selectedTaskId);
+            if (!task) return <div>Task not found</div>;
+            
+            const entityName = clientEntities.find((e: any) => e.id === task.entityId)?.name || "Unknown Entity";
+            
+            return (
+              <div className="space-y-6">
+                {/* Task Header */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-900 mb-2">
+                        {task.title || task.taskDetails || 'Task'}
+                      </h2>
+                      <div className="flex items-center space-x-3">
+                        <Badge 
+                          variant="secondary"
+                          className={`${
+                            task.statusName === 'Completed' ? 'bg-green-100 text-green-700' :
+                            task.statusName === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                            'bg-slate-100 text-slate-700'
+                          }`}
+                        >
+                          {task.statusName}
+                        </Badge>
+                        {(() => {
+                          if (!task.dueDate) return null;
+                          const dueDate = new Date(task.dueDate);
+                          const today = new Date();
+                          const diffTime = dueDate.getTime() - today.getTime();
+                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                          
+                          if (diffDays < 0 && task.statusName !== 'Completed') {
+                            return (
+                              <Badge variant="destructive">
+                                {Math.abs(diffDays)} days overdue
+                              </Badge>
+                            );
+                          } else if (diffDays >= 0 && diffDays <= 7 && task.statusName !== 'Completed') {
+                            return (
+                              <Badge variant="secondary" className="bg-yellow-100 text-yellow-700">
+                                {diffDays === 0 ? 'Due today' : `${diffDays} days left`}
+                              </Badge>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Task ID</p>
+                      <p className="text-lg font-bold text-slate-900">#{task.id}</p>
+                    </div>
+                  </div>
+                  
+                  {task.description && (
+                    <div className="bg-white/50 rounded-lg p-4">
+                      <p className="text-slate-700">{task.description}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Task Information Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Primary Details */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-blue-500" />
+                      Primary Details
+                    </h3>
+                    
+                    <div className="space-y-3 bg-slate-50 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-600">Entity</span>
+                        <span className="text-sm text-slate-900 font-medium">{entityName}</span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-600">Due Date</span>
+                        <span className="text-sm text-slate-900">{formatDate(task.dueDate)}</span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-600">Assignee</span>
+                        <span className="text-sm text-slate-900">{task.assigneeName || 'Unassigned'}</span>
+                      </div>
+                      
+                      {task.createdAt && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-slate-600">Created</span>
+                          <span className="text-sm text-slate-900">{formatDate(task.createdAt)}</span>
+                        </div>
+                      )}
+                      
+                      {task.updatedAt && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-slate-600">Last Updated</span>
+                          <span className="text-sm text-slate-900">{formatDate(task.updatedAt)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Compliance Details */}
+                  {(task.complianceYear || task.complianceStartDate || task.complianceEndDate || task.complianceFrequency || task.complianceDeadline) && (
+                    <div className="space-y-4">
+                      <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-green-500" />
+                        Compliance Information
+                      </h3>
+                      
+                      <div className="space-y-3 bg-green-50 rounded-lg p-4">
+                        {task.complianceYear && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-slate-600">Compliance Year</span>
+                            <span className="text-sm text-slate-900 font-medium">{task.complianceYear}</span>
+                          </div>
+                        )}
+                        
+                        {task.complianceFrequency && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-slate-600">Frequency</span>
+                            <span className="text-sm text-slate-900">{task.complianceFrequency}</span>
+                          </div>
+                        )}
+                        
+                        {task.complianceStartDate && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-slate-600">Compliance Start</span>
+                            <span className="text-sm text-slate-900">{formatDate(task.complianceStartDate)}</span>
+                          </div>
+                        )}
+                        
+                        {task.complianceEndDate && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-slate-600">Compliance End</span>
+                            <span className="text-sm text-slate-900">{formatDate(task.complianceEndDate)}</span>
+                          </div>
+                        )}
+                        
+                        {task.complianceDeadline && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-slate-600">Compliance Deadline</span>
+                            <span className="text-sm text-slate-900">{formatDate(task.complianceDeadline)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Task Details Section */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-orange-500" />
+                    Task Information
+                  </h3>
+                  
+                  <div className="bg-white border rounded-lg overflow-hidden">
+                    <div className="bg-slate-50 px-4 py-3 border-b">
+                      <h4 className="font-medium text-slate-900">Description</h4>
+                    </div>
+                    <div className="p-4">
+                      <p className="text-slate-700 leading-relaxed">
+                        {task.description || task.taskDetails || 'No detailed description available for this task.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-3 pt-4 border-t">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowTaskDetails(false)}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
