@@ -545,16 +545,16 @@ export default function ClientPortalDashboardPage() {
                       animate={{ scale: 1 }}
                       transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
                     >
-                      {clientTasks.filter(task => task.statusName !== 'Completed').length}
+                      {filteredTasks.filter(task => task.statusName !== 'Completed').length}
                     </motion.div>
                     <div className="mt-2 space-y-1">
                       <p className="text-xs text-slate-500">
-                        {clientTasks.filter(task => {
+                        {filteredTasks.filter(task => {
                           if (!task.dueDate) return false;
                           const dueDate = new Date(task.dueDate);
                           const today = new Date();
                           return dueDate < today && task.statusName !== 'Completed';
-                        }).length} overdue • {clientTasks.filter(task => {
+                        }).length} overdue • {filteredTasks.filter(task => {
                           if (!task.dueDate) return false;
                           const dueDate = new Date(task.dueDate);
                           const today = new Date();
@@ -588,10 +588,10 @@ export default function ClientPortalDashboardPage() {
                       animate={{ scale: 1 }}
                       transition={{ type: "spring", stiffness: 200, delay: 0.4 }}
                     >
-                      {formatCurrency(clientInvoices.reduce((sum: number, inv: any) => sum + (inv.amount || 0), 0))}
+                      {formatCurrency(filteredInvoices.reduce((sum: number, inv: any) => sum + (inv.amount || 0), 0))}
                     </motion.div>
                     <p className="text-xs text-slate-500 mt-2">
-                      {clientInvoices.length} invoices • {clientInvoices.filter((inv: any) => inv.status === 'paid').length} paid
+                      {filteredInvoices.length} invoices • {filteredInvoices.filter((inv: any) => inv.status === 'paid').length} paid
                     </p>
                   </CardContent>
                 </Card>
@@ -617,10 +617,10 @@ export default function ClientPortalDashboardPage() {
                       animate={{ scale: 1 }}
                       transition={{ type: "spring", stiffness: 200, delay: 0.4 }}
                     >
-                      {clientEntities.length}
+                      {filteredEntities.length}
                     </motion.div>
                     <p className="text-xs text-slate-500 mt-2">
-                      {clientEntities.filter((entity: any) => entity.stats?.taskCount > 0).length} active • {clientEntities.filter((entity: any) => entity.isVatRegistered).length} VAT registered
+                      {filteredEntities.filter((entity: any) => entity.stats?.taskCount > 0).length} active • {filteredEntities.filter((entity: any) => entity.isVatRegistered).length} VAT registered
                     </p>
                   </CardContent>
                 </Card>
