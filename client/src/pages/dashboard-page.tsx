@@ -1691,23 +1691,38 @@ const ComplianceDashboard = ({ tasks, taskStatuses, clients, entities, countries
     task.title?.toLowerCase().includes('payroll')
   ) || [];
 
-  // Calculate comprehensive compliance metrics
+  // Calculate comprehensive compliance metrics - prioritizing regulatory deadlines
   const complianceMetrics = React.useMemo(() => {
-    const overdueTasks = complianceTasks.filter((task: any) => {
-      const deadline = task.complianceDeadline ? new Date(task.complianceDeadline) : new Date(task.dueDate);
-      return deadline < currentDate && task.statusId !== completedStatusId;
+    // Regulatory deadline violations - most critical
+    const regulatoryOverdue = complianceTasks.filter((task: any) => {
+      if (!task.complianceDeadline) return false;
+      const complianceDeadline = new Date(task.complianceDeadline);
+      return complianceDeadline < currentDate && task.statusId !== completedStatusId;
     });
     
+    // Internal deadline violations for compliance tasks without regulatory deadlines
+    const internalOverdue = complianceTasks.filter((task: any) => {
+      if (task.complianceDeadline) return false; // Skip if has regulatory deadline
+      const dueDate = new Date(task.dueDate);
+      return dueDate < currentDate && task.statusId !== completedStatusId;
+    });
+    
+    // Critical upcoming - regulatory deadlines within 7 days
     const upcomingCritical = complianceTasks.filter((task: any) => {
       const deadline = task.complianceDeadline ? new Date(task.complianceDeadline) : new Date(task.dueDate);
       const daysUntil = Math.ceil((deadline.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
-      return daysUntil >= 0 && daysUntil <= 7 && task.statusId !== completedStatusId;
+      const isRegulatory = !!task.complianceDeadline;
+      return daysUntil >= 0 && daysUntil <= (isRegulatory ? 14 : 7) && task.statusId !== completedStatusId;
     });
     
+    // Moderate upcoming - within 30 days for regulatory, 14 days for internal
     const upcomingModerate = complianceTasks.filter((task: any) => {
       const deadline = task.complianceDeadline ? new Date(task.complianceDeadline) : new Date(task.dueDate);
       const daysUntil = Math.ceil((deadline.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
-      return daysUntil > 7 && daysUntil <= 30 && task.statusId !== completedStatusId;
+      const isRegulatory = !!task.complianceDeadline;
+      const criticalThreshold = isRegulatory ? 14 : 7;
+      const moderateThreshold = isRegulatory ? 45 : 21;
+      return daysUntil > criticalThreshold && daysUntil <= moderateThreshold && task.statusId !== completedStatusId;
     });
     
     const completedThisMonth = complianceTasks.filter((task: any) => {
@@ -1718,43 +1733,61 @@ const ComplianceDashboard = ({ tasks, taskStatuses, clients, entities, countries
     
     return {
       total: complianceTasks.length,
-      overdue: overdueTasks.length,
+      regulatoryOverdue: regulatoryOverdue.length,
+      internalOverdue: internalOverdue.length,
+      overdue: regulatoryOverdue.length + internalOverdue.length,
       criticalUpcoming: upcomingCritical.length,
       moderateUpcoming: upcomingModerate.length,
       completed: complianceTasks.filter((task: any) => task.statusId === completedStatusId).length,
       completedThisMonth: completedThisMonth.length,
-      complianceRate: complianceTasks.length > 0 ? Math.round((complianceTasks.filter((task: any) => task.statusId === completedStatusId).length / complianceTasks.length) * 100) : 0
+      complianceRate: complianceTasks.length > 0 ? Math.round((complianceTasks.filter((task: any) => task.statusId === completedStatusId).length / complianceTasks.length) * 100) : 0,
+      regulatoryTasks: complianceTasks.filter((task: any) => task.complianceDeadline).length,
+      internalTasks: complianceTasks.filter((task: any) => !task.complianceDeadline).length
     };
   }, [complianceTasks, completedStatusId, currentDate]);
 
-  // Risk assessment by entity
+  // Risk assessment by entity - prioritizing regulatory compliance deadlines
   const entityRiskAnalysis = React.useMemo(() => {
     return entities?.map((entity: any) => {
       const entityTasks = complianceTasks.filter((task: any) => task.entityId === entity.id);
-      const overdueTasks = entityTasks.filter((task: any) => {
-        const deadline = task.complianceDeadline ? new Date(task.complianceDeadline) : new Date(task.dueDate);
-        return deadline < currentDate && task.statusId !== completedStatusId;
+      
+      // Separate regulatory and internal overdue tasks
+      const regulatoryOverdue = entityTasks.filter((task: any) => {
+        if (!task.complianceDeadline) return false;
+        const complianceDeadline = new Date(task.complianceDeadline);
+        return complianceDeadline < currentDate && task.statusId !== completedStatusId;
       });
+      
+      const internalOverdue = entityTasks.filter((task: any) => {
+        if (task.complianceDeadline) return false;
+        const dueDate = new Date(task.dueDate);
+        return dueDate < currentDate && task.statusId !== completedStatusId;
+      });
+      
       const upcomingTasks = entityTasks.filter((task: any) => {
         const deadline = task.complianceDeadline ? new Date(task.complianceDeadline) : new Date(task.dueDate);
         const daysUntil = Math.ceil((deadline.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
-        return daysUntil >= 0 && daysUntil <= 30 && task.statusId !== completedStatusId;
+        const isRegulatory = !!task.complianceDeadline;
+        const maxDays = isRegulatory ? 45 : 21; // Extended window for regulatory tasks
+        return daysUntil >= 0 && daysUntil <= maxDays && task.statusId !== completedStatusId;
       });
       
       const client = clients?.find((c: any) => c.id === entity.clientId);
       const country = countries?.find((c: any) => c.id === entity.countryId);
       
-      // Risk score calculation
+      // Enhanced risk score calculation - regulatory violations are most critical
       let riskScore = 0;
-      riskScore += overdueTasks.length * 30; // Heavy penalty for overdue
+      riskScore += regulatoryOverdue.length * 50; // Critical penalty for regulatory violations
+      riskScore += internalOverdue.length * 20; // Moderate penalty for internal overdue
       riskScore += upcomingTasks.filter((t: any) => {
         const deadline = t.complianceDeadline ? new Date(t.complianceDeadline) : new Date(t.dueDate);
         const daysUntil = Math.ceil((deadline.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
-        return daysUntil <= 7;
-      }).length * 15; // Moderate penalty for critical upcoming
+        const isRegulatory = !!t.complianceDeadline;
+        return daysUntil <= (isRegulatory ? 14 : 7);
+      }).length * 25; // High penalty for critical upcoming
       riskScore += upcomingTasks.length * 5; // Light penalty for all upcoming
       
-      const riskLevel = riskScore > 50 ? 'high' : riskScore > 20 ? 'medium' : riskScore > 0 ? 'low' : 'minimal';
+      const riskLevel = riskScore >= 100 ? 'high' : riskScore >= 30 ? 'medium' : riskScore > 0 ? 'low' : 'minimal';
       
       return {
         entityId: entity.id,
@@ -1762,7 +1795,9 @@ const ComplianceDashboard = ({ tasks, taskStatuses, clients, entities, countries
         clientName: client?.displayName || client?.companyName || 'Unknown',
         countryName: country?.name || 'Unknown',
         totalTasks: entityTasks.length,
-        overdueTasks: overdueTasks.length,
+        regulatoryOverdue: regulatoryOverdue.length,
+        internalOverdue: internalOverdue.length,
+        overdueTasks: regulatoryOverdue.length + internalOverdue.length,
         upcomingTasks: upcomingTasks.length,
         completedTasks: entityTasks.filter((task: any) => task.statusId === completedStatusId).length,
         riskScore,
@@ -1843,10 +1878,24 @@ const ComplianceDashboard = ({ tasks, taskStatuses, clients, entities, countries
             <div>
               <p className="text-xs font-medium text-red-600 uppercase tracking-wide">Overdue</p>
               <p className="text-2xl font-bold text-red-700">{complianceMetrics.overdue}</p>
+              <div className="flex gap-2 mt-1">
+                {complianceMetrics.regulatoryOverdue > 0 && (
+                  <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
+                    {complianceMetrics.regulatoryOverdue} Regulatory
+                  </span>
+                )}
+                {complianceMetrics.internalOverdue > 0 && (
+                  <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">
+                    {complianceMetrics.internalOverdue} Internal
+                  </span>
+                )}
+              </div>
             </div>
             <AlertTriangle className="h-6 w-6 text-red-500" />
           </div>
-          <p className="text-xs text-red-600 mt-1">Require immediate attention</p>
+          <p className="text-xs text-red-600 mt-1">
+            {complianceMetrics.regulatoryOverdue > 0 ? "Regulatory violations critical" : "Internal deadlines missed"}
+          </p>
         </div>
         
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
