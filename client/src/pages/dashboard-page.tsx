@@ -909,7 +909,7 @@ const RecentActivityFeed = ({ tasks, taskStatuses, users, clients }: any) => {
   );
 }
 
-function CriticalAlerts({ tasks, taskStatuses, invoices, clients, entities }: any) {
+const CriticalAlerts = ({ tasks, taskStatuses, invoices, clients, entities }: any) => {
   const now = new Date();
   const threeDaysFromNow = new Date(now.getTime() + (3 * 24 * 60 * 60 * 1000));
   
@@ -978,7 +978,7 @@ function CriticalAlerts({ tasks, taskStatuses, invoices, clients, entities }: an
   );
 }
 
-function ComplianceDashboard({ tasks, taskStatuses, clients, entities, countries }: any) {
+const ComplianceDashboard = ({ tasks, taskStatuses, clients, entities, countries }: any) => {
   const complianceTasks = tasks?.filter((task: any) => 
     task.title?.toLowerCase().includes('tax') || 
     task.title?.toLowerCase().includes('compliance') ||
