@@ -83,6 +83,13 @@ export default function ClientPortalDashboardPage() {
     queryKey: ['/api/client-portal/profile']
   });
 
+  // Redirect to login if user is not authenticated
+  useEffect(() => {
+    if (profileError && profileError.status === 401) {
+      setLocation('/client-portal/login');
+    }
+  }, [profileError, setLocation]);
+
   // Fetch entities
   const { data: clientEntitiesData } = useQuery({
     queryKey: ['/api/client-portal/entities']
