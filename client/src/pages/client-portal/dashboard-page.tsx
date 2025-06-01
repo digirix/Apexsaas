@@ -100,6 +100,22 @@ export default function ClientPortalDashboardPage() {
   });
   const clientInvoices = Array.isArray(clientInvoicesData) ? clientInvoicesData : [];
 
+  // Filter data based on selected entity
+  const filteredTasks = useMemo(() => {
+    if (!selectedEntityId) return clientTasks;
+    return clientTasks.filter(task => task.entityId === selectedEntityId);
+  }, [clientTasks, selectedEntityId]);
+
+  const filteredInvoices = useMemo(() => {
+    if (!selectedEntityId) return clientInvoices;
+    return clientInvoices.filter(invoice => invoice.entityId === selectedEntityId);
+  }, [clientInvoices, selectedEntityId]);
+
+  const filteredEntities = useMemo(() => {
+    if (!selectedEntityId) return clientEntities;
+    return clientEntities.filter(entity => entity.id === selectedEntityId);
+  }, [clientEntities, selectedEntityId]);
+
   // Fetch tenant settings for portal customization
   const { data: tenantSettingsData } = useQuery({
     queryKey: ['/api/v1/tenant/settings']
@@ -490,7 +506,11 @@ export default function ClientPortalDashboardPage() {
                     <Building2 className="h-4 w-4 text-slate-600" />
                     <span className="text-sm font-medium text-slate-700">Entity:</span>
                   </div>
-                  <EntityFilterDropdown entities={clientEntities || []} />
+                  <EntityFilterDropdown 
+                    entities={clientEntities || []} 
+                    selectedEntityId={selectedEntityId}
+                    onEntitySelect={setSelectedEntityId}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>
