@@ -478,7 +478,7 @@ export function registerClientPortalRoutes(app: Express) {
         whereClause += ` AND i.entity_id = ${entityId}`;
       }
       
-      // Query the invoices table with joins to get detailed information
+      // Query the invoices table with joins to get detailed information including task details
       const invoiceResults = await db.execute(sql`
         SELECT 
           i.id,
@@ -499,9 +499,12 @@ export function registerClientPortalRoutes(app: Express) {
           i.status,
           i.notes,
           i.created_at as "createdAt",
-          i.updated_at as "updatedAt" 
+          i.updated_at as "updatedAt",
+          t.task_details as "taskDetails",
+          t.title as "taskTitle"
         FROM invoices i
         LEFT JOIN entities e ON i.entity_id = e.id AND i.tenant_id = e.tenant_id
+        LEFT JOIN tasks t ON i.id = t.invoice_id AND t.tenant_id = i.tenant_id
         WHERE 
           ${sql.raw(whereClause)}
         ORDER BY i.issue_date DESC
