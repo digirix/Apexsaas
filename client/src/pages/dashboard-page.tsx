@@ -30,7 +30,8 @@ import {
   BarChart3,
   ArrowUpRight,
   ArrowDownRight,
-  Minus
+  Minus,
+  Trophy
 } from "lucide-react";
 import { format, isAfter, isBefore, addDays, subDays } from "date-fns";
 import { useMemo } from "react";
@@ -1154,6 +1155,30 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Task Performance Analytics for SuperAdmin */}
+      {user?.isSuperAdmin && (
+        <Card className="mt-4">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base font-medium">Task Performance Analytics</CardTitle>
+                <p className="text-xs text-slate-500">Team efficiency, member performance, and task lifecycle tracking</p>
+              </div>
+              <Trophy className="h-4 w-4 text-slate-500" />
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <TaskPerformanceDashboard 
+              tasks={tasks}
+              taskStatuses={taskStatuses}
+              users={users}
+              clients={clients}
+              entities={entities}
+            />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Compliance Dashboard for SuperAdmin */}
       {user?.isSuperAdmin && (
         <Card className="mt-4">
@@ -1670,6 +1695,466 @@ const CriticalAlerts = ({ tasks, taskStatuses, invoices, clients, entities }: an
   );
 }
 
+const TaskPerformanceDashboard = ({ tasks, taskStatuses, users, clients, entities }: any) => {
+  const [selectedMember, setSelectedMember] = React.useState<string>('all');
+  const [selectedTimeRange, setSelectedTimeRange] = React.useState<string>('all');
+
+  // Task Performance Analytics - comprehensive lifecycle tracking
+  const taskPerformanceAnalytics = React.useMemo(() => {
+    if (!tasks?.length || !taskStatuses?.length || !users?.length) return { taskLifecycles: [], memberPerformance: [], efficiencyMetrics: {} };
+
+    const completedStatusId = taskStatuses.find((s: any) => s.name === 'Completed')?.id;
+    const inProgressStatusId = taskStatuses.find((s: any) => s.name === 'In Progress')?.id;
+
+    const taskLifecycles = tasks.map((task: any) => {
+      const createdDate = new Date(task.createdAt);
+      const dueDate = new Date(task.dueDate);
+      const complianceDeadline = task.complianceDeadline ? new Date(task.complianceDeadline) : null;
+      const completedDate = task.statusId === completedStatusId && task.updatedAt ? new Date(task.updatedAt) : null;
+      const currentDate = new Date();
+      
+      // Calculate various time metrics
+      const totalLifecycle = completedDate ? 
+        Math.ceil((completedDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24)) :
+        Math.ceil((currentDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      const timeToCompletion = completedDate ? 
+        Math.ceil((completedDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24)) : null;
+      
+      const daysUntilDue = Math.ceil((dueDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+      const daysUntilCompliance = complianceDeadline ? 
+        Math.ceil((complianceDeadline.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24)) : null;
+      
+      // Performance scoring
+      let efficiencyScore = 100;
+      let riskLevel = 'low';
+      
+      if (completedDate) {
+        // Completed tasks - score based on delivery timing
+        const dueDateMet = completedDate <= dueDate;
+        const complianceDeadlineMet = !complianceDeadline || completedDate <= complianceDeadline;
+        
+        if (!complianceDeadlineMet) {
+          efficiencyScore = 20; // Major penalty for regulatory violations
+          riskLevel = 'critical';
+        } else if (!dueDateMet) {
+          efficiencyScore = 60; // Moderate penalty for internal deadline miss
+          riskLevel = 'medium';
+        } else {
+          // Bonus for early completion
+          const earlyDays = Math.max(0, Math.ceil((dueDate.getTime() - completedDate.getTime()) / (1000 * 60 * 60 * 24)));
+          efficiencyScore = Math.min(100, 85 + (earlyDays * 3));
+          riskLevel = 'low';
+        }
+      } else {
+        // In-progress tasks - score based on remaining time
+        if (complianceDeadline && daysUntilCompliance <= 0) {
+          efficiencyScore = 10; // Critical - regulatory deadline passed
+          riskLevel = 'critical';
+        } else if (daysUntilDue <= 0) {
+          efficiencyScore = 30; // Internal deadline passed
+          riskLevel = 'high';
+        } else if (complianceDeadline && daysUntilCompliance <= 7) {
+          efficiencyScore = 50; // Approaching regulatory deadline
+          riskLevel = 'medium';
+        } else if (daysUntilDue <= 3) {
+          efficiencyScore = 70; // Approaching internal deadline
+          riskLevel = 'medium';
+        }
+      }
+
+      const assignee = users.find((u: any) => u.id === task.assigneeId);
+      const client = clients?.find((c: any) => c.id === task.clientId);
+      const entity = entities?.find((e: any) => e.id === task.entityId);
+
+      return {
+        taskId: task.id,
+        title: task.taskDetails || 'Untitled Task',
+        assigneeName: assignee?.displayName || 'Unassigned',
+        assigneeId: task.assigneeId,
+        clientName: client?.displayName || 'Unknown Client',
+        entityName: entity?.name || 'Unknown Entity',
+        createdDate,
+        dueDate,
+        complianceDeadline,
+        completedDate,
+        totalLifecycle,
+        timeToCompletion,
+        daysUntilDue,
+        daysUntilCompliance,
+        efficiencyScore,
+        riskLevel,
+        isCompleted: !!completedDate,
+        status: taskStatuses.find((s: any) => s.id === task.statusId)?.name || 'Unknown',
+        hasComplianceDeadline: !!complianceDeadline,
+        isRegulatory: !!complianceDeadline
+      };
+    });
+
+    // Member performance aggregation
+    const memberPerformance = users.map((user: any) => {
+      const userTasks = taskLifecycles.filter((task: any) => task.assigneeId === user.id);
+      const completedTasks = userTasks.filter((task: any) => task.isCompleted);
+      const overdueTasks = userTasks.filter((task: any) => !task.isCompleted && task.daysUntilDue < 0);
+      const regulatoryViolations = userTasks.filter((task: any) => 
+        task.hasComplianceDeadline && (!task.isCompleted && task.daysUntilCompliance < 0)
+      );
+
+      const avgEfficiencyScore = userTasks.length > 0 ? 
+        Math.round(userTasks.reduce((sum: number, task: any) => sum + task.efficiencyScore, 0) / userTasks.length) : 0;
+      
+      const avgCompletionTime = completedTasks.length > 0 ?
+        Math.round(completedTasks.reduce((sum: number, task: any) => sum + (task.timeToCompletion || 0), 0) / completedTasks.length) : 0;
+
+      // Performance rating
+      let performanceRating = 'Good';
+      if (regulatoryViolations.length > 0) performanceRating = 'Critical';
+      else if (avgEfficiencyScore < 50) performanceRating = 'Needs Improvement';
+      else if (avgEfficiencyScore > 85) performanceRating = 'Excellent';
+
+      return {
+        userId: user.id,
+        name: user.displayName,
+        totalTasks: userTasks.length,
+        completedTasks: completedTasks.length,
+        overdueTasks: overdueTasks.length,
+        regulatoryViolations: regulatoryViolations.length,
+        avgEfficiencyScore,
+        avgCompletionTime,
+        performanceRating,
+        completionRate: userTasks.length > 0 ? Math.round((completedTasks.length / userTasks.length) * 100) : 0
+      };
+    }).filter((member: any) => member.totalTasks > 0);
+
+    // Overall efficiency metrics
+    const efficiencyMetrics = {
+      totalTasks: taskLifecycles.length,
+      completedTasks: taskLifecycles.filter((t: any) => t.isCompleted).length,
+      avgCompletionTime: taskLifecycles.filter((t: any) => t.timeToCompletion).length > 0 ?
+        Math.round(taskLifecycles.filter((t: any) => t.timeToCompletion).reduce((sum: number, t: any) => sum + (t.timeToCompletion || 0), 0) / 
+        taskLifecycles.filter((t: any) => t.timeToCompletion).length) : 0,
+      avgEfficiencyScore: taskLifecycles.length > 0 ?
+        Math.round(taskLifecycles.reduce((sum: number, t: any) => sum + t.efficiencyScore, 0) / taskLifecycles.length) : 0,
+      onTimeDeliveryRate: taskLifecycles.filter((t: any) => t.isCompleted).length > 0 ?
+        Math.round((taskLifecycles.filter((t: any) => t.isCompleted && t.efficiencyScore >= 85).length / 
+        taskLifecycles.filter((t: any) => t.isCompleted).length) * 100) : 0
+    };
+
+    return {
+      taskLifecycles: taskLifecycles.sort((a: any, b: any) => b.createdDate.getTime() - a.createdDate.getTime()),
+      memberPerformance: memberPerformance.sort((a: any, b: any) => b.avgEfficiencyScore - a.avgEfficiencyScore),
+      efficiencyMetrics
+    };
+  }, [tasks, taskStatuses, users, clients, entities]);
+
+  const filteredTaskLifecycles = React.useMemo(() => {
+    let filtered = taskPerformanceAnalytics.taskLifecycles;
+    
+    if (selectedMember !== 'all') {
+      filtered = filtered.filter((task: any) => task.assigneeId.toString() === selectedMember);
+    }
+    
+    if (selectedTimeRange !== 'all') {
+      const now = new Date();
+      const daysAgo = selectedTimeRange === '7d' ? 7 : selectedTimeRange === '30d' ? 30 : 90;
+      const cutoffDate = new Date(now.getTime() - (daysAgo * 24 * 60 * 60 * 1000));
+      filtered = filtered.filter((task: any) => task.createdDate >= cutoffDate);
+    }
+    
+    return filtered;
+  }, [taskPerformanceAnalytics.taskLifecycles, selectedMember, selectedTimeRange]);
+
+  const getEfficiencyColor = (score: number) => {
+    if (score >= 85) return 'text-green-600 bg-green-50';
+    if (score >= 70) return 'text-blue-600 bg-blue-50';
+    if (score >= 50) return 'text-yellow-600 bg-yellow-50';
+    if (score >= 30) return 'text-orange-600 bg-orange-50';
+    return 'text-red-600 bg-red-50';
+  };
+
+  const getRiskLevelColor = (level: string) => {
+    switch (level) {
+      case 'critical': return 'bg-red-100 text-red-800 border-red-200';
+      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      default: return 'bg-green-100 text-green-800 border-green-200';
+    }
+  };
+
+  const getPerformanceColor = (rating: string) => {
+    switch (rating) {
+      case 'Excellent': return 'bg-green-100 text-green-800';
+      case 'Good': return 'bg-blue-100 text-blue-800';
+      case 'Needs Improvement': return 'bg-yellow-100 text-yellow-800';
+      case 'Critical': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  if (!taskPerformanceAnalytics.taskLifecycles.length) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center">
+          <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Task Performance Data</h3>
+          <p className="text-gray-600">Task performance analytics will appear once tasks are created and assigned.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Performance Overview Metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Total Tasks</p>
+              <p className="text-2xl font-bold text-blue-700">{taskPerformanceAnalytics.efficiencyMetrics.totalTasks}</p>
+            </div>
+            <BarChart3 className="h-6 w-6 text-blue-500" />
+          </div>
+          <p className="text-xs text-blue-600 mt-1">Across all members</p>
+        </div>
+        
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-green-600 uppercase tracking-wide">Avg Completion</p>
+              <p className="text-2xl font-bold text-green-700">{taskPerformanceAnalytics.efficiencyMetrics.avgCompletionTime}d</p>
+            </div>
+            <Clock className="h-6 w-6 text-green-500" />
+          </div>
+          <p className="text-xs text-green-600 mt-1">Days to complete</p>
+        </div>
+        
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-purple-600 uppercase tracking-wide">Efficiency Score</p>
+              <p className="text-2xl font-bold text-purple-700">{taskPerformanceAnalytics.efficiencyMetrics.avgEfficiencyScore}%</p>
+            </div>
+            <Target className="h-6 w-6 text-purple-500" />
+          </div>
+          <p className="text-xs text-purple-600 mt-1">Overall performance</p>
+        </div>
+        
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-amber-600 uppercase tracking-wide">On-Time Rate</p>
+              <p className="text-2xl font-bold text-amber-700">{taskPerformanceAnalytics.efficiencyMetrics.onTimeDeliveryRate}%</p>
+            </div>
+            <TrendingUp className="h-6 w-6 text-amber-500" />
+          </div>
+          <p className="text-xs text-amber-600 mt-1">Delivered on time</p>
+        </div>
+      </div>
+
+      {/* Filter Controls */}
+      <div className="flex flex-wrap gap-4 items-center">
+        <div className="flex items-center space-x-2">
+          <label className="text-sm font-medium text-gray-700">Member:</label>
+          <select 
+            value={selectedMember} 
+            onChange={(e) => setSelectedMember(e.target.value)}
+            className="text-sm border border-gray-300 rounded-md px-3 py-1 bg-white"
+          >
+            <option value="all">All Members</option>
+            {taskPerformanceAnalytics.memberPerformance.map((member: any) => (
+              <option key={member.userId} value={member.userId.toString()}>
+                {member.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <label className="text-sm font-medium text-gray-700">Time Range:</label>
+          <select 
+            value={selectedTimeRange} 
+            onChange={(e) => setSelectedTimeRange(e.target.value)}
+            className="text-sm border border-gray-300 rounded-md px-3 py-1 bg-white"
+          >
+            <option value="all">All Time</option>
+            <option value="7d">Last 7 Days</option>
+            <option value="30d">Last 30 Days</option>
+            <option value="90d">Last 90 Days</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Member Performance Leaderboard */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Trophy className="h-5 w-5 mr-2" />
+            Member Performance Leaderboard
+          </CardTitle>
+          <CardDescription>
+            Performance scoring based on efficiency, completion rate, and deadline adherence
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {taskPerformanceAnalytics.memberPerformance.map((member: any, index: number) => (
+              <div key={member.userId} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500 text-white font-bold text-sm">
+                    {index + 1}
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-900">{member.name}</h4>
+                    <div className="flex items-center space-x-4 mt-1">
+                      <span className="text-xs text-gray-600">
+                        {member.completedTasks}/{member.totalTasks} tasks ({member.completionRate}%)
+                      </span>
+                      <span className={`text-xs px-2 py-1 rounded-full ${getPerformanceColor(member.performanceRating)}`}>
+                        {member.performanceRating}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className={`text-lg font-bold px-3 py-1 rounded-lg ${getEfficiencyColor(member.avgEfficiencyScore)}`}>
+                    {member.avgEfficiencyScore}%
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    Avg: {member.avgCompletionTime}d
+                  </div>
+                  {member.regulatoryViolations > 0 && (
+                    <div className="text-xs text-red-600 font-medium mt-1">
+                      {member.regulatoryViolations} regulatory violations
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Task Lifecycle Timeline */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Calendar className="h-5 w-5 mr-2" />
+            Task Lifecycle Analytics
+          </CardTitle>
+          <CardDescription>
+            Complete task journey from creation to completion with performance metrics
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {filteredTaskLifecycles.slice(0, 10).map((task: any) => (
+              <div key={task.taskId} className="border rounded-lg p-4 bg-white">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-900 mb-1">{task.title}</h4>
+                    <div className="flex items-center space-x-4 text-xs text-gray-600">
+                      <span>{task.clientName} • {task.entityName}</span>
+                      <span>Assigned to: {task.assigneeName}</span>
+                      <span className={`px-2 py-1 rounded-full border ${getRiskLevelColor(task.riskLevel)}`}>
+                        {task.status}
+                      </span>
+                    </div>
+                  </div>
+                  <div className={`text-lg font-bold px-3 py-1 rounded-lg ${getEfficiencyColor(task.efficiencyScore)}`}>
+                    {task.efficiencyScore}%
+                  </div>
+                </div>
+                
+                {/* Timeline Visualization */}
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-xs text-gray-500">
+                      Created: {format(task.createdDate, 'MMM d, yyyy')}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Due: {format(task.dueDate, 'MMM d, yyyy')}
+                      {task.complianceDeadline && (
+                        <span className="text-red-600 font-medium ml-2">
+                          Compliance: {format(task.complianceDeadline, 'MMM d, yyyy')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="relative w-full h-2 bg-gray-200 rounded-full mb-2">
+                    {task.isCompleted ? (
+                      <div 
+                        className={`h-full rounded-full ${
+                          task.efficiencyScore >= 85 ? 'bg-green-500' :
+                          task.efficiencyScore >= 70 ? 'bg-blue-500' :
+                          task.efficiencyScore >= 50 ? 'bg-yellow-500' :
+                          'bg-red-500'
+                        }`}
+                        style={{ width: '100%' }}
+                      />
+                    ) : (
+                      <div 
+                        className={`h-full rounded-full ${
+                          task.daysUntilDue > 7 ? 'bg-green-500' :
+                          task.daysUntilDue > 3 ? 'bg-yellow-500' :
+                          task.daysUntilDue > 0 ? 'bg-orange-500' :
+                          'bg-red-500'
+                        }`}
+                        style={{ 
+                          width: task.isCompleted ? '100%' : 
+                            `${Math.min(100, Math.max(10, (task.totalLifecycle / 30) * 100))}%` 
+                        }}
+                      />
+                    )}
+                  </div>
+                  
+                  {/* Metrics */}
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center space-x-4">
+                      <span className="text-gray-600">
+                        Lifecycle: {task.totalLifecycle} days
+                      </span>
+                      {task.timeToCompletion && (
+                        <span className="text-gray-600">
+                          Completed in: {task.timeToCompletion} days
+                        </span>
+                      )}
+                      {task.isRegulatory && (
+                        <span className="text-purple-600 font-medium">
+                          Regulatory Task
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {task.completedDate && (
+                        <span className="text-green-600">
+                          ✓ Completed {format(task.completedDate, 'MMM d')}
+                        </span>
+                      )}
+                      {!task.isCompleted && task.daysUntilDue <= 0 && (
+                        <span className="text-red-600 font-medium">
+                          {Math.abs(task.daysUntilDue)} days overdue
+                        </span>
+                      )}
+                      {!task.isCompleted && task.daysUntilCompliance !== null && task.daysUntilCompliance <= 0 && (
+                        <span className="text-red-600 font-bold">
+                          Compliance violation!
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
 const ComplianceDashboard = ({ tasks, taskStatuses, clients, entities, countries }: any) => {
   const [complianceFilter, setComplianceFilter] = React.useState('all');
   const [riskFilter, setRiskFilter] = React.useState('all');
@@ -1807,6 +2292,154 @@ const ComplianceDashboard = ({ tasks, taskStatuses, clients, entities, countries
     }).filter((entity: any) => entity.totalTasks > 0)
     .sort((a: any, b: any) => b.riskScore - a.riskScore) || [];
   }, [entities, complianceTasks, completedStatusId, currentDate, clients, countries]);
+
+  // Task Performance Analytics - comprehensive lifecycle tracking
+  const taskPerformanceAnalytics = React.useMemo(() => {
+    if (!tasks?.length || !taskStatuses?.length || !users?.length) return { taskLifecycles: [], memberPerformance: [], efficiencyMetrics: {} };
+
+    const completedStatusId = taskStatuses.find((s: any) => s.name === 'Completed')?.id;
+    const inProgressStatusId = taskStatuses.find((s: any) => s.name === 'In Progress')?.id;
+
+    const taskLifecycles = tasks.map((task: any) => {
+      const createdDate = new Date(task.createdAt);
+      const dueDate = new Date(task.dueDate);
+      const complianceDeadline = task.complianceDeadline ? new Date(task.complianceDeadline) : null;
+      const completedDate = task.statusId === completedStatusId && task.updatedAt ? new Date(task.updatedAt) : null;
+      const currentDate = new Date();
+      
+      // Calculate various time metrics
+      const totalLifecycle = completedDate ? 
+        Math.ceil((completedDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24)) :
+        Math.ceil((currentDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      const timeToCompletion = completedDate ? 
+        Math.ceil((completedDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24)) : null;
+      
+      const daysUntilDue = Math.ceil((dueDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+      const daysUntilCompliance = complianceDeadline ? 
+        Math.ceil((complianceDeadline.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24)) : null;
+      
+      // Performance scoring
+      let efficiencyScore = 100;
+      let riskLevel = 'low';
+      
+      if (completedDate) {
+        // Completed tasks - score based on delivery timing
+        const dueDateMet = completedDate <= dueDate;
+        const complianceDeadlineMet = !complianceDeadline || completedDate <= complianceDeadline;
+        
+        if (!complianceDeadlineMet) {
+          efficiencyScore = 20; // Major penalty for regulatory violations
+          riskLevel = 'critical';
+        } else if (!dueDateMet) {
+          efficiencyScore = 60; // Moderate penalty for internal deadline miss
+          riskLevel = 'medium';
+        } else {
+          // Bonus for early completion
+          const earlyDays = Math.max(0, Math.ceil((dueDate.getTime() - completedDate.getTime()) / (1000 * 60 * 60 * 24)));
+          efficiencyScore = Math.min(100, 85 + (earlyDays * 3));
+          riskLevel = 'low';
+        }
+      } else {
+        // In-progress tasks - score based on remaining time
+        if (complianceDeadline && daysUntilCompliance <= 0) {
+          efficiencyScore = 10; // Critical - regulatory deadline passed
+          riskLevel = 'critical';
+        } else if (daysUntilDue <= 0) {
+          efficiencyScore = 30; // Internal deadline passed
+          riskLevel = 'high';
+        } else if (complianceDeadline && daysUntilCompliance <= 7) {
+          efficiencyScore = 50; // Approaching regulatory deadline
+          riskLevel = 'medium';
+        } else if (daysUntilDue <= 3) {
+          efficiencyScore = 70; // Approaching internal deadline
+          riskLevel = 'medium';
+        }
+      }
+
+      const assignee = users.find((u: any) => u.id === task.assigneeId);
+      const client = clients?.find((c: any) => c.id === task.clientId);
+      const entity = entities?.find((e: any) => e.id === task.entityId);
+
+      return {
+        taskId: task.id,
+        title: task.taskDetails || 'Untitled Task',
+        assigneeName: assignee?.displayName || 'Unassigned',
+        assigneeId: task.assigneeId,
+        clientName: client?.displayName || 'Unknown Client',
+        entityName: entity?.name || 'Unknown Entity',
+        createdDate,
+        dueDate,
+        complianceDeadline,
+        completedDate,
+        totalLifecycle,
+        timeToCompletion,
+        daysUntilDue,
+        daysUntilCompliance,
+        efficiencyScore,
+        riskLevel,
+        isCompleted: !!completedDate,
+        status: taskStatuses.find((s: any) => s.id === task.statusId)?.name || 'Unknown',
+        hasComplianceDeadline: !!complianceDeadline,
+        isRegulatory: !!complianceDeadline
+      };
+    });
+
+    // Member performance aggregation
+    const memberPerformance = users.map((user: any) => {
+      const userTasks = taskLifecycles.filter(task => task.assigneeId === user.id);
+      const completedTasks = userTasks.filter(task => task.isCompleted);
+      const overdueTasks = userTasks.filter(task => !task.isCompleted && task.daysUntilDue < 0);
+      const regulatoryViolations = userTasks.filter(task => 
+        task.hasComplianceDeadline && (!task.isCompleted && task.daysUntilCompliance < 0)
+      );
+
+      const avgEfficiencyScore = userTasks.length > 0 ? 
+        Math.round(userTasks.reduce((sum, task) => sum + task.efficiencyScore, 0) / userTasks.length) : 0;
+      
+      const avgCompletionTime = completedTasks.length > 0 ?
+        Math.round(completedTasks.reduce((sum, task) => sum + (task.timeToCompletion || 0), 0) / completedTasks.length) : 0;
+
+      // Performance rating
+      let performanceRating = 'Good';
+      if (regulatoryViolations.length > 0) performanceRating = 'Critical';
+      else if (avgEfficiencyScore < 50) performanceRating = 'Needs Improvement';
+      else if (avgEfficiencyScore > 85) performanceRating = 'Excellent';
+
+      return {
+        userId: user.id,
+        name: user.displayName,
+        totalTasks: userTasks.length,
+        completedTasks: completedTasks.length,
+        overdueTasks: overdueTasks.length,
+        regulatoryViolations: regulatoryViolations.length,
+        avgEfficiencyScore,
+        avgCompletionTime,
+        performanceRating,
+        completionRate: userTasks.length > 0 ? Math.round((completedTasks.length / userTasks.length) * 100) : 0
+      };
+    }).filter(member => member.totalTasks > 0);
+
+    // Overall efficiency metrics
+    const efficiencyMetrics = {
+      totalTasks: taskLifecycles.length,
+      completedTasks: taskLifecycles.filter(t => t.isCompleted).length,
+      avgCompletionTime: taskLifecycles.filter(t => t.timeToCompletion).length > 0 ?
+        Math.round(taskLifecycles.filter(t => t.timeToCompletion).reduce((sum, t) => sum + (t.timeToCompletion || 0), 0) / 
+        taskLifecycles.filter(t => t.timeToCompletion).length) : 0,
+      avgEfficiencyScore: taskLifecycles.length > 0 ?
+        Math.round(taskLifecycles.reduce((sum, t) => sum + t.efficiencyScore, 0) / taskLifecycles.length) : 0,
+      onTimeDeliveryRate: taskLifecycles.filter(t => t.isCompleted).length > 0 ?
+        Math.round((taskLifecycles.filter(t => t.isCompleted && t.efficiencyScore >= 85).length / 
+        taskLifecycles.filter(t => t.isCompleted).length) * 100) : 0
+    };
+
+    return {
+      taskLifecycles: taskLifecycles.sort((a, b) => b.createdDate.getTime() - a.createdDate.getTime()),
+      memberPerformance: memberPerformance.sort((a, b) => b.avgEfficiencyScore - a.avgEfficiencyScore),
+      efficiencyMetrics
+    };
+  }, [tasks, taskStatuses, users, clients, entities]);
 
   // Jurisdiction-based compliance analysis
   const jurisdictionAnalysis = React.useMemo(() => {
