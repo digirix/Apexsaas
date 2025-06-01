@@ -1759,7 +1759,7 @@ export default function ClientPortalDashboardPage() {
                       </div>
                       
                       <div className="p-8">
-                      <div className="flex items-start justify-between mb-6">
+                        <div className="flex items-start justify-between mb-6">
                         <div>
                           <h2 className="text-2xl font-bold text-slate-900 mb-2">
                             Invoice #{invoice.invoiceNumber || invoice.id}
@@ -1919,47 +1919,47 @@ export default function ClientPortalDashboardPage() {
                         </div>
                       )}
 
-                      {/* Professional Footer with Payment Information */}
-                      <div className="mt-8 pt-6 border-t-2 border-blue-600">
-                        <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg">
-                          <h3 className="text-lg font-semibold text-blue-900 mb-4">Payment Information</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                            {getSetting("bank_name") && (
-                              <div>
-                                <span className="font-medium text-slate-600">Bank:</span>
-                                <span className="ml-2 text-slate-800">{getSetting("bank_name")}</span>
-                              </div>
-                            )}
-                            {getSetting("account_title") && (
-                              <div>
-                                <span className="font-medium text-slate-600">Account Title:</span>
-                                <span className="ml-2 text-slate-800">{getSetting("account_title")}</span>
-                              </div>
-                            )}
-                            {getSetting("account_number") && (
-                              <div>
-                                <span className="font-medium text-slate-600">Account Number:</span>
-                                <span className="ml-2 text-slate-800">{getSetting("account_number")}</span>
-                              </div>
-                            )}
-                            {getSetting("routing_number") && (
-                              <div>
-                                <span className="font-medium text-slate-600">Routing Number:</span>
-                                <span className="ml-2 text-slate-800">{getSetting("routing_number")}</span>
+                        {/* Professional Footer with Payment Information */}
+                        <div className="mt-8 pt-6 border-t-2 border-blue-600">
+                          <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg">
+                            <h3 className="text-lg font-semibold text-blue-900 mb-4">Payment Information</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                              {getSetting("bank_name") && (
+                                <div>
+                                  <span className="font-medium text-slate-600">Bank:</span>
+                                  <span className="ml-2 text-slate-800">{getSetting("bank_name")}</span>
+                                </div>
+                              )}
+                              {getSetting("account_title") && (
+                                <div>
+                                  <span className="font-medium text-slate-600">Account Title:</span>
+                                  <span className="ml-2 text-slate-800">{getSetting("account_title")}</span>
+                                </div>
+                              )}
+                              {getSetting("account_number") && (
+                                <div>
+                                  <span className="font-medium text-slate-600">Account Number:</span>
+                                  <span className="ml-2 text-slate-800">{getSetting("account_number")}</span>
+                                </div>
+                              )}
+                              {getSetting("routing_number") && (
+                                <div>
+                                  <span className="font-medium text-slate-600">Routing Number:</span>
+                                  <span className="ml-2 text-slate-800">{getSetting("routing_number")}</span>
+                                </div>
+                              )}
+                            </div>
+                            {getSetting("payment_instructions") && (
+                              <div className="mt-4 p-3 bg-white rounded border-l-4 border-blue-600">
+                                <p className="text-sm text-slate-700">{getSetting("payment_instructions")}</p>
                               </div>
                             )}
                           </div>
-                          {getSetting("payment_instructions") && (
-                            <div className="mt-4 p-3 bg-white rounded border-l-4 border-blue-600">
-                              <p className="text-sm text-slate-700">{getSetting("payment_instructions")}</p>
-                            </div>
-                          )}
+                          
+                          <div className="mt-4 text-center text-sm text-slate-600">
+                            <p>&copy; {new Date().getFullYear()} {firmName}. All rights reserved.</p>
+                          </div>
                         </div>
-                        
-                        <div className="mt-4 text-center text-sm text-slate-600">
-                          <p>&copy; {new Date().getFullYear()} {firmName}. All rights reserved.</p>
-                        </div>
-                      </div>
                       </div>
                     </div>
                   );
