@@ -380,13 +380,26 @@ export default function ClientPortalDashboardPage() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/client-portal/logout', {
-        method: 'POST'
+      const response = await fetch('/api/client-portal/logout', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
-      setLocation('/client-portal');
+      
+      if (response.ok) {
+        // Force a full page reload to clear all cached data and redirect to login
+        window.location.href = '/client-portal';
+      } else {
+        console.error('Logout failed:', response.statusText);
+        // Force redirect anyway as a fallback
+        window.location.href = '/client-portal';
+      }
     } catch (error) {
       console.error('Logout error:', error);
-      setLocation('/client-portal');
+      // Force redirect as a fallback
+      window.location.href = '/client-portal';
     }
   };
 
