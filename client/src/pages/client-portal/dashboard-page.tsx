@@ -252,7 +252,7 @@ export default function ClientPortalDashboardPage() {
             <tbody>
               ${invoice.lineItems?.map((item: any) => `
                 <tr>
-                  <td>${item.description || taskDetails}</td>
+                  <td>${taskDetails}</td>
                   <td>${item.quantity || 1}</td>
                   <td>${(item.unitPrice || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                   <td>${(item.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -1834,7 +1834,7 @@ export default function ClientPortalDashboardPage() {
                               {invoice.lineItems && invoice.lineItems.length > 0 ? (
                                 invoice.lineItems.map((item: any, idx: number) => (
                                   <tr key={idx} className="border-b border-slate-100">
-                                    <td className="py-3 px-4 text-slate-700">{item.description || taskDetails}</td>
+                                    <td className="py-3 px-4 text-slate-700">{taskDetails}</td>
                                     <td className="py-3 px-4 text-right text-slate-700">{item.quantity || 1}</td>
                                     <td className="py-3 px-4 text-right text-slate-700">
                                       {(item.unitPrice || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
