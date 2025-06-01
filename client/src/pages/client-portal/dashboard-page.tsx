@@ -147,8 +147,14 @@ export default function ClientPortalDashboardPage() {
     const paymentInstructions = getSetting("payment_instructions") || "";
     
     // Find the related task to get actual task details
+    // Check multiple possible fields for task information
     const relatedTask = clientTasks.find((task: any) => task.invoiceId === invoice.id);
-    const taskDetails = relatedTask?.taskDetails || relatedTask?.title || "Professional Services";
+    const taskDetails = relatedTask?.taskDetails || 
+                       relatedTask?.title || 
+                       relatedTask?.description || 
+                       relatedTask?.serviceName ||
+                       invoice.notes ||
+                       "Professional Services";
 
     const printContent = `
       <!DOCTYPE html>
@@ -156,38 +162,42 @@ export default function ClientPortalDashboardPage() {
         <head>
           <title>Invoice #${invoice.invoiceNumber || invoice.id}</title>
           <style>
-            body { font-family: Arial, sans-serif; margin: 20px; color: #333; line-height: 1.4; }
-            .firm-header { text-align: center; margin-bottom: 40px; border-bottom: 3px solid #4f46e5; padding-bottom: 25px; }
-            .firm-logo { max-height: 80px; margin-bottom: 15px; }
-            .firm-name { font-size: 32px; font-weight: bold; color: #4f46e5; margin-bottom: 8px; }
-            .firm-tagline { font-size: 16px; color: #666; font-style: italic; margin-bottom: 10px; }
-            .firm-contact { font-size: 14px; color: #555; }
-            .invoice-header { text-align: center; margin-bottom: 30px; }
-            .invoice-title { font-size: 28px; font-weight: bold; color: #333; margin-bottom: 10px; }
-            .invoice-number { font-size: 18px; color: #666; margin-bottom: 10px; }
-            .status-badge { padding: 8px 16px; border-radius: 6px; font-weight: bold; text-transform: uppercase; font-size: 12px; }
+            @page { margin: 0.5in; size: A4; }
+            body { font-family: Arial, sans-serif; margin: 0; color: #333; line-height: 1.2; font-size: 12px; }
+            .firm-header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #4f46e5; padding-bottom: 15px; }
+            .firm-logo { max-height: 50px; margin-bottom: 8px; }
+            .firm-name { font-size: 24px; font-weight: bold; color: #4f46e5; margin-bottom: 4px; }
+            .firm-tagline { font-size: 12px; color: #666; font-style: italic; margin-bottom: 6px; }
+            .firm-contact { font-size: 10px; color: #555; }
+            .invoice-header { text-align: center; margin-bottom: 20px; }
+            .invoice-title { font-size: 20px; font-weight: bold; color: #333; margin-bottom: 6px; }
+            .invoice-number { font-size: 14px; color: #666; margin-bottom: 6px; }
+            .status-badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; text-transform: uppercase; font-size: 10px; }
             .status-paid { background-color: #d4edda; color: #155724; }
             .status-overdue { background-color: #f8d7da; color: #721c24; }
             .status-sent { background-color: #d1ecf1; color: #0c5460; }
             .status-draft { background-color: #e2e3e5; color: #383d41; }
-            .details-section { display: flex; justify-content: space-between; margin-bottom: 30px; }
+            .details-section { display: flex; justify-content: space-between; margin-bottom: 15px; }
             .details-column { width: 48%; }
-            .details-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #333; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
-            .details-content { line-height: 1.6; }
-            .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            .table th, .table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+            .details-title { font-size: 13px; font-weight: bold; margin-bottom: 6px; color: #333; border-bottom: 1px solid #ddd; padding-bottom: 3px; }
+            .details-content { line-height: 1.3; font-size: 11px; }
+            .table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+            .table th, .table td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; font-size: 11px; }
             .table th { background-color: #f8f9fa; font-weight: bold; color: #333; }
-            .totals { margin-top: 20px; }
-            .total-row { display: flex; justify-content: space-between; padding: 8px 0; }
-            .total-row.final { font-weight: bold; font-size: 18px; border-top: 2px solid #333; padding-top: 12px; }
-            .footer { margin-top: 50px; border-top: 2px solid #4f46e5; padding-top: 25px; }
-            .payment-section { margin-bottom: 25px; }
-            .payment-title { font-size: 18px; font-weight: bold; color: #4f46e5; margin-bottom: 15px; }
-            .bank-details { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 15px; }
-            .bank-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+            .totals { margin-top: 10px; }
+            .total-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 11px; }
+            .total-row.final { font-weight: bold; font-size: 13px; border-top: 2px solid #333; padding-top: 6px; }
+            .footer { margin-top: 20px; border-top: 2px solid #4f46e5; padding-top: 15px; page-break-inside: avoid; }
+            .payment-section { margin-bottom: 15px; }
+            .payment-title { font-size: 14px; font-weight: bold; color: #4f46e5; margin-bottom: 8px; }
+            .bank-details { background-color: #f8f9fa; padding: 10px; border-radius: 4px; margin-bottom: 8px; }
+            .bank-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 10px; }
             .bank-label { font-weight: bold; color: #555; }
-            .firm-footer { text-align: center; font-size: 12px; color: #666; }
-            @media print { body { margin: 0; } }
+            .firm-footer { text-align: center; font-size: 9px; color: #666; }
+            @media print { 
+              body { margin: 0; -webkit-print-color-adjust: exact; }
+              .footer { page-break-inside: avoid; }
+            }
           </style>
         </head>
         <body>
@@ -1713,8 +1723,42 @@ export default function ClientPortalDashboardPage() {
                     }
                   };
 
+                  // Get firm branding information from settings
+                  const getSetting = (key: string) => {
+                    const setting = tenantSettings?.find?.((s: any) => s.key === key);
+                    return setting ? setting.value : "";
+                  };
+                  
+                  const firmName = getSetting("firm_name") || getSetting("company_name") || "Accounting Firm";
+                  const firmTagline = getSetting("firm_tagline") || "";
+                  const firmLogo = getSetting("firm_logo") || "";
+                  
+                  // Get task details for this invoice
+                  const relatedTask = clientTasks.find((task: any) => task.invoiceId === invoice.id);
+                  const taskDetails = relatedTask?.taskDetails || 
+                                     relatedTask?.title || 
+                                     relatedTask?.description || 
+                                     relatedTask?.serviceName ||
+                                     invoice.notes ||
+                                     "Professional Services";
+
                   return (
-                    <div className="p-8">
+                    <div className="p-0">
+                      {/* Firm Header */}
+                      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 text-center">
+                        {firmLogo && (
+                          <img src={firmLogo} alt={firmName} className="h-12 mx-auto mb-3" />
+                        )}
+                        <h1 className="text-2xl font-bold mb-1">{firmName}</h1>
+                        {firmTagline && (
+                          <p className="text-blue-100 italic">{firmTagline}</p>
+                        )}
+                        <div className="text-sm text-blue-100 mt-2">
+                          {getSetting("address")} | {getSetting("phone")} | {getSetting("email")}
+                        </div>
+                      </div>
+                      
+                      <div className="p-8">
                       <div className="flex items-start justify-between mb-6">
                         <div>
                           <h2 className="text-2xl font-bold text-slate-900 mb-2">
@@ -1790,7 +1834,7 @@ export default function ClientPortalDashboardPage() {
                               {invoice.lineItems && invoice.lineItems.length > 0 ? (
                                 invoice.lineItems.map((item: any, idx: number) => (
                                   <tr key={idx} className="border-b border-slate-100">
-                                    <td className="py-3 px-4 text-slate-700">{item.description || 'Service'}</td>
+                                    <td className="py-3 px-4 text-slate-700">{item.description || taskDetails}</td>
                                     <td className="py-3 px-4 text-right text-slate-700">{item.quantity || 1}</td>
                                     <td className="py-3 px-4 text-right text-slate-700">
                                       {formatCurrency(item.unitPrice || 0)} {invoice.currencyCode}
@@ -1802,7 +1846,7 @@ export default function ClientPortalDashboardPage() {
                                 ))
                               ) : (
                                 <tr className="border-b border-slate-100">
-                                  <td className="py-3 px-4 text-slate-700">Professional Services</td>
+                                  <td className="py-3 px-4 text-slate-700">{taskDetails}</td>
                                   <td className="py-3 px-4 text-right text-slate-700">1</td>
                                   <td className="py-3 px-4 text-right text-slate-700">
                                     {formatCurrency(invoice.totalAmount || 0)} {invoice.currencyCode}
@@ -1874,6 +1918,49 @@ export default function ClientPortalDashboardPage() {
                           </div>
                         </div>
                       )}
+
+                      {/* Professional Footer with Payment Information */}
+                      <div className="mt-8 pt-6 border-t-2 border-blue-600">
+                        <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg">
+                          <h3 className="text-lg font-semibold text-blue-900 mb-4">Payment Information</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            {getSetting("bank_name") && (
+                              <div>
+                                <span className="font-medium text-slate-600">Bank:</span>
+                                <span className="ml-2 text-slate-800">{getSetting("bank_name")}</span>
+                              </div>
+                            )}
+                            {getSetting("account_title") && (
+                              <div>
+                                <span className="font-medium text-slate-600">Account Title:</span>
+                                <span className="ml-2 text-slate-800">{getSetting("account_title")}</span>
+                              </div>
+                            )}
+                            {getSetting("account_number") && (
+                              <div>
+                                <span className="font-medium text-slate-600">Account Number:</span>
+                                <span className="ml-2 text-slate-800">{getSetting("account_number")}</span>
+                              </div>
+                            )}
+                            {getSetting("routing_number") && (
+                              <div>
+                                <span className="font-medium text-slate-600">Routing Number:</span>
+                                <span className="ml-2 text-slate-800">{getSetting("routing_number")}</span>
+                              </div>
+                            )}
+                          </div>
+                          {getSetting("payment_instructions") && (
+                            <div className="mt-4 p-3 bg-white rounded border-l-4 border-blue-600">
+                              <p className="text-sm text-slate-700">{getSetting("payment_instructions")}</p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="mt-4 text-center text-sm text-slate-600">
+                          <p>&copy; {new Date().getFullYear()} {firmName}. All rights reserved.</p>
+                        </div>
+                      </div>
+                      </div>
                     </div>
                   );
                 })()}
