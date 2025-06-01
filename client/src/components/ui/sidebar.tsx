@@ -325,7 +325,12 @@ export function Sidebar() {
                       ? "bg-blue-50 text-blue-700"
                       : "text-slate-600 hover:bg-slate-100"
                   )}
-                  onClick={() => setMobileOpen(false)}
+                  onClick={() => {
+                    // Only close mobile sidebar on mobile devices
+                    if (window.innerWidth < 768) {
+                      setMobileOpen(false);
+                    }
+                  }}
                 >
                   {React.cloneElement(item.icon as React.ReactElement, {
                     className: cn(
@@ -354,7 +359,12 @@ export function Sidebar() {
                           ? "bg-blue-100 text-blue-800"
                           : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
                       )}
-                      onClick={() => setMobileOpen(false)}
+                      onClick={() => {
+                        // Only close mobile sidebar on mobile devices
+                        if (window.innerWidth < 768) {
+                          setMobileOpen(false);
+                        }
+                      }}
                     >
                       {React.cloneElement(subItem.icon as React.ReactElement, {
                         className: cn(
