@@ -2439,7 +2439,7 @@ const ComplianceDashboard = ({ tasks, taskStatuses, clients, entities, countries
       memberPerformance: memberPerformance.sort((a, b) => b.avgEfficiencyScore - a.avgEfficiencyScore),
       efficiencyMetrics
     };
-  }, [tasks, taskStatuses, users, clients, entities]);
+  }, [tasks, taskStatuses, clients, entities]);
 
   // Jurisdiction-based compliance analysis
   const jurisdictionAnalysis = React.useMemo(() => {
