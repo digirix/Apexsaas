@@ -100,22 +100,6 @@ export default function ClientPortalDashboardPage() {
   });
   const clientInvoices = Array.isArray(clientInvoicesData) ? clientInvoicesData : [];
 
-  // Filter data based on selected entity
-  const filteredTasks = useMemo(() => {
-    if (!selectedEntityId) return clientTasks;
-    return clientTasks.filter(task => task.entityId === selectedEntityId);
-  }, [clientTasks, selectedEntityId]);
-
-  const filteredInvoices = useMemo(() => {
-    if (!selectedEntityId) return clientInvoices;
-    return clientInvoices.filter(invoice => invoice.entityId === selectedEntityId);
-  }, [clientInvoices, selectedEntityId]);
-
-  const filteredEntities = useMemo(() => {
-    if (!selectedEntityId) return clientEntities;
-    return clientEntities.filter(entity => entity.id === selectedEntityId);
-  }, [clientEntities, selectedEntityId]);
-
   // Fetch tenant settings for portal customization
   const { data: tenantSettingsData } = useQuery({
     queryKey: ['/api/v1/tenant/settings']
@@ -506,11 +490,7 @@ export default function ClientPortalDashboardPage() {
                     <Building2 className="h-4 w-4 text-slate-600" />
                     <span className="text-sm font-medium text-slate-700">Entity:</span>
                   </div>
-                  <EntityFilterDropdown 
-                    entities={clientEntities || []} 
-                    selectedEntityId={selectedEntityId}
-                    onEntitySelect={setSelectedEntityId}
-                  />
+                  <EntityFilterDropdown entities={clientEntities || []} />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -545,16 +525,16 @@ export default function ClientPortalDashboardPage() {
                       animate={{ scale: 1 }}
                       transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
                     >
-                      {filteredTasks.filter(task => task.statusName !== 'Completed').length}
+                      {clientTasks.filter(task => task.statusName !== 'Completed').length}
                     </motion.div>
                     <div className="mt-2 space-y-1">
                       <p className="text-xs text-slate-500">
-                        {filteredTasks.filter(task => {
+                        {clientTasks.filter(task => {
                           if (!task.dueDate) return false;
                           const dueDate = new Date(task.dueDate);
                           const today = new Date();
                           return dueDate < today && task.statusName !== 'Completed';
-                        }).length} overdue • {filteredTasks.filter(task => {
+                        }).length} overdue • {clientTasks.filter(task => {
                           if (!task.dueDate) return false;
                           const dueDate = new Date(task.dueDate);
                           const today = new Date();
@@ -588,10 +568,10 @@ export default function ClientPortalDashboardPage() {
                       animate={{ scale: 1 }}
                       transition={{ type: "spring", stiffness: 200, delay: 0.4 }}
                     >
-                      {formatCurrency(filteredInvoices.reduce((sum: number, inv: any) => sum + (inv.amount || 0), 0))}
+                      {formatCurrency(clientInvoices.reduce((sum: number, inv: any) => sum + (inv.amount || 0), 0))}
                     </motion.div>
                     <p className="text-xs text-slate-500 mt-2">
-                      {filteredInvoices.length} invoices • {filteredInvoices.filter((inv: any) => inv.status === 'paid').length} paid
+                      {clientInvoices.length} invoices • {clientInvoices.filter((inv: any) => inv.status === 'paid').length} paid
                     </p>
                   </CardContent>
                 </Card>
@@ -617,10 +597,10 @@ export default function ClientPortalDashboardPage() {
                       animate={{ scale: 1 }}
                       transition={{ type: "spring", stiffness: 200, delay: 0.4 }}
                     >
-                      {filteredEntities.length}
+                      {clientEntities.length}
                     </motion.div>
                     <p className="text-xs text-slate-500 mt-2">
-                      {filteredEntities.filter((entity: any) => entity.stats?.taskCount > 0).length} active • {filteredEntities.filter((entity: any) => entity.isVatRegistered).length} VAT registered
+                      {clientEntities.filter((entity: any) => entity.stats?.taskCount > 0).length} active • {clientEntities.filter((entity: any) => entity.isVatRegistered).length} VAT registered
                     </p>
                   </CardContent>
                 </Card>
