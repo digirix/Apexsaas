@@ -1,3 +1,4 @@
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -586,91 +587,45 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Task Visualization Section */}
+      {/* Task Management Dashboard */}
       {(canViewTasks || user?.isSuperAdmin) && (
-        <div className="space-y-6">
-          {/* Weekly Task Calendar */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-4">
-              <div>
-                <CardTitle className="text-lg font-medium">Weekly Task Overview</CardTitle>
-                <p className="text-sm text-slate-500">Tasks scheduled for this week by team member</p>
-              </div>
-              <Calendar className="h-5 w-5 text-slate-500" />
-            </CardHeader>
-            <CardContent>
-              <WeeklyTaskCalendarView 
-                tasks={tasks} 
-                taskStatuses={taskStatuses} 
-                users={users} 
-                clients={clients}
-                entities={entities}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Task Performance Analytics */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <div>
-                  <CardTitle className="text-lg font-medium">Team Performance</CardTitle>
-                  <p className="text-sm text-slate-500">Task completion by team member</p>
+        <div className="space-y-4">
+          {/* Compact Task Overview Grid */}
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
+            {/* Weekly Calendar - Takes 2 columns on large screens */}
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-medium">This Week's Tasks</CardTitle>
+                    <p className="text-xs text-slate-500">Tasks by day with team assignments</p>
+                  </div>
+                  <Calendar className="h-4 w-4 text-slate-500" />
                 </div>
-                <Target className="h-5 w-5 text-slate-500" />
               </CardHeader>
-              <CardContent>
-                <TeamPerformanceChart 
+              <CardContent className="pt-0">
+                <WeeklyTaskCalendarView 
                   tasks={tasks} 
                   taskStatuses={taskStatuses} 
-                  users={users}
-                />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <div>
-                  <CardTitle className="text-lg font-medium">Priority Distribution</CardTitle>
-                  <p className="text-sm text-slate-500">Tasks by priority level</p>
-                </div>
-                <Zap className="h-5 w-5 text-slate-500" />
-              </CardHeader>
-              <CardContent>
-                <PriorityDistributionChart tasks={tasks} />
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Recent Activity & Notifications */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <div>
-                  <CardTitle className="text-lg font-medium">Recent Activity</CardTitle>
-                  <p className="text-sm text-slate-500">Latest task updates and completions</p>
-                </div>
-                <Activity className="h-5 w-5 text-slate-500" />
-              </CardHeader>
-              <CardContent>
-                <RecentActivityFeed 
-                  tasks={tasks} 
-                  taskStatuses={taskStatuses} 
-                  users={users}
+                  users={users} 
                   clients={clients}
+                  entities={entities}
                 />
               </CardContent>
             </Card>
 
+            {/* Critical Alerts Sidebar */}
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <div>
-                  <CardTitle className="text-lg font-medium">Critical Alerts</CardTitle>
-                  <p className="text-sm text-slate-500">Urgent items requiring attention</p>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-medium">Urgent Items</CardTitle>
+                    <p className="text-xs text-slate-500">Requires immediate attention</p>
+                  </div>
+                  <Bell className="h-4 w-4 text-slate-500" />
                 </div>
-                <Bell className="h-5 w-5 text-slate-500" />
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 <CriticalAlerts 
                   tasks={tasks}
                   taskStatuses={taskStatuses}
@@ -681,20 +636,82 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Analytics Row */}
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+            {/* Team Performance */}
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-medium">Team Performance</CardTitle>
+                    <p className="text-xs text-slate-500">Completion rates by member</p>
+                  </div>
+                  <Target className="h-4 w-4 text-slate-500" />
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <TeamPerformanceChart 
+                  tasks={tasks} 
+                  taskStatuses={taskStatuses} 
+                  users={users}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Priority Distribution */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-medium">Priority Mix</CardTitle>
+                    <p className="text-xs text-slate-500">Task urgency breakdown</p>
+                  </div>
+                  <Zap className="h-4 w-4 text-slate-500" />
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <PriorityDistributionChart tasks={tasks} />
+              </CardContent>
+            </Card>
+
+            {/* Recent Activity */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-medium">Latest Updates</CardTitle>
+                    <p className="text-xs text-slate-500">Recent task activity</p>
+                  </div>
+                  <Activity className="h-4 w-4 text-slate-500" />
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <RecentActivityFeed 
+                  tasks={tasks} 
+                  taskStatuses={taskStatuses} 
+                  users={users}
+                  clients={clients}
+                />
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
 
       {/* Compliance Dashboard for SuperAdmin */}
       {user?.isSuperAdmin && (
-        <Card className="mt-6">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <div>
-              <CardTitle className="text-lg font-medium">Compliance Dashboard</CardTitle>
-              <p className="text-sm text-slate-500">Multi-client compliance status and deadlines</p>
+        <Card className="mt-4">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base font-medium">Compliance Overview</CardTitle>
+                <p className="text-xs text-slate-500">Multi-client compliance status and upcoming deadlines</p>
+              </div>
+              <Settings className="h-4 w-4 text-slate-500" />
             </div>
-            <Settings className="h-5 w-5 text-slate-500" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             <ComplianceDashboard 
               tasks={tasks}
               taskStatuses={taskStatuses}
@@ -709,12 +726,18 @@ export default function DashboardPage() {
   );
 }
 
-// Dashboard Visualization Components
+// Enhanced Dashboard Components with Full Functionality
 const WeeklyTaskCalendarView = ({ tasks, taskStatuses, users, clients, entities }: any) => {
-  const currentDate = new Date();
-  const startOfWeek = new Date(currentDate);
-  startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+  const [selectedWeek, setSelectedWeek] = React.useState(0); // 0 = current week, -1 = previous, 1 = next
   
+  const getWeekStart = (weekOffset: number) => {
+    const currentDate = new Date();
+    const startOfWeek = new Date(currentDate);
+    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + (weekOffset * 7));
+    return startOfWeek;
+  };
+
+  const startOfWeek = getWeekStart(selectedWeek);
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const day = new Date(startOfWeek);
     day.setDate(startOfWeek.getDate() + i);
@@ -730,7 +753,7 @@ const WeeklyTaskCalendarView = ({ tasks, taskStatuses, users, clients, entities 
 
   const getStatusColor = (statusId: number) => {
     const status = taskStatuses?.find((s: any) => s.id === statusId);
-    if (!status) return 'bg-gray-100';
+    if (!status) return 'bg-gray-100 text-gray-800 border-gray-200';
     
     switch (status.name.toLowerCase()) {
       case 'completed': return 'bg-green-100 text-green-800 border-green-200';
@@ -741,99 +764,225 @@ const WeeklyTaskCalendarView = ({ tasks, taskStatuses, users, clients, entities 
     }
   };
 
+  const totalWeekTasks = weekDays.reduce((total, day) => total + getTasksForDay(day).length, 0);
+
   return (
-    <div className="grid grid-cols-7 gap-2">
-      {weekDays.map((day, index) => {
-        const dayTasks = getTasksForDay(day);
-        const isToday = day.toDateString() === currentDate.toDateString();
-        
-        return (
-          <div key={index} className={`p-3 border rounded-lg ${isToday ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'}`}>
-            <div className="text-center mb-2">
-              <div className="text-xs font-medium text-gray-500 uppercase">
-                {day.toLocaleDateString('en-US', { weekday: 'short' })}
-              </div>
-              <div className={`text-lg font-semibold ${isToday ? 'text-blue-600' : 'text-gray-900'}`}>
-                {day.getDate()}
-              </div>
-            </div>
-            <div className="space-y-1">
-              {dayTasks.slice(0, 3).map((task: any) => {
-                const assignedUser = users?.find((u: any) => u.id === task.assignedTo);
-                return (
-                  <div
-                    key={task.id}
-                    className={`p-2 rounded text-xs border cursor-pointer hover:shadow-sm transition-shadow ${getStatusColor(task.statusId)}`}
-                    onClick={() => window.location.href = '/tasks'}
-                  >
-                    <div className="font-medium truncate">{task.title}</div>
-                    {assignedUser && (
-                      <div className="text-xs opacity-75 mt-1">
-                        {assignedUser.displayName}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              {dayTasks.length > 3 && (
-                <div className="text-xs text-gray-500 text-center py-1">
-                  +{dayTasks.length - 3} more
+    <div className="space-y-3">
+      {/* Week Navigation */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setSelectedWeek(prev => prev - 1)}
+            className="h-7 px-2"
+          >
+            ←
+          </Button>
+          <span className="text-sm font-medium">
+            {selectedWeek === 0 ? 'This Week' : 
+             selectedWeek === -1 ? 'Last Week' : 
+             selectedWeek === 1 ? 'Next Week' : 
+             `${selectedWeek > 0 ? '+' : ''}${selectedWeek} weeks`}
+          </span>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setSelectedWeek(prev => prev + 1)}
+            className="h-7 px-2"
+          >
+            →
+          </Button>
+        </div>
+        <div className="text-xs text-gray-500">
+          {totalWeekTasks} tasks this week
+        </div>
+      </div>
+
+      {/* Calendar Grid */}
+      <div className="grid grid-cols-7 gap-2">
+        {weekDays.map((day, index) => {
+          const dayTasks = getTasksForDay(day);
+          const isToday = day.toDateString() === new Date().toDateString();
+          const isPast = day < new Date() && !isToday;
+          
+          return (
+            <div key={index} className={`p-2 border rounded-lg transition-colors ${
+              isToday ? 'bg-blue-50 border-blue-200' : 
+              isPast ? 'bg-gray-50 border-gray-200' : 
+              'bg-white border-gray-200 hover:bg-gray-50'
+            }`}>
+              <div className="text-center mb-2">
+                <div className="text-xs font-medium text-gray-500 uppercase">
+                  {day.toLocaleDateString('en-US', { weekday: 'short' })}
                 </div>
-              )}
+                <div className={`text-sm font-semibold ${
+                  isToday ? 'text-blue-600' : 
+                  isPast ? 'text-gray-500' : 
+                  'text-gray-900'
+                }`}>
+                  {day.getDate()}
+                </div>
+              </div>
+              <div className="space-y-1">
+                {dayTasks.slice(0, 2).map((task: any) => {
+                  const assignedUser = users?.find((u: any) => u.id === task.assignedTo);
+                  const client = clients?.find((c: any) => c.id === task.clientId);
+                  const isOverdue = new Date(task.dueDate) < new Date() && 
+                    taskStatuses?.find((s: any) => s.id === task.statusId)?.name.toLowerCase() !== 'completed';
+                  
+                  return (
+                    <div
+                      key={task.id}
+                      className={`p-1.5 rounded text-xs border cursor-pointer hover:shadow-sm transition-all ${
+                        isOverdue ? 'bg-red-100 text-red-800 border-red-200' : getStatusColor(task.statusId)
+                      }`}
+                      onClick={() => window.location.href = `/tasks?filter=${task.id}`}
+                      title={`${task.title} - ${client?.companyName} - ${assignedUser?.displayName}`}
+                    >
+                      <div className="font-medium truncate">{task.title}</div>
+                      <div className="text-xs opacity-75 truncate">
+                        {assignedUser?.displayName?.split(' ')[0]} • {client?.companyName?.substring(0, 10)}
+                      </div>
+                    </div>
+                  );
+                })}
+                {dayTasks.length > 2 && (
+                  <div 
+                    className="text-xs text-gray-500 text-center py-1 cursor-pointer hover:text-gray-700"
+                    onClick={() => window.location.href = `/tasks?date=${day.toISOString().split('T')[0]}`}
+                  >
+                    +{dayTasks.length - 2} more
+                  </div>
+                )}
+                {dayTasks.length === 0 && (
+                  <div className="text-xs text-gray-400 text-center py-2">
+                    No tasks
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
 
 const TeamPerformanceChart = ({ tasks, taskStatuses, users }: any) => {
+  const [timeFilter, setTimeFilter] = React.useState('all');
+  const [sortBy, setSortBy] = React.useState('rate');
+  
   const completedStatusId = taskStatuses?.find((s: any) => s.name.toLowerCase() === 'completed')?.id;
   
-  const performanceData = users?.map((user: any) => {
-    const userTasks = tasks?.filter((task: any) => task.assignedTo === user.id) || [];
-    const completedTasks = userTasks.filter((task: any) => task.statusId === completedStatusId);
-    const completionRate = userTasks.length > 0 ? (completedTasks.length / userTasks.length) * 100 : 0;
+  const filterTasks = (userTasks: any[]) => {
+    if (timeFilter === 'all') return userTasks;
+    
+    const now = new Date();
+    const filterDate = timeFilter === 'week' 
+      ? new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      : new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    return userTasks.filter((task: any) => new Date(task.createdAt || task.dueDate) >= filterDate);
+  };
+  
+  const teamPerformance = users?.map((user: any) => {
+    const allUserTasks = tasks?.filter((task: any) => task.assignedTo === user.id) || [];
+    const filteredTasks = filterTasks(allUserTasks);
+    const completedTasks = filteredTasks.filter((task: any) => task.statusId === completedStatusId);
+    const overdueTasks = filteredTasks.filter((task: any) => 
+      new Date(task.dueDate) < new Date() && task.statusId !== completedStatusId
+    );
     
     return {
-      name: user.displayName,
+      name: user.displayName?.split(' ')[0] || user.username,
+      fullName: user.displayName || user.username,
+      total: filteredTasks.length,
       completed: completedTasks.length,
-      total: userTasks.length,
-      rate: Math.round(completionRate)
+      overdue: overdueTasks.length,
+      rate: filteredTasks.length > 0 ? Math.round((completedTasks.length / filteredTasks.length) * 100) : 0,
+      userId: user.id
     };
-  }).slice(0, 5) || [];
+  }).filter((user: any) => user.total > 0) || [];
+
+  const sortedPerformance = [...teamPerformance].sort((a, b) => {
+    switch (sortBy) {
+      case 'total': return b.total - a.total;
+      case 'completed': return b.completed - a.completed;
+      case 'rate': default: return b.rate - a.rate;
+    }
+  });
 
   return (
-    <div className="space-y-4">
-      {performanceData.map((user: any, index: number) => (
-        <div key={index} className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-              <span className="text-sm font-medium text-blue-600">
-                {user.name.charAt(0)}
-              </span>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <select 
+            value={timeFilter} 
+            onChange={(e) => setTimeFilter(e.target.value)}
+            className="text-xs border rounded px-2 py-1"
+          >
+            <option value="all">All Time</option>
+            <option value="month">This Month</option>
+            <option value="week">This Week</option>
+          </select>
+          <select 
+            value={sortBy} 
+            onChange={(e) => setSortBy(e.target.value)}
+            className="text-xs border rounded px-2 py-1"
+          >
+            <option value="rate">By Rate</option>
+            <option value="total">By Total</option>
+            <option value="completed">By Completed</option>
+          </select>
+        </div>
+        <div className="text-xs text-gray-500">
+          {teamPerformance.length} members
+        </div>
+      </div>
+
+      {sortedPerformance.slice(0, 4).map((member: any, index: number) => (
+        <div 
+          key={member.name} 
+          className="space-y-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+          onClick={() => window.location.href = `/tasks?assignee=${member.userId}`}
+        >
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-2">
+              <span className="text-xs text-gray-400 w-4">#{index + 1}</span>
+              <span className="text-sm font-medium">{member.name}</span>
+              {member.overdue > 0 && (
+                <span className="text-xs bg-red-100 text-red-800 px-1.5 py-0.5 rounded">
+                  {member.overdue} overdue
+                </span>
+              )}
             </div>
-            <div>
-              <div className="font-medium text-sm">{user.name}</div>
-              <div className="text-xs text-gray-500">
-                {user.completed}/{user.total} tasks
-              </div>
-            </div>
+            <span className="text-xs text-gray-500">{member.completed}/{member.total}</span>
           </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-20 bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-green-500 h-2 rounded-full"
-                style={{ width: `${user.rate}%` }}
-              />
-            </div>
-            <span className="text-sm font-medium text-gray-900 w-8">
-              {user.rate}%
-            </span>
+          <div className="w-full bg-gray-200 rounded-full h-1.5">
+            <div 
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                member.rate >= 80 ? 'bg-green-500' :
+                member.rate >= 60 ? 'bg-blue-500' :
+                member.rate >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+              }`}
+              style={{ width: `${member.rate}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>{member.rate}% completion</span>
+            <span title={member.fullName}>View tasks →</span>
           </div>
         </div>
       ))}
+      
+      {teamPerformance.length === 0 && (
+        <div className="text-center text-gray-500 py-4">
+          <Target className="h-6 w-6 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">No task assignments found</p>
+          <p className="text-xs">Try adjusting the time filter</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -910,39 +1059,108 @@ const RecentActivityFeed = ({ tasks, taskStatuses, users, clients }: any) => {
 }
 
 const CriticalAlerts = ({ tasks, taskStatuses, invoices, clients, entities }: any) => {
+  const [alertFilter, setAlertFilter] = React.useState('all');
+  
   const now = new Date();
   const threeDaysFromNow = new Date(now.getTime() + (3 * 24 * 60 * 60 * 1000));
+  const sevenDaysFromNow = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000));
+  
+  const completedStatusId = taskStatuses?.find((s: any) => s.name.toLowerCase() === 'completed')?.id;
   
   const urgentTasks = tasks?.filter((task: any) => {
     const dueDate = new Date(task.dueDate);
-    return dueDate <= threeDaysFromNow && task.statusId !== taskStatuses?.find((s: any) => s.name.toLowerCase() === 'completed')?.id;
-  }).slice(0, 3) || [];
+    if (alertFilter === 'overdue') return dueDate < now && task.statusId !== completedStatusId;
+    if (alertFilter === 'today') return dueDate.toDateString() === now.toDateString() && task.statusId !== completedStatusId;
+    if (alertFilter === 'week') return dueDate <= sevenDaysFromNow && task.statusId !== completedStatusId;
+    return dueDate <= threeDaysFromNow && task.statusId !== completedStatusId;
+  }).slice(0, 5) || [];
 
   const overdueInvoices = invoices?.filter((invoice: any) => {
     const dueDate = new Date(invoice.dueDate);
     return dueDate < now && invoice.status !== 'paid';
   }).slice(0, 2) || [];
 
+  const getDaysUntilDue = (dueDate: string) => {
+    const due = new Date(dueDate);
+    const diffTime = due.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  const getUrgencyColor = (task: any) => {
+    const daysUntil = getDaysUntilDue(task.dueDate);
+    if (daysUntil < 0) return 'bg-red-50 border-red-200 text-red-800';
+    if (daysUntil === 0) return 'bg-orange-50 border-orange-200 text-orange-800';
+    if (daysUntil <= 1) return 'bg-yellow-50 border-yellow-200 text-yellow-800';
+    return 'bg-blue-50 border-blue-200 text-blue-800';
+  };
+
+  const getUrgencyIcon = (task: any) => {
+    const daysUntil = getDaysUntilDue(task.dueDate);
+    if (daysUntil < 0) return <AlertTriangle className="w-4 h-4 text-red-500" />;
+    if (daysUntil === 0) return <Clock className="w-4 h-4 text-orange-500" />;
+    return <Calendar className="w-4 h-4 text-blue-500" />;
+  };
+
+  const allAlerts = [...urgentTasks, ...overdueInvoices.map(inv => ({ ...inv, type: 'invoice' }))];
+
   return (
     <div className="space-y-3">
+      {/* Filter Controls */}
+      <div className="flex items-center justify-between">
+        <select 
+          value={alertFilter} 
+          onChange={(e) => setAlertFilter(e.target.value)}
+          className="text-xs border rounded px-2 py-1"
+        >
+          <option value="all">All Urgent</option>
+          <option value="overdue">Overdue</option>
+          <option value="today">Due Today</option>
+          <option value="week">This Week</option>
+        </select>
+        <div className="text-xs text-gray-500">
+          {allAlerts.length} items
+        </div>
+      </div>
+
+      {/* Alert Items */}
       {urgentTasks.map((task: any) => {
         const client = clients?.find((c: any) => c.id === task.clientId);
-        const isOverdue = new Date(task.dueDate) < now;
+        const entity = entities?.find((e: any) => e.id === task.entityId);
+        const daysUntil = getDaysUntilDue(task.dueDate);
+        const isOverdue = daysUntil < 0;
         
         return (
           <div
             key={`task-${task.id}`}
-            className={`flex items-center space-x-3 p-3 rounded-lg border cursor-pointer hover:shadow-sm transition-shadow ${
-              isOverdue ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'
-            }`}
-            onClick={() => window.location.href = '/tasks'}
+            className={`p-2 rounded-lg border transition-all hover:shadow-sm ${getUrgencyColor(task)}`}
           >
-            <AlertTriangle className={`w-5 h-5 ${isOverdue ? 'text-red-500' : 'text-yellow-500'}`} />
-            <div className="flex-1">
-              <div className="text-sm font-medium">{task.title}</div>
-              <div className="text-xs text-gray-600">
-                {client?.companyName} • Due: {new Date(task.dueDate).toLocaleDateString()}
+            <div className="flex items-start justify-between">
+              <div className="flex items-start space-x-2">
+                {getUrgencyIcon(task)}
+                <div className="flex-1">
+                  <div className="text-sm font-medium truncate">{task.title}</div>
+                  <div className="text-xs opacity-75 truncate">
+                    {client?.companyName}{entity ? ` • ${entity.name}` : ''}
+                  </div>
+                  <div className="text-xs mt-1">
+                    {isOverdue ? `${Math.abs(daysUntil)} days overdue` : 
+                     daysUntil === 0 ? 'Due today' : 
+                     `Due in ${daysUntil} day${daysUntil === 1 ? '' : 's'}`}
+                  </div>
+                </div>
               </div>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.location.href = `/tasks?filter=${task.id}`;
+                }}
+                className="h-6 px-2 text-xs"
+              >
+                View
+              </Button>
             </div>
           </div>
         );
@@ -950,28 +1168,47 @@ const CriticalAlerts = ({ tasks, taskStatuses, invoices, clients, entities }: an
       
       {overdueInvoices.map((invoice: any) => {
         const client = clients?.find((c: any) => c.id === invoice.clientId);
+        const daysPastDue = Math.abs(getDaysUntilDue(invoice.dueDate));
         
         return (
           <div
             key={`invoice-${invoice.id}`}
-            className="flex items-center space-x-3 p-3 bg-red-50 border border-red-200 rounded-lg cursor-pointer hover:shadow-sm transition-shadow"
-            onClick={() => window.location.href = '/finance'}
+            className="p-2 bg-red-50 border border-red-200 rounded-lg text-red-800"
           >
-            <DollarSign className="w-5 h-5 text-red-500" />
-            <div className="flex-1">
-              <div className="text-sm font-medium">Overdue Invoice</div>
-              <div className="text-xs text-gray-600">
-                {client?.companyName} • ${invoice.amount} • Due: {new Date(invoice.dueDate).toLocaleDateString()}
+            <div className="flex items-start justify-between">
+              <div className="flex items-start space-x-2">
+                <DollarSign className="w-4 h-4 text-red-500 mt-0.5" />
+                <div className="flex-1">
+                  <div className="text-sm font-medium">Overdue Invoice</div>
+                  <div className="text-xs opacity-75">
+                    {client?.companyName} • ${invoice.amount?.toLocaleString()}
+                  </div>
+                  <div className="text-xs mt-1">
+                    {daysPastDue} days past due
+                  </div>
+                </div>
               </div>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.location.href = `/finance?invoice=${invoice.id}`;
+                }}
+                className="h-6 px-2 text-xs"
+              >
+                View
+              </Button>
             </div>
           </div>
         );
       })}
       
-      {urgentTasks.length === 0 && overdueInvoices.length === 0 && (
-        <div className="text-center py-4 text-gray-500">
-          <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
-          <p className="text-sm">All tasks and invoices are on track!</p>
+      {allAlerts.length === 0 && (
+        <div className="text-center py-6 text-gray-500">
+          <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-500" />
+          <p className="text-sm font-medium">All clear!</p>
+          <p className="text-xs">No urgent items require attention</p>
         </div>
       )}
     </div>
