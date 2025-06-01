@@ -2235,6 +2235,7 @@ export default function ClientPortalDashboardPage() {
                     </a>
                   </div>
                 )}
+              </div>
               
               {(footerDisclaimerText || footerAdditionalLinks) && (
                 <div className="mt-4 pt-4 border-t border-slate-200/50">
@@ -2258,7 +2259,6 @@ export default function ClientPortalDashboardPage() {
           </motion.footer>
         ) : null;
       })()}
-    </div>
 
       {/* Invoice Details Modal */}
       <Dialog open={showInvoiceDetails} onOpenChange={setShowInvoiceDetails}>
