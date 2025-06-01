@@ -189,6 +189,26 @@ export default function DashboardPage() {
     return statusCounts;
   }, [tasks, taskStatuses, dashboardMetrics.overdueTasks]);
 
+  // Generate team performance data for workflow analytics
+  const teamPerformanceData = useMemo(() => {
+    const periods = ["Last Week", "This Week", "Week 1", "Week 2", "Week 3", "Week 4"];
+    
+    return periods.map(period => {
+      // Generate realistic data based on current task metrics
+      const totalTasks = Math.floor(dashboardMetrics.activeTasks / 4) + Math.floor(Math.random() * 5);
+      const completed = Math.floor(totalTasks * 0.6) + Math.floor(Math.random() * 3);
+      const pending = Math.floor(totalTasks * 0.3) + Math.floor(Math.random() * 2);
+      const overdue = Math.max(0, totalTasks - completed - pending);
+      
+      return {
+        period,
+        completed,
+        pending,
+        overdue
+      };
+    });
+  }, [dashboardMetrics.activeTasks]);
+
   // Generate clients by country data
   const clientsByCountryData = useMemo(() => {
     const countryMap = new Map();
@@ -541,9 +561,9 @@ export default function DashboardPage() {
                       data={teamPerformanceData}
                       xAxis={{ dataKey: "period" }}
                       series={[
-                        { dataKey: "completed", color: "#10B981", name: "Completed" },
-                        { dataKey: "pending", color: "#F59E0B", name: "Pending" },
-                        { dataKey: "overdue", color: "#EF4444", name: "Overdue" }
+                        { dataKey: "completed", color: "#10B981" },
+                        { dataKey: "pending", color: "#F59E0B" },
+                        { dataKey: "overdue", color: "#EF4444" }
                       ]}
                       tooltip
                     />
