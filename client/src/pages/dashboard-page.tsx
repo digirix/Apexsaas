@@ -586,68 +586,504 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Quick Actions Section */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {(canViewClients || user?.isSuperAdmin) && (
-          <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <Users className="h-8 w-8 text-blue-600 mr-3" />
-                <div>
-                  <p className="font-medium text-slate-900">Clients</p>
-                  <p className="text-xs text-slate-500">Manage client accounts</p>
-                </div>
+      {/* Task Visualization Section */}
+      {(canViewTasks || user?.isSuperAdmin) && (
+        <div className="space-y-6">
+          {/* Weekly Task Calendar */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-4">
+              <div>
+                <CardTitle className="text-lg font-medium">Weekly Task Overview</CardTitle>
+                <p className="text-sm text-slate-500">Tasks scheduled for this week by team member</p>
               </div>
-              <ArrowUpRight className="h-4 w-4 text-slate-400" />
-            </div>
+              <Calendar className="h-5 w-5 text-slate-500" />
+            </CardHeader>
+            <CardContent>
+              <WeeklyTaskCalendarView 
+                tasks={tasks} 
+                taskStatuses={taskStatuses} 
+                users={users} 
+                clients={clients}
+                entities={entities}
+              />
+            </CardContent>
           </Card>
-        )}
 
-        {(canViewTasks || user?.isSuperAdmin) && (
-          <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <ClipboardCheck className="h-8 w-8 text-green-600 mr-3" />
+          {/* Task Performance Analytics */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div>
-                  <p className="font-medium text-slate-900">Tasks</p>
-                  <p className="text-xs text-slate-500">Track work progress</p>
+                  <CardTitle className="text-lg font-medium">Team Performance</CardTitle>
+                  <p className="text-sm text-slate-500">Task completion by team member</p>
                 </div>
-              </div>
-              <ArrowUpRight className="h-4 w-4 text-slate-400" />
-            </div>
-          </Card>
-        )}
+                <Target className="h-5 w-5 text-slate-500" />
+              </CardHeader>
+              <CardContent>
+                <TeamPerformanceChart 
+                  tasks={tasks} 
+                  taskStatuses={taskStatuses} 
+                  users={users}
+                />
+              </CardContent>
+            </Card>
 
-        {(canViewFinance || user?.isSuperAdmin) && (
-          <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <CreditCard className="h-8 w-8 text-purple-600 mr-3" />
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div>
-                  <p className="font-medium text-slate-900">Finance</p>
-                  <p className="text-xs text-slate-500">Invoices & payments</p>
+                  <CardTitle className="text-lg font-medium">Priority Distribution</CardTitle>
+                  <p className="text-sm text-slate-500">Tasks by priority level</p>
                 </div>
-              </div>
-              <ArrowUpRight className="h-4 w-4 text-slate-400" />
-            </div>
-          </Card>
-        )}
+                <Zap className="h-5 w-5 text-slate-500" />
+              </CardHeader>
+              <CardContent>
+                <PriorityDistributionChart tasks={tasks} />
+              </CardContent>
+            </Card>
+          </div>
 
-        {(canViewReports || user?.isSuperAdmin) && (
-          <Card className="p-4 hover:shadow-md transition-shadow cursor-pointer">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <FileText className="h-8 w-8 text-orange-600 mr-3" />
+          {/* Recent Activity & Notifications */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div>
-                  <p className="font-medium text-slate-900">Reports</p>
-                  <p className="text-xs text-slate-500">Analytics & insights</p>
+                  <CardTitle className="text-lg font-medium">Recent Activity</CardTitle>
+                  <p className="text-sm text-slate-500">Latest task updates and completions</p>
                 </div>
-              </div>
-              <ArrowUpRight className="h-4 w-4 text-slate-400" />
+                <Activity className="h-5 w-5 text-slate-500" />
+              </CardHeader>
+              <CardContent>
+                <RecentActivityFeed 
+                  tasks={tasks} 
+                  taskStatuses={taskStatuses} 
+                  users={users}
+                  clients={clients}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div>
+                  <CardTitle className="text-lg font-medium">Critical Alerts</CardTitle>
+                  <p className="text-sm text-slate-500">Urgent items requiring attention</p>
+                </div>
+                <Bell className="h-5 w-5 text-slate-500" />
+              </CardHeader>
+              <CardContent>
+                <CriticalAlerts 
+                  tasks={tasks}
+                  taskStatuses={taskStatuses}
+                  invoices={invoices}
+                  clients={clients}
+                  entities={entities}
+                />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* Compliance Dashboard for SuperAdmin */}
+      {user?.isSuperAdmin && (
+        <Card className="mt-6">
+          <CardHeader className="flex flex-row items-center justify-between pb-4">
+            <div>
+              <CardTitle className="text-lg font-medium">Compliance Dashboard</CardTitle>
+              <p className="text-sm text-slate-500">Multi-client compliance status and deadlines</p>
             </div>
-          </Card>
-        )}
-      </div>
+            <Settings className="h-5 w-5 text-slate-500" />
+          </CardHeader>
+          <CardContent>
+            <ComplianceDashboard 
+              tasks={tasks}
+              taskStatuses={taskStatuses}
+              clients={clients}
+              entities={entities}
+              countries={countries}
+            />
+          </CardContent>
+        </Card>
+      )}
     </AppLayout>
+  );
+}
+
+// Dashboard Visualization Components
+const WeeklyTaskCalendarView = ({ tasks, taskStatuses, users, clients, entities }: any) => {
+  const currentDate = new Date();
+  const startOfWeek = new Date(currentDate);
+  startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+  
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const day = new Date(startOfWeek);
+    day.setDate(startOfWeek.getDate() + i);
+    return day;
+  });
+
+  const getTasksForDay = (date: Date) => {
+    return tasks?.filter((task: any) => {
+      const taskDate = new Date(task.dueDate);
+      return taskDate.toDateString() === date.toDateString();
+    }) || [];
+  };
+
+  const getStatusColor = (statusId: number) => {
+    const status = taskStatuses?.find((s: any) => s.id === statusId);
+    if (!status) return 'bg-gray-100';
+    
+    switch (status.name.toLowerCase()) {
+      case 'completed': return 'bg-green-100 text-green-800 border-green-200';
+      case 'in progress': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'overdue': return 'bg-red-100 text-red-800 border-red-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-7 gap-2">
+      {weekDays.map((day, index) => {
+        const dayTasks = getTasksForDay(day);
+        const isToday = day.toDateString() === currentDate.toDateString();
+        
+        return (
+          <div key={index} className={`p-3 border rounded-lg ${isToday ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'}`}>
+            <div className="text-center mb-2">
+              <div className="text-xs font-medium text-gray-500 uppercase">
+                {day.toLocaleDateString('en-US', { weekday: 'short' })}
+              </div>
+              <div className={`text-lg font-semibold ${isToday ? 'text-blue-600' : 'text-gray-900'}`}>
+                {day.getDate()}
+              </div>
+            </div>
+            <div className="space-y-1">
+              {dayTasks.slice(0, 3).map((task: any) => {
+                const assignedUser = users?.find((u: any) => u.id === task.assignedTo);
+                return (
+                  <div
+                    key={task.id}
+                    className={`p-2 rounded text-xs border cursor-pointer hover:shadow-sm transition-shadow ${getStatusColor(task.statusId)}`}
+                    onClick={() => window.location.href = '/tasks'}
+                  >
+                    <div className="font-medium truncate">{task.title}</div>
+                    {assignedUser && (
+                      <div className="text-xs opacity-75 mt-1">
+                        {assignedUser.displayName}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {dayTasks.length > 3 && (
+                <div className="text-xs text-gray-500 text-center py-1">
+                  +{dayTasks.length - 3} more
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const TeamPerformanceChart = ({ tasks, taskStatuses, users }: any) => {
+  const completedStatusId = taskStatuses?.find((s: any) => s.name.toLowerCase() === 'completed')?.id;
+  
+  const performanceData = users?.map((user: any) => {
+    const userTasks = tasks?.filter((task: any) => task.assignedTo === user.id) || [];
+    const completedTasks = userTasks.filter((task: any) => task.statusId === completedStatusId);
+    const completionRate = userTasks.length > 0 ? (completedTasks.length / userTasks.length) * 100 : 0;
+    
+    return {
+      name: user.displayName,
+      completed: completedTasks.length,
+      total: userTasks.length,
+      rate: Math.round(completionRate)
+    };
+  }).slice(0, 5) || [];
+
+  return (
+    <div className="space-y-4">
+      {performanceData.map((user: any, index: number) => (
+        <div key={index} className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+              <span className="text-sm font-medium text-blue-600">
+                {user.name.charAt(0)}
+              </span>
+            </div>
+            <div>
+              <div className="font-medium text-sm">{user.name}</div>
+              <div className="text-xs text-gray-500">
+                {user.completed}/{user.total} tasks
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-20 bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-green-500 h-2 rounded-full"
+                style={{ width: `${user.rate}%` }}
+              />
+            </div>
+            <span className="text-sm font-medium text-gray-900 w-8">
+              {user.rate}%
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const PriorityDistributionChart = ({ tasks }: any) => {
+  const priorityData = [
+    { name: 'High', value: tasks?.filter((t: any) => t.priority === 'high').length || 0, color: '#ef4444' },
+    { name: 'Medium', value: tasks?.filter((t: any) => t.priority === 'medium').length || 0, color: '#f59e0b' },
+    { name: 'Low', value: tasks?.filter((t: any) => t.priority === 'low').length || 0, color: '#10b981' }
+  ];
+
+  const total = priorityData.reduce((sum, item) => sum + item.value, 0);
+
+  return (
+    <div className="space-y-4">
+      {priorityData.map((item, index) => (
+        <div key={index} className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div
+              className="w-4 h-4 rounded"
+              style={{ backgroundColor: item.color }}
+            />
+            <span className="text-sm font-medium">{item.name}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600">{item.value}</span>
+            <span className="text-xs text-gray-500">
+              ({total > 0 ? Math.round((item.value / total) * 100) : 0}%)
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const RecentActivityFeed = ({ tasks, taskStatuses, users, clients }: any) => {
+  const recentTasks = tasks?.slice().sort((a: any, b: any) => 
+    new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime()
+  ).slice(0, 5) || [];
+
+  return (
+    <div className="space-y-3">
+      {recentTasks.map((task: any) => {
+        const user = users?.find((u: any) => u.id === task.assignedTo);
+        const status = taskStatuses?.find((s: any) => s.id === task.statusId);
+        const client = clients?.find((c: any) => c.id === task.clientId);
+        
+        return (
+          <div
+            key={task.id}
+            className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+            onClick={() => window.location.href = '/tasks'}
+          >
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <ClipboardCheck className="w-4 h-4 text-blue-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-gray-900 truncate">
+                {task.title}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {user?.displayName} • {client?.companyName} • {status?.name}
+              </div>
+              <div className="text-xs text-gray-400">
+                {new Date(task.updatedAt || task.createdAt).toLocaleDateString()}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CriticalAlerts({ tasks, taskStatuses, invoices, clients, entities }: any) {
+  const now = new Date();
+  const threeDaysFromNow = new Date(now.getTime() + (3 * 24 * 60 * 60 * 1000));
+  
+  const urgentTasks = tasks?.filter((task: any) => {
+    const dueDate = new Date(task.dueDate);
+    return dueDate <= threeDaysFromNow && task.statusId !== taskStatuses?.find((s: any) => s.name.toLowerCase() === 'completed')?.id;
+  }).slice(0, 3) || [];
+
+  const overdueInvoices = invoices?.filter((invoice: any) => {
+    const dueDate = new Date(invoice.dueDate);
+    return dueDate < now && invoice.status !== 'paid';
+  }).slice(0, 2) || [];
+
+  return (
+    <div className="space-y-3">
+      {urgentTasks.map((task: any) => {
+        const client = clients?.find((c: any) => c.id === task.clientId);
+        const isOverdue = new Date(task.dueDate) < now;
+        
+        return (
+          <div
+            key={`task-${task.id}`}
+            className={`flex items-center space-x-3 p-3 rounded-lg border cursor-pointer hover:shadow-sm transition-shadow ${
+              isOverdue ? 'bg-red-50 border-red-200' : 'bg-yellow-50 border-yellow-200'
+            }`}
+            onClick={() => window.location.href = '/tasks'}
+          >
+            <AlertTriangle className={`w-5 h-5 ${isOverdue ? 'text-red-500' : 'text-yellow-500'}`} />
+            <div className="flex-1">
+              <div className="text-sm font-medium">{task.title}</div>
+              <div className="text-xs text-gray-600">
+                {client?.companyName} • Due: {new Date(task.dueDate).toLocaleDateString()}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      
+      {overdueInvoices.map((invoice: any) => {
+        const client = clients?.find((c: any) => c.id === invoice.clientId);
+        
+        return (
+          <div
+            key={`invoice-${invoice.id}`}
+            className="flex items-center space-x-3 p-3 bg-red-50 border border-red-200 rounded-lg cursor-pointer hover:shadow-sm transition-shadow"
+            onClick={() => window.location.href = '/finance'}
+          >
+            <DollarSign className="w-5 h-5 text-red-500" />
+            <div className="flex-1">
+              <div className="text-sm font-medium">Overdue Invoice</div>
+              <div className="text-xs text-gray-600">
+                {client?.companyName} • ${invoice.amount} • Due: {new Date(invoice.dueDate).toLocaleDateString()}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      
+      {urgentTasks.length === 0 && overdueInvoices.length === 0 && (
+        <div className="text-center py-4 text-gray-500">
+          <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
+          <p className="text-sm">All tasks and invoices are on track!</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ComplianceDashboard({ tasks, taskStatuses, clients, entities, countries }: any) {
+  const complianceTasks = tasks?.filter((task: any) => 
+    task.title?.toLowerCase().includes('tax') || 
+    task.title?.toLowerCase().includes('compliance') ||
+    task.title?.toLowerCase().includes('filing')
+  ) || [];
+
+  const upcomingDeadlines = complianceTasks
+    .filter((task: any) => {
+      const dueDate = new Date(task.dueDate);
+      const thirtyDaysFromNow = new Date(Date.now() + (30 * 24 * 60 * 60 * 1000));
+      return dueDate <= thirtyDaysFromNow;
+    })
+    .sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+    .slice(0, 5);
+
+  const jurisdictionData = countries?.map((country: any) => {
+    const countryEntities = entities?.filter((e: any) => e.countryId === country.id) || [];
+    const countryTasks = complianceTasks.filter((task: any) => 
+      countryEntities.some((entity: any) => entity.id === task.entityId)
+    );
+    const completedTasks = countryTasks.filter((task: any) => 
+      task.statusId === taskStatuses?.find((s: any) => s.name.toLowerCase() === 'completed')?.id
+    );
+    
+    return {
+      country: country.name,
+      total: countryTasks.length,
+      completed: completedTasks.length,
+      rate: countryTasks.length > 0 ? Math.round((completedTasks.length / countryTasks.length) * 100) : 0
+    };
+  }).filter((item: any) => item.total > 0) || [];
+
+  return (
+    <div className="grid gap-6 md:grid-cols-2">
+      <div>
+        <h4 className="font-medium mb-4">Upcoming Compliance Deadlines</h4>
+        <div className="space-y-3">
+          {upcomingDeadlines.map((task: any) => {
+            const entity = entities?.find((e: any) => e.id === task.entityId);
+            const client = clients?.find((c: any) => c.id === task.clientId);
+            const country = countries?.find((c: any) => c.id === entity?.countryId);
+            const daysUntilDue = Math.ceil((new Date(task.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+            
+            return (
+              <div
+                key={task.id}
+                className={`p-3 rounded-lg border cursor-pointer hover:shadow-sm transition-shadow ${
+                  daysUntilDue < 0 ? 'bg-red-50 border-red-200' : 
+                  daysUntilDue <= 7 ? 'bg-yellow-50 border-yellow-200' : 
+                  'bg-green-50 border-green-200'
+                }`}
+                onClick={() => window.location.href = '/tasks'}
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="font-medium text-sm">{task.title}</div>
+                    <div className="text-xs text-gray-600 mt-1">
+                      {client?.companyName} • {country?.name}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className={`text-sm font-medium ${
+                      daysUntilDue < 0 ? 'text-red-600' : 
+                      daysUntilDue <= 7 ? 'text-yellow-600' : 
+                      'text-green-600'
+                    }`}>
+                      {daysUntilDue < 0 ? `${Math.abs(daysUntilDue)} days overdue` : 
+                       daysUntilDue === 0 ? 'Due today' : 
+                       `${daysUntilDue} days`}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(task.dueDate).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      
+      <div>
+        <h4 className="font-medium mb-4">Compliance by Jurisdiction</h4>
+        <div className="space-y-3">
+          {jurisdictionData.map((item: any, index: number) => (
+            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <div className="font-medium text-sm">{item.country}</div>
+                <div className="text-xs text-gray-600">
+                  {item.completed}/{item.total} tasks completed
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-16 bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-500 h-2 rounded-full"
+                    style={{ width: `${item.rate}%` }}
+                  />
+                </div>
+                <span className="text-sm font-medium w-8">{item.rate}%</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
