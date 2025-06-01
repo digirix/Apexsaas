@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 
 type AuthContextType = {
   user: User | null;
+  permissions: any[] | null;
   isLoading: boolean;
   error: Error | null;
   loginMutation: UseMutationResult<any, Error, LoginData>;
@@ -34,6 +35,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const user = data?.user || null;
+
+  // Fetch user permissions separately
+  const {
+    data: permissionsData,
+    isLoading: isPermissionsLoading
+  } = useQuery({
+    queryKey: [`/api/v1/users/${user?.id}/permissions`],
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  const permissions = permissionsData || null;
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
@@ -112,7 +125,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        isLoading,
+        permissions,
+        isLoading: isLoading || isPermissionsLoading,
         error,
         loginMutation,
         logoutMutation,
