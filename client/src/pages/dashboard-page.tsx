@@ -1845,7 +1845,7 @@ const TaskPerformanceDashboard = ({ tasks, taskStatuses, users, clients, entitie
       memberPerformance: memberPerformance.sort((a: any, b: any) => b.avgEfficiencyScore - a.avgEfficiencyScore),
       efficiencyMetrics
     };
-  }, [tasks, taskStatuses, users, clients, entities]);
+  }, [tasks, taskStatuses, clients, entities]);
 
   const filteredTaskLifecycles = React.useMemo(() => {
     let filtered = taskPerformanceAnalytics.taskLifecycles;
