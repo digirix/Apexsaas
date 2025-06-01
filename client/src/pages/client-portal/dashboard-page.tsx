@@ -146,8 +146,15 @@ export default function ClientPortalDashboardPage() {
     const iban = getSetting("iban") || "";
     const paymentInstructions = getSetting("payment_instructions") || "";
     
-    // Use the task details directly from the invoice data (comes from database join)
-    const taskDetails = invoice.taskDetails || "Professional Services";
+    // Find the related task to get actual task details
+    // Check multiple possible fields for task information
+    const relatedTask = clientTasks.find((task: any) => task.invoiceId === invoice.id);
+    const taskDetails = relatedTask?.taskDetails || 
+                       relatedTask?.title || 
+                       relatedTask?.description || 
+                       relatedTask?.serviceName ||
+                       invoice.notes ||
+                       "Professional Services";
 
     const printContent = `
       <!DOCTYPE html>
@@ -1726,8 +1733,14 @@ export default function ClientPortalDashboardPage() {
                   const firmTagline = getSetting("firm_tagline") || "";
                   const firmLogo = getSetting("firm_logo") || "";
                   
-                  // Use the task details directly from the invoice data (comes from database join)
-                  const taskDetails = invoice.taskDetails || "Professional Services";
+                  // Get task details for this invoice
+                  const relatedTask = clientTasks.find((task: any) => task.invoiceId === invoice.id);
+                  const taskDetails = relatedTask?.taskDetails || 
+                                     relatedTask?.title || 
+                                     relatedTask?.description || 
+                                     relatedTask?.serviceName ||
+                                     invoice.notes ||
+                                     "Professional Services";
 
                   return (
                     <div className="p-0">
@@ -2080,29 +2093,20 @@ export default function ClientPortalDashboardPage() {
                                     </div>
                                   )}
                                   
-                                  {/* Service Description from Task Details */}
-                                  {(invoice.taskDetails || invoice.lineItems?.length > 0) && (
+                                  {/* Line Items Preview */}
+                                  {invoice.lineItems && invoice.lineItems.length > 0 && (
                                     <div className="mb-4 p-3 bg-slate-50 rounded-lg">
-                                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Service Description</p>
+                                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Services</p>
                                       <div className="space-y-1">
-                                        {invoice.taskDetails ? (
-                                          <div className="flex justify-between text-sm">
-                                            <span className="text-slate-700">{invoice.taskDetails}</span>
+                                        {invoice.lineItems.slice(0, 2).map((item: any, idx: number) => (
+                                          <div key={idx} className="flex justify-between text-sm">
+                                            <span className="text-slate-700">{item.description}</span>
                                             <span className="font-medium text-slate-900">
-                                              {formatCurrency(invoice.totalAmount)} {invoice.currencyCode}
+                                              {formatCurrency(item.total)} {invoice.currencyCode}
                                             </span>
                                           </div>
-                                        ) : (
-                                          invoice.lineItems?.slice(0, 2).map((item: any, idx: number) => (
-                                            <div key={idx} className="flex justify-between text-sm">
-                                              <span className="text-slate-700">{item.description}</span>
-                                              <span className="font-medium text-slate-900">
-                                                {formatCurrency(item.total)} {invoice.currencyCode}
-                                              </span>
-                                            </div>
-                                          ))
-                                        )}
-                                        {!invoice.taskDetails && invoice.lineItems?.length > 2 && (
+                                        ))}
+                                        {invoice.lineItems.length > 2 && (
                                           <p className="text-xs text-slate-500">+ {invoice.lineItems.length - 2} more items</p>
                                         )}
                                       </div>
