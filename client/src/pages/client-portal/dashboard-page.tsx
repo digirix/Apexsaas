@@ -254,15 +254,15 @@ export default function ClientPortalDashboardPage() {
                 <tr>
                   <td>${item.description || taskDetails}</td>
                   <td>${item.quantity || 1}</td>
-                  <td>${formatCurrency(item.unitPrice || 0)} ${invoice.currencyCode}</td>
-                  <td>${formatCurrency(item.total || 0)} ${invoice.currencyCode}</td>
+                  <td>${(item.unitPrice || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td>${(item.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
               `).join('') || `
                 <tr>
                   <td>${taskDetails}</td>
                   <td>1</td>
-                  <td>${formatCurrency(invoice.totalAmount || 0)} ${invoice.currencyCode}</td>
-                  <td>${formatCurrency(invoice.totalAmount || 0)} ${invoice.currencyCode}</td>
+                  <td>${(invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td>${(invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
               `}
             </tbody>
@@ -271,32 +271,32 @@ export default function ClientPortalDashboardPage() {
           <div class="totals">
             <div class="total-row">
               <span>Subtotal:</span>
-              <span>${formatCurrency(invoice.subtotal || invoice.totalAmount || 0)} ${invoice.currencyCode}</span>
+              <span>${(invoice.subtotal || invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
             ${invoice.taxAmount ? `
               <div class="total-row">
                 <span>Tax:</span>
-                <span>${formatCurrency(invoice.taxAmount)} ${invoice.currencyCode}</span>
+                <span>${parseFloat(invoice.taxAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
             ` : ''}
             ${invoice.discountAmount ? `
               <div class="total-row">
                 <span>Discount:</span>
-                <span>-${formatCurrency(invoice.discountAmount)} ${invoice.currencyCode}</span>
+                <span>-${parseFloat(invoice.discountAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
             ` : ''}
             <div class="total-row final">
               <span>Total:</span>
-              <span>${formatCurrency(invoice.totalAmount || 0)} ${invoice.currencyCode}</span>
+              <span>${(invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
             ${invoice.amountPaid ? `
               <div class="total-row">
                 <span>Amount Paid:</span>
-                <span>${formatCurrency(invoice.amountPaid)} ${invoice.currencyCode}</span>
+                <span>${parseFloat(invoice.amountPaid).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
               <div class="total-row final" style="color: #dc3545;">
                 <span>Amount Due:</span>
-                <span>${formatCurrency(invoice.amountDue || 0)} ${invoice.currencyCode}</span>
+                <span>${(invoice.amountDue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
             ` : ''}
           </div>
@@ -1837,10 +1837,10 @@ export default function ClientPortalDashboardPage() {
                                     <td className="py-3 px-4 text-slate-700">{item.description || taskDetails}</td>
                                     <td className="py-3 px-4 text-right text-slate-700">{item.quantity || 1}</td>
                                     <td className="py-3 px-4 text-right text-slate-700">
-                                      {formatCurrency(item.unitPrice || 0)} {invoice.currencyCode}
+                                      {(item.unitPrice || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </td>
                                     <td className="py-3 px-4 text-right font-medium text-slate-900">
-                                      {formatCurrency(item.total || 0)} {invoice.currencyCode}
+                                      {(item.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </td>
                                   </tr>
                                 ))
@@ -1849,10 +1849,10 @@ export default function ClientPortalDashboardPage() {
                                   <td className="py-3 px-4 text-slate-700">{taskDetails}</td>
                                   <td className="py-3 px-4 text-right text-slate-700">1</td>
                                   <td className="py-3 px-4 text-right text-slate-700">
-                                    {formatCurrency(invoice.totalAmount || 0)} {invoice.currencyCode}
+                                    {(invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </td>
                                   <td className="py-3 px-4 text-right font-medium text-slate-900">
-                                    {formatCurrency(invoice.totalAmount || 0)} {invoice.currencyCode}
+                                    {(invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </td>
                                 </tr>
                               )}
@@ -1868,14 +1868,14 @@ export default function ClientPortalDashboardPage() {
                               <div className="flex justify-between">
                                 <span className="text-slate-600">Subtotal:</span>
                                 <span className="font-medium">
-                                  {formatCurrency(invoice.subtotal || invoice.totalAmount || 0)} {invoice.currencyCode}
+                                  {(invoice.subtotal || invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </span>
                               </div>
                               {invoice.taxAmount && (
                                 <div className="flex justify-between">
                                   <span className="text-slate-600">Tax:</span>
                                   <span className="font-medium">
-                                    {formatCurrency(invoice.taxAmount)} {invoice.currencyCode}
+                                    {parseFloat(invoice.taxAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                 </div>
                               )}
@@ -1883,25 +1883,25 @@ export default function ClientPortalDashboardPage() {
                                 <div className="flex justify-between">
                                   <span className="text-slate-600">Discount:</span>
                                   <span className="font-medium text-green-600">
-                                    -{formatCurrency(invoice.discountAmount)} {invoice.currencyCode}
+                                    -{parseFloat(invoice.discountAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </span>
                                 </div>
                               )}
                               <div className="border-t border-slate-200 pt-2 mt-2">
                                 <div className="flex justify-between text-lg font-bold">
                                   <span>Total:</span>
-                                  <span>{formatCurrency(invoice.totalAmount || 0)} {invoice.currencyCode}</span>
+                                  <span>{(invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                 </div>
                               </div>
                               {invoice.amountPaid && (
                                 <>
                                   <div className="flex justify-between text-green-600">
                                     <span>Amount Paid:</span>
-                                    <span>-{formatCurrency(invoice.amountPaid)} {invoice.currencyCode}</span>
+                                    <span>-{parseFloat(invoice.amountPaid).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                   </div>
                                   <div className="flex justify-between text-lg font-bold text-red-600">
                                     <span>Amount Due:</span>
-                                    <span>{formatCurrency(invoice.amountDue || 0)} {invoice.currencyCode}</span>
+                                    <span>{(invoice.amountDue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                   </div>
                                 </>
                               )}
@@ -2054,11 +2054,11 @@ export default function ClientPortalDashboardPage() {
                                     <div>
                                       <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Amount</p>
                                       <p className="text-xl font-bold text-slate-900">
-                                        {formatCurrency(invoice.totalAmount || 0)} {invoice.currencyCode}
+                                        {(invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                       </p>
                                       {invoice.amountDue && parseFloat(invoice.amountDue) > 0 && (
                                         <p className="text-sm text-red-600">
-                                          Due: {formatCurrency(invoice.amountDue)} {invoice.currencyCode}
+                                          Due: {parseFloat(invoice.amountDue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </p>
                                       )}
                                     </div>
