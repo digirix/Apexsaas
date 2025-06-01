@@ -156,30 +156,53 @@ export default function ClientPortalDashboardPage() {
         <head>
           <title>Invoice #${invoice.invoiceNumber || invoice.id}</title>
           <style>
-            body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
-            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+            body { font-family: Arial, sans-serif; margin: 20px; color: #333; line-height: 1.4; }
+            .firm-header { text-align: center; margin-bottom: 40px; border-bottom: 3px solid #4f46e5; padding-bottom: 25px; }
+            .firm-logo { max-height: 80px; margin-bottom: 15px; }
+            .firm-name { font-size: 32px; font-weight: bold; color: #4f46e5; margin-bottom: 8px; }
+            .firm-tagline { font-size: 16px; color: #666; font-style: italic; margin-bottom: 10px; }
+            .firm-contact { font-size: 14px; color: #555; }
+            .invoice-header { text-align: center; margin-bottom: 30px; }
             .invoice-title { font-size: 28px; font-weight: bold; color: #333; margin-bottom: 10px; }
-            .invoice-number { font-size: 18px; color: #666; }
-            .details-section { display: flex; justify-content: space-between; margin-bottom: 30px; }
-            .details-column { width: 48%; }
-            .details-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #333; }
-            .details-content { line-height: 1.6; }
-            .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            .table th, .table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-            .table th { background-color: #f8f9fa; font-weight: bold; }
-            .totals { margin-top: 20px; }
-            .total-row { display: flex; justify-content: space-between; padding: 8px 0; }
-            .total-row.final { font-weight: bold; font-size: 18px; border-top: 2px solid #333; padding-top: 12px; }
-            .status-badge { padding: 6px 12px; border-radius: 4px; font-weight: bold; text-transform: uppercase; }
+            .invoice-number { font-size: 18px; color: #666; margin-bottom: 10px; }
+            .status-badge { padding: 8px 16px; border-radius: 6px; font-weight: bold; text-transform: uppercase; font-size: 12px; }
             .status-paid { background-color: #d4edda; color: #155724; }
             .status-overdue { background-color: #f8d7da; color: #721c24; }
             .status-sent { background-color: #d1ecf1; color: #0c5460; }
             .status-draft { background-color: #e2e3e5; color: #383d41; }
+            .details-section { display: flex; justify-content: space-between; margin-bottom: 30px; }
+            .details-column { width: 48%; }
+            .details-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #333; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+            .details-content { line-height: 1.6; }
+            .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            .table th, .table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+            .table th { background-color: #f8f9fa; font-weight: bold; color: #333; }
+            .totals { margin-top: 20px; }
+            .total-row { display: flex; justify-content: space-between; padding: 8px 0; }
+            .total-row.final { font-weight: bold; font-size: 18px; border-top: 2px solid #333; padding-top: 12px; }
+            .footer { margin-top: 50px; border-top: 2px solid #4f46e5; padding-top: 25px; }
+            .payment-section { margin-bottom: 25px; }
+            .payment-title { font-size: 18px; font-weight: bold; color: #4f46e5; margin-bottom: 15px; }
+            .bank-details { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 15px; }
+            .bank-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+            .bank-label { font-weight: bold; color: #555; }
+            .firm-footer { text-align: center; font-size: 12px; color: #666; }
             @media print { body { margin: 0; } }
           </style>
         </head>
         <body>
-          <div class="header">
+          <!-- Firm Header -->
+          <div class="firm-header">
+            ${firmLogo ? `<img src="${firmLogo}" alt="${firmName}" class="firm-logo">` : ''}
+            <div class="firm-name">${firmName}</div>
+            ${firmTagline ? `<div class="firm-tagline">${firmTagline}</div>` : ''}
+            <div class="firm-contact">
+              ${getSetting("address") || ''} | ${getSetting("phone") || ''} | ${getSetting("email") || ''}
+            </div>
+          </div>
+          
+          <!-- Invoice Header -->
+          <div class="invoice-header">
             <div class="invoice-title">INVOICE</div>
             <div class="invoice-number">#${invoice.invoiceNumber || invoice.id}</div>
             <div class="status-badge status-${invoice.status?.toLowerCase() || 'draft'}">${invoice.status || 'Draft'}</div>
@@ -219,14 +242,14 @@ export default function ClientPortalDashboardPage() {
             <tbody>
               ${invoice.lineItems?.map((item: any) => `
                 <tr>
-                  <td>${item.description || 'Service'}</td>
+                  <td>${item.description || taskDetails}</td>
                   <td>${item.quantity || 1}</td>
                   <td>${formatCurrency(item.unitPrice || 0)} ${invoice.currencyCode}</td>
                   <td>${formatCurrency(item.total || 0)} ${invoice.currencyCode}</td>
                 </tr>
               `).join('') || `
                 <tr>
-                  <td>Professional Services</td>
+                  <td>${taskDetails}</td>
                   <td>1</td>
                   <td>${formatCurrency(invoice.totalAmount || 0)} ${invoice.currencyCode}</td>
                   <td>${formatCurrency(invoice.totalAmount || 0)} ${invoice.currencyCode}</td>
@@ -274,6 +297,66 @@ export default function ClientPortalDashboardPage() {
               <div class="details-content">${invoice.notes}</div>
             </div>
           ` : ''}
+          
+          <!-- Professional Footer with Payment Details -->
+          <div class="footer">
+            <div class="payment-section">
+              <div class="payment-title">Payment Information</div>
+              <div class="bank-details">
+                ${bankName ? `
+                  <div class="bank-row">
+                    <span class="bank-label">Bank Name:</span>
+                    <span>${bankName}</span>
+                  </div>
+                ` : ''}
+                ${accountTitle ? `
+                  <div class="bank-row">
+                    <span class="bank-label">Account Title:</span>
+                    <span>${accountTitle}</span>
+                  </div>
+                ` : ''}
+                ${accountNumber ? `
+                  <div class="bank-row">
+                    <span class="bank-label">Account Number:</span>
+                    <span>${accountNumber}</span>
+                  </div>
+                ` : ''}
+                ${routingNumber ? `
+                  <div class="bank-row">
+                    <span class="bank-label">Routing Number:</span>
+                    <span>${routingNumber}</span>
+                  </div>
+                ` : ''}
+                ${swiftCode ? `
+                  <div class="bank-row">
+                    <span class="bank-label">SWIFT Code:</span>
+                    <span>${swiftCode}</span>
+                  </div>
+                ` : ''}
+                ${iban ? `
+                  <div class="bank-row">
+                    <span class="bank-label">IBAN:</span>
+                    <span>${iban}</span>
+                  </div>
+                ` : ''}
+              </div>
+              ${paymentInstructions ? `
+                <div style="margin-top: 15px;">
+                  <div class="bank-label" style="margin-bottom: 8px;">Payment Instructions:</div>
+                  <div style="font-size: 14px; line-height: 1.5;">${paymentInstructions}</div>
+                </div>
+              ` : ''}
+            </div>
+            
+            <div class="firm-footer">
+              ${firmDescription ? `<div style="margin-bottom: 10px;">${firmDescription}</div>` : ''}
+              <div>&copy; ${new Date().getFullYear()} ${firmName}. All rights reserved.</div>
+              <div style="margin-top: 5px;">
+                ${getSetting("address") || ''} | Phone: ${getSetting("phone") || ''} | Email: ${getSetting("email") || ''}
+              </div>
+              ${getSetting("website") ? `<div style="margin-top: 5px;">Website: ${getSetting("website")}</div>` : ''}
+            </div>
+          </div>
         </body>
       </html>
     `;
