@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Users, 
   ClipboardCheck, 
@@ -49,6 +50,8 @@ interface DashboardMetrics {
 
 export default function DashboardPage() {
   const { user, permissions } = useAuth();
+  const [timeFilter, setTimeFilter] = useState("week");
+  const [performanceTimeFilter, setPerformanceTimeFilter] = useState("6weeks");
   
   // Check permissions for different modules
   const canViewClients = permissions?.some(p => p.module === 'clients' && p.canRead);
@@ -189,25 +192,102 @@ export default function DashboardPage() {
     return statusCounts;
   }, [tasks, taskStatuses, dashboardMetrics.overdueTasks]);
 
-  // Generate team performance data for workflow analytics
+  // Generate team performance data using real task data with dynamic time-based analysis
   const teamPerformanceData = useMemo(() => {
-    const periods = ["Last Week", "This Week", "Week 1", "Week 2", "Week 3", "Week 4"];
+    if (!tasks || tasks.length === 0) return [];
     
-    return periods.map(period => {
-      // Generate realistic data based on current task metrics
-      const totalTasks = Math.floor(dashboardMetrics.activeTasks / 4) + Math.floor(Math.random() * 5);
-      const completed = Math.floor(totalTasks * 0.6) + Math.floor(Math.random() * 3);
-      const pending = Math.floor(totalTasks * 0.3) + Math.floor(Math.random() * 2);
-      const overdue = Math.max(0, totalTasks - completed - pending);
+    const now = new Date();
+    const periods = [];
+    
+    // Determine number of periods and period type based on filter
+    let numPeriods, periodType, dateIncrement;
+    switch (performanceTimeFilter) {
+      case "6weeks":
+        numPeriods = 6;
+        periodType = "week";
+        dateIncrement = 7;
+        break;
+      case "3months":
+        numPeriods = 3;
+        periodType = "month";
+        dateIncrement = 30;
+        break;
+      case "6months":
+        numPeriods = 6;
+        periodType = "month";
+        dateIncrement = 30;
+        break;
+      case "year":
+        numPeriods = 12;
+        periodType = "month";
+        dateIncrement = 30;
+        break;
+      default:
+        numPeriods = 6;
+        periodType = "week";
+        dateIncrement = 7;
+    }
+    
+    // Generate periods with real task data
+    for (let i = numPeriods - 1; i >= 0; i--) {
+      const periodStart = new Date(now);
+      if (periodType === "week") {
+        periodStart.setDate(now.getDate() - (i * dateIncrement));
+      } else {
+        periodStart.setMonth(now.getMonth() - i);
+        periodStart.setDate(1);
+      }
       
-      return {
-        period,
-        completed,
-        pending,
-        overdue
-      };
-    });
-  }, [dashboardMetrics.activeTasks]);
+      const periodEnd = new Date(periodStart);
+      if (periodType === "week") {
+        periodEnd.setDate(periodStart.getDate() + 6);
+      } else {
+        periodEnd.setMonth(periodStart.getMonth() + 1);
+        periodEnd.setDate(0);
+      }
+      
+      const periodTasks = tasks.filter(task => {
+        const taskDate = new Date(task.createdAt);
+        return taskDate >= periodStart && taskDate <= periodEnd;
+      });
+      
+      const completedTasks = periodTasks.filter(task => {
+        const status = taskStatuses.find(s => s.id === task.statusId);
+        return status && status.rank === 3;
+      });
+      
+      const pendingTasks = periodTasks.filter(task => {
+        const status = taskStatuses.find(s => s.id === task.statusId);
+        return status && status.rank > 1 && status.rank < 3;
+      });
+      
+      const overdueTasks = periodTasks.filter(task => {
+        const dueDate = new Date(task.dueDate);
+        return dueDate < now && !completedTasks.some(ct => ct.id === task.id);
+      });
+      
+      let periodLabel;
+      if (periodType === "week") {
+        periodLabel = i === 0 ? "This Week" : `${i} week${i > 1 ? 's' : ''} ago`;
+      } else {
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+                           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        periodLabel = monthNames[periodStart.getMonth()];
+        if (performanceTimeFilter === "year") {
+          periodLabel += ` ${periodStart.getFullYear()}`;
+        }
+      }
+      
+      periods.push({
+        period: periodLabel,
+        completed: completedTasks.length,
+        pending: pendingTasks.length,
+        overdue: overdueTasks.length
+      });
+    }
+    
+    return periods;
+  }, [tasks, taskStatuses, performanceTimeFilter]);
 
   // Generate clients by country data
   const clientsByCountryData = useMemo(() => {
@@ -552,6 +632,17 @@ export default function DashboardPage() {
                     </CardTitle>
                     <p className="text-sm text-gray-500">Real-time task progression insights</p>
                   </div>
+                  <Select value={performanceTimeFilter} onValueChange={setPerformanceTimeFilter}>
+                    <SelectTrigger className="w-[130px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="6weeks">6 Weeks</SelectItem>
+                      <SelectItem value="3months">3 Months</SelectItem>
+                      <SelectItem value="6months">6 Months</SelectItem>
+                      <SelectItem value="year">12 Months</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardHeader>
               <CardContent className="pt-0">
