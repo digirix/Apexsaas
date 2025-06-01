@@ -24,16 +24,30 @@ import {
   FileText,
   GitBranch,
   Shield,
+  ChevronDown,
+  ChevronUp,
+  TrendingUp,
+  AlertTriangle,
+  Clock,
+  Target,
+  PieChart,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { useModulePermissions, useMultiplePermissions } from "@/hooks/use-permissions";
+
+type SubNavItem = {
+  title: string;
+  href: string;
+  icon: React.ReactNode;
+};
 
 type NavItem = {
   title: string;
   href: string;
   icon: React.ReactNode;
   module: string;
+  subItems?: SubNavItem[];
 };
 
 // All available navigation modules with their permission module names
@@ -87,6 +101,44 @@ const allModules: NavItem[] = [
     module: "ai_reporting",
   },
   {
+    title: "Reports",
+    href: "/reports",
+    icon: <FileText className="h-5 w-5 mr-3 text-slate-500" />,
+    module: "reports",
+    subItems: [
+      {
+        title: "Task Performance Analytics",
+        href: "/reports/task-performance",
+        icon: <TrendingUp className="h-4 w-4" />,
+      },
+      {
+        title: "Compliance Overview",
+        href: "/reports/compliance-overview",
+        icon: <AlertTriangle className="h-4 w-4" />,
+      },
+      {
+        title: "Team Efficiency Report",
+        href: "/reports/team-efficiency",
+        icon: <Target className="h-4 w-4" />,
+      },
+      {
+        title: "Task Lifecycle Analysis",
+        href: "/reports/task-lifecycle",
+        icon: <Clock className="h-4 w-4" />,
+      },
+      {
+        title: "Risk Assessment Report",
+        href: "/reports/risk-assessment",
+        icon: <Shield className="h-4 w-4" />,
+      },
+      {
+        title: "Jurisdiction Analysis",
+        href: "/reports/jurisdiction-analysis",
+        icon: <PieChart className="h-4 w-4" />,
+      },
+    ],
+  },
+  {
     title: "Users",
     href: "/users",
     icon: <Users className="h-5 w-5 mr-3 text-slate-500" />,
@@ -111,6 +163,7 @@ export function Sidebar() {
   const { user, logoutMutation } = useAuth();
   const [collapsed, setCollapsed] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [expandedMenus, setExpandedMenus] = React.useState<string[]>([]);
 
   // Get all module names for permission checking
   const moduleNames = allModules.map(module => module.module);
@@ -142,6 +195,31 @@ export function Sidebar() {
   const toggleMobile = () => {
     setMobileOpen(!mobileOpen);
   };
+
+  // Toggle sub-menu expansion
+  const toggleSubMenu = (moduleTitle: string) => {
+    setExpandedMenus(prev => 
+      prev.includes(moduleTitle) 
+        ? prev.filter(item => item !== moduleTitle)
+        : [...prev, moduleTitle]
+    );
+  };
+
+  // Check if current location matches any sub-item
+  const isSubItemActive = (subItems: SubNavItem[] | undefined) => {
+    return subItems?.some(subItem => location === subItem.href) || false;
+  };
+
+  // Auto-expand menu if sub-item is active
+  React.useEffect(() => {
+    visibleModules.forEach(module => {
+      if (module.subItems && isSubItemActive(module.subItems)) {
+        if (!expandedMenus.includes(module.title)) {
+          setExpandedMenus(prev => [...prev, module.title]);
+        }
+      }
+    });
+  }, [location, visibleModules]);
 
   return (
     <>
@@ -205,30 +283,91 @@ export function Sidebar() {
           </div>
 
           {visibleModules.map((item) => (
-            <Link 
-              key={item.href} 
-              href={item.href}
-              className={cn(
-                "flex items-center px-3 py-2 mx-2 text-sm font-medium rounded-md",
-                collapsed && "md:justify-center md:px-2 md:mx-1",
-                location === item.href
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-slate-600 hover:bg-slate-100"
+            <div key={item.href}>
+              {/* Main menu item */}
+              {item.subItems ? (
+                <button
+                  onClick={() => toggleSubMenu(item.title)}
+                  className={cn(
+                    "flex items-center justify-between w-full px-3 py-2 mx-2 text-sm font-medium rounded-md",
+                    collapsed && "md:justify-center md:px-2 md:mx-1",
+                    (location === item.href || isSubItemActive(item.subItems))
+                      ? "bg-blue-50 text-blue-700"
+                      : "text-slate-600 hover:bg-slate-100"
+                  )}
+                >
+                  <div className="flex items-center">
+                    {React.cloneElement(item.icon as React.ReactElement, {
+                      className: cn(
+                        "h-5 w-5",
+                        collapsed ? "mr-0" : "mr-3", 
+                        "text-slate-500",
+                        (location === item.href || isSubItemActive(item.subItems)) ? "text-blue-500" : ""
+                      ),
+                    })}
+                    {(!collapsed || !window.matchMedia('(min-width: 768px)').matches) && (
+                      <span>{item.title}</span>
+                    )}
+                  </div>
+                  {(!collapsed || !window.matchMedia('(min-width: 768px)').matches) && (
+                    expandedMenus.includes(item.title) ? 
+                      <ChevronUp className="h-4 w-4 text-slate-400" /> : 
+                      <ChevronDown className="h-4 w-4 text-slate-400" />
+                  )}
+                </button>
+              ) : (
+                <Link 
+                  href={item.href}
+                  className={cn(
+                    "flex items-center px-3 py-2 mx-2 text-sm font-medium rounded-md",
+                    collapsed && "md:justify-center md:px-2 md:mx-1",
+                    location === item.href
+                      ? "bg-blue-50 text-blue-700"
+                      : "text-slate-600 hover:bg-slate-100"
+                  )}
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {React.cloneElement(item.icon as React.ReactElement, {
+                    className: cn(
+                      "h-5 w-5",
+                      collapsed ? "mr-0" : "mr-3", 
+                      "text-slate-500",
+                      location === item.href ? "text-blue-500" : ""
+                    ),
+                  })}
+                  {(!collapsed || !window.matchMedia('(min-width: 768px)').matches) && (
+                    <span>{item.title}</span>
+                  )}
+                </Link>
               )}
-              onClick={() => setMobileOpen(false)}
-            >
-              {React.cloneElement(item.icon as React.ReactElement, {
-                className: cn(
-                  "h-5 w-5",
-                  collapsed ? "mr-0" : "mr-3", 
-                  "text-slate-500",
-                  location === item.href ? "text-blue-500" : ""
-                ),
-              })}
-              {(!collapsed || !window.matchMedia('(min-width: 768px)').matches) && (
-                <span>{item.title}</span>
+
+              {/* Sub-menu items */}
+              {item.subItems && expandedMenus.includes(item.title) && (!collapsed || !window.matchMedia('(min-width: 768px)').matches) && (
+                <div className="ml-4 mt-1 space-y-1">
+                  {item.subItems.map((subItem) => (
+                    <Link
+                      key={subItem.href}
+                      href={subItem.href}
+                      className={cn(
+                        "flex items-center px-3 py-2 mx-2 text-sm rounded-md",
+                        location === subItem.href
+                          ? "bg-blue-100 text-blue-800"
+                          : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                      )}
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      {React.cloneElement(subItem.icon as React.ReactElement, {
+                        className: cn(
+                          "h-4 w-4 mr-3",
+                          location === subItem.href ? "text-blue-600" : "text-slate-400"
+                        ),
+                      })}
+                      <span>{subItem.title}</span>
+                    </Link>
+                  ))}
+                </div>
               )}
-            </Link>
+            </div>
           ))}
 
           {visibleModules.length === 0 && !user?.isSuperAdmin && (
