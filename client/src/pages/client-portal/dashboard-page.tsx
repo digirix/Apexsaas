@@ -2258,6 +2258,7 @@ export default function ClientPortalDashboardPage() {
           </motion.footer>
         ) : null;
       })()}
+    </div>
 
       {/* Invoice Details Modal */}
       <Dialog open={showInvoiceDetails} onOpenChange={setShowInvoiceDetails}>
@@ -2266,6 +2267,192 @@ export default function ClientPortalDashboardPage() {
             <DialogTitle className="flex items-center gap-2">
               <Receipt className="h-5 w-5 text-purple-500" />
               Invoice Details
+            </DialogTitle>
+          </DialogHeader>
+          
+          {(() => {
+            const invoice = clientInvoices.find((inv: any) => inv.id === selectedInvoiceId);
+            if (!invoice) return <div>Invoice not found</div>;
+            
+            const relatedTask = clientTasks.find((task: any) => task.invoiceId === invoice.id);
+            const taskDetails = relatedTask?.taskDetails || 
+                               relatedTask?.title || 
+                               relatedTask?.description || 
+                               relatedTask?.serviceName ||
+                               invoice.notes ||
+                               "Professional Services";
+
+            const getSetting = (key: string) => {
+              return Array.isArray(tenantSettings) 
+                ? tenantSettings.find((setting: any) => setting.key === key)?.value || ''
+                : tenantSettings[key] || '';
+            };
+
+            const firmName = getSetting("firm_name") || getSetting("name") || "Your Firm";
+
+            return (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-6"
+              >
+                {/* Invoice Header */}
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h1 className="text-2xl font-bold text-slate-900 mb-2">INVOICE</h1>
+                      <div className="flex items-center space-x-3">
+                        <span className={`px-3 py-1 text-sm font-medium rounded-full ${
+                          invoice.status === 'paid' ? 'bg-green-100 text-green-700' :
+                          invoice.status === 'overdue' ? 'bg-red-100 text-red-700' :
+                          invoice.status === 'sent' ? 'bg-blue-100 text-blue-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {invoice.status}
+                        </span>
+                        {invoice.issueDate && (
+                          <span className="text-sm text-slate-600">
+                            Issued: {formatDate(invoice.issueDate)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Invoice Number</p>
+                      <p className="text-xl font-bold text-slate-900">#{invoice.invoiceNumber || invoice.id}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">From</p>
+                      <div className="space-y-1">
+                        <p className="font-semibold text-slate-900">{firmName}</p>
+                        {getSetting("address") && <p className="text-sm text-slate-600">{getSetting("address")}</p>}
+                        {getSetting("email") && <p className="text-sm text-slate-600">{getSetting("email")}</p>}
+                        {getSetting("phone") && <p className="text-sm text-slate-600">{getSetting("phone")}</p>}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Bill To</p>
+                      <div className="space-y-1">
+                        <p className="font-semibold text-slate-900">{invoice.clientName || "Client"}</p>
+                        <p className="text-sm text-slate-600">{invoice.entityName || "Entity"}</p>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Amount</p>
+                      <p className="text-xl font-bold text-slate-900">
+                        {(invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                      {invoice.amountDue && parseFloat(invoice.amountDue) > 0 && (
+                        <p className="text-sm text-red-600">
+                          Due: {parseFloat(invoice.amountDue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Line Items */}
+                <div className="bg-white border rounded-lg overflow-hidden">
+                  <div className="bg-slate-50 px-4 py-3 border-b">
+                    <h3 className="font-semibold text-slate-900">Services Provided</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead className="bg-slate-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Description</th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Qty</th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Rate</th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {invoice.lineItems && invoice.lineItems.length > 0 ? (
+                          invoice.lineItems.map((item: any, idx: number) => (
+                            <tr key={idx} className="border-b border-slate-100">
+                              <td className="py-3 px-4 text-slate-700">{taskDetails}</td>
+                              <td className="py-3 px-4 text-right text-slate-700">{item.quantity || 1}</td>
+                              <td className="py-3 px-4 text-right text-slate-700">
+                                {(item.unitPrice || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td className="py-3 px-4 text-right font-medium text-slate-900">
+                                {(item.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr className="border-b border-slate-100">
+                            <td className="py-3 px-4 text-slate-700">{taskDetails}</td>
+                            <td className="py-3 px-4 text-right text-slate-700">1</td>
+                            <td className="py-3 px-4 text-right text-slate-700">
+                              {(invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-3 px-4 text-right font-medium text-slate-900">
+                              {(invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  {/* Totals */}
+                  <div className="bg-slate-50 px-4 py-3 border-t">
+                    <div className="flex justify-end">
+                      <div className="w-64">
+                        <div className="flex justify-between py-2">
+                          <span className="font-medium text-slate-700">Total Amount:</span>
+                          <span className="font-bold text-slate-900">
+                            {(invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        {invoice.amountDue && parseFloat(invoice.amountDue) > 0 && (
+                          <div className="flex justify-between py-2 border-t">
+                            <span className="font-medium text-red-700">Amount Due:</span>
+                            <span className="font-bold text-red-700">
+                              {parseFloat(invoice.amountDue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-3 pt-4 border-t">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handlePrintInvoice(invoice)}
+                  >
+                    Print Invoice
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowInvoiceDetails(false)}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </motion.div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Task Details Modal */}
+      <Dialog open={showTaskDetails} onOpenChange={setShowTaskDetails}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-blue-500" />
+              Task Details
             </DialogTitle>
           </DialogHeader>
           
