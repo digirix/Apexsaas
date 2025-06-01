@@ -119,6 +119,148 @@ export default function ClientPortalDashboardPage() {
   });
   const entityServices = Array.isArray(entityServicesData) ? entityServicesData : [];
 
+  // Handle print invoice functionality
+  const handlePrintInvoice = useCallback((invoice: any) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const companyInfo = userProfile?.client || {};
+    const entityInfo = clientEntities.find((e: any) => e.id === invoice.entityId) || {};
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Invoice #${invoice.invoiceNumber || invoice.id}</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+            .invoice-title { font-size: 28px; font-weight: bold; color: #333; margin-bottom: 10px; }
+            .invoice-number { font-size: 18px; color: #666; }
+            .details-section { display: flex; justify-content: space-between; margin-bottom: 30px; }
+            .details-column { width: 48%; }
+            .details-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #333; }
+            .details-content { line-height: 1.6; }
+            .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            .table th, .table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+            .table th { background-color: #f8f9fa; font-weight: bold; }
+            .totals { margin-top: 20px; }
+            .total-row { display: flex; justify-content: space-between; padding: 8px 0; }
+            .total-row.final { font-weight: bold; font-size: 18px; border-top: 2px solid #333; padding-top: 12px; }
+            .status-badge { padding: 6px 12px; border-radius: 4px; font-weight: bold; text-transform: uppercase; }
+            .status-paid { background-color: #d4edda; color: #155724; }
+            .status-overdue { background-color: #f8d7da; color: #721c24; }
+            .status-sent { background-color: #d1ecf1; color: #0c5460; }
+            .status-draft { background-color: #e2e3e5; color: #383d41; }
+            @media print { body { margin: 0; } }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="invoice-title">INVOICE</div>
+            <div class="invoice-number">#${invoice.invoiceNumber || invoice.id}</div>
+            <div class="status-badge status-${invoice.status?.toLowerCase() || 'draft'}">${invoice.status || 'Draft'}</div>
+          </div>
+          
+          <div class="details-section">
+            <div class="details-column">
+              <div class="details-title">Bill To:</div>
+              <div class="details-content">
+                <strong>${entityInfo.name || 'Entity Name'}</strong><br>
+                ${entityInfo.address || ''}<br>
+                ${entityInfo.countryName || ''}<br>
+                Tax ID: ${entityInfo.businessTaxId || 'N/A'}
+              </div>
+            </div>
+            
+            <div class="details-column">
+              <div class="details-title">Invoice Details:</div>
+              <div class="details-content">
+                <strong>Issue Date:</strong> ${formatDate(invoice.issueDate)}<br>
+                <strong>Due Date:</strong> ${formatDate(invoice.dueDate)}<br>
+                <strong>Currency:</strong> ${invoice.currencyCode || 'USD'}<br>
+                <strong>Client:</strong> ${companyInfo.displayName || 'N/A'}
+              </div>
+            </div>
+          </div>
+          
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th>Quantity</th>
+                <th>Rate</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${invoice.lineItems?.map((item: any) => `
+                <tr>
+                  <td>${item.description || 'Service'}</td>
+                  <td>${item.quantity || 1}</td>
+                  <td>${formatCurrency(item.unitPrice || 0)} ${invoice.currencyCode}</td>
+                  <td>${formatCurrency(item.total || 0)} ${invoice.currencyCode}</td>
+                </tr>
+              `).join('') || `
+                <tr>
+                  <td>Professional Services</td>
+                  <td>1</td>
+                  <td>${formatCurrency(invoice.totalAmount || 0)} ${invoice.currencyCode}</td>
+                  <td>${formatCurrency(invoice.totalAmount || 0)} ${invoice.currencyCode}</td>
+                </tr>
+              `}
+            </tbody>
+          </table>
+          
+          <div class="totals">
+            <div class="total-row">
+              <span>Subtotal:</span>
+              <span>${formatCurrency(invoice.subtotal || invoice.totalAmount || 0)} ${invoice.currencyCode}</span>
+            </div>
+            ${invoice.taxAmount ? `
+              <div class="total-row">
+                <span>Tax:</span>
+                <span>${formatCurrency(invoice.taxAmount)} ${invoice.currencyCode}</span>
+              </div>
+            ` : ''}
+            ${invoice.discountAmount ? `
+              <div class="total-row">
+                <span>Discount:</span>
+                <span>-${formatCurrency(invoice.discountAmount)} ${invoice.currencyCode}</span>
+              </div>
+            ` : ''}
+            <div class="total-row final">
+              <span>Total:</span>
+              <span>${formatCurrency(invoice.totalAmount || 0)} ${invoice.currencyCode}</span>
+            </div>
+            ${invoice.amountPaid ? `
+              <div class="total-row">
+                <span>Amount Paid:</span>
+                <span>${formatCurrency(invoice.amountPaid)} ${invoice.currencyCode}</span>
+              </div>
+              <div class="total-row final" style="color: #dc3545;">
+                <span>Amount Due:</span>
+                <span>${formatCurrency(invoice.amountDue || 0)} ${invoice.currencyCode}</span>
+              </div>
+            ` : ''}
+          </div>
+          
+          ${invoice.notes ? `
+            <div style="margin-top: 30px;">
+              <div class="details-title">Notes:</div>
+              <div class="details-content">${invoice.notes}</div>
+            </div>
+          ` : ''}
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  }, [userProfile, clientEntities]);
+
   const handleLogout = async () => {
     try {
       await fetch('/api/client-portal/logout', {
@@ -1440,6 +1582,199 @@ export default function ClientPortalDashboardPage() {
             </motion.div>
           </TabsContent>
 
+          {/* Invoice Details Modal */}
+          {showInvoiceDetails && selectedInvoiceId && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+              >
+                {(() => {
+                  const invoice = clientInvoices.find((inv: any) => inv.id === selectedInvoiceId);
+                  if (!invoice) return <div className="p-6">Invoice not found</div>;
+                  
+                  const entityInfo = clientEntities.find((e: any) => e.id === invoice.entityId) || {};
+                  const getStatusColor = (status: string) => {
+                    switch (status?.toLowerCase()) {
+                      case 'paid': return 'bg-green-100 text-green-700 border-green-200';
+                      case 'overdue': return 'bg-red-100 text-red-700 border-red-200';
+                      case 'sent': return 'bg-blue-100 text-blue-700 border-blue-200';
+                      case 'draft': return 'bg-gray-100 text-gray-700 border-gray-200';
+                      case 'partially_paid': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+                      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+                    }
+                  };
+
+                  return (
+                    <div className="p-8">
+                      <div className="flex items-start justify-between mb-6">
+                        <div>
+                          <h2 className="text-2xl font-bold text-slate-900 mb-2">
+                            Invoice #{invoice.invoiceNumber || invoice.id}
+                          </h2>
+                          <span className={`px-3 py-1 text-sm font-medium rounded-full border ${getStatusColor(invoice.status)}`}>
+                            {invoice.status}
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <Button
+                            variant="outline"
+                            onClick={() => handlePrintInvoice(invoice)}
+                            className="flex items-center space-x-2"
+                          >
+                            <Receipt className="h-4 w-4" />
+                            <span>Print</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={() => setShowInvoiceDetails(false)}
+                            className="flex items-center space-x-2"
+                          >
+                            <XCircle className="h-4 w-4" />
+                            <span>Close</span>
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                        <div>
+                          <h3 className="text-lg font-semibold text-slate-900 mb-4">Bill To</h3>
+                          <div className="bg-slate-50 rounded-lg p-4">
+                            <p className="font-semibold text-slate-900">{entityInfo.name || 'Entity Name'}</p>
+                            <p className="text-slate-600">{entityInfo.address || ''}</p>
+                            <p className="text-slate-600">{entityInfo.countryName || ''}</p>
+                            <p className="text-slate-600">Tax ID: {entityInfo.businessTaxId || 'N/A'}</p>
+                          </div>
+                        </div>
+
+                        <div>
+                          <h3 className="text-lg font-semibold text-slate-900 mb-4">Invoice Details</h3>
+                          <div className="bg-slate-50 rounded-lg p-4 space-y-2">
+                            <div className="flex justify-between">
+                              <span className="text-slate-600">Issue Date:</span>
+                              <span className="font-medium">{formatDate(invoice.issueDate)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-600">Due Date:</span>
+                              <span className="font-medium">{formatDate(invoice.dueDate)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-slate-600">Currency:</span>
+                              <span className="font-medium">{invoice.currencyCode || 'USD'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mb-8">
+                        <h3 className="text-lg font-semibold text-slate-900 mb-4">Line Items</h3>
+                        <div className="overflow-x-auto">
+                          <table className="w-full border-collapse">
+                            <thead>
+                              <tr className="border-b-2 border-slate-200">
+                                <th className="text-left py-3 px-4 font-semibold text-slate-900">Description</th>
+                                <th className="text-right py-3 px-4 font-semibold text-slate-900">Quantity</th>
+                                <th className="text-right py-3 px-4 font-semibold text-slate-900">Rate</th>
+                                <th className="text-right py-3 px-4 font-semibold text-slate-900">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {invoice.lineItems && invoice.lineItems.length > 0 ? (
+                                invoice.lineItems.map((item: any, idx: number) => (
+                                  <tr key={idx} className="border-b border-slate-100">
+                                    <td className="py-3 px-4 text-slate-700">{item.description || 'Service'}</td>
+                                    <td className="py-3 px-4 text-right text-slate-700">{item.quantity || 1}</td>
+                                    <td className="py-3 px-4 text-right text-slate-700">
+                                      {formatCurrency(item.unitPrice || 0)} {invoice.currencyCode}
+                                    </td>
+                                    <td className="py-3 px-4 text-right font-medium text-slate-900">
+                                      {formatCurrency(item.total || 0)} {invoice.currencyCode}
+                                    </td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr className="border-b border-slate-100">
+                                  <td className="py-3 px-4 text-slate-700">Professional Services</td>
+                                  <td className="py-3 px-4 text-right text-slate-700">1</td>
+                                  <td className="py-3 px-4 text-right text-slate-700">
+                                    {formatCurrency(invoice.totalAmount || 0)} {invoice.currencyCode}
+                                  </td>
+                                  <td className="py-3 px-4 text-right font-medium text-slate-900">
+                                    {formatCurrency(invoice.totalAmount || 0)} {invoice.currencyCode}
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end">
+                        <div className="w-80">
+                          <div className="bg-slate-50 rounded-lg p-6">
+                            <div className="space-y-2">
+                              <div className="flex justify-between">
+                                <span className="text-slate-600">Subtotal:</span>
+                                <span className="font-medium">
+                                  {formatCurrency(invoice.subtotal || invoice.totalAmount || 0)} {invoice.currencyCode}
+                                </span>
+                              </div>
+                              {invoice.taxAmount && (
+                                <div className="flex justify-between">
+                                  <span className="text-slate-600">Tax:</span>
+                                  <span className="font-medium">
+                                    {formatCurrency(invoice.taxAmount)} {invoice.currencyCode}
+                                  </span>
+                                </div>
+                              )}
+                              {invoice.discountAmount && (
+                                <div className="flex justify-between">
+                                  <span className="text-slate-600">Discount:</span>
+                                  <span className="font-medium text-green-600">
+                                    -{formatCurrency(invoice.discountAmount)} {invoice.currencyCode}
+                                  </span>
+                                </div>
+                              )}
+                              <div className="border-t border-slate-200 pt-2 mt-2">
+                                <div className="flex justify-between text-lg font-bold">
+                                  <span>Total:</span>
+                                  <span>{formatCurrency(invoice.totalAmount || 0)} {invoice.currencyCode}</span>
+                                </div>
+                              </div>
+                              {invoice.amountPaid && (
+                                <>
+                                  <div className="flex justify-between text-green-600">
+                                    <span>Amount Paid:</span>
+                                    <span>-{formatCurrency(invoice.amountPaid)} {invoice.currencyCode}</span>
+                                  </div>
+                                  <div className="flex justify-between text-lg font-bold text-red-600">
+                                    <span>Amount Due:</span>
+                                    <span>{formatCurrency(invoice.amountDue || 0)} {invoice.currencyCode}</span>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {invoice.notes && (
+                        <div className="mt-8">
+                          <h3 className="text-lg font-semibold text-slate-900 mb-4">Notes</h3>
+                          <div className="bg-slate-50 rounded-lg p-4">
+                            <p className="text-slate-700">{invoice.notes}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </motion.div>
+            </div>
+          )}
+
           {/* Invoices Tab */}
           <TabsContent value="invoices" className="space-y-6">
             <motion.div
@@ -1489,9 +1824,18 @@ export default function ClientPortalDashboardPage() {
                         }
                       </motion.div>
                     ) : (
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         {clientInvoices.map((invoice: any, index: number) => {
-                          const entityName = clientEntities.find((e: any) => e.id === invoice.entityId)?.name || "Unknown Entity";
+                          const getStatusColor = (status: string) => {
+                            switch (status?.toLowerCase()) {
+                              case 'paid': return 'bg-green-100 text-green-700 border-green-200';
+                              case 'overdue': return 'bg-red-100 text-red-700 border-red-200';
+                              case 'sent': return 'bg-blue-100 text-blue-700 border-blue-200';
+                              case 'draft': return 'bg-gray-100 text-gray-700 border-gray-200';
+                              case 'partially_paid': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+                              default: return 'bg-gray-100 text-gray-700 border-gray-200';
+                            }
+                          };
                           
                           return (
                             <motion.div
@@ -1500,52 +1844,110 @@ export default function ClientPortalDashboardPage() {
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.3, delay: index * 0.05 }}
                               whileHover={{ x: 5 }}
-                              className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-white/40 shadow-sm hover:shadow-md transition-all duration-300"
+                              className="bg-white/90 backdrop-blur-sm rounded-xl p-6 border border-white/50 shadow-lg hover:shadow-xl transition-all duration-300"
                             >
-                              <div className="flex items-start justify-between">
+                              <div className="flex items-start justify-between mb-4">
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex items-center space-x-2 mb-2">
-                                    <h4 className="font-medium text-slate-900 truncate">
+                                  <div className="flex items-center space-x-3 mb-3">
+                                    <h4 className="text-lg font-semibold text-slate-900">
                                       Invoice #{invoice.invoiceNumber || invoice.id}
                                     </h4>
-                                    <span className={`px-2 py-1 text-xs rounded-full ${
-                                      invoice.status === 'Paid' ? 'bg-green-100 text-green-700' :
-                                      invoice.status === 'Overdue' ? 'bg-red-100 text-red-700' :
-                                      'bg-yellow-100 text-yellow-700'
-                                    }`}>
+                                    <span className={`px-3 py-1 text-sm font-medium rounded-full border ${getStatusColor(invoice.status)}`}>
                                       {invoice.status}
                                     </span>
                                   </div>
-                                  <p className="text-sm text-slate-600 mb-2">
-                                    Amount: {formatCurrency(invoice.amount || 0)}
-                                  </p>
-                                  <div className="flex items-center space-x-4 text-xs text-slate-500">
-                                    <span className="flex items-center">
-                                      <Building2 className="h-3 w-3 mr-1" />
-                                      {entityName}
-                                    </span>
-                                    <span className="flex items-center">
-                                      <Calendar className="h-3 w-3 mr-1" />
-                                      Due: {formatDate(invoice.dueDate)}
-                                    </span>
+                                  
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                    <div>
+                                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Amount</p>
+                                      <p className="text-xl font-bold text-slate-900">
+                                        {formatCurrency(invoice.totalAmount || 0)} {invoice.currencyCode}
+                                      </p>
+                                      {invoice.amountDue && parseFloat(invoice.amountDue) > 0 && (
+                                        <p className="text-sm text-red-600">
+                                          Due: {formatCurrency(invoice.amountDue)} {invoice.currencyCode}
+                                        </p>
+                                      )}
+                                    </div>
+                                    
+                                    <div>
+                                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Entity</p>
+                                      <p className="text-sm font-medium text-slate-900 flex items-center">
+                                        <Building2 className="h-4 w-4 mr-2 text-blue-500" />
+                                        {invoice.entityName || "Unknown Entity"}
+                                      </p>
+                                    </div>
+                                    
+                                    <div>
+                                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Dates</p>
+                                      <div className="space-y-1">
+                                        <p className="text-sm text-slate-700 flex items-center">
+                                          <Calendar className="h-3 w-3 mr-2" />
+                                          Issued: {formatDate(invoice.issueDate)}
+                                        </p>
+                                        <p className="text-sm text-slate-700 flex items-center">
+                                          <Clock className="h-3 w-3 mr-2" />
+                                          Due: {formatDate(invoice.dueDate)}
+                                        </p>
+                                      </div>
+                                    </div>
                                   </div>
+                                  
+                                  {invoice.notes && (
+                                    <div className="mb-4">
+                                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Notes</p>
+                                      <p className="text-sm text-slate-600">{invoice.notes}</p>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Line Items Preview */}
+                                  {invoice.lineItems && invoice.lineItems.length > 0 && (
+                                    <div className="mb-4 p-3 bg-slate-50 rounded-lg">
+                                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Services</p>
+                                      <div className="space-y-1">
+                                        {invoice.lineItems.slice(0, 2).map((item: any, idx: number) => (
+                                          <div key={idx} className="flex justify-between text-sm">
+                                            <span className="text-slate-700">{item.description}</span>
+                                            <span className="font-medium text-slate-900">
+                                              {formatCurrency(item.total)} {invoice.currencyCode}
+                                            </span>
+                                          </div>
+                                        ))}
+                                        {invoice.lineItems.length > 2 && (
+                                          <p className="text-xs text-slate-500">+ {invoice.lineItems.length - 2} more items</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
-                                <motion.div
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                                >
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedInvoiceId(invoice.id);
-                                      setShowInvoiceDetails(true);
-                                    }}
-                                    className="text-xs h-8 px-3"
-                                  >
-                                    View Details
-                                  </Button>
-                                </motion.div>
+                                
+                                <div className="flex flex-col space-y-2 ml-4">
+                                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                    <Button 
+                                      variant="default" 
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedInvoiceId(invoice.id);
+                                        setShowInvoiceDetails(true);
+                                      }}
+                                      className="w-full text-xs h-8 px-4"
+                                    >
+                                      <Eye className="h-3 w-3 mr-1" />
+                                      View Details
+                                    </Button>
+                                  </motion.div>
+                                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => handlePrintInvoice(invoice)}
+                                      className="w-full text-xs h-8 px-4"
+                                    >
+                                      <Receipt className="h-3 w-3 mr-1" />
+                                      Print
+                                    </Button>
+                                  </motion.div>
+                                </div>
                               </div>
                             </motion.div>
                           );
