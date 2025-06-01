@@ -340,161 +340,440 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Key Metrics Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        {/* Clients Card - only show if user has permission */}
-        {(canViewClients || user?.isSuperAdmin) && (
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="p-2 bg-blue-100 rounded-lg mr-4">
-                    <Users className="h-6 w-6 text-blue-600" />
+      {/* Task Command Center - Primary Focus */}
+      {(canViewTasks || user?.isSuperAdmin) && (
+        <div className="grid gap-3 mb-6">
+          {/* Main Task Analytics Row */}
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+            {/* Primary Active Tasks Card */}
+            <Card className="lg:col-span-2 border-l-4 border-l-blue-500 bg-gradient-to-br from-blue-50 to-blue-100">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-3 bg-blue-500 rounded-xl shadow-lg">
+                      <ClipboardCheck className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-blue-700">Active Tasks</p>
+                      <h3 className="text-3xl font-bold text-blue-900">{dashboardMetrics.activeTasks}</h3>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Total Clients</p>
-                    <h3 className="text-2xl font-bold text-slate-900">{dashboardMetrics.totalClients.toLocaleString()}</h3>
-                    <p className="text-xs text-slate-500 mt-1">{dashboardMetrics.totalEntities} entities</p>
-                  </div>
-                </div>
-                <ArrowUpRight className="h-4 w-4 text-blue-600" />
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
-        {/* Tasks Card - only show if user has permission */}
-        {(canViewTasks || user?.isSuperAdmin) && (
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="p-2 bg-green-100 rounded-lg mr-4">
-                    <ClipboardCheck className="h-6 w-6 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Active Tasks</p>
-                    <h3 className="text-2xl font-bold text-slate-900">{dashboardMetrics.activeTasks.toLocaleString()}</h3>
-                    <p className="text-xs text-slate-500 mt-1">{dashboardMetrics.completedTasksThisMonth} completed this month</p>
-                  </div>
-                </div>
-                <Activity className="h-4 w-4 text-green-600" />
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
-        {/* Revenue Card - only show if user has permission */}
-        {(canViewFinance || user?.isSuperAdmin) && (
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="p-2 bg-purple-100 rounded-lg mr-4">
-                    <DollarSign className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Monthly Revenue</p>
-                    <h3 className="text-2xl font-bold text-slate-900">${dashboardMetrics.monthlyRevenue.toLocaleString()}</h3>
-                    <p className="text-xs text-slate-500 mt-1">{dashboardMetrics.pendingInvoices} pending invoices</p>
+                  <div className="text-right">
+                    <p className="text-xs text-blue-600 font-medium">In Progress</p>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <div className="w-16 bg-blue-200 rounded-full h-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-700" 
+                          style={{ 
+                            width: `${dashboardMetrics.activeTasks > 0 ? 
+                              ((dashboardMetrics.activeTasks - dashboardMetrics.overdueTasks) / dashboardMetrics.activeTasks) * 100 : 0}%` 
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs font-bold text-blue-700">
+                        {dashboardMetrics.activeTasks > 0 ? 
+                          Math.round(((dashboardMetrics.activeTasks - dashboardMetrics.overdueTasks) / dashboardMetrics.activeTasks) * 100) : 0}%
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <TrendingUp className="h-4 w-4 text-purple-600" />
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
-        {/* Alerts Card - only show if user has task permissions */}
-        {(canViewTasks || user?.isSuperAdmin) && (
-          <Card className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className={`p-2 rounded-lg mr-4 ${dashboardMetrics.overdueTasks > 0 ? 'bg-red-100' : 'bg-yellow-100'}`}>
-                    <AlertTriangle className={`h-6 w-6 ${dashboardMetrics.overdueTasks > 0 ? 'text-red-600' : 'text-yellow-600'}`} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Overdue Tasks</p>
-                    <h3 className="text-2xl font-bold text-slate-900">{dashboardMetrics.overdueTasks.toLocaleString()}</h3>
-                    <p className="text-xs text-slate-500 mt-1">{dashboardMetrics.urgentDeadlines} urgent deadlines</p>
-                  </div>
-                </div>
-                <Bell className={`h-4 w-4 ${dashboardMetrics.overdueTasks > 0 ? 'text-red-600' : 'text-yellow-600'}`} />
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+              </CardContent>
+            </Card>
 
-      {/* Charts Section */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
-        {/* Revenue Trend Chart - only show if user has finance permission */}
-        {(canViewFinance || user?.isSuperAdmin) && (
-          <Card className="lg:col-span-2">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <div>
-                <CardTitle className="text-lg font-medium">Revenue Trend</CardTitle>
-                <p className="text-sm text-slate-500">Last 6 months performance</p>
-              </div>
-              <TrendingUp className="h-5 w-5 text-slate-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="h-[280px]">
-                {monthlyRevenueData.length > 0 ? (
-                  <LineChart
-                    data={monthlyRevenueData}
-                    xAxis={{ dataKey: "name" }}
-                    series={[{ dataKey: "value", stroke: "#3B82F6", strokeWidth: 3 }]}
-                    tooltip
-                    yAxis={{ format: (value) => `$${value.toLocaleString()}` }}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-slate-500">
-                    <div className="text-center">
-                      <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No revenue data available</p>
+            {/* Completed Tasks */}
+            <Card className="border-l-4 border-l-green-500 bg-gradient-to-br from-green-50 to-green-100">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-2 bg-green-500 rounded-lg">
+                      <CheckCircle className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-green-700">Completed</p>
+                      <h3 className="text-2xl font-bold text-green-900">{dashboardMetrics.completedTasksThisMonth}</h3>
                     </div>
                   </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
-        {/* Task Status Chart - only show if user has task permission */}
-        {(canViewTasks || user?.isSuperAdmin) && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <div>
-                <CardTitle className="text-lg font-medium">Task Distribution</CardTitle>
-                <p className="text-sm text-slate-500">Current status breakdown</p>
-              </div>
-              <PieChartIcon className="h-5 w-5 text-slate-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="h-[280px]">
-                {taskStatusData.length > 0 ? (
-                  <PieChart
-                    data={taskStatusData}
-                    dataKey="value"
-                    category="name"
-                    colors={taskStatusData.map(item => item.color)}
-                    tooltip
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-slate-500">
-                    <div className="text-center">
-                      <ClipboardCheck className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>No tasks available</p>
+                  <ArrowUpRight className="h-4 w-4 text-green-600" />
+                </div>
+                <p className="text-xs text-green-600 mt-1">This month</p>
+              </CardContent>
+            </Card>
+
+            {/* Overdue Tasks */}
+            <Card className="border-l-4 border-l-red-500 bg-gradient-to-br from-red-50 to-red-100">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-2 bg-red-500 rounded-lg animate-pulse">
+                      <AlertTriangle className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-red-700">Overdue</p>
+                      <h3 className="text-2xl font-bold text-red-900">{dashboardMetrics.overdueTasks}</h3>
                     </div>
                   </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+                  <Bell className="h-4 w-4 text-red-600" />
+                </div>
+                <p className="text-xs text-red-600 mt-1 font-medium">
+                  {dashboardMetrics.overdueTasks > 0 ? "Urgent attention" : "All clear"}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Upcoming Deadlines */}
+            <Card className="border-l-4 border-l-orange-500 bg-gradient-to-br from-orange-50 to-orange-100">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-2 bg-orange-500 rounded-lg">
+                      <Clock className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-orange-700">This Week</p>
+                      <h3 className="text-2xl font-bold text-orange-900">{dashboardMetrics.urgentDeadlines}</h3>
+                    </div>
+                  </div>
+                  <Calendar className="h-4 w-4 text-orange-600" />
+                </div>
+                <p className="text-xs text-orange-600 mt-1">Next 7 days</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Secondary Analytics Row */}
+          <div className="grid gap-3 md:grid-cols-4">
+            {/* Team Efficiency */}
+            <Card className="border-l-4 border-l-purple-500 bg-gradient-to-br from-purple-50 to-purple-100">
+              <CardContent className="p-3">
+                <div className="flex items-center space-x-2">
+                  <div className="p-2 bg-purple-500 rounded-lg">
+                    <Target className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-purple-700">Team Efficiency</p>
+                    <h3 className="text-xl font-bold text-purple-900">
+                      {dashboardMetrics.activeTasks > 0 ? 
+                        Math.round((dashboardMetrics.completedTasksThisMonth / (dashboardMetrics.activeTasks + dashboardMetrics.completedTasksThisMonth)) * 100) : 0}%
+                    </h3>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Client Overview - SuperAdmin only */}
+            {user?.isSuperAdmin && (
+              <>
+                <Card className="border-l-4 border-l-indigo-500 bg-gradient-to-br from-indigo-50 to-indigo-100">
+                  <CardContent className="p-3">
+                    <div className="flex items-center space-x-2">
+                      <div className="p-2 bg-indigo-500 rounded-lg">
+                        <Users className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-indigo-700">Active Clients</p>
+                        <h3 className="text-xl font-bold text-indigo-900">{dashboardMetrics.totalClients}</h3>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-l-4 border-l-teal-500 bg-gradient-to-br from-teal-50 to-teal-100">
+                  <CardContent className="p-3">
+                    <div className="flex items-center space-x-2">
+                      <div className="p-2 bg-teal-500 rounded-lg">
+                        <Building2 className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-teal-700">Total Entities</p>
+                        <h3 className="text-xl font-bold text-teal-900">{dashboardMetrics.totalEntities}</h3>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {/* Productivity Score */}
+            <Card className="border-l-4 border-l-emerald-500 bg-gradient-to-br from-emerald-50 to-emerald-100">
+              <CardContent className="p-3">
+                <div className="flex items-center space-x-2">
+                  <div className="p-2 bg-emerald-500 rounded-lg">
+                    <Zap className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-emerald-700">Productivity</p>
+                    <h3 className="text-xl font-bold text-emerald-900">
+                      {dashboardMetrics.overdueTasks === 0 && dashboardMetrics.activeTasks > 0 ? "High" : 
+                       dashboardMetrics.overdueTasks <= 2 ? "Good" : "Low"}
+                    </h3>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* Advanced Task Analytics - Modern Visualizations */}
+      {(canViewTasks || user?.isSuperAdmin) && (
+        <div className="grid gap-4 mb-6">
+          {/* Primary Analytics Row */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {/* Task Flow Analytics */}
+            <Card className="lg:col-span-2 border-t-4 border-t-blue-500 shadow-lg">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <BarChart3 className="h-5 w-5 text-blue-600" />
+                      </div>
+                      Task Workflow Analytics
+                    </CardTitle>
+                    <p className="text-sm text-gray-500">Real-time task progression insights</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="h-[280px]">
+                  {teamPerformanceData.length > 0 ? (
+                    <BarChart
+                      data={teamPerformanceData}
+                      xAxis={{ dataKey: "period" }}
+                      series={[
+                        { dataKey: "completed", color: "#10B981", name: "Completed" },
+                        { dataKey: "pending", color: "#F59E0B", name: "Pending" },
+                        { dataKey: "overdue", color: "#EF4444", name: "Overdue" }
+                      ]}
+                      tooltip
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-gray-500">
+                      <div className="text-center">
+                        <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p className="text-sm">No workflow data available</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Task Status Distribution */}
+            <Card className="border-t-4 border-t-purple-500 shadow-lg">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                      <div className="p-2 bg-purple-100 rounded-lg">
+                        <PieChartIcon className="h-5 w-5 text-purple-600" />
+                      </div>
+                      Status Distribution
+                    </CardTitle>
+                    <p className="text-sm text-gray-500">Current task breakdown</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="h-[280px]">
+                  {taskStatusData.length > 0 ? (
+                    <PieChart
+                      data={taskStatusData}
+                      dataKey="value"
+                      category="name"
+                      colors={taskStatusData.map(item => item.color)}
+                      tooltip
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-gray-500">
+                      <div className="text-center">
+                        <ClipboardCheck className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p className="text-sm">No tasks available</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Secondary Analytics Row */}
+          <div className="grid gap-4 md:grid-cols-3">
+            {/* Priority Heatmap */}
+            <Card className="border-t-4 border-t-orange-500 shadow-lg">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-semibold text-gray-800 flex items-center gap-2">
+                      <div className="p-1.5 bg-orange-100 rounded-lg">
+                        <Target className="h-4 w-4 text-orange-600" />
+                      </div>
+                      Priority Matrix
+                    </CardTitle>
+                    <p className="text-xs text-gray-500">Task urgency analysis</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-2">
+                  {[
+                    { priority: "Critical", count: dashboardMetrics.overdueTasks, color: "bg-red-500", bgColor: "bg-red-50", textColor: "text-red-700" },
+                    { priority: "High", count: Math.max(0, dashboardMetrics.urgentDeadlines - dashboardMetrics.overdueTasks), color: "bg-orange-500", bgColor: "bg-orange-50", textColor: "text-orange-700" },
+                    { priority: "Medium", count: Math.max(0, dashboardMetrics.activeTasks - dashboardMetrics.urgentDeadlines), color: "bg-yellow-500", bgColor: "bg-yellow-50", textColor: "text-yellow-700" },
+                    { priority: "Completed", count: dashboardMetrics.completedTasksThisMonth, color: "bg-green-500", bgColor: "bg-green-50", textColor: "text-green-700" }
+                  ].map((item, index) => (
+                    <div key={index} className={`flex items-center justify-between p-2.5 ${item.bgColor} rounded-lg border border-gray-100`}>
+                      <div className="flex items-center space-x-2">
+                        <div className={`w-2.5 h-2.5 rounded-full ${item.color}`}></div>
+                        <span className="text-xs font-medium text-gray-700">{item.priority}</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <span className={`text-sm font-bold ${item.textColor}`}>{item.count}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Team Efficiency Tracker */}
+            <Card className="border-t-4 border-t-green-500 shadow-lg">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-semibold text-gray-800 flex items-center gap-2">
+                      <div className="p-1.5 bg-green-100 rounded-lg">
+                        <Zap className="h-4 w-4 text-green-600" />
+                      </div>
+                      Team Metrics
+                    </CardTitle>
+                    <p className="text-xs text-gray-500">Performance indicators</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-600">Completion Rate</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-16 bg-gray-200 rounded-full h-1.5">
+                        <div 
+                          className="bg-green-500 h-1.5 rounded-full transition-all duration-500" 
+                          style={{ 
+                            width: `${dashboardMetrics.activeTasks > 0 ? 
+                              ((dashboardMetrics.completedTasksThisMonth / (dashboardMetrics.activeTasks + dashboardMetrics.completedTasksThisMonth)) * 100) : 0}%` 
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs font-bold text-green-700">
+                        {dashboardMetrics.activeTasks > 0 ? 
+                          Math.round((dashboardMetrics.completedTasksThisMonth / (dashboardMetrics.activeTasks + dashboardMetrics.completedTasksThisMonth)) * 100) : 0}%
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-600">On-Time Delivery</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-16 bg-gray-200 rounded-full h-1.5">
+                        <div 
+                          className="bg-blue-500 h-1.5 rounded-full transition-all duration-500" 
+                          style={{ 
+                            width: `${dashboardMetrics.activeTasks > 0 ? 
+                              ((dashboardMetrics.activeTasks - dashboardMetrics.overdueTasks) / dashboardMetrics.activeTasks) * 100 : 0}%` 
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs font-bold text-blue-700">
+                        {dashboardMetrics.activeTasks > 0 ? 
+                          Math.round(((dashboardMetrics.activeTasks - dashboardMetrics.overdueTasks) / dashboardMetrics.activeTasks) * 100) : 0}%
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-gray-600">Team Load</span>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-16 bg-gray-200 rounded-full h-1.5">
+                        <div 
+                          className="bg-purple-500 h-1.5 rounded-full transition-all duration-500" 
+                          style={{ 
+                            width: `${Math.min(100, (dashboardMetrics.activeTasks / Math.max(1, users?.length || 1)) * 10)}%` 
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs font-bold text-purple-700">
+                        {dashboardMetrics.activeTasks > 0 && users?.length ? 
+                          Math.round(dashboardMetrics.activeTasks / users.length) : 0} avg
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quick Actions */}
+            <Card className="border-t-4 border-t-indigo-500 shadow-lg">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base font-semibold text-gray-800 flex items-center gap-2">
+                      <div className="p-1.5 bg-indigo-100 rounded-lg">
+                        <Activity className="h-4 w-4 text-indigo-600" />
+                      </div>
+                      Quick Actions
+                    </CardTitle>
+                    <p className="text-xs text-gray-500">Direct task navigation</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full justify-start text-left h-8 text-xs border-red-200 hover:bg-red-50"
+                    onClick={() => window.location.href = '/tasks?filter=overdue'}
+                  >
+                    <AlertTriangle className="h-3 w-3 mr-2 text-red-500" />
+                    View Overdue ({dashboardMetrics.overdueTasks})
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full justify-start text-left h-8 text-xs border-orange-200 hover:bg-orange-50"
+                    onClick={() => window.location.href = '/tasks?filter=urgent'}
+                  >
+                    <Clock className="h-3 w-3 mr-2 text-orange-500" />
+                    Urgent This Week ({dashboardMetrics.urgentDeadlines})
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full justify-start text-left h-8 text-xs border-blue-200 hover:bg-blue-50"
+                    onClick={() => window.location.href = '/tasks?filter=active'}
+                  >
+                    <ClipboardCheck className="h-3 w-3 mr-2 text-blue-500" />
+                    All Active ({dashboardMetrics.activeTasks})
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full justify-start text-left h-8 text-xs border-green-200 hover:bg-green-50"
+                    onClick={() => window.location.href = '/tasks?filter=completed'}
+                  >
+                    <CheckCircle className="h-3 w-3 mr-2 text-green-500" />
+                    Completed ({dashboardMetrics.completedTasksThisMonth})
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
       
       {/* Additional Insights Section */}
       <div className="grid gap-4 md:grid-cols-2 mb-6">
