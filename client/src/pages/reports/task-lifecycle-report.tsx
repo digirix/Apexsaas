@@ -193,7 +193,8 @@ export default function TaskLifecycleReport() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <AppLayout title="Task Lifecycle Analysis">
+      <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
@@ -458,6 +459,7 @@ export default function TaskLifecycleReport() {
           )}
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </AppLayout>
   );
 }
