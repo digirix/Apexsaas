@@ -1671,109 +1671,319 @@ const CriticalAlerts = ({ tasks, taskStatuses, invoices, clients, entities }: an
 }
 
 const ComplianceDashboard = ({ tasks, taskStatuses, clients, entities, countries }: any) => {
+  const [complianceFilter, setComplianceFilter] = React.useState('all');
+  const [riskFilter, setRiskFilter] = React.useState('all');
+  
+  const currentDate = new Date();
+  const completedStatusId = taskStatuses?.find((s: any) => s.name.toLowerCase() === 'completed')?.id;
+  const pendingStatusId = taskStatuses?.find((s: any) => s.name.toLowerCase() === 'pending')?.id;
+  const inProgressStatusId = taskStatuses?.find((s: any) => s.name.toLowerCase() === 'in progress')?.id;
+  
+  // Identify compliance tasks based on complianceDeadline field and task titles
   const complianceTasks = tasks?.filter((task: any) => 
+    task.complianceDeadline || 
     task.title?.toLowerCase().includes('tax') || 
     task.title?.toLowerCase().includes('compliance') ||
-    task.title?.toLowerCase().includes('filing')
+    task.title?.toLowerCase().includes('filing') ||
+    task.title?.toLowerCase().includes('return') ||
+    task.title?.toLowerCase().includes('audit') ||
+    task.title?.toLowerCase().includes('vat') ||
+    task.title?.toLowerCase().includes('payroll')
   ) || [];
 
-  const upcomingDeadlines = complianceTasks
-    .filter((task: any) => {
-      const dueDate = new Date(task.dueDate);
-      const thirtyDaysFromNow = new Date(Date.now() + (30 * 24 * 60 * 60 * 1000));
-      return dueDate <= thirtyDaysFromNow;
-    })
-    .sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-    .slice(0, 5);
-
-  const jurisdictionData = countries?.map((country: any) => {
-    const countryEntities = entities?.filter((e: any) => e.countryId === country.id) || [];
-    const countryTasks = complianceTasks.filter((task: any) => 
-      countryEntities.some((entity: any) => entity.id === task.entityId)
-    );
-    const completedTasks = countryTasks.filter((task: any) => 
-      task.statusId === taskStatuses?.find((s: any) => s.name.toLowerCase() === 'completed')?.id
-    );
+  // Calculate comprehensive compliance metrics
+  const complianceMetrics = React.useMemo(() => {
+    const overdueTasks = complianceTasks.filter((task: any) => {
+      const deadline = task.complianceDeadline ? new Date(task.complianceDeadline) : new Date(task.dueDate);
+      return deadline < currentDate && task.statusId !== completedStatusId;
+    });
+    
+    const upcomingCritical = complianceTasks.filter((task: any) => {
+      const deadline = task.complianceDeadline ? new Date(task.complianceDeadline) : new Date(task.dueDate);
+      const daysUntil = Math.ceil((deadline.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+      return daysUntil >= 0 && daysUntil <= 7 && task.statusId !== completedStatusId;
+    });
+    
+    const upcomingModerate = complianceTasks.filter((task: any) => {
+      const deadline = task.complianceDeadline ? new Date(task.complianceDeadline) : new Date(task.dueDate);
+      const daysUntil = Math.ceil((deadline.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+      return daysUntil > 7 && daysUntil <= 30 && task.statusId !== completedStatusId;
+    });
+    
+    const completedThisMonth = complianceTasks.filter((task: any) => {
+      const completionDate = task.updatedAt ? new Date(task.updatedAt) : new Date(task.createdAt);
+      const thisMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      return task.statusId === completedStatusId && completionDate >= thisMonth;
+    });
     
     return {
-      country: country.name,
-      total: countryTasks.length,
-      completed: completedTasks.length,
-      rate: countryTasks.length > 0 ? Math.round((completedTasks.length / countryTasks.length) * 100) : 0
+      total: complianceTasks.length,
+      overdue: overdueTasks.length,
+      criticalUpcoming: upcomingCritical.length,
+      moderateUpcoming: upcomingModerate.length,
+      completed: complianceTasks.filter((task: any) => task.statusId === completedStatusId).length,
+      completedThisMonth: completedThisMonth.length,
+      complianceRate: complianceTasks.length > 0 ? Math.round((complianceTasks.filter((task: any) => task.statusId === completedStatusId).length / complianceTasks.length) * 100) : 0
     };
-  }).filter((item: any) => item.total > 0) || [];
+  }, [complianceTasks, completedStatusId, currentDate]);
+
+  // Risk assessment by entity
+  const entityRiskAnalysis = React.useMemo(() => {
+    return entities?.map((entity: any) => {
+      const entityTasks = complianceTasks.filter((task: any) => task.entityId === entity.id);
+      const overdueTasks = entityTasks.filter((task: any) => {
+        const deadline = task.complianceDeadline ? new Date(task.complianceDeadline) : new Date(task.dueDate);
+        return deadline < currentDate && task.statusId !== completedStatusId;
+      });
+      const upcomingTasks = entityTasks.filter((task: any) => {
+        const deadline = task.complianceDeadline ? new Date(task.complianceDeadline) : new Date(task.dueDate);
+        const daysUntil = Math.ceil((deadline.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+        return daysUntil >= 0 && daysUntil <= 30 && task.statusId !== completedStatusId;
+      });
+      
+      const client = clients?.find((c: any) => c.id === entity.clientId);
+      const country = countries?.find((c: any) => c.id === entity.countryId);
+      
+      // Risk score calculation
+      let riskScore = 0;
+      riskScore += overdueTasks.length * 30; // Heavy penalty for overdue
+      riskScore += upcomingTasks.filter((t: any) => {
+        const deadline = t.complianceDeadline ? new Date(t.complianceDeadline) : new Date(t.dueDate);
+        const daysUntil = Math.ceil((deadline.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+        return daysUntil <= 7;
+      }).length * 15; // Moderate penalty for critical upcoming
+      riskScore += upcomingTasks.length * 5; // Light penalty for all upcoming
+      
+      const riskLevel = riskScore > 50 ? 'high' : riskScore > 20 ? 'medium' : riskScore > 0 ? 'low' : 'minimal';
+      
+      return {
+        entityId: entity.id,
+        entityName: entity.name,
+        clientName: client?.displayName || client?.companyName || 'Unknown',
+        countryName: country?.name || 'Unknown',
+        totalTasks: entityTasks.length,
+        overdueTasks: overdueTasks.length,
+        upcomingTasks: upcomingTasks.length,
+        completedTasks: entityTasks.filter((task: any) => task.statusId === completedStatusId).length,
+        riskScore,
+        riskLevel,
+        complianceRate: entityTasks.length > 0 ? Math.round((entityTasks.filter((task: any) => task.statusId === completedStatusId).length / entityTasks.length) * 100) : 0
+      };
+    }).filter((entity: any) => entity.totalTasks > 0)
+    .sort((a: any, b: any) => b.riskScore - a.riskScore) || [];
+  }, [entities, complianceTasks, completedStatusId, currentDate, clients, countries]);
+
+  // Jurisdiction-based compliance analysis
+  const jurisdictionAnalysis = React.useMemo(() => {
+    return countries?.map((country: any) => {
+      const countryEntities = entities?.filter((e: any) => e.countryId === country.id) || [];
+      const countryTasks = complianceTasks.filter((task: any) => 
+        countryEntities.some((entity: any) => entity.id === task.entityId)
+      );
+      
+      const overdueTasks = countryTasks.filter((task: any) => {
+        const deadline = task.complianceDeadline ? new Date(task.complianceDeadline) : new Date(task.dueDate);
+        return deadline < currentDate && task.statusId !== completedStatusId;
+      });
+      
+      const upcomingTasks = countryTasks.filter((task: any) => {
+        const deadline = task.complianceDeadline ? new Date(task.complianceDeadline) : new Date(task.dueDate);
+        const daysUntil = Math.ceil((deadline.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+        return daysUntil >= 0 && daysUntil <= 30 && task.statusId !== completedStatusId;
+      });
+      
+      const completedTasks = countryTasks.filter((task: any) => task.statusId === completedStatusId);
+      
+      return {
+        countryName: country.name,
+        totalTasks: countryTasks.length,
+        totalEntities: countryEntities.length,
+        overdueTasks: overdueTasks.length,
+        upcomingTasks: upcomingTasks.length,
+        completedTasks: completedTasks.length,
+        complianceRate: countryTasks.length > 0 ? Math.round((completedTasks.length / countryTasks.length) * 100) : 0,
+        riskLevel: overdueTasks.length > 5 ? 'high' : overdueTasks.length > 2 ? 'medium' : overdueTasks.length > 0 ? 'low' : 'minimal'
+      };
+    }).filter((country: any) => country.totalTasks > 0)
+    .sort((a: any, b: any) => b.overdueTasks - a.overdueTasks) || [];
+  }, [countries, entities, complianceTasks, completedStatusId, currentDate]);
+
+  // Filter data based on selected filters
+  const filteredEntityData = entityRiskAnalysis.filter((entity: any) => {
+    if (riskFilter === 'high') return entity.riskLevel === 'high';
+    if (riskFilter === 'medium') return entity.riskLevel === 'medium';
+    if (riskFilter === 'low') return entity.riskLevel === 'low' || entity.riskLevel === 'minimal';
+    return true;
+  });
+
+  const getRiskColor = (riskLevel: string) => {
+    switch (riskLevel) {
+      case 'high': return 'bg-red-100 text-red-800 border-red-200';
+      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'low': return 'bg-blue-100 text-blue-800 border-blue-200';
+      default: return 'bg-green-100 text-green-800 border-green-200';
+    }
+  };
+
+  const getRiskIcon = (riskLevel: string) => {
+    switch (riskLevel) {
+      case 'high': return <AlertTriangle className="h-4 w-4 text-red-500" />;
+      case 'medium': return <Clock className="h-4 w-4 text-yellow-500" />;
+      case 'low': return <Calendar className="h-4 w-4 text-blue-500" />;
+      default: return <CheckCircle className="h-4 w-4 text-green-500" />;
+    }
+  };
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      <div>
-        <h4 className="font-medium mb-4">Upcoming Compliance Deadlines</h4>
-        <div className="space-y-3">
-          {upcomingDeadlines.map((task: any) => {
-            const entity = entities?.find((e: any) => e.id === task.entityId);
-            const client = clients?.find((c: any) => c.id === task.clientId);
-            const country = countries?.find((c: any) => c.id === entity?.countryId);
-            const daysUntilDue = Math.ceil((new Date(task.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-            
-            return (
+    <div className="space-y-6">
+      {/* Compliance Metrics Overview */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-red-600 uppercase tracking-wide">Overdue</p>
+              <p className="text-2xl font-bold text-red-700">{complianceMetrics.overdue}</p>
+            </div>
+            <AlertTriangle className="h-6 w-6 text-red-500" />
+          </div>
+          <p className="text-xs text-red-600 mt-1">Require immediate attention</p>
+        </div>
+        
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-yellow-600 uppercase tracking-wide">Critical (7d)</p>
+              <p className="text-2xl font-bold text-yellow-700">{complianceMetrics.criticalUpcoming}</p>
+            </div>
+            <Clock className="h-6 w-6 text-yellow-500" />
+          </div>
+          <p className="text-xs text-yellow-600 mt-1">Due within 7 days</p>
+        </div>
+        
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-blue-600 uppercase tracking-wide">Upcoming (30d)</p>
+              <p className="text-2xl font-bold text-blue-700">{complianceMetrics.moderateUpcoming}</p>
+            </div>
+            <Calendar className="h-6 w-6 text-blue-500" />
+          </div>
+          <p className="text-xs text-blue-600 mt-1">Due within 30 days</p>
+        </div>
+        
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-green-600 uppercase tracking-wide">Rate</p>
+              <p className="text-2xl font-bold text-green-700">{complianceMetrics.complianceRate}%</p>
+            </div>
+            <TrendingUp className="h-6 w-6 text-green-500" />
+          </div>
+          <p className="text-xs text-green-600 mt-1">Overall compliance rate</p>
+        </div>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Entity Risk Analysis */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="font-medium">Entity Risk Analysis</h4>
+            <select 
+              value={riskFilter} 
+              onChange={(e) => setRiskFilter(e.target.value)}
+              className="text-xs border rounded px-2 py-1"
+            >
+              <option value="all">All Risk Levels</option>
+              <option value="high">High Risk</option>
+              <option value="medium">Medium Risk</option>
+              <option value="low">Low Risk</option>
+            </select>
+          </div>
+          <div className="space-y-3 max-h-80 overflow-y-auto">
+            {filteredEntityData.slice(0, 8).map((entity: any) => (
               <div
-                key={task.id}
-                className={`p-3 rounded-lg border cursor-pointer hover:shadow-sm transition-shadow ${
-                  daysUntilDue < 0 ? 'bg-red-50 border-red-200' : 
-                  daysUntilDue <= 7 ? 'bg-yellow-50 border-yellow-200' : 
-                  'bg-green-50 border-green-200'
-                }`}
-                onClick={() => window.location.href = '/tasks'}
+                key={entity.entityId}
+                className={`p-3 rounded-lg border cursor-pointer hover:shadow-sm transition-all ${getRiskColor(entity.riskLevel)}`}
+                onClick={() => window.location.href = `/entities/${entity.entityId}`}
               >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="font-medium text-sm">{task.title}</div>
-                    <div className="text-xs text-gray-600 mt-1">
-                      {client?.companyName} • {country?.name}
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start space-x-2">
+                    {getRiskIcon(entity.riskLevel)}
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">{entity.entityName}</div>
+                      <div className="text-xs opacity-75">
+                        {entity.clientName} • {entity.countryName}
+                      </div>
+                      <div className="flex items-center space-x-3 text-xs mt-1">
+                        {entity.overdueTasks > 0 && (
+                          <span className="text-red-600 font-medium">
+                            {entity.overdueTasks} overdue
+                          </span>
+                        )}
+                        {entity.upcomingTasks > 0 && (
+                          <span className="text-yellow-600">
+                            {entity.upcomingTasks} upcoming
+                          </span>
+                        )}
+                        <span className="text-green-600">
+                          {entity.completedTasks} completed
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className={`text-sm font-medium ${
-                      daysUntilDue < 0 ? 'text-red-600' : 
-                      daysUntilDue <= 7 ? 'text-yellow-600' : 
-                      'text-green-600'
-                    }`}>
-                      {daysUntilDue < 0 ? `${Math.abs(daysUntilDue)} days overdue` : 
-                       daysUntilDue === 0 ? 'Due today' : 
-                       `${daysUntilDue} days`}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {new Date(task.dueDate).toLocaleDateString()}
-                    </div>
+                    <div className="text-sm font-medium">{entity.complianceRate}%</div>
+                    <div className="text-xs opacity-75 capitalize">{entity.riskLevel} risk</div>
                   </div>
                 </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
-      </div>
-      
-      <div>
-        <h4 className="font-medium mb-4">Compliance by Jurisdiction</h4>
-        <div className="space-y-3">
-          {jurisdictionData.map((item: any, index: number) => (
-            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div>
-                <div className="font-medium text-sm">{item.country}</div>
-                <div className="text-xs text-gray-600">
-                  {item.completed}/{item.total} tasks completed
+        
+        {/* Jurisdiction Compliance Status */}
+        <div>
+          <h4 className="font-medium mb-4">Jurisdiction Compliance Status</h4>
+          <div className="space-y-3 max-h-80 overflow-y-auto">
+            {jurisdictionAnalysis.map((jurisdiction: any, index: number) => (
+              <div key={index} className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                    <div className="font-medium text-sm">{jurisdiction.countryName}</div>
+                    <span className={`text-xs px-2 py-0.5 rounded capitalize ${getRiskColor(jurisdiction.riskLevel)}`}>
+                      {jurisdiction.riskLevel}
+                    </span>
+                  </div>
+                  <div className="text-sm font-medium">{jurisdiction.complianceRate}%</div>
                 </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-16 bg-gray-200 rounded-full h-2">
+                <div className="flex items-center justify-between text-xs text-gray-600 mb-2">
+                  <span>{jurisdiction.totalEntities} entities</span>
+                  <span>{jurisdiction.totalTasks} compliance tasks</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
                   <div
-                    className="bg-blue-500 h-2 rounded-full"
-                    style={{ width: `${item.rate}%` }}
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      jurisdiction.complianceRate >= 90 ? 'bg-green-500' :
+                      jurisdiction.complianceRate >= 75 ? 'bg-blue-500' :
+                      jurisdiction.complianceRate >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                    }`}
+                    style={{ width: `${jurisdiction.complianceRate}%` }}
                   />
                 </div>
-                <span className="text-sm font-medium w-8">{item.rate}%</span>
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex space-x-3">
+                    {jurisdiction.overdueTasks > 0 && (
+                      <span className="text-red-600">{jurisdiction.overdueTasks} overdue</span>
+                    )}
+                    {jurisdiction.upcomingTasks > 0 && (
+                      <span className="text-yellow-600">{jurisdiction.upcomingTasks} upcoming</span>
+                    )}
+                  </div>
+                  <span className="text-green-600">{jurisdiction.completedTasks} completed</span>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>
