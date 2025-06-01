@@ -48,6 +48,21 @@ export function GeneralSettings() {
   const [footerCompanyInfo, setFooterCompanyInfo] = useState(true);
   const [footerCopyright, setFooterCopyright] = useState("");
   const [footerSupportEmail, setFooterSupportEmail] = useState("");
+  
+  // Firm Branding & Invoice Details
+  const [firmName, setFirmName] = useState("");
+  const [firmTagline, setFirmTagline] = useState("");
+  const [firmLogo, setFirmLogo] = useState("");
+  const [firmDescription, setFirmDescription] = useState("");
+  
+  // Bank Payment Details
+  const [bankName, setBankName] = useState("");
+  const [accountTitle, setAccountTitle] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [routingNumber, setRoutingNumber] = useState("");
+  const [swiftCode, setSwiftCode] = useState("");
+  const [iban, setIban] = useState("");
+  const [paymentInstructions, setPaymentInstructions] = useState("");
   const [footerSupportPhone, setFooterSupportPhone] = useState("");
   const [footerDisclaimerText, setFooterDisclaimerText] = useState("");
   const [footerAdditionalLinks, setFooterAdditionalLinks] = useState("");
@@ -111,6 +126,21 @@ export function GeneralSettings() {
       setFooterSupportPhone(getSetting("footer_support_phone") || "");
       setFooterDisclaimerText(getSetting("footer_disclaimer_text") || "");
       setFooterAdditionalLinks(getSetting("footer_additional_links") || "");
+      
+      // Firm Branding & Invoice Details
+      setFirmName(getSetting("firm_name") || "");
+      setFirmTagline(getSetting("firm_tagline") || "");
+      setFirmLogo(getSetting("firm_logo") || "");
+      setFirmDescription(getSetting("firm_description") || "");
+      
+      // Bank Payment Details
+      setBankName(getSetting("bank_name") || "");
+      setAccountTitle(getSetting("account_title") || "");
+      setAccountNumber(getSetting("account_number") || "");
+      setRoutingNumber(getSetting("routing_number") || "");
+      setSwiftCode(getSetting("swift_code") || "");
+      setIban(getSetting("iban") || "");
+      setPaymentInstructions(getSetting("payment_instructions") || "");
     }
   }, [settings]);
   
@@ -149,7 +179,22 @@ export function GeneralSettings() {
         { key: "footer_support_email", value: footerSupportEmail },
         { key: "footer_support_phone", value: footerSupportPhone },
         { key: "footer_disclaimer_text", value: footerDisclaimerText },
-        { key: "footer_additional_links", value: footerAdditionalLinks }
+        { key: "footer_additional_links", value: footerAdditionalLinks },
+        
+        // Firm Branding & Invoice Details
+        { key: "firm_name", value: firmName },
+        { key: "firm_tagline", value: firmTagline },
+        { key: "firm_logo", value: firmLogo },
+        { key: "firm_description", value: firmDescription },
+        
+        // Bank Payment Details
+        { key: "bank_name", value: bankName },
+        { key: "account_title", value: accountTitle },
+        { key: "account_number", value: accountNumber },
+        { key: "routing_number", value: routingNumber },
+        { key: "swift_code", value: swiftCode },
+        { key: "iban", value: iban },
+        { key: "payment_instructions", value: paymentInstructions }
       ];
       
       // Save each setting (only non-empty values)
@@ -587,6 +632,159 @@ export function GeneralSettings() {
               />
               <p className="text-sm text-muted-foreground">Legal disclaimer or important notice</p>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Firm Branding & Invoice Details */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <div className="h-5 w-5 rounded bg-gradient-to-r from-green-500 to-blue-500"></div>
+            Firm Branding & Invoice Details
+          </CardTitle>
+          <CardDescription>
+            Configure firm branding information that appears on invoices and official documents.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="firm-name">Firm Name</Label>
+              <Input
+                id="firm-name"
+                value={firmName}
+                onChange={(e) => setFirmName(e.target.value)}
+                placeholder="Your Accounting Firm Name"
+              />
+              <p className="text-sm text-muted-foreground">The official name of your firm as it appears on invoices</p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="firm-tagline">Firm Tagline</Label>
+              <Input
+                id="firm-tagline"
+                value={firmTagline}
+                onChange={(e) => setFirmTagline(e.target.value)}
+                placeholder="Your trusted accounting partner"
+              />
+              <p className="text-sm text-muted-foreground">Tagline or slogan that appears in headers</p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="firm-description">Firm Description</Label>
+            <Textarea
+              id="firm-description"
+              value={firmDescription}
+              onChange={(e) => setFirmDescription(e.target.value)}
+              placeholder="Brief description of your firm and services..."
+              rows={3}
+            />
+            <p className="text-sm text-muted-foreground">Description that appears in invoice footers</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="firm-logo">Logo URL</Label>
+            <Input
+              id="firm-logo"
+              value={firmLogo}
+              onChange={(e) => setFirmLogo(e.target.value)}
+              placeholder="https://yourfirm.com/logo.png"
+            />
+            <p className="text-sm text-muted-foreground">URL to your firm's logo for invoice headers</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Bank Payment Details */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <div className="h-5 w-5 rounded bg-gradient-to-r from-purple-500 to-pink-500"></div>
+            Bank Payment Details
+          </CardTitle>
+          <CardDescription>
+            Configure bank account information that appears in invoice footers for payment instructions.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="bank-name">Bank Name</Label>
+              <Input
+                id="bank-name"
+                value={bankName}
+                onChange={(e) => setBankName(e.target.value)}
+                placeholder="First National Bank"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="account-title">Account Title</Label>
+              <Input
+                id="account-title"
+                value={accountTitle}
+                onChange={(e) => setAccountTitle(e.target.value)}
+                placeholder="Your Firm Name"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="account-number">Account Number</Label>
+              <Input
+                id="account-number"
+                value={accountNumber}
+                onChange={(e) => setAccountNumber(e.target.value)}
+                placeholder="1234567890"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="routing-number">Routing Number</Label>
+              <Input
+                id="routing-number"
+                value={routingNumber}
+                onChange={(e) => setRoutingNumber(e.target.value)}
+                placeholder="021000021"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="swift-code">SWIFT Code</Label>
+              <Input
+                id="swift-code"
+                value={swiftCode}
+                onChange={(e) => setSwiftCode(e.target.value)}
+                placeholder="FNBKUS33XXX"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="iban">IBAN</Label>
+              <Input
+                id="iban"
+                value={iban}
+                onChange={(e) => setIban(e.target.value)}
+                placeholder="US12 FNBK 0000 0000 1234 5678"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="payment-instructions">Payment Instructions</Label>
+            <Textarea
+              id="payment-instructions"
+              value={paymentInstructions}
+              onChange={(e) => setPaymentInstructions(e.target.value)}
+              placeholder="Please reference invoice number when making payment. For international transfers, include SWIFT code..."
+              rows={4}
+            />
+            <p className="text-sm text-muted-foreground">Additional payment instructions that appear in invoice footers</p>
           </div>
         </CardContent>
       </Card>

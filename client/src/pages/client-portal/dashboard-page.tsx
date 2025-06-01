@@ -126,6 +126,29 @@ export default function ClientPortalDashboardPage() {
 
     const companyInfo = userProfile?.client || {};
     const entityInfo = clientEntities.find((e: any) => e.id === invoice.entityId) || {};
+    
+    // Get firm branding and bank details from tenant settings
+    const getSetting = (key: string) => {
+      const setting = tenantSettings?.find?.((s: any) => s.key === key);
+      return setting ? setting.value : "";
+    };
+    
+    const firmName = getSetting("firm_name") || getSetting("company_name") || "Accounting Firm";
+    const firmTagline = getSetting("firm_tagline") || "";
+    const firmDescription = getSetting("firm_description") || "";
+    const firmLogo = getSetting("firm_logo") || "";
+    
+    const bankName = getSetting("bank_name") || "";
+    const accountTitle = getSetting("account_title") || "";
+    const accountNumber = getSetting("account_number") || "";
+    const routingNumber = getSetting("routing_number") || "";
+    const swiftCode = getSetting("swift_code") || "";
+    const iban = getSetting("iban") || "";
+    const paymentInstructions = getSetting("payment_instructions") || "";
+    
+    // Find the related task to get actual task details
+    const relatedTask = clientTasks.find((task: any) => task.invoiceId === invoice.id);
+    const taskDetails = relatedTask?.taskDetails || relatedTask?.title || "Professional Services";
 
     const printContent = `
       <!DOCTYPE html>
