@@ -2098,14 +2098,24 @@ export default function ClientPortalDashboardPage() {
                                     <div className="mb-4 p-3 bg-slate-50 rounded-lg">
                                       <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Services</p>
                                       <div className="space-y-1">
-                                        {invoice.lineItems.slice(0, 2).map((item: any, idx: number) => (
-                                          <div key={idx} className="flex justify-between text-sm">
-                                            <span className="text-slate-700">{item.description}</span>
-                                            <span className="font-medium text-slate-900">
-                                              {formatCurrency(item.total)} {invoice.currencyCode}
-                                            </span>
-                                          </div>
-                                        ))}
+                                        {invoice.lineItems.slice(0, 2).map((item: any, idx: number) => {
+                                          const relatedTask = clientTasks.find((task: any) => task.invoiceId === invoice.id);
+                                          const taskDetails = relatedTask?.taskDetails || 
+                                                             relatedTask?.title || 
+                                                             relatedTask?.description || 
+                                                             relatedTask?.serviceName ||
+                                                             invoice.notes ||
+                                                             item.description ||
+                                                             "Professional Services";
+                                          return (
+                                            <div key={idx} className="flex justify-between text-sm">
+                                              <span className="text-slate-700">{taskDetails}</span>
+                                              <span className="font-medium text-slate-900">
+                                                {(item.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                              </span>
+                                            </div>
+                                          );
+                                        })}
                                         {invoice.lineItems.length > 2 && (
                                           <p className="text-xs text-slate-500">+ {invoice.lineItems.length - 2} more items</p>
                                         )}
