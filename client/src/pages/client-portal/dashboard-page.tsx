@@ -1637,21 +1637,23 @@ export default function ClientPortalDashboardPage() {
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.3, delay: index * 0.05 }}
                               whileHover={{ x: 5 }}
-                              className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-white/40 shadow-sm hover:shadow-md transition-all duration-300"
+                              className="bg-white/80 backdrop-blur-sm rounded-lg p-3 border border-white/40 shadow-sm hover:shadow-md transition-all duration-300"
                             >
-                              <div className="flex items-start justify-between">
+                              <div className="flex items-center justify-between">
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex items-center space-x-2 mb-2">
-                                    <h4 className="font-medium text-slate-900 truncate">
-                                      {task.title || task.taskDetails || 'Task'}
-                                    </h4>
-                                    <span className={`px-2 py-1 text-xs rounded-full ${
-                                      task.statusName === 'Completed' ? 'bg-green-100 text-green-700' :
-                                      task.statusName === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                                      'bg-slate-100 text-slate-700'
-                                    }`}>
-                                      {task.statusName}
-                                    </span>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <div className="flex items-center space-x-2">
+                                      <h4 className="font-medium text-slate-900 text-sm truncate">
+                                        {task.title || task.taskDetails || 'Task'}
+                                      </h4>
+                                      <span className={`px-1.5 py-0.5 text-xs rounded-md ${
+                                        task.statusName === 'Completed' ? 'bg-green-100 text-green-700' :
+                                        task.statusName === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                                        'bg-slate-100 text-slate-700'
+                                      }`}>
+                                        {task.statusName}
+                                      </span>
+                                    </div>
                                     {(() => {
                                       if (!task.dueDate) return null;
                                       const dueDate = new Date(task.dueDate);
@@ -1661,60 +1663,47 @@ export default function ClientPortalDashboardPage() {
                                       
                                       if (diffDays < 0 && task.statusName !== 'Completed') {
                                         return (
-                                          <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-700">
-                                            {Math.abs(diffDays)} days overdue
+                                          <span className="px-1.5 py-0.5 text-xs rounded-md bg-red-100 text-red-700">
+                                            {Math.abs(diffDays)}d overdue
                                           </span>
                                         );
                                       } else if (diffDays >= 0 && diffDays <= 7 && task.statusName !== 'Completed') {
                                         return (
-                                          <span className="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700">
-                                            {diffDays === 0 ? 'Due today' : `${diffDays} days left`}
+                                          <span className="px-1.5 py-0.5 text-xs rounded-md bg-yellow-100 text-yellow-700">
+                                            {diffDays === 0 ? 'Due today' : `${diffDays}d left`}
                                           </span>
                                         );
                                       }
                                       return null;
                                     })()}
                                   </div>
-                                  <p className="text-sm text-slate-600 mb-2">
-                                    {task.description || task.taskDetails || 'No description'}
-                                  </p>
-                                  <div className="grid grid-cols-2 gap-3 text-xs text-slate-500 mb-2">
-                                    <span className="flex items-center">
-                                      <Building2 className="h-3 w-3 mr-1 text-blue-500" />
-                                      <span className="font-medium">Entity:</span>&nbsp;{entityName}
-                                    </span>
-                                    <span className="flex items-center">
-                                      <Calendar className="h-3 w-3 mr-1 text-green-500" />
-                                      <span className="font-medium">Due:</span>&nbsp;{formatDate(task.dueDate)}
-                                    </span>
-                                    <span className="flex items-center">
-                                      <User className="h-3 w-3 mr-1 text-purple-500" />
-                                      <span className="font-medium">Assignee:</span>&nbsp;{task.assigneeName || 'Unassigned'}
-                                    </span>
-                                    {task.complianceYear && (
+                                  <div className="flex items-center justify-between text-xs text-slate-600 mb-1">
+                                    <div className="flex items-center space-x-3">
                                       <span className="flex items-center">
-                                        <Shield className="h-3 w-3 mr-1 text-orange-500" />
-                                        <span className="font-medium">Year:</span>&nbsp;{task.complianceYear}
+                                        <Building2 className="h-3 w-3 mr-1 text-blue-500" />
+                                        {entityName}
+                                      </span>
+                                      <span className="flex items-center">
+                                        <Calendar className="h-3 w-3 mr-1 text-green-500" />
+                                        {formatDate(task.dueDate)}
+                                      </span>
+                                      <span className="flex items-center">
+                                        <User className="h-3 w-3 mr-1 text-purple-500" />
+                                        {task.assigneeName || 'Unassigned'}
+                                      </span>
+                                    </div>
+                                    {task.complianceYear && (
+                                      <span className="flex items-center text-orange-600">
+                                        <Shield className="h-3 w-3 mr-1" />
+                                        {task.complianceYear}
                                       </span>
                                     )}
                                   </div>
-                                  {(task.complianceStartDate || task.complianceEndDate || task.complianceFrequency) && (
-                                    <div className="flex items-center space-x-4 text-xs text-slate-500 bg-slate-50 rounded-lg p-2">
-                                      {task.complianceStartDate && (
-                                        <span>
-                                          <span className="font-medium">Start:</span> {formatDate(task.complianceStartDate)}
-                                        </span>
-                                      )}
-                                      {task.complianceEndDate && (
-                                        <span>
-                                          <span className="font-medium">End:</span> {formatDate(task.complianceEndDate)}
-                                        </span>
-                                      )}
-                                      {task.complianceFrequency && (
-                                        <span>
-                                          <span className="font-medium">Frequency:</span> {task.complianceFrequency}
-                                        </span>
-                                      )}
+                                  {task.complianceFrequency && (
+                                    <div className="text-xs text-slate-500">
+                                      <span className="bg-slate-100 px-2 py-0.5 rounded">
+                                        {task.complianceFrequency}
+                                      </span>
                                     </div>
                                   )}
                                 </div>
@@ -2085,92 +2074,90 @@ export default function ClientPortalDashboardPage() {
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.3, delay: index * 0.05 }}
                               whileHover={{ x: 5 }}
-                              className="bg-white/90 backdrop-blur-sm rounded-xl p-6 border border-white/50 shadow-lg hover:shadow-xl transition-all duration-300"
+                              className="bg-white/80 backdrop-blur-sm rounded-lg p-3 border border-white/40 shadow-sm hover:shadow-md transition-all duration-300"
                             >
-                              <div className="flex items-start justify-between mb-4">
+                              <div className="flex items-center justify-between">
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex items-center space-x-3 mb-3">
-                                    <h4 className="text-lg font-semibold text-slate-900">
-                                      Invoice #{invoice.invoiceNumber || invoice.id}
-                                    </h4>
-                                    <span className={`px-3 py-1 text-sm font-medium rounded-full border ${getStatusColor(invoice.status)}`}>
-                                      {invoice.status}
-                                    </span>
-                                  </div>
-                                  
-                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                                    <div>
-                                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Amount</p>
-                                      <p className="text-xl font-bold text-slate-900">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <div className="flex items-center space-x-2">
+                                      <h4 className="font-medium text-slate-900 text-sm">
+                                        Invoice #{invoice.invoiceNumber || invoice.id}
+                                      </h4>
+                                      <span className={`px-1.5 py-0.5 text-xs rounded-md ${getStatusColor(invoice.status)}`}>
+                                        {invoice.status}
+                                      </span>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-sm font-bold text-slate-900">
                                         {(invoice.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                       </p>
                                       {invoice.amountDue && parseFloat(invoice.amountDue) > 0 && (
-                                        <p className="text-sm text-red-600">
+                                        <p className="text-xs text-red-600">
                                           Due: {parseFloat(invoice.amountDue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </p>
                                       )}
                                     </div>
-                                    
-                                    <div>
-                                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Entity</p>
-                                      <p className="text-sm font-medium text-slate-900 flex items-center">
-                                        <Building2 className="h-4 w-4 mr-2 text-blue-500" />
+                                  </div>
+                                  
+                                  <div className="flex items-center justify-between text-xs text-slate-600 mb-1">
+                                    <div className="flex items-center space-x-3">
+                                      <span className="flex items-center">
+                                        <Building2 className="h-3 w-3 mr-1 text-blue-500" />
                                         {invoice.entityName || "Unknown Entity"}
-                                      </p>
-                                    </div>
-                                    
-                                    <div>
-                                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Dates</p>
-                                      <div className="space-y-1">
-                                        <p className="text-sm text-slate-700 flex items-center">
-                                          <Calendar className="h-3 w-3 mr-2" />
-                                          Issued: {formatDate(invoice.issueDate)}
-                                        </p>
-                                        <p className="text-sm text-slate-700 flex items-center">
-                                          <Clock className="h-3 w-3 mr-2" />
-                                          Due: {formatDate(invoice.dueDate)}
-                                        </p>
-                                      </div>
+                                      </span>
+                                      <span className="flex items-center">
+                                        <Calendar className="h-3 w-3 mr-1 text-green-500" />
+                                        Issued: {formatDate(invoice.issueDate)}
+                                      </span>
+                                      <span className="flex items-center">
+                                        <Clock className="h-3 w-3 mr-1 text-red-500" />
+                                        Due: {formatDate(invoice.dueDate)}
+                                      </span>
                                     </div>
                                   </div>
                                   
-                                  {invoice.notes && (
-                                    <div className="mb-4">
-                                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Notes</p>
-                                      <p className="text-sm text-slate-600">{invoice.notes}</p>
-                                    </div>
-                                  )}
-                                  
-                                  {/* Line Items Preview */}
+                                  {/* Compact Line Items Preview */}
                                   {invoice.lineItems && invoice.lineItems.length > 0 && (
-                                    <div className="mb-4 p-3 bg-slate-50 rounded-lg">
-                                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Services</p>
-                                      <div className="space-y-1">
-                                        {invoice.lineItems.slice(0, 2).map((item: any, idx: number) => {
-                                          const relatedTask = clientTasks.find((task: any) => task.invoiceId === invoice.id);
-                                          const taskDetails = relatedTask?.taskDetails || 
-                                                             relatedTask?.title || 
-                                                             relatedTask?.description || 
-                                                             relatedTask?.serviceName ||
-                                                             invoice.notes ||
-                                                             item.description ||
-                                                             "Professional Services";
-                                          return (
-                                            <div key={idx} className="flex justify-between text-sm">
-                                              <span className="text-slate-700">{taskDetails}</span>
-                                              <span className="font-medium text-slate-900">
-                                                {(item.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                              </span>
-                                            </div>
-                                          );
-                                        })}
-                                        {invoice.lineItems.length > 2 && (
-                                          <p className="text-xs text-slate-500">+ {invoice.lineItems.length - 2} more items</p>
-                                        )}
-                                      </div>
+                                    <div className="text-xs text-slate-600 bg-slate-50 rounded px-2 py-1">
+                                      {(() => {
+                                        const relatedTask = clientTasks.find((task: any) => task.invoiceId === invoice.id);
+                                        const taskDetails = relatedTask?.taskDetails || 
+                                                           relatedTask?.title || 
+                                                           relatedTask?.description || 
+                                                           relatedTask?.serviceName ||
+                                                           invoice.notes ||
+                                                           invoice.lineItems[0]?.description ||
+                                                           "Professional Services";
+                                        return (
+                                          <span className="truncate">
+                                            {taskDetails}
+                                            {invoice.lineItems.length > 1 && ` +${invoice.lineItems.length - 1} more`}
+                                          </span>
+                                        );
+                                      })()}
                                     </div>
                                   )}
                                 </div>
+                                <motion.div
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                >
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedInvoiceId(invoice.id);
+                                      setShowInvoiceDetails(true);
+                                    }}
+                                    className="text-xs h-8 px-3"
+                                  >
+                                    View Details
+                                  </Button>
+                                </motion.div>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
                                 
                                 <div className="flex flex-col space-y-2 ml-4">
                                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
