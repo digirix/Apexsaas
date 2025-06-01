@@ -272,7 +272,7 @@ export default function JurisdictionAnalysisReport() {
                 <SelectItem value="all">All compliance</SelectItem>
                 <SelectItem value="high">High compliance (90%+)</SelectItem>
                 <SelectItem value="medium">Medium compliance (70-89%)</SelectItem>
-                <SelectItem value="low">Low compliance (<70%)</SelectItem>
+                <SelectItem value="low">Low compliance (&lt;70%)</SelectItem>
               </SelectContent>
             </Select>
           </div>

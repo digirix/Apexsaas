@@ -69,6 +69,15 @@ function Router() {
       <ProtectedRoute path="/workflow" component={WorkflowAutomationPage} />
       <ProtectedRoute path="/finance" component={FinancePage} />
       
+      {/* Reports routes */}
+      <ProtectedRoute path="/reports" component={ReportsPage} />
+      <ProtectedRoute path="/reports/task-performance" component={TaskPerformanceReport} />
+      <ProtectedRoute path="/reports/compliance-overview" component={ComplianceOverviewReport} />
+      <ProtectedRoute path="/reports/team-efficiency" component={TeamEfficiencyReport} />
+      <ProtectedRoute path="/reports/task-lifecycle" component={TaskLifecycleReport} />
+      <ProtectedRoute path="/reports/risk-assessment" component={RiskAssessmentReport} />
+      <ProtectedRoute path="/reports/jurisdiction-analysis" component={JurisdictionAnalysisReport} />
+      
       {/* Client Portal routes */}
       <Route path="/client-portal/login" component={ClientPortalLoginPage} />
       <Route path="/client-portal" component={ClientPortalDashboardPage} />
