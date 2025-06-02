@@ -18,85 +18,101 @@ interface WorkflowTemplatesProps {
 
 const workflowTemplates = [
   {
-    id: "client-onboarding",
-    name: "Client Onboarding",
-    description: "Automatically create tasks and send welcome emails when new clients are added",
-    icon: Users,
-    category: "Client Management",
+    id: "compliance-deadline-management",
+    name: "Compliance Deadline Management",
+    description: "Automatically create tasks and follow-ups for upcoming compliance deadlines",
+    icon: AlertTriangle,
+    category: "Compliance",
     popularity: "Most Popular",
-    triggers: ["Client Created"],
-    actions: ["Create Tasks", "Send Email", "Create Folder"],
-    estimatedTime: "5 minutes",
+    triggers: ["Compliance Deadline Alert"],
+    actions: ["Create Tasks", "Send Email", "Generate Report"],
+    estimatedTime: "4 minutes",
     template: {
-      name: "Client Onboarding Workflow",
-      description: "Automate the client onboarding process with task creation and welcome communications",
+      name: "Compliance Deadline Management Workflow",
+      description: "Automate compliance deadline tracking and task creation for regulatory requirements",
       triggers: [
         {
-          triggerModule: "clients",
-          triggerEvent: "client_created",
-          triggerConditions: null
+          triggerModule: "compliance_deadline",
+          triggerEvent: "deadline_approaching",
+          triggerConditions: { alertDays: "14 days", filingType: "All Filings" }
         }
       ],
       actions: [
         {
           actionType: "create_task",
           actionConfiguration: {
-            title: "Client Welcome Call",
-            description: "Schedule and conduct welcome call with new client",
-            taskCategoryId: "1",
-            dueDateOffset: 1,
-            priority: "high"
+            taskTitle: "Prepare {{filingType}} for {{entity.name}}",
+            taskDescription: "Complete compliance filing due {{deadline.date}}",
+            assignToUser: "Compliance Team",
+            dueDateOffset: "1 Week",
+            priority: "High",
+            taskCategory: "Compliance Review"
           }
         },
         {
           actionType: "send_email",
           actionConfiguration: {
-            template: "client_welcome",
-            subject: "Welcome to {{firm_name}}!",
-            message: "Thank you for choosing us for your accounting needs."
+            recipientType: "Client",
+            emailTemplate: "Compliance Alert",
+            subject: "Important: {{filingType}} Due {{deadline.date}}",
+            emailBody: "Dear {{client.name}},\n\nThis is a reminder that your {{filingType}} is due on {{deadline.date}}. We are preparing the necessary documents and will contact you if we need additional information.",
+            urgent: "High Priority"
           }
         }
       ]
     }
   },
   {
-    id: "task-reminder",
-    name: "Task Due Reminders",
-    description: "Send automatic reminders for upcoming and overdue tasks",
-    icon: Clock,
+    id: "task-completion-followup",
+    name: "Task Completion Follow-up",
+    description: "Automatically create review tasks and update statuses when tasks are completed",
+    icon: CheckCircle,
     category: "Task Management",
     popularity: "Recommended",
-    triggers: ["Task Due Soon", "Task Overdue"],
-    actions: ["Send Email", "Create Notification"],
+    triggers: ["Task Status Changed"],
+    actions: ["Create Follow-up Task", "Update Status", "Send Email"],
     estimatedTime: "3 minutes",
     template: {
-      name: "Task Due Reminder Workflow",
-      description: "Automatically remind staff about upcoming and overdue tasks",
+      name: "Task Completion Follow-up Workflow",
+      description: "Automate quality control and client communication when tasks are completed",
       triggers: [
         {
-          triggerModule: "tasks",
-          triggerEvent: "task_due_soon",
-          triggerConditions: { hours_before: 24 }
+          triggerModule: "task_status_change",
+          triggerEvent: "status_changed",
+          triggerConditions: { toStatus: "Completed", taskCategory: "All Tasks" }
         }
       ],
       actions: [
         {
+          actionType: "create_task",
+          actionConfiguration: {
+            taskTitle: "Quality Review: {{original.task.title}}",
+            taskDescription: "Review completed work for quality and accuracy",
+            assignToUser: "Manager",
+            dueDateOffset: "1 Day",
+            priority: "Medium",
+            taskCategory: "Quality Control"
+          }
+        },
+        {
           actionType: "send_email",
           actionConfiguration: {
-            template: "task_reminder",
-            subject: "Task Due Reminder: {{task_title}}",
-            message: "This is a reminder that your task '{{task_title}}' is due {{due_date}}."
+            recipientType: "Client",
+            emailTemplate: "Task Completion",
+            subject: "Update: {{task.title}} Completed",
+            emailBody: "Dear {{client.name}},\n\nWe have completed {{task.title}}. The work has been reviewed and is ready for your review if needed.",
+            urgent: "Normal"
           }
         }
       ]
     }
   },
   {
-    id: "invoice-follow-up",
-    name: "Invoice Follow-up",
-    description: "Automatically follow up on overdue invoices with clients",
-    icon: DollarSign,
-    category: "Financial Management",
+    id: "document-processing",
+    name: "Client Document Processing",
+    description: "Automatically process and create tasks when clients upload documents",
+    icon: FileText,
+    category: "Document Management",
     popularity: "Popular",
     triggers: ["Invoice Overdue"],
     actions: ["Send Email", "Create Task"],

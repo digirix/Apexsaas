@@ -252,73 +252,84 @@ export function registerWorkflowRoutes(app: Express, storage: any) {
       const triggerConfig = {
         types: [
           {
-            name: 'webhook',
-            displayName: 'Webhook Trigger',
-            description: 'Trigger workflow when a webhook URL is called',
+            name: 'task_deadline',
+            displayName: 'Task Deadline Approaching',
+            description: 'Trigger when task deadlines are approaching or overdue',
+            category: 'Task Management',
             configFields: [
-              { name: 'webhookUrl', type: 'text', required: true, placeholder: 'Unique webhook URL will be generated', readonly: true },
-              { name: 'method', type: 'select', options: ['POST', 'GET', 'PUT'], required: true, defaultValue: 'POST' },
-              { name: 'authToken', type: 'text', required: false, placeholder: 'Optional authentication token' }
+              { name: 'timeframe', type: 'select', options: ['1 day', '3 days', '1 week', '2 weeks'], required: true, defaultValue: '3 days' },
+              { name: 'taskType', type: 'select', options: ['All Tasks', 'Tax Returns', 'Compliance Filings', 'Review Tasks', 'Client Meetings'], required: false, defaultValue: 'All Tasks' },
+              { name: 'clientCategory', type: 'select', options: ['All Clients', 'High Priority', 'Large Entities', 'New Clients'], required: false, defaultValue: 'All Clients' },
+              { name: 'assignedUser', type: 'text', required: false, placeholder: 'Filter by assigned user (optional)' }
             ]
           },
           {
-            name: 'schedule',
-            displayName: 'Schedule Trigger',
-            description: 'Trigger workflow on a schedule (cron expression)',
+            name: 'task_status_change',
+            displayName: 'Task Status Changed',
+            description: 'Trigger when task status changes (created, in progress, completed)',
+            category: 'Task Management',
             configFields: [
-              { name: 'cronExpression', type: 'text', required: true, placeholder: '0 9 * * 1-5 (Every weekday at 9 AM)' },
-              { name: 'timezone', type: 'select', options: ['UTC', 'America/New_York', 'America/Los_Angeles', 'Europe/London', 'Asia/Tokyo'], required: true, defaultValue: 'UTC' },
-              { name: 'description', type: 'text', required: false, placeholder: 'Schedule description' }
+              { name: 'fromStatus', type: 'select', options: ['Any', 'Not Started', 'In Progress', 'Under Review', 'Completed'], required: false, defaultValue: 'Any' },
+              { name: 'toStatus', type: 'select', options: ['Not Started', 'In Progress', 'Under Review', 'Completed'], required: true, defaultValue: 'Completed' },
+              { name: 'taskCategory', type: 'select', options: ['All Tasks', 'Compliance', 'Tax Preparation', 'Reviews', 'Meetings'], required: false, defaultValue: 'All Tasks' }
             ]
           },
           {
-            name: 'database_change',
-            displayName: 'Database Change',
-            description: 'Trigger when database records are created, updated, or deleted',
+            name: 'client_document_upload',
+            displayName: 'Client Document Uploaded',
+            description: 'Trigger when clients upload documents to their portal',
+            category: 'Document Management',
             configFields: [
-              { name: 'tableName', type: 'text', required: true, placeholder: 'e.g., clients, tasks, invoices' },
-              { name: 'operation', type: 'select', options: ['CREATE', 'UPDATE', 'DELETE', 'ANY'], required: true, defaultValue: 'CREATE' },
-              { name: 'conditions', type: 'textarea', required: false, placeholder: 'JSON conditions: {"status": "active", "amount": {"$gt": 1000}}' }
+              { name: 'documentTypes', type: 'text', required: false, placeholder: 'pdf,xlsx,csv,png,jpg (leave empty for all)' },
+              { name: 'minFileSize', type: 'number', required: false, placeholder: 'Minimum file size in MB' },
+              { name: 'clientType', type: 'select', options: ['All Clients', 'Corporate', 'Individual', 'Partnership'], required: false, defaultValue: 'All Clients' },
+              { name: 'requiresReview', type: 'select', options: ['Yes', 'No', 'Auto-detect'], required: false, defaultValue: 'Auto-detect' }
             ]
           },
           {
-            name: 'file_upload',
-            displayName: 'File Upload',
-            description: 'Trigger when files are uploaded to the system',
+            name: 'compliance_deadline',
+            displayName: 'Compliance Deadline Alert',
+            description: 'Trigger based on regulatory compliance deadlines',
+            category: 'Compliance',
             configFields: [
-              { name: 'fileTypes', type: 'text', required: false, placeholder: 'pdf,xlsx,csv (leave empty for all types)' },
-              { name: 'minSize', type: 'number', required: false, placeholder: 'Minimum file size in KB' },
-              { name: 'maxSize', type: 'number', required: false, placeholder: 'Maximum file size in KB' }
+              { name: 'jurisdiction', type: 'select', options: ['All Jurisdictions', 'Federal', 'State', 'Local', 'International'], required: false, defaultValue: 'All Jurisdictions' },
+              { name: 'alertDays', type: 'select', options: ['7 days', '14 days', '30 days', '60 days'], required: true, defaultValue: '14 days' },
+              { name: 'filingType', type: 'select', options: ['All Filings', 'Tax Returns', 'Annual Reports', 'Quarterly Reports', 'VAT Returns'], required: false, defaultValue: 'All Filings' },
+              { name: 'entityType', type: 'select', options: ['All Entities', 'Corporation', 'LLC', 'Partnership', 'Individual'], required: false, defaultValue: 'All Entities' }
             ]
           },
           {
-            name: 'email_received',
-            displayName: 'Email Received',
-            description: 'Trigger when emails are received (requires email integration)',
+            name: 'recurring_schedule',
+            displayName: 'Recurring Schedule',
+            description: 'Trigger workflow on a regular schedule for routine operations',
+            category: 'Automation',
             configFields: [
-              { name: 'fromEmail', type: 'text', required: false, placeholder: 'Filter by sender email (optional)' },
-              { name: 'subject', type: 'text', required: false, placeholder: 'Filter by subject keywords (optional)' },
-              { name: 'hasAttachment', type: 'select', options: ['Any', 'Yes', 'No'], required: false, defaultValue: 'Any' }
+              { name: 'frequency', type: 'select', options: ['Daily', 'Weekly', 'Bi-weekly', 'Monthly', 'Quarterly', 'Annually'], required: true, defaultValue: 'Monthly' },
+              { name: 'dayOfWeek', type: 'select', options: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], required: false },
+              { name: 'timeOfDay', type: 'time', required: true, defaultValue: '09:00' },
+              { name: 'timezone', type: 'select', options: ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'Europe/London'], required: true, defaultValue: 'America/New_York' }
             ]
           },
           {
-            name: 'api_call',
-            displayName: 'External API Response',
-            description: 'Trigger based on external API responses',
+            name: 'client_portal_activity',
+            displayName: 'Client Portal Activity',
+            description: 'Trigger when clients access their portal or perform specific actions',
+            category: 'Client Management',
             configFields: [
-              { name: 'apiUrl', type: 'text', required: true, placeholder: 'https://api.example.com/endpoint' },
-              { name: 'method', type: 'select', options: ['GET', 'POST'], required: true, defaultValue: 'GET' },
-              { name: 'headers', type: 'textarea', required: false, placeholder: '{"Authorization": "Bearer token"}' },
-              { name: 'checkInterval', type: 'number', required: true, placeholder: '300', defaultValue: 300 }
+              { name: 'activityType', type: 'select', options: ['Login', 'Document Download', 'Message Sent', 'Invoice Viewed', 'Payment Made'], required: true, defaultValue: 'Login' },
+              { name: 'clientType', type: 'select', options: ['All Clients', 'New Clients', 'VIP Clients', 'Inactive Clients'], required: false, defaultValue: 'All Clients' },
+              { name: 'timeWindow', type: 'select', options: ['Immediate', '1 hour', '4 hours', '24 hours'], required: false, defaultValue: 'Immediate' }
             ]
           },
           {
-            name: 'manual',
+            name: 'manual_trigger',
             displayName: 'Manual Trigger',
-            description: 'Manually trigger workflow execution',
+            description: 'Manually start workflow when needed',
+            category: 'Manual',
             configFields: [
-              { name: 'buttonLabel', type: 'text', required: false, placeholder: 'Start Workflow', defaultValue: 'Start Workflow' },
-              { name: 'requireConfirmation', type: 'select', options: ['Yes', 'No'], required: false, defaultValue: 'No' }
+              { name: 'buttonLabel', type: 'text', required: false, placeholder: 'Start Process', defaultValue: 'Start Process' },
+              { name: 'confirmationMessage', type: 'text', required: false, placeholder: 'Are you sure you want to start this workflow?' },
+              { name: 'accessLevel', type: 'select', options: ['All Users', 'Managers Only', 'Admins Only'], required: false, defaultValue: 'All Users' }
             ]
           }
         ]
@@ -337,93 +348,125 @@ export function registerWorkflowRoutes(app: Express, storage: any) {
       const actionConfig = {
         types: [
           {
-            name: "http_request",
-            displayName: "HTTP Request",
-            description: "Make HTTP requests to any API or webhook",
+            name: "create_task",
+            displayName: "Create Follow-up Task",
+            description: "Automatically create new tasks based on workflow triggers",
+            category: "Task Management",
             configFields: [
-              { name: "url", type: "text", required: true, placeholder: "https://api.example.com/endpoint" },
-              { name: "method", type: "select", options: ["GET", "POST", "PUT", "DELETE", "PATCH"], required: true, defaultValue: "POST" },
-              { name: "headers", type: "textarea", required: false, placeholder: '{"Content-Type": "application/json", "Authorization": "Bearer token"}' },
-              { name: "body", type: "textarea", required: false, placeholder: '{"data": "{{trigger.data}}", "message": "Hello World"}' },
-              { name: "timeout", type: "number", required: false, placeholder: "30", defaultValue: 30 }
-            ]
-          },
-          {
-            name: "database_query",
-            displayName: "Database Operation",
-            description: "Execute database queries (SELECT, INSERT, UPDATE, DELETE)",
-            configFields: [
-              { name: "operation", type: "select", options: ["SELECT", "INSERT", "UPDATE", "DELETE"], required: true, defaultValue: "INSERT" },
-              { name: "tableName", type: "text", required: true, placeholder: "clients, tasks, custom_table" },
-              { name: "data", type: "textarea", required: false, placeholder: '{"name": "{{trigger.name}}", "status": "active"}' },
-              { name: "conditions", type: "textarea", required: false, placeholder: '{"id": "{{trigger.id}}", "status": "pending"}' },
-              { name: "returnFields", type: "text", required: false, placeholder: "id,name,email (for SELECT queries)" }
+              { name: "taskTitle", type: "text", required: true, placeholder: "Review {{client.name}} compliance documents" },
+              { name: "taskDescription", type: "textarea", required: false, placeholder: "Detailed task description with context" },
+              { name: "assignToUser", type: "select", options: ["Trigger User", "Manager", "Compliance Team", "Tax Team", "Specific User"], required: true, defaultValue: "Trigger User" },
+              { name: "specificUser", type: "text", required: false, placeholder: "user@example.com (if Specific User selected)" },
+              { name: "dueDateOffset", type: "select", options: ["Same Day", "1 Day", "3 Days", "1 Week", "2 Weeks", "1 Month"], required: true, defaultValue: "3 Days" },
+              { name: "priority", type: "select", options: ["Low", "Medium", "High", "Critical"], required: true, defaultValue: "Medium" },
+              { name: "taskCategory", type: "select", options: ["Compliance Review", "Tax Preparation", "Client Follow-up", "Document Review", "Quality Control"], required: true, defaultValue: "Compliance Review" }
             ]
           },
           {
             name: "send_email",
-            displayName: "Send Email",
-            description: "Send emails via SMTP or email service",
+            displayName: "Send Email Communication",
+            description: "Send automated emails to clients, staff, or external parties",
+            category: "Communication",
             configFields: [
-              { name: "to", type: "text", required: true, placeholder: "user@example.com or {{trigger.email}}" },
-              { name: "cc", type: "text", required: false, placeholder: "cc@example.com (optional)" },
-              { name: "bcc", type: "text", required: false, placeholder: "bcc@example.com (optional)" },
-              { name: "subject", type: "text", required: true, placeholder: "Email subject with {{variables}}" },
-              { name: "body", type: "textarea", required: true, placeholder: "Email body content with {{trigger.data}}" },
-              { name: "isHtml", type: "select", options: ["Yes", "No"], required: false, defaultValue: "No" }
+              { name: "recipientType", type: "select", options: ["Client", "Assigned Staff", "Manager", "Compliance Team", "Custom Email"], required: true, defaultValue: "Client" },
+              { name: "customEmail", type: "text", required: false, placeholder: "custom@example.com (if Custom Email selected)" },
+              { name: "emailTemplate", type: "select", options: ["Custom", "Deadline Reminder", "Document Request", "Task Completion", "Compliance Alert"], required: true, defaultValue: "Custom" },
+              { name: "subject", type: "text", required: true, placeholder: "Important: {{task.title}} deadline approaching" },
+              { name: "emailBody", type: "textarea", required: true, placeholder: "Dear {{client.name}},\n\nThis is a reminder about..." },
+              { name: "includeAttachments", type: "select", options: ["None", "Related Documents", "Compliance Checklist", "Tax Forms"], required: false, defaultValue: "None" },
+              { name: "urgent", type: "select", options: ["Normal", "High Priority", "Urgent"], required: false, defaultValue: "Normal" }
             ]
           },
           {
-            name: "file_operation",
-            displayName: "File Operation",
-            description: "Create, read, update, or delete files",
+            name: "update_status",
+            displayName: "Update Status/Progress",
+            description: "Update the status of tasks, clients, or entities",
+            category: "Data Management",
             configFields: [
-              { name: "operation", type: "select", options: ["CREATE", "READ", "UPDATE", "DELETE", "COPY", "MOVE"], required: true, defaultValue: "CREATE" },
-              { name: "filePath", type: "text", required: true, placeholder: "/path/to/file.txt or uploads/{{trigger.filename}}" },
-              { name: "content", type: "textarea", required: false, placeholder: "File content or data to write" },
-              { name: "encoding", type: "select", options: ["utf8", "base64", "binary"], required: false, defaultValue: "utf8" }
+              { name: "updateType", type: "select", options: ["Task Status", "Client Status", "Entity Status", "Compliance Status"], required: true, defaultValue: "Task Status" },
+              { name: "newStatus", type: "text", required: true, placeholder: "e.g., In Review, Completed, Needs Attention" },
+              { name: "addNotes", type: "textarea", required: false, placeholder: "Optional notes about the status change" },
+              { name: "notifyStakeholders", type: "select", options: ["No", "Assigned User", "Team", "Client"], required: false, defaultValue: "Assigned User" },
+              { name: "updatePriority", type: "select", options: ["Keep Current", "Low", "Medium", "High", "Critical"], required: false, defaultValue: "Keep Current" }
             ]
           },
           {
-            name: "conditional_logic",
+            name: "generate_report",
+            displayName: "Generate Compliance Report",
+            description: "Create automated reports and documents",
+            category: "Document Generation",
+            configFields: [
+              { name: "reportType", type: "select", options: ["Compliance Summary", "Task Progress", "Deadline Report", "Client Status", "Custom Report"], required: true, defaultValue: "Compliance Summary" },
+              { name: "reportFormat", type: "select", options: ["PDF", "Excel", "CSV", "Word"], required: true, defaultValue: "PDF" },
+              { name: "includeData", type: "select", options: ["Current Period", "Last 30 Days", "Last Quarter", "Year to Date", "Custom Range"], required: true, defaultValue: "Current Period" },
+              { name: "recipients", type: "text", required: false, placeholder: "Email addresses to send report (optional)" },
+              { name: "saveLocation", type: "text", required: false, placeholder: "File path to save report (optional)" }
+            ]
+          },
+          {
+            name: "schedule_followup",
+            displayName: "Schedule Follow-up Action",
+            description: "Schedule future actions or reminders",
+            category: "Planning",
+            configFields: [
+              { name: "followupAction", type: "select", options: ["Send Reminder", "Create Task", "Generate Report", "Check Status"], required: true, defaultValue: "Send Reminder" },
+              { name: "scheduleTime", type: "select", options: ["1 Day", "3 Days", "1 Week", "2 Weeks", "1 Month", "Custom"], required: true, defaultValue: "1 Week" },
+              { name: "customDays", type: "number", required: false, placeholder: "Days from now (if Custom selected)" },
+              { name: "condition", type: "text", required: false, placeholder: "Only execute if condition is met (optional)" },
+              { name: "reminderMessage", type: "textarea", required: false, placeholder: "Custom message for the follow-up" }
+            ]
+          },
+          {
+            name: "api_integration",
+            displayName: "External API Call",
+            description: "Integrate with external accounting or compliance systems",
+            category: "Integration",
+            configFields: [
+              { name: "apiProvider", type: "select", options: ["QuickBooks", "Xero", "Custom API", "Government Portal", "Bank API"], required: true, defaultValue: "Custom API" },
+              { name: "apiEndpoint", type: "text", required: true, placeholder: "https://api.example.com/endpoint" },
+              { name: "httpMethod", type: "select", options: ["GET", "POST", "PUT", "DELETE"], required: true, defaultValue: "POST" },
+              { name: "authType", type: "select", options: ["Bearer Token", "API Key", "OAuth", "Basic Auth"], required: true, defaultValue: "Bearer Token" },
+              { name: "requestData", type: "textarea", required: false, placeholder: "JSON data to send (for POST/PUT)" },
+              { name: "responseAction", type: "select", options: ["Save to Database", "Send Email", "Create Task", "Log Only"], required: false, defaultValue: "Log Only" }
+            ]
+          },
+          {
+            name: "conditional_branch",
             displayName: "Conditional Logic",
-            description: "Execute actions based on conditions",
+            description: "Execute different actions based on conditions",
+            category: "Logic",
             configFields: [
-              { name: "condition", type: "textarea", required: true, placeholder: '{{trigger.amount}} > 1000 && {{trigger.status}} === "pending"' },
-              { name: "trueActions", type: "textarea", required: false, placeholder: "JSON array of actions to execute if condition is true" },
-              { name: "falseActions", type: "textarea", required: false, placeholder: "JSON array of actions to execute if condition is false" }
+              { name: "conditionType", type: "select", options: ["Task Amount", "Client Type", "Due Date", "Status", "Custom"], required: true, defaultValue: "Due Date" },
+              { name: "operator", type: "select", options: ["Greater Than", "Less Than", "Equal To", "Contains", "Not Equal"], required: true, defaultValue: "Less Than" },
+              { name: "compareValue", type: "text", required: true, placeholder: "Value to compare against" },
+              { name: "trueAction", type: "select", options: ["Send Email", "Create Task", "Update Status", "Generate Report"], required: true, defaultValue: "Send Email" },
+              { name: "falseAction", type: "select", options: ["Send Email", "Create Task", "Update Status", "Do Nothing"], required: false, defaultValue: "Do Nothing" }
             ]
           },
           {
-            name: "data_transformation",
-            displayName: "Data Transformation",
-            description: "Transform, filter, or manipulate data",
+            name: "data_sync",
+            displayName: "Data Synchronization",
+            description: "Sync data between systems or update records",
+            category: "Data Management",
             configFields: [
-              { name: "inputData", type: "textarea", required: true, placeholder: "{{trigger.data}} or custom JSON data" },
-              { name: "transformScript", type: "textarea", required: true, placeholder: "JavaScript transformation logic" },
-              { name: "outputVariable", type: "text", required: false, placeholder: "Name to store transformed data" }
+              { name: "syncType", type: "select", options: ["Client Data", "Task Data", "Financial Data", "Compliance Data"], required: true, defaultValue: "Client Data" },
+              { name: "sourceSystem", type: "select", options: ["Internal Database", "External API", "File Import", "Manual Entry"], required: true, defaultValue: "Internal Database" },
+              { name: "targetSystem", type: "select", options: ["Internal Database", "External API", "File Export", "Email Report"], required: true, defaultValue: "Internal Database" },
+              { name: "syncFields", type: "textarea", required: true, placeholder: "JSON mapping of fields to sync" },
+              { name: "conflictResolution", type: "select", options: ["Overwrite", "Skip", "Merge", "Manual Review"], required: false, defaultValue: "Skip" }
             ]
           },
           {
-            name: "delay_action",
-            displayName: "Delay/Wait",
-            description: "Add delays between actions",
+            name: "wait_delay",
+            displayName: "Wait/Delay Action",
+            description: "Add delays between workflow actions",
+            category: "Control",
             configFields: [
-              { name: "delayType", type: "select", options: ["seconds", "minutes", "hours", "days"], required: true, defaultValue: "minutes" },
-              { name: "delayAmount", type: "number", required: true, placeholder: "5" },
-              { name: "description", type: "text", required: false, placeholder: "Wait description" }
-            ]
-          },
-          {
-            name: "notification",
-            displayName: "Send Notification",
-            description: "Send in-app notifications or alerts",
-            configFields: [
-              { name: "recipients", type: "text", required: true, placeholder: "user@example.com,admin@company.com" },
-              { name: "title", type: "text", required: true, placeholder: "Notification title" },
-              { name: "message", type: "textarea", required: true, placeholder: "Notification message with {{variables}}" },
-              { name: "priority", type: "select", options: ["low", "normal", "high", "urgent"], required: false, defaultValue: "normal" },
-              { name: "channel", type: "select", options: ["in-app", "email", "sms", "slack", "teams"], required: false, defaultValue: "in-app" }
+              { name: "delayType", type: "select", options: ["Fixed Time", "Business Days", "Until Date", "Until Condition"], required: true, defaultValue: "Fixed Time" },
+              { name: "delayAmount", type: "number", required: false, placeholder: "Number of units to wait" },
+              { name: "delayUnit", type: "select", options: ["Minutes", "Hours", "Days", "Weeks"], required: false, defaultValue: "Hours" },
+              { name: "waitCondition", type: "text", required: false, placeholder: "Condition to wait for (if Until Condition)" },
+              { name: "maxWaitTime", type: "number", required: false, placeholder: "Maximum time to wait (hours)" }
             ]
           }
         ]
