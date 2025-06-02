@@ -114,89 +114,94 @@ const workflowTemplates = [
     icon: FileText,
     category: "Document Management",
     popularity: "Popular",
-    triggers: ["Invoice Overdue"],
-    actions: ["Send Email", "Create Task"],
+    triggers: ["Client Document Upload"],
+    actions: ["Create Task", "Send Email", "Update Status"],
     estimatedTime: "4 minutes",
     template: {
-      name: "Invoice Follow-up Workflow",
-      description: "Automate follow-up communications for overdue invoices",
+      name: "Document Processing Workflow",
+      description: "Automate document review and processing when clients upload files",
       triggers: [
         {
-          triggerModule: "invoices",
-          triggerEvent: "invoice_overdue",
-          triggerConditions: { days_overdue: 7 }
+          triggerModule: "client_document_upload",
+          triggerEvent: "document_uploaded",
+          triggerConditions: { documentTypes: "pdf,xlsx,csv", requiresReview: "Yes" }
         }
       ],
       actions: [
         {
-          actionType: "send_email",
+          actionType: "create_task",
           actionConfiguration: {
-            template: "invoice_reminder",
-            subject: "Payment Reminder - Invoice {{invoice_number}}",
-            message: "This is a friendly reminder that Invoice {{invoice_number}} is now overdue."
+            taskTitle: "Review {{document.type}} from {{client.name}}",
+            taskDescription: "Review and process uploaded document: {{document.filename}}",
+            assignToUser: "Compliance Team",
+            dueDateOffset: "3 Days",
+            priority: "Medium",
+            taskCategory: "Document Review"
           }
         },
         {
-          actionType: "create_task",
+          actionType: "send_email",
           actionConfiguration: {
-            title: "Follow up on overdue invoice {{invoice_number}}",
-            description: "Contact client regarding overdue payment",
-            taskCategoryId: "2",
-            dueDateOffset: 3,
-            priority: "medium"
+            recipientType: "Client",
+            emailTemplate: "Document Request",
+            subject: "Document Received - {{document.filename}}",
+            emailBody: "Dear {{client.name}},\n\nWe have received your document {{document.filename}}. Our team will review it within 3 business days and contact you if we need any additional information.",
+            urgent: "Normal"
           }
         }
       ]
     }
   },
   {
-    id: "compliance-check",
-    name: "Compliance Deadline Alerts",
-    description: "Alert staff about upcoming compliance deadlines and requirements",
-    icon: AlertTriangle,
-    category: "Compliance",
+    id: "monthly-reporting",
+    name: "Monthly Reporting Automation",
+    description: "Automatically generate and distribute monthly reports to clients",
+    icon: FileText,
+    category: "Reporting",
     popularity: "Essential",
-    triggers: ["Deadline Approaching"],
-    actions: ["Send Email", "Create Task", "Send Notification"],
+    triggers: ["Recurring Schedule"],
+    actions: ["Generate Report", "Send Email", "Create Task"],
     estimatedTime: "6 minutes",
     template: {
-      name: "Compliance Deadline Alert Workflow",
-      description: "Ensure compliance deadlines are never missed with automated alerts",
+      name: "Monthly Reporting Workflow",
+      description: "Automate monthly report generation and distribution",
       triggers: [
         {
-          triggerModule: "compliance",
-          triggerEvent: "deadline_approaching",
-          triggerConditions: { days_before: 14 }
+          triggerModule: "recurring_schedule",
+          triggerEvent: "scheduled_time",
+          triggerConditions: { frequency: "Monthly", dayOfWeek: "Friday", timeOfDay: "09:00" }
         }
       ],
       actions: [
         {
-          actionType: "create_task",
+          actionType: "generate_report",
           actionConfiguration: {
-            title: "Prepare {{compliance_type}} filing",
-            description: "Complete and submit required compliance documentation",
-            taskCategoryId: "3",
-            dueDateOffset: 7,
-            priority: "high"
+            reportType: "Client Status",
+            reportFormat: "PDF",
+            includeData: "Last 30 Days",
+            recipients: "{{client.email}}",
+            saveLocation: "reports/monthly/{{client.name}}_{{current.month}}.pdf"
           }
         },
         {
           actionType: "send_email",
           actionConfiguration: {
-            template: "compliance_alert",
-            subject: "Compliance Deadline Alert: {{compliance_type}}",
-            message: "Reminder: {{compliance_type}} filing is due in {{days_remaining}} days."
+            recipientType: "Client",
+            emailTemplate: "Custom",
+            subject: "Monthly Report - {{current.month}} {{current.year}}",
+            emailBody: "Dear {{client.name}},\n\nPlease find attached your monthly report for {{current.month}}. If you have any questions, please don't hesitate to contact us.",
+            includeAttachments: "Related Documents"
           }
         }
       ]
     }
   },
   {
-    id: "document-approval",
-    name: "Document Approval Process",
-    description: "Route documents for approval and track the approval workflow",
-    icon: FileText,
-    category: "Document Management",
+    id: "quality-assurance",
+    name: "Quality Assurance Review",
+    description: "Automatically create quality review tasks for completed work",
+    icon: CheckCircle,
+    category: "Quality Control",
     popularity: "Useful",
     triggers: ["Document Uploaded"],
     actions: ["Send Email", "Create Task", "Update Status"],
