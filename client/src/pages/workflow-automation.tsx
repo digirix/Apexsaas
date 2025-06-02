@@ -16,10 +16,10 @@ import {
   Workflow,
   Zap
 } from "lucide-react";
-import { ModernWorkflowBuilder } from "@/components/workflow/modern-workflow-builder";
+import { WorkflowBuilder } from "@/components/workflow/workflow-builder";
 import { WorkflowList } from "@/components/workflow/workflow-list";
 import { WorkflowLogs } from "@/components/workflow/workflow-logs";
-import { PracticalWorkflowTemplates } from "@/components/workflow/practical-workflow-templates";
+import { WorkflowTemplates } from "@/components/workflow/workflow-templates";
 import { AppLayout } from "@/components/layout/app-layout";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -115,7 +115,7 @@ export default function WorkflowAutomation() {
   if (showBuilder) {
     return (
       <AppLayout title="Workflow Builder">
-        <ModernWorkflowBuilder
+        <WorkflowBuilder
           workflow={editingWorkflow}
           onClose={handleBuilderClose}
           onSave={() => {
@@ -248,7 +248,7 @@ export default function WorkflowAutomation() {
         </TabsContent>
 
         <TabsContent value="templates" className="space-y-4">
-          <PracticalWorkflowTemplates
+          <WorkflowTemplates
             onCreateFromTemplate={(template) => {
               setEditingWorkflow(template);
               setShowBuilder(true);
