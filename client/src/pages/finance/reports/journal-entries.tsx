@@ -166,8 +166,8 @@ export default function JournalEntriesReportPage() {
     return {
       mainGroup: account?.mainGroupName || '',
       elementGroup: account?.elementGroupName || '',
-      subElementGroup: account?.subElementGroupName || '',
-      detailedGroup: account?.detailedGroupName || ''
+      subElementGroup: account?.subElementGroupName === 'custom' ? (account?.subElementGroupCustomName || '') : (account?.subElementGroupName || ''),
+      detailedGroup: account?.detailedGroupName === 'custom' ? (account?.detailedGroupCustomName || '') : (account?.detailedGroupName || '')
     };
   };
 
