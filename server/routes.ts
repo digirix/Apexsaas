@@ -6298,16 +6298,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Financial Reports Endpoints
   
-  // Profit and Loss Report
+  // Profit and Loss Report - Hierarchical
   app.get("/api/v1/finance/reports/profit-loss", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       
-      // Parse date parameters if provided
-      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
-      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      const hierarchicalReportsService = new HierarchicalReportsService();
+      const report = await hierarchicalReportsService.generateProfitLossReport(tenantId);
       
-      const report = await storage.getProfitAndLoss(tenantId, startDate, endDate);
       res.status(200).json(report);
     } catch (error) {
       console.error("Error generating profit and loss report:", error);
