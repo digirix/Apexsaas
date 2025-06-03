@@ -2531,9 +2531,12 @@ export class DatabaseStorage implements IStorage {
 
   // Journal Entry operations for accounting
   async getJournalEntries(tenantId: number, sourceDocument?: string, sourceDocumentId?: number): Promise<JournalEntry[]> {
-    // First get the journal entries
+    // First get the journal entries, excluding deleted ones
     let query = db.select().from(journalEntries)
-      .where(eq(journalEntries.tenantId, tenantId))
+      .where(and(
+        eq(journalEntries.tenantId, tenantId),
+        eq(journalEntries.isDeleted, false) // Exclude deleted entries
+      ))
       .orderBy(desc(journalEntries.entryDate));
     
     if (sourceDocument) {
@@ -2586,18 +2589,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteJournalEntry(id: number, tenantId: number): Promise<boolean> {
-    // First delete all related journal entry lines
-    await db.delete(journalEntryLines)
-      .where(and(
-        eq(journalEntryLines.journalEntryId, id),
-        eq(journalEntryLines.tenantId, tenantId)
-      ));
-      
-    // Then delete the journal entry
-    const [deletedEntry] = await db.delete(journalEntries)
+    // Use soft delete to maintain data integrity for financial reports
+    const [deletedEntry] = await db.update(journalEntries)
+      .set({ 
+        isDeleted: true,
+        updatedAt: new Date()
+      })
       .where(and(
         eq(journalEntries.id, id),
-        eq(journalEntries.tenantId, tenantId)
+        eq(journalEntries.tenantId, tenantId),
+        eq(journalEntries.isDeleted, false) // Only delete if not already deleted
       ))
       .returning({ id: journalEntries.id });
     return !!deletedEntry;
