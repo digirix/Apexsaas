@@ -2944,41 +2944,63 @@ export class DatabaseStorage implements IStorage {
   
   // Helper to get accounts by type with balances for a specific period
   private async getAccountsByTypeWithBalances(tenantId: number, accountTypes: string[], startDate?: Date, endDate?: Date): Promise<any[]> {
-    const accounts = await db.select()
-      .from(chartOfAccounts)
-      .where(and(
-        eq(chartOfAccounts.tenantId, tenantId),
-        inArray(chartOfAccounts.accountType, accountTypes),
-        eq(chartOfAccounts.isActive, true)
-      ));
+    // Get accounts with full hierarchy information using joins
+    const accounts = await db.select({
+      id: chartOfAccounts.id,
+      accountNumber: chartOfAccounts.accountNumber,
+      name: chartOfAccounts.name,
+      accountType: chartOfAccounts.accountType,
+      detailedGroupId: chartOfAccounts.detailedGroupId,
+      subElementGroupId: chartOfAccounts.subElementGroupId,
+      elementGroupId: chartOfAccounts.elementGroupId,
+      mainGroupId: chartOfAccounts.mainGroupId,
       
-    // Get detailed info for each account including its balance
+      // Detailed Group info
+      detailedGroupName: chartOfAccountsDetailedGroups.name,
+      detailedGroupCustomName: chartOfAccountsDetailedGroups.customName,
+      
+      // Sub Element Group info
+      subElementGroupName: chartOfAccountsSubElementGroups.name,
+      subElementGroupCustomName: chartOfAccountsSubElementGroups.customName,
+      
+      // Element Group info
+      elementGroupName: chartOfAccountsElementGroups.name,
+      
+      // Main Group info
+      mainGroupName: chartOfAccountsMainGroups.name
+    })
+    .from(chartOfAccounts)
+    .leftJoin(chartOfAccountsDetailedGroups, eq(chartOfAccounts.detailedGroupId, chartOfAccountsDetailedGroups.id))
+    .leftJoin(chartOfAccountsSubElementGroups, eq(chartOfAccounts.subElementGroupId, chartOfAccountsSubElementGroups.id))
+    .leftJoin(chartOfAccountsElementGroups, eq(chartOfAccounts.elementGroupId, chartOfAccountsElementGroups.id))
+    .leftJoin(chartOfAccountsMainGroups, eq(chartOfAccounts.mainGroupId, chartOfAccountsMainGroups.id))
+    .where(and(
+      eq(chartOfAccounts.tenantId, tenantId),
+      inArray(chartOfAccounts.accountType, accountTypes),
+      eq(chartOfAccounts.isActive, true)
+    ));
+      
+    // Calculate balance for each account using actual journal entries
     const accountsWithBalances = await Promise.all(
       accounts.map(async (account) => {
-        const balance = await this.getAccountBalance(tenantId, account.id, startDate, endDate);
+        const balance = await this.calculateAccountBalance(account.id, tenantId, account.accountType, startDate, endDate);
         
-        // Fetch hierarchy information for better categorization
-        const detailedGroup = await db.select()
-          .from(chartOfAccountsDetailedGroups)
-          .where(eq(chartOfAccountsDetailedGroups.id, account.detailedGroupId))
-          .limit(1);
-          
-        const subElementGroup = detailedGroup.length > 0 ? await db.select()
-          .from(chartOfAccountsSubElementGroups)
-          .where(eq(chartOfAccountsSubElementGroups.id, detailedGroup[0].subElementGroupId))
-          .limit(1) : [];
-          
-        const elementGroup = subElementGroup.length > 0 ? await db.select()
-          .from(chartOfAccountsElementGroups)
-          .where(eq(chartOfAccountsElementGroups.id, subElementGroup[0].elementGroupId))
-          .limit(1) : [];
-          
         return {
           ...account,
           balance,
-          detailedGroup: detailedGroup[0] || null,
-          subElementGroup: subElementGroup[0] || null,
-          elementGroup: elementGroup[0] || null
+          // Use customName if available, otherwise use name
+          detailedGroupDisplayName: account.detailedGroupCustomName || account.detailedGroupName,
+          subElementGroupDisplayName: account.subElementGroupCustomName || account.subElementGroupName,
+          elementGroupDisplayName: account.elementGroupName,
+          mainGroupDisplayName: account.mainGroupName,
+          // Hierarchy structure
+          hierarchy: {
+            mainGroup: account.mainGroupName,
+            elementGroup: account.elementGroupName,
+            subElementGroup: account.subElementGroupCustomName || account.subElementGroupName,
+            detailedGroup: account.detailedGroupCustomName || account.detailedGroupName,
+            account: account.name
+          }
         };
       })
     );
@@ -2986,8 +3008,75 @@ export class DatabaseStorage implements IStorage {
     return accountsWithBalances;
   }
   
-  // Profit and Loss Report
+  // Build hierarchical structure from accounts
+  private buildAccountHierarchy(accounts: any[]): any {
+    const hierarchy: any = {};
+    
+    accounts.forEach(account => {
+      const mainGroup = account.mainGroupDisplayName || 'Other';
+      const elementGroup = account.elementGroupDisplayName || 'Other';
+      const subElementGroup = account.subElementGroupDisplayName || 'Other';
+      const detailedGroup = account.detailedGroupDisplayName || 'Other';
+      
+      // Initialize main group if not exists
+      if (!hierarchy[mainGroup]) {
+        hierarchy[mainGroup] = {
+          name: mainGroup,
+          total: 0,
+          elementGroups: {}
+        };
+      }
+      
+      // Initialize element group if not exists
+      if (!hierarchy[mainGroup].elementGroups[elementGroup]) {
+        hierarchy[mainGroup].elementGroups[elementGroup] = {
+          name: elementGroup,
+          total: 0,
+          subElementGroups: {}
+        };
+      }
+      
+      // Initialize sub element group if not exists
+      if (!hierarchy[mainGroup].elementGroups[elementGroup].subElementGroups[subElementGroup]) {
+        hierarchy[mainGroup].elementGroups[elementGroup].subElementGroups[subElementGroup] = {
+          name: subElementGroup,
+          total: 0,
+          detailedGroups: {}
+        };
+      }
+      
+      // Initialize detailed group if not exists
+      if (!hierarchy[mainGroup].elementGroups[elementGroup].subElementGroups[subElementGroup].detailedGroups[detailedGroup]) {
+        hierarchy[mainGroup].elementGroups[elementGroup].subElementGroups[subElementGroup].detailedGroups[detailedGroup] = {
+          name: detailedGroup,
+          total: 0,
+          accounts: []
+        };
+      }
+      
+      // Add account to detailed group
+      const accountBalance = parseFloat(account.balance);
+      hierarchy[mainGroup].elementGroups[elementGroup].subElementGroups[subElementGroup].detailedGroups[detailedGroup].accounts.push({
+        id: account.id,
+        accountNumber: account.accountNumber,
+        name: account.name,
+        balance: account.balance
+      });
+      
+      // Update totals at all levels
+      hierarchy[mainGroup].elementGroups[elementGroup].subElementGroups[subElementGroup].detailedGroups[detailedGroup].total += accountBalance;
+      hierarchy[mainGroup].elementGroups[elementGroup].subElementGroups[subElementGroup].total += accountBalance;
+      hierarchy[mainGroup].elementGroups[elementGroup].total += accountBalance;
+      hierarchy[mainGroup].total += accountBalance;
+    });
+    
+    return hierarchy;
+  }
+  
+  // Profit and Loss Report with hierarchical structure
   async getProfitAndLoss(tenantId: number, startDate?: Date, endDate?: Date): Promise<{
+    revenueHierarchy: any;
+    expenseHierarchy: any;
     revenues: any[];
     expenses: any[];
     netIncome: string;
@@ -3003,7 +3092,7 @@ export class DatabaseStorage implements IStorage {
     const effectiveEndDate = endDate || new Date();
     
     // Get all revenue accounts with balances
-    let revenues = await this.getAccountsByTypeWithBalances(
+    const revenues = await this.getAccountsByTypeWithBalances(
       tenantId, 
       ['revenue'], 
       effectiveStartDate, 
@@ -3011,14 +3100,18 @@ export class DatabaseStorage implements IStorage {
     );
     
     // Get all expense accounts with balances
-    let expenses = await this.getAccountsByTypeWithBalances(
+    const expenses = await this.getAccountsByTypeWithBalances(
       tenantId, 
       ['expense'], 
       effectiveStartDate, 
       effectiveEndDate
     );
     
-
+    // Build hierarchical structure for revenues
+    const revenueHierarchy = this.buildAccountHierarchy(revenues);
+    
+    // Build hierarchical structure for expenses
+    const expenseHierarchy = this.buildAccountHierarchy(expenses);
     
     // Calculate totals
     const totalRevenue = revenues.reduce((sum, account) => {
@@ -3033,6 +3126,8 @@ export class DatabaseStorage implements IStorage {
     const netIncome = (parseFloat(totalRevenue) - parseFloat(totalExpense)).toFixed(2);
     
     return {
+      revenueHierarchy,
+      expenseHierarchy,
       revenues,
       expenses,
       netIncome,
@@ -3043,8 +3138,11 @@ export class DatabaseStorage implements IStorage {
     };
   }
   
-  // Balance Sheet Report
+  // Balance Sheet Report with hierarchical structure
   async getBalanceSheet(tenantId: number, asOfDate?: Date): Promise<{
+    assetHierarchy: any;
+    liabilityHierarchy: any;
+    equityHierarchy: any;
     assets: any[];
     liabilities: any[];
     equity: any[];
@@ -3059,7 +3157,7 @@ export class DatabaseStorage implements IStorage {
     const effectiveDate = asOfDate || new Date();
     
     // Get assets
-    let assets = await this.getAccountsByTypeWithBalances(
+    const assets = await this.getAccountsByTypeWithBalances(
       tenantId, 
       ['asset'], 
       undefined, // No start date - include all transactions up to asOfDate
@@ -3067,7 +3165,7 @@ export class DatabaseStorage implements IStorage {
     );
     
     // Get liabilities
-    let liabilities = await this.getAccountsByTypeWithBalances(
+    const liabilities = await this.getAccountsByTypeWithBalances(
       tenantId, 
       ['liability'], 
       undefined, 
@@ -3075,14 +3173,17 @@ export class DatabaseStorage implements IStorage {
     );
     
     // Get equity
-    let equity = await this.getAccountsByTypeWithBalances(
+    const equity = await this.getAccountsByTypeWithBalances(
       tenantId, 
       ['equity'], 
       undefined, 
       effectiveDate
     );
     
-
+    // Build hierarchical structures
+    const assetHierarchy = this.buildAccountHierarchy(assets);
+    const liabilityHierarchy = this.buildAccountHierarchy(liabilities);
+    const equityHierarchy = this.buildAccountHierarchy(equity);
     
     // Calculate totals
     const totalAssets = assets.reduce((sum, account) => {
@@ -3098,6 +3199,9 @@ export class DatabaseStorage implements IStorage {
     }, 0).toFixed(2);
     
     return {
+      assetHierarchy,
+      liabilityHierarchy,
+      equityHierarchy,
       assets,
       liabilities,
       equity,
