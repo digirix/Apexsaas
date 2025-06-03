@@ -101,36 +101,38 @@ export default function ProfitAndLossPage() {
     }).format(numAmount);
   };
 
-  // Helper function to filter hierarchical data by level
-  const filterHierarchyByLevel = (hierarchy: any, maxLevel: number): any => {
-    if (!hierarchy || typeof hierarchy !== 'object') return hierarchy;
+  // Helper function to flatten hierarchy to specific level
+  const flattenToLevel = (hierarchy: any, targetLevel: number): any => {
+    if (!hierarchy || typeof hierarchy !== 'object') return {};
     
-    const filterLevel = (node: any, currentLevel: number): any => {
-      if (currentLevel >= maxLevel) {
-        // At max level, sum up all children amounts
+    const result: any = {};
+    
+    const traverse = (node: any, currentLevel: number, path: string[] = []) => {
+      if (currentLevel === targetLevel) {
+        // We've reached the target level, collect this node
         const totalAmount = calculateTotalAmount(node);
-        return {
+        const key = path.join('_') || node.name;
+        result[key] = {
           name: node.name,
           amount: totalAmount.toString()
         };
+        return;
       }
       
-      if (node.children) {
-        const filteredChildren: any = {};
-        for (const [key, child] of Object.entries(node.children)) {
-          filteredChildren[key] = filterLevel(child, currentLevel + 1);
+      // Continue traversing deeper
+      if (node.children && currentLevel < targetLevel) {
+        for (const [childKey, child] of Object.entries(node.children)) {
+          traverse(child, currentLevel + 1, [...path, childKey]);
         }
-        return {
-          name: node.name,
-          amount: node.amount,
-          children: filteredChildren
-        };
       }
-      
-      return node;
     };
     
-    return filterLevel(hierarchy, 0);
+    // Start traversal from each top-level node
+    for (const [key, node] of Object.entries(hierarchy)) {
+      traverse(node, 0, [key]);
+    }
+    
+    return result;
   };
 
   const calculateTotalAmount = (node: any): number => {
@@ -160,14 +162,16 @@ export default function ProfitAndLossPage() {
   // Filter hierarchies based on selected level
   const filteredRevenueHierarchy = useMemo(() => {
     if (!report?.revenueHierarchy) return {};
-    const maxLevel = getLevelNumber(displayLevel);
-    return filterHierarchyByLevel(report.revenueHierarchy, maxLevel);
+    if (displayLevel === 'all') return report.revenueHierarchy;
+    const targetLevel = getLevelNumber(displayLevel);
+    return flattenToLevel(report.revenueHierarchy, targetLevel);
   }, [report?.revenueHierarchy, displayLevel]);
 
   const filteredExpenseHierarchy = useMemo(() => {
     if (!report?.expenseHierarchy) return {};
-    const maxLevel = getLevelNumber(displayLevel);
-    return filterHierarchyByLevel(report.expenseHierarchy, maxLevel);
+    if (displayLevel === 'all') return report.expenseHierarchy;
+    const targetLevel = getLevelNumber(displayLevel);
+    return flattenToLevel(report.expenseHierarchy, targetLevel);
   }, [report?.expenseHierarchy, displayLevel]);
 
   // Charts data preparation - using new hierarchical structure
