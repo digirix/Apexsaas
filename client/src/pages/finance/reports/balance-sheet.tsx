@@ -28,6 +28,7 @@ import {
 
 import { AppLayout } from "@/components/layout/app-layout";
 import { HierarchicalReport } from "@/components/finance/hierarchical-report";
+import { PrintLayout, PrintHierarchicalReport } from "@/components/finance/print-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -46,6 +47,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -60,6 +68,7 @@ export default function BalanceSheetPage() {
   const [, setLocation] = useLocation();
   const [asOfDate, setAsOfDate] = useState<Date | undefined>(new Date());
   const [dateOpen, setDateOpen] = useState(false);
+  const [displayLevel, setDisplayLevel] = useState<string>("all");
 
   // Fetch balance sheet report
   const { data: report, isLoading } = useQuery({
@@ -80,6 +89,85 @@ export default function BalanceSheetPage() {
       currency: 'USD',
       minimumFractionDigits: 2,
     }).format(numAmount);
+  };
+
+  // Helper function to filter hierarchical data by level
+  const filterHierarchyByLevel = (hierarchy: any, maxLevel: number): any => {
+    if (!hierarchy || typeof hierarchy !== 'object') return hierarchy;
+    
+    const filterLevel = (node: any, currentLevel: number): any => {
+      if (currentLevel >= maxLevel) {
+        // At max level, sum up all children amounts
+        const totalAmount = calculateTotalAmount(node);
+        return {
+          name: node.name,
+          amount: totalAmount.toString()
+        };
+      }
+      
+      if (node.children) {
+        const filteredChildren: any = {};
+        for (const [key, child] of Object.entries(node.children)) {
+          filteredChildren[key] = filterLevel(child, currentLevel + 1);
+        }
+        return {
+          name: node.name,
+          amount: node.amount,
+          children: filteredChildren
+        };
+      }
+      
+      return node;
+    };
+    
+    return filterLevel(hierarchy, 0);
+  };
+
+  const calculateTotalAmount = (node: any): number => {
+    if (!node.children) {
+      return parseFloat(node.amount || '0');
+    }
+    
+    let total = 0;
+    for (const child of Object.values(node.children)) {
+      total += calculateTotalAmount(child as any);
+    }
+    return total;
+  };
+
+  // Get level number from display level
+  const getLevelNumber = (level: string): number => {
+    switch (level) {
+      case 'main': return 1;
+      case 'element': return 2;
+      case 'sub_element': return 3;
+      case 'detailed': return 4;
+      case 'account': return 5;
+      default: return 5; // 'all'
+    }
+  };
+
+  // Filter hierarchies based on selected level
+  const filteredAssetsHierarchy = useMemo(() => {
+    if (!report?.assetsHierarchy) return {};
+    const maxLevel = getLevelNumber(displayLevel);
+    return filterHierarchyByLevel(report.assetsHierarchy, maxLevel);
+  }, [report?.assetsHierarchy, displayLevel]);
+
+  const filteredLiabilitiesHierarchy = useMemo(() => {
+    if (!report?.liabilitiesHierarchy) return {};
+    const maxLevel = getLevelNumber(displayLevel);
+    return filterHierarchyByLevel(report.liabilitiesHierarchy, maxLevel);
+  }, [report?.liabilitiesHierarchy, displayLevel]);
+
+  const filteredEquityHierarchy = useMemo(() => {
+    if (!report?.equityHierarchy) return {};
+    const maxLevel = getLevelNumber(displayLevel);
+    return filterHierarchyByLevel(report.equityHierarchy, maxLevel);
+  }, [report?.equityHierarchy, displayLevel]);
+
+  const handlePrint = () => {
+    window.print();
   };
 
   // Calculate total liabilities and equity combined
@@ -135,6 +223,24 @@ export default function BalanceSheetPage() {
                 />
               </PopoverContent>
             </Popover>
+
+            <Select value={displayLevel} onValueChange={setDisplayLevel}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Select display level" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Levels</SelectItem>
+                <SelectItem value="main">Main Group Level</SelectItem>
+                <SelectItem value="element">Element Group Level</SelectItem>
+                <SelectItem value="sub_element">Sub Element Group Level</SelectItem>
+                <SelectItem value="detailed">Detailed Group Level</SelectItem>
+                <SelectItem value="account">Account Level</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button onClick={handlePrint} variant="outline">
+              Print Report
+            </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
