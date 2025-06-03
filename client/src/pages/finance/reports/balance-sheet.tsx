@@ -190,6 +190,11 @@ export default function BalanceSheetPage() {
 
   return (
     <AppLayout title="Balance Sheet">
+      <PrintLayout
+        title="Balance Sheet"
+        subtitle={asOfDate ? `As of ${format(asOfDate, "PP")}` : "As of today"}
+        reportType="balance-sheet"
+      >
       <div className="flex flex-col gap-6">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -356,9 +361,9 @@ export default function BalanceSheetPage() {
                 ) : (
                   <div className="space-y-6">
                 {/* Assets Section - Hierarchical */}
-                {report?.assetsHierarchy && Object.keys(report.assetsHierarchy).length > 0 ? (
+                {filteredAssetsHierarchy && Object.keys(filteredAssetsHierarchy).length > 0 ? (
                   <HierarchicalReport
-                    hierarchy={report.assetsHierarchy}
+                    hierarchy={filteredAssetsHierarchy}
                     title="Assets"
                     totalAmount={report.totalAssets || "0"}
                   />
@@ -372,9 +377,9 @@ export default function BalanceSheetPage() {
                 <Separator />
 
                 {/* Liabilities Section - Hierarchical */}
-                {report?.liabilitiesHierarchy && Object.keys(report.liabilitiesHierarchy).length > 0 ? (
+                {filteredLiabilitiesHierarchy && Object.keys(filteredLiabilitiesHierarchy).length > 0 ? (
                   <HierarchicalReport
-                    hierarchy={report.liabilitiesHierarchy}
+                    hierarchy={filteredLiabilitiesHierarchy}
                     title="Liabilities"
                     totalAmount={report.totalLiabilities || "0"}
                   />
@@ -388,9 +393,9 @@ export default function BalanceSheetPage() {
                 <Separator />
 
                 {/* Equity Section - Hierarchical */}
-                {report?.equityHierarchy && Object.keys(report.equityHierarchy).length > 0 ? (
+                {filteredEquityHierarchy && Object.keys(filteredEquityHierarchy).length > 0 ? (
                   <HierarchicalReport
-                    hierarchy={report.equityHierarchy}
+                    hierarchy={filteredEquityHierarchy}
                     title="Equity"
                     totalAmount={report.totalEquity || "0"}
                   />
@@ -496,6 +501,7 @@ export default function BalanceSheetPage() {
       </TabsContent>
       </Tabs>
       </div>
+      </PrintLayout>
     </AppLayout>
   );
 }

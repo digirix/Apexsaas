@@ -46,6 +46,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -64,6 +71,7 @@ export default function ProfitAndLossPage() {
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
+  const [displayLevel, setDisplayLevel] = useState<string>("all");
 
   // Fetch profit and loss report
   const { data: report, isLoading } = useQuery({
@@ -92,6 +100,75 @@ export default function ProfitAndLossPage() {
       minimumFractionDigits: 2,
     }).format(numAmount);
   };
+
+  // Helper function to filter hierarchical data by level
+  const filterHierarchyByLevel = (hierarchy: any, maxLevel: number): any => {
+    if (!hierarchy || typeof hierarchy !== 'object') return hierarchy;
+    
+    const filterLevel = (node: any, currentLevel: number): any => {
+      if (currentLevel >= maxLevel) {
+        // At max level, sum up all children amounts
+        const totalAmount = calculateTotalAmount(node);
+        return {
+          name: node.name,
+          amount: totalAmount.toString()
+        };
+      }
+      
+      if (node.children) {
+        const filteredChildren: any = {};
+        for (const [key, child] of Object.entries(node.children)) {
+          filteredChildren[key] = filterLevel(child, currentLevel + 1);
+        }
+        return {
+          name: node.name,
+          amount: node.amount,
+          children: filteredChildren
+        };
+      }
+      
+      return node;
+    };
+    
+    return filterLevel(hierarchy, 0);
+  };
+
+  const calculateTotalAmount = (node: any): number => {
+    if (!node.children) {
+      return parseFloat(node.amount || '0');
+    }
+    
+    let total = 0;
+    for (const child of Object.values(node.children)) {
+      total += calculateTotalAmount(child as any);
+    }
+    return total;
+  };
+
+  // Get level number from display level
+  const getLevelNumber = (level: string): number => {
+    switch (level) {
+      case 'main': return 1;
+      case 'element': return 2;
+      case 'sub_element': return 3;
+      case 'detailed': return 4;
+      case 'account': return 5;
+      default: return 5; // 'all'
+    }
+  };
+
+  // Filter hierarchies based on selected level
+  const filteredRevenueHierarchy = useMemo(() => {
+    if (!report?.revenueHierarchy) return {};
+    const maxLevel = getLevelNumber(displayLevel);
+    return filterHierarchyByLevel(report.revenueHierarchy, maxLevel);
+  }, [report?.revenueHierarchy, displayLevel]);
+
+  const filteredExpenseHierarchy = useMemo(() => {
+    if (!report?.expenseHierarchy) return {};
+    const maxLevel = getLevelNumber(displayLevel);
+    return filterHierarchyByLevel(report.expenseHierarchy, maxLevel);
+  }, [report?.expenseHierarchy, displayLevel]);
 
   // Charts data preparation - using new hierarchical structure
   const chartData = report ? [
