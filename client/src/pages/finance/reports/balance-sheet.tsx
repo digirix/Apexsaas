@@ -27,6 +27,7 @@ import {
 } from "recharts";
 
 import { AppLayout } from "@/components/layout/app-layout";
+import { HierarchicalReport } from "@/components/finance/hierarchical-report";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -53,7 +54,6 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HierarchicalReport } from "@/components/finance/hierarchical-report";
 
 export default function BalanceSheetPage() {
   const { toast } = useToast();
@@ -249,132 +249,51 @@ export default function BalanceSheetPage() {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                {/* Assets Section */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Assets</h3>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Account</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {Object.entries(assetGroups).map(([groupName, accounts]: [string, any]) => (
-                        <React.Fragment key={groupName}>
-                          <TableRow className="bg-muted/50">
-                            <TableCell className="font-medium">{groupName}</TableCell>
-                            <TableCell className="text-right font-medium">
-                              {formatCurrency(calculateGroupTotal(accounts))}
-                            </TableCell>
-                          </TableRow>
-                          {accounts.map((account: any) => (
-                            <TableRow key={account.id}>
-                              <TableCell className="pl-8">
-                                {account.accountName} ({account.accountCode})
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {formatCurrency(account.balance)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </React.Fragment>
-                      ))}
-                      <TableRow className="font-bold">
-                        <TableCell>Total Assets</TableCell>
-                        <TableCell className="text-right">
-                          {report ? formatCurrency(report.totalAssets) : formatCurrency(0)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
+                {/* Assets Section - Hierarchical */}
+                {report?.assetHierarchy && Object.keys(report.assetHierarchy).length > 0 ? (
+                  <HierarchicalReport
+                    hierarchy={report.assetHierarchy}
+                    title="Assets"
+                    totalAmount={report.totalAssets || "0"}
+                  />
+                ) : (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Assets</h3>
+                    <p className="text-muted-foreground">No asset accounts with balances found.</p>
+                  </div>
+                )}
 
                 <Separator />
 
-                {/* Liabilities Section */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Liabilities</h3>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Account</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {Object.entries(liabilityGroups).map(([groupName, accounts]: [string, any]) => (
-                        <React.Fragment key={groupName}>
-                          <TableRow className="bg-muted/50">
-                            <TableCell className="font-medium">{groupName}</TableCell>
-                            <TableCell className="text-right font-medium">
-                              {formatCurrency(calculateGroupTotal(accounts))}
-                            </TableCell>
-                          </TableRow>
-                          {accounts.map((account: any) => (
-                            <TableRow key={account.id}>
-                              <TableCell className="pl-8">
-                                {account.accountName} ({account.accountCode})
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {formatCurrency(account.balance)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </React.Fragment>
-                      ))}
-                      <TableRow className="font-bold">
-                        <TableCell>Total Liabilities</TableCell>
-                        <TableCell className="text-right">
-                          {report ? formatCurrency(report.totalLiabilities) : formatCurrency(0)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
+                {/* Liabilities Section - Hierarchical */}
+                {report?.liabilityHierarchy && Object.keys(report.liabilityHierarchy).length > 0 ? (
+                  <HierarchicalReport
+                    hierarchy={report.liabilityHierarchy}
+                    title="Liabilities"
+                    totalAmount={report.totalLiabilities || "0"}
+                  />
+                ) : (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Liabilities</h3>
+                    <p className="text-muted-foreground">No liability accounts with balances found.</p>
+                  </div>
+                )}
 
                 <Separator />
 
-                {/* Equity Section */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Equity</h3>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Account</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {Object.entries(equityGroups).map(([groupName, accounts]: [string, any]) => (
-                        <React.Fragment key={groupName}>
-                          <TableRow className="bg-muted/50">
-                            <TableCell className="font-medium">{groupName}</TableCell>
-                            <TableCell className="text-right font-medium">
-                              {formatCurrency(calculateGroupTotal(accounts))}
-                            </TableCell>
-                          </TableRow>
-                          {accounts.map((account: any) => (
-                            <TableRow key={account.id}>
-                              <TableCell className="pl-8">
-                                {account.accountName} ({account.accountCode})
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {formatCurrency(account.balance)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </React.Fragment>
-                      ))}
-                      <TableRow className="font-bold">
-                        <TableCell>Total Equity</TableCell>
-                        <TableCell className="text-right">
-                          {report ? formatCurrency(report.totalEquity) : formatCurrency(0)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
+                {/* Equity Section - Hierarchical */}
+                {report?.equityHierarchy && Object.keys(report.equityHierarchy).length > 0 ? (
+                  <HierarchicalReport
+                    hierarchy={report.equityHierarchy}
+                    title="Equity"
+                    totalAmount={report.totalEquity || "0"}
+                  />
+                ) : (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Equity</h3>
+                    <p className="text-muted-foreground">No equity accounts with balances found.</p>
+                  </div>
+                )}
 
                 <Separator />
 
