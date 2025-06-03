@@ -3018,22 +3018,7 @@ export class DatabaseStorage implements IStorage {
       effectiveEndDate
     );
     
-    // HOTFIX: Manually set balance for specific accounts based on journal entry data
-    revenues = revenues.map(revenue => {
-      if (revenue.id === 102) {
-        console.log('Setting revenue balance for account 102 to 1013.00');
-        return { ...revenue, balance: '1013.00' };
-      }
-      return revenue;
-    });
-    
-    expenses = expenses.map(expense => {
-      if (expense.id === 104) {
-        console.log('Setting expense balance for account 104 to 100.00');
-        return { ...expense, balance: '100.00' };
-      }
-      return expense;
-    });
+
     
     // Calculate totals
     const totalRevenue = revenues.reduce((sum, account) => {
@@ -3097,23 +3082,7 @@ export class DatabaseStorage implements IStorage {
       effectiveDate
     );
     
-    // HOTFIX: Manually set balance for account 103 (based on journal entry line data)
-    assets = assets.map(asset => {
-      if (asset.id === 103) {
-        console.log('Setting asset balance for account 103 to 1093.00');
-        return { ...asset, balance: '1093.00' };
-      }
-      return asset;
-    });
-    
-    // HOTFIX: Manually set balance for account 100 (based on journal entry line data)
-    liabilities = liabilities.map(liability => {
-      if (liability.id === 100) {
-        console.log('Setting liability balance for account 100 to 180.00');
-        return { ...liability, balance: '180.00' };
-      }
-      return liability;
-    });
+
     
     // Calculate totals
     const totalAssets = assets.reduce((sum, account) => {
@@ -3125,12 +3094,6 @@ export class DatabaseStorage implements IStorage {
     }, 0).toFixed(2);
     
     const totalEquity = equity.reduce((sum, account) => {
-      // If no equity accounts have balances, add a placeholder value (assets - liabilities)
-      if (parseFloat(account.balance) === 0) {
-        console.log('Setting equity balance based on accounting equation');
-        const equityValue = parseFloat(totalAssets) - parseFloat(totalLiabilities);
-        return sum + equityValue;
-      }
       return sum + parseFloat(account.balance);
     }, 0).toFixed(2);
     
