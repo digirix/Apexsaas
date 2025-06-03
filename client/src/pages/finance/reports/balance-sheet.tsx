@@ -389,8 +389,15 @@ export default function BalanceSheetPage() {
 
                 <Separator />
 
-                {/* Liabilities Section - Hierarchical */}
-                {filteredLiabilitiesHierarchy && Object.keys(filteredLiabilitiesHierarchy).length > 0 ? (
+                {/* Liabilities Section */}
+                {displayLevel !== 'all' ? (
+                  <FilteredReportDisplay
+                    data={filteredLiabilitiesHierarchy}
+                    title="Liabilities"
+                    totalAmount={report.totalLiabilities || "0"}
+                    displayLevel={displayLevel}
+                  />
+                ) : filteredLiabilitiesHierarchy && Object.keys(filteredLiabilitiesHierarchy).length > 0 ? (
                   <HierarchicalReport
                     hierarchy={filteredLiabilitiesHierarchy}
                     title="Liabilities"
@@ -405,8 +412,15 @@ export default function BalanceSheetPage() {
 
                 <Separator />
 
-                {/* Equity Section - Hierarchical */}
-                {filteredEquityHierarchy && Object.keys(filteredEquityHierarchy).length > 0 ? (
+                {/* Equity Section */}
+                {displayLevel !== 'all' ? (
+                  <FilteredReportDisplay
+                    data={filteredEquityHierarchy}
+                    title="Equity"
+                    totalAmount={report.totalEquity || "0"}
+                    displayLevel={displayLevel}
+                  />
+                ) : filteredEquityHierarchy && Object.keys(filteredEquityHierarchy).length > 0 ? (
                   <HierarchicalReport
                     hierarchy={filteredEquityHierarchy}
                     title="Equity"

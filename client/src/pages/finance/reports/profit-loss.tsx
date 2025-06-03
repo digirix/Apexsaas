@@ -62,6 +62,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HierarchicalReport } from "@/components/finance/hierarchical-report";
+import { FilteredReportDisplay } from "@/components/finance/filtered-report-display";
 import { PrintLayout, PrintHierarchicalReport } from "@/components/finance/print-layout";
 
 export default function ProfitAndLossPage() {
@@ -327,16 +328,17 @@ export default function ProfitAndLossPage() {
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Revenues Section - Hierarchical */}
-                {filteredRevenueHierarchy && Object.keys(filteredRevenueHierarchy).length > 0 ? (
-                  <HierarchicalReport
-                    hierarchy={filteredRevenueHierarchy}
+                {/* Revenues Section */}
+                {displayLevel !== 'all' ? (
+                  <FilteredReportDisplay
+                    data={filteredRevenueHierarchy}
                     title="Revenues"
                     totalAmount={report?.totalRevenues || "0"}
+                    displayLevel={displayLevel}
                   />
-                ) : report?.revenueHierarchy && Object.keys(report.revenueHierarchy).length > 0 ? (
+                ) : filteredRevenueHierarchy && Object.keys(filteredRevenueHierarchy).length > 0 ? (
                   <HierarchicalReport
-                    hierarchy={report.revenueHierarchy}
+                    hierarchy={filteredRevenueHierarchy}
                     title="Revenues"
                     totalAmount={report?.totalRevenues || "0"}
                   />
@@ -349,16 +351,17 @@ export default function ProfitAndLossPage() {
 
                 <Separator />
 
-                {/* Expenses Section - Hierarchical */}
-                {filteredExpenseHierarchy && Object.keys(filteredExpenseHierarchy).length > 0 ? (
-                  <HierarchicalReport
-                    hierarchy={filteredExpenseHierarchy}
+                {/* Expenses Section */}
+                {displayLevel !== 'all' ? (
+                  <FilteredReportDisplay
+                    data={filteredExpenseHierarchy}
                     title="Expenses"
                     totalAmount={report?.totalExpenses || "0"}
+                    displayLevel={displayLevel}
                   />
-                ) : report?.expenseHierarchy && Object.keys(report.expenseHierarchy).length > 0 ? (
+                ) : filteredExpenseHierarchy && Object.keys(filteredExpenseHierarchy).length > 0 ? (
                   <HierarchicalReport
-                    hierarchy={report.expenseHierarchy}
+                    hierarchy={filteredExpenseHierarchy}
                     title="Expenses"
                     totalAmount={report?.totalExpenses || "0"}
                   />
