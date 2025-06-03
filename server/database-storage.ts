@@ -2271,10 +2271,38 @@ export class DatabaseStorage implements IStorage {
     console.log(`CRITICAL: getChartOfAccounts called with tenantId=${tenantId}, accountType=${accountType}, detailedGroupId=${detailedGroupId}, includeSystemAccounts=${includeSystemAccounts}, includeInactive=${includeInactive}`);
     
     try {
-      // First build the query directly with tenant isolation
+      // Build query with hierarchy joins to include account hierarchy information
       const query = db
-        .select()
+        .select({
+          id: chartOfAccounts.id,
+          tenantId: chartOfAccounts.tenantId,
+          detailedGroupId: chartOfAccounts.detailedGroupId,
+          accountCode: chartOfAccounts.accountCode,
+          accountName: chartOfAccounts.accountName,
+          accountType: chartOfAccounts.accountType,
+          description: chartOfAccounts.description,
+          clientId: chartOfAccounts.clientId,
+          entityId: chartOfAccounts.entityId,
+          userId: chartOfAccounts.userId,
+          isSystemAccount: chartOfAccounts.isSystemAccount,
+          openingBalance: chartOfAccounts.openingBalance,
+          currentBalance: chartOfAccounts.currentBalance,
+          isActive: chartOfAccounts.isActive,
+          createdAt: chartOfAccounts.createdAt,
+          updatedAt: chartOfAccounts.updatedAt,
+          // Hierarchy information
+          detailedGroupName: chartOfAccountsDetailedGroups.name,
+          detailedGroupCustomName: chartOfAccountsDetailedGroups.customName,
+          subElementGroupName: chartOfAccountsSubElementGroups.name,
+          subElementGroupCustomName: chartOfAccountsSubElementGroups.customName,
+          elementGroupName: chartOfAccountsElementGroups.name,
+          mainGroupName: chartOfAccountsMainGroups.name
+        })
         .from(chartOfAccounts)
+        .leftJoin(chartOfAccountsDetailedGroups, eq(chartOfAccounts.detailedGroupId, chartOfAccountsDetailedGroups.id))
+        .leftJoin(chartOfAccountsSubElementGroups, eq(chartOfAccountsDetailedGroups.subElementGroupId, chartOfAccountsSubElementGroups.id))
+        .leftJoin(chartOfAccountsElementGroups, eq(chartOfAccountsSubElementGroups.elementGroupId, chartOfAccountsElementGroups.id))
+        .leftJoin(chartOfAccountsMainGroups, eq(chartOfAccountsElementGroups.mainGroupId, chartOfAccountsMainGroups.id))
         .where(
           and(
             eq(chartOfAccounts.tenantId, tenantId),
@@ -2286,7 +2314,7 @@ export class DatabaseStorage implements IStorage {
         )
         .orderBy(asc(chartOfAccounts.accountCode));
         
-      // First attempt with the query
+      // Execute the query
       const accounts = await query;
       
       console.log(`CRITICAL: SQL Query returned ${accounts.length} accounts for tenant ${tenantId}`);
