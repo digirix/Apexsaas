@@ -352,7 +352,7 @@ export default function BalanceSheetPage() {
             <CardContent>
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={assetsBarData} layout="vertical">
+                  <BarChart data={[]} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
                     <YAxis type="category" dataKey="name" width={150} />
@@ -374,7 +374,7 @@ export default function BalanceSheetPage() {
             <CardContent>
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={liabilitiesAndEquityData} layout="vertical">
+                  <BarChart data={[]} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis type="number" tickFormatter={(value) => formatCurrency(value)} />
                     <YAxis type="category" dataKey="name" width={150} />
