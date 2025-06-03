@@ -73,6 +73,12 @@ export default function JournalEntriesReportPage() {
     refetchOnWindowFocus: false,
   });
 
+  // Fetch chart of accounts for account hierarchy information
+  const { data: chartOfAccounts } = useQuery({
+    queryKey: ['/api/v1/finance/chart-of-accounts'],
+    refetchOnWindowFocus: false,
+  });
+
   // Delete journal entry mutation
   const deleteJournalEntryMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -147,6 +153,24 @@ export default function JournalEntriesReportPage() {
     }, { totalDebits: 0, totalCredits: 0 });
   }, [filteredEntries]);
 
+  // Create account hierarchy lookup function
+  const getAccountHierarchy = (accountId: number) => {
+    if (!chartOfAccounts) return {
+      mainGroup: '',
+      elementGroup: '',
+      subElementGroup: '',
+      detailedGroup: ''
+    };
+
+    const account = chartOfAccounts.find((acc: any) => acc.id === accountId);
+    return {
+      mainGroup: account?.mainGroupName || '',
+      elementGroup: account?.elementGroupName || '',
+      subElementGroup: account?.subElementGroupName || '',
+      detailedGroup: account?.detailedGroupName || ''
+    };
+  };
+
   // Export to CSV function
   const exportToCSV = () => {
     if (!filteredEntries || filteredEntries.length === 0) {
@@ -160,7 +184,7 @@ export default function JournalEntriesReportPage() {
 
     const csvData = [];
     
-    // Add header
+    // Add header with account hierarchy columns
     csvData.push([
       "Entry ID",
       "Date",
@@ -170,6 +194,10 @@ export default function JournalEntriesReportPage() {
       "Status",
       "Account Code",
       "Account Name",
+      "Main Group",
+      "Element Group",
+      "Sub Element Group",
+      "Detailed Group",
       "Line Description",
       "Debit Amount",
       "Credit Amount",
@@ -182,6 +210,8 @@ export default function JournalEntriesReportPage() {
     filteredEntries.forEach((entry: JournalEntry) => {
       if (entry.lines && entry.lines.length > 0) {
         entry.lines.forEach((line: JournalEntryLine) => {
+          const hierarchy = getAccountHierarchy(line.accountId);
+          
           csvData.push([
             entry.id.toString(),
             format(new Date(entry.entryDate), "yyyy-MM-dd"),
@@ -191,6 +221,10 @@ export default function JournalEntriesReportPage() {
             entry.isPosted ? "Posted" : "Draft",
             line.accountCode,
             line.accountName,
+            hierarchy.mainGroup,
+            hierarchy.elementGroup,
+            hierarchy.subElementGroup,
+            hierarchy.detailedGroup,
             line.description,
             line.debitAmount,
             line.creditAmount,
@@ -305,24 +339,22 @@ export default function JournalEntriesReportPage() {
           </div>
         </div>
 
-        {/* Filters */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Filters</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        {/* Compact Filters and Summary */}
+        <Card className="mb-4">
+          <CardContent className="pt-4 pb-4">
+            {/* Filters Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-4">
               {/* Date Range */}
-              <div className="space-y-2">
-                <Label>Start Date</Label>
+              <div className="col-span-1">
                 <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full justify-start text-left font-normal"
+                      size="sm"
+                      className="w-full justify-start text-left font-normal text-xs"
                     >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {startDate ? format(startDate, "PPP") : "Pick a date"}
+                      <Calendar className="mr-1 h-3 w-3" />
+                      {startDate ? format(startDate, "MMM dd") : "Start Date"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
@@ -339,16 +371,16 @@ export default function JournalEntriesReportPage() {
                 </Popover>
               </div>
 
-              <div className="space-y-2">
-                <Label>End Date</Label>
+              <div className="col-span-1">
                 <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
-                      className="w-full justify-start text-left font-normal"
+                      size="sm"
+                      className="w-full justify-start text-left font-normal text-xs"
                     >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {endDate ? format(endDate, "PPP") : "Pick a date"}
+                      <Calendar className="mr-1 h-3 w-3" />
+                      {endDate ? format(endDate, "MMM dd") : "End Date"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
@@ -366,25 +398,23 @@ export default function JournalEntriesReportPage() {
               </div>
 
               {/* Search */}
-              <div className="space-y-2">
-                <Label>Search</Label>
+              <div className="col-span-2">
                 <div className="relative">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-2 top-1.5 h-3 w-3 text-muted-foreground" />
                   <Input
                     placeholder="Search entries..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-8"
+                    className="pl-7 h-8 text-xs"
                   />
                 </div>
               </div>
 
               {/* Entry Type Filter */}
-              <div className="space-y-2">
-                <Label>Entry Type</Label>
+              <div className="col-span-1">
                 <Select value={entryTypeFilter} onValueChange={setEntryTypeFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Types" />
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Type" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Types</SelectItem>
@@ -397,11 +427,10 @@ export default function JournalEntriesReportPage() {
               </div>
 
               {/* Status Filter */}
-              <div className="space-y-2">
-                <Label>Status</Label>
+              <div className="col-span-1">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Status" />
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
@@ -412,10 +441,10 @@ export default function JournalEntriesReportPage() {
               </div>
 
               {/* Clear Filters */}
-              <div className="space-y-2">
-                <Label>&nbsp;</Label>
+              <div className="col-span-1">
                 <Button
                   variant="outline"
+                  size="sm"
                   onClick={() => {
                     setStartDate(undefined);
                     setEndDate(undefined);
@@ -423,41 +452,35 @@ export default function JournalEntriesReportPage() {
                     setEntryTypeFilter("all");
                     setStatusFilter("all");
                   }}
-                  className="w-full"
+                  className="w-full h-8 text-xs"
                 >
-                  <Filter className="h-4 w-4 mr-2" />
-                  Clear Filters
+                  <Filter className="h-3 w-3 mr-1" />
+                  Clear
                 </Button>
+              </div>
+            </div>
+
+            {/* Summary Row */}
+            <div className="grid grid-cols-3 gap-4 pt-2 border-t">
+              <div className="text-center">
+                <div className="text-lg font-bold">{filteredEntries?.length || 0}</div>
+                <p className="text-xs text-muted-foreground">Total Entries</p>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-green-600">
+                  {formatCurrency(totals.totalDebits)}
+                </div>
+                <p className="text-xs text-muted-foreground">Total Debits</p>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-blue-600">
+                  {formatCurrency(totals.totalCredits)}
+                </div>
+                <p className="text-xs text-muted-foreground">Total Credits</p>
               </div>
             </div>
           </CardContent>
         </Card>
-
-        {/* Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold">{filteredEntries?.length || 0}</div>
-              <p className="text-xs text-muted-foreground">Total Entries</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-green-600">
-                {formatCurrency(totals.totalDebits)}
-              </div>
-              <p className="text-xs text-muted-foreground">Total Debits</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-blue-600">
-                {formatCurrency(totals.totalCredits)}
-              </div>
-              <p className="text-xs text-muted-foreground">Total Credits</p>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Journal Entries Table */}
         <Card>
@@ -543,14 +566,14 @@ export default function JournalEntriesReportPage() {
                                 <Button
                                   variant="outline"
                                   size="icon"
-                                  onClick={() => setLocation(`/finance/journal-entries/${entry.id}`)}
+                                  onClick={() => setLocation(`/finance/journal-entries/view/${entry.id}`)}
                                 >
                                   <Eye className="h-4 w-4" />
                                 </Button>
                                 <Button
                                   variant="outline"
                                   size="icon"
-                                  onClick={() => setLocation(`/finance/journal-entries/${entry.id}/edit`)}
+                                  onClick={() => setLocation(`/finance/journal-entries/edit/${entry.id}`)}
                                 >
                                   <Edit className="h-4 w-4" />
                                 </Button>
