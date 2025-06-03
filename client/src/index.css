@@ -2,6 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Print-specific styles */
+@media print {
+  @page {
+    margin: 0.75in;
+    size: A4;
+  }
+  
+  body {
+    font-size: 12pt;
+    line-height: 1.3;
+    color: black !important;
+    background: white !important;
+  }
+  
+  .print-content {
+    font-size: 12pt;
+    color: black !important;
+  }
+  
+  /* Hide non-essential elements */
+  .print\\:hidden {
+    display: none !important;
+  }
+  
+  /* Show print-only elements */
+  .print\\:block {
+    display: block !important;
+  }
+  
+  /* Text sizing for print */
+  .print\\:text-xs { font-size: 9pt !important; }
+  .print\\:text-sm { font-size: 10pt !important; }
+  .print\\:text-base { font-size: 12pt !important; }
+  .print\\:text-lg { font-size: 14pt !important; }
+  .print\\:text-xl { font-size: 16pt !important; }
+  
+  /* Margins for print */
+  .print\\:mb-1 { margin-bottom: 0.25rem !important; }
+  .print\\:mb-2 { margin-bottom: 0.5rem !important; }
+  .print\\:mb-4 { margin-bottom: 1rem !important; }
+  .print\\:mb-6 { margin-bottom: 1.5rem !important; }
+  
+  /* Font weights for print */
+  .print\\:font-semibold { font-weight: 600 !important; }
+  
+  /* Colors for print */
+  .print\\:text-black { color: black !important; }
+  
+  /* Ensure proper page breaks */
+  .print-section {
+    break-inside: avoid;
+  }
+  
+  /* Table-like spacing for amounts */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;

@@ -55,6 +55,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HierarchicalReport } from "@/components/finance/hierarchical-report";
+import { PrintLayout, PrintHierarchicalReport } from "@/components/finance/print-layout";
 
 export default function ProfitAndLossPage() {
   const { toast } = useToast();

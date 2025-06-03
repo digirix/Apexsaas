@@ -93,7 +93,7 @@ export class HierarchicalReportsService {
 
   private async getAccountBalancesWithHierarchy(tenantId: number): Promise<any[]> {
     try {
-      // Get accounts with their hierarchical structure
+      // Get accounts with their hierarchical structure including custom names
       const accounts = await db
         .select({
           accountId: chartOfAccounts.id,
@@ -101,7 +101,9 @@ export class HierarchicalReportsService {
           accountCode: chartOfAccounts.accountCode,
           accountType: chartOfAccounts.accountType,
           detailedGroupName: chartOfAccountsDetailedGroups.name,
+          detailedGroupCustomName: chartOfAccountsDetailedGroups.customName,
           subElementGroupName: chartOfAccountsSubElementGroups.name,
+          subElementGroupCustomName: chartOfAccountsSubElementGroups.customName,
           elementGroupName: chartOfAccountsElementGroups.name,
           mainGroupName: chartOfAccountsMainGroups.name
         })
@@ -195,8 +197,13 @@ export class HierarchicalReportsService {
     accounts.forEach(account => {
       const mainGroupName = account.mainGroupName || 'Uncategorized';
       const elementGroupName = account.elementGroupName || 'Uncategorized';
-      const subElementGroupName = account.subElementGroupName || 'Uncategorized';
-      const detailedGroupName = account.detailedGroupName || 'Uncategorized';
+      // Use custom names when available, otherwise fallback to system names
+      const subElementGroupName = (account.subElementGroupCustomName && account.subElementGroupCustomName !== 'custom') 
+        ? account.subElementGroupCustomName 
+        : (account.subElementGroupName || 'Uncategorized');
+      const detailedGroupName = (account.detailedGroupCustomName && account.detailedGroupCustomName !== 'custom') 
+        ? account.detailedGroupCustomName 
+        : (account.detailedGroupName || 'Uncategorized');
       const accountName = `${account.accountName} (${account.accountCode})`;
 
       // Initialize main group
