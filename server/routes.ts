@@ -11,6 +11,7 @@ import { registerClientPortalRoutes } from "./routes/client-portal-routes";
 import { registerWorkflowRoutes } from "./api/workflow-routes";
 import { setupNotificationRoutes } from "./api/notification-routes";
 import { NotificationService } from "./services/notification-service";
+import { HierarchicalReportsService } from "./services/hierarchical-reports-service";
 import { setupClientPortalAuth } from "./client-portal-auth";
 import { requirePermission, requireModuleAccess, getUserModulePermissions } from "./middleware/permissions";
 import { checkPermission } from "./middleware/check-permissions";
@@ -6317,15 +6318,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Balance Sheet Report
+  // Balance Sheet Report - Hierarchical
   app.get("/api/v1/finance/reports/balance-sheet", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       
-      // Parse date parameter if provided
-      const asOfDate = req.query.asOfDate ? new Date(req.query.asOfDate as string) : undefined;
+      const hierarchicalReportsService = new HierarchicalReportsService();
+      const report = await hierarchicalReportsService.generateBalanceSheetReport(tenantId);
       
-      const report = await storage.getBalanceSheet(tenantId, asOfDate);
       res.status(200).json(report);
     } catch (error) {
       console.error("Error generating balance sheet report:", error);

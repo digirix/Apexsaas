@@ -432,13 +432,15 @@ export class DatabaseStorage implements IStorage {
   // State operations
   async getStates(tenantId: number, countryId?: number): Promise<State[]> {
     try {
-      let query = db.select().from(states).where(eq(states.tenantId, tenantId));
+      const conditions = [eq(states.tenantId, tenantId)];
       
       if (countryId) {
-        query = query.where(eq(states.countryId, countryId));
+        conditions.push(eq(states.countryId, countryId));
       }
       
-      return await query.orderBy(asc(states.name));
+      return await db.select().from(states)
+        .where(and(...conditions))
+        .orderBy(asc(states.name));
     } catch (error) {
       console.error("DB Error fetching states:", error);
       throw error;
@@ -526,15 +528,15 @@ export class DatabaseStorage implements IStorage {
 
   // Service Type operations
   async getServiceTypes(tenantId: number, countryId?: number): Promise<ServiceType[]> {
-    let query = db.select().from(serviceTypes)
-      .where(eq(serviceTypes.tenantId, tenantId))
-      .orderBy(asc(serviceTypes.name));
-      
+    const conditions = [eq(serviceTypes.tenantId, tenantId)];
+    
     if (countryId) {
-      query = query.where(eq(serviceTypes.countryId, countryId));
+      conditions.push(eq(serviceTypes.countryId, countryId));
     }
     
-    return await query;
+    return await db.select().from(serviceTypes)
+      .where(and(...conditions))
+      .orderBy(asc(serviceTypes.name));
   }
 
   async getServiceType(id: number, tenantId: number): Promise<ServiceType | undefined> {
