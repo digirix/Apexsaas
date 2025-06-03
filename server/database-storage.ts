@@ -2797,7 +2797,8 @@ export class DatabaseStorage implements IStorage {
       eq(journalEntryLines.tenantId, tenantId),
       eq(journalEntryLines.accountId, accountId),
       // Only include posted entries in the ledger
-      eq(journalEntries.isPosted, true)
+      eq(journalEntries.isPosted, true),
+      eq(journalEntries.isDeleted, false) // Exclude deleted entries
     ))
     .orderBy(asc(journalEntryLines.createdAt))
     .limit(pageSize)
@@ -2852,7 +2853,8 @@ export class DatabaseStorage implements IStorage {
     .where(and(
       eq(journalEntryLines.tenantId, tenantId),
       eq(journalEntryLines.accountId, accountId),
-      eq(journalEntries.isPosted, true)
+      eq(journalEntries.isPosted, true),
+      eq(journalEntries.isDeleted, false) // Exclude deleted entries
     ));
     
     // Add date range filters if provided

@@ -736,6 +736,7 @@ export const journalEntries = pgTable("journal_entries", {
   entryType: text("entry_type").notNull(), // References journal_entry_types.code
   description: text("description").notNull(),
   isPosted: boolean("is_posted").default(false).notNull(),
+  isDeleted: boolean("is_deleted").default(false).notNull(), // For soft delete functionality
   postedAt: timestamp("posted_at"),
   createdBy: integer("created_by").notNull(),
   updatedBy: integer("updated_by"),
