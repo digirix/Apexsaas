@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -8,41 +9,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 
-interface Account {
-  id: number;
-  accountNumber: string;
+interface HierarchicalNode {
   name: string;
-  balance: string;
+  amount: string;
+  children?: { [key: string]: HierarchicalNode };
 }
 
-interface DetailedGroup {
-  name: string;
-  total: number;
-  accounts: Account[];
-}
-
-interface SubElementGroup {
-  name: string;
-  total: number;
-  detailedGroups: Record<string, DetailedGroup>;
-}
-
-interface ElementGroup {
-  name: string;
-  total: number;
-  subElementGroups: Record<string, SubElementGroup>;
-}
-
-interface MainGroup {
-  name: string;
-  total: number;
-  elementGroups: Record<string, ElementGroup>;
+interface HierarchicalReport {
+  [key: string]: HierarchicalNode;
 }
 
 interface HierarchicalReportProps {
-  hierarchy: Record<string, MainGroup>;
+  hierarchy: HierarchicalReport;
   title: string;
   totalAmount: string;
 }
@@ -57,189 +36,86 @@ const formatCurrency = (amount: string | number) => {
 };
 
 export function HierarchicalReport({ hierarchy, title, totalAmount }: HierarchicalReportProps) {
-  const [expandedMainGroups, setExpandedMainGroups] = useState<Set<string>>(new Set());
-  const [expandedElementGroups, setExpandedElementGroups] = useState<Set<string>>(new Set());
-  const [expandedSubElementGroups, setExpandedSubElementGroups] = useState<Set<string>>(new Set());
-  const [expandedDetailedGroups, setExpandedDetailedGroups] = useState<Set<string>>(new Set());
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
 
-  const toggleMainGroup = (groupName: string) => {
-    const newExpanded = new Set(expandedMainGroups);
-    if (newExpanded.has(groupName)) {
-      newExpanded.delete(groupName);
+  const toggleExpansion = (nodePath: string) => {
+    const newExpanded = new Set(expandedNodes);
+    if (newExpanded.has(nodePath)) {
+      newExpanded.delete(nodePath);
     } else {
-      newExpanded.add(groupName);
+      newExpanded.add(nodePath);
     }
-    setExpandedMainGroups(newExpanded);
+    setExpandedNodes(newExpanded);
   };
 
-  const toggleElementGroup = (groupKey: string) => {
-    const newExpanded = new Set(expandedElementGroups);
-    if (newExpanded.has(groupKey)) {
-      newExpanded.delete(groupKey);
-    } else {
-      newExpanded.add(groupKey);
-    }
-    setExpandedElementGroups(newExpanded);
-  };
+  const renderNode = (node: HierarchicalNode, path: string, level: number = 0): React.ReactNode[] => {
+    const rows: React.ReactNode[] = [];
+    const hasChildren = node.children && Object.keys(node.children).length > 0;
+    const isExpanded = expandedNodes.has(path);
 
-  const toggleSubElementGroup = (groupKey: string) => {
-    const newExpanded = new Set(expandedSubElementGroups);
-    if (newExpanded.has(groupKey)) {
-      newExpanded.delete(groupKey);
-    } else {
-      newExpanded.add(groupKey);
-    }
-    setExpandedSubElementGroups(newExpanded);
-  };
+    // Main row
+    rows.push(
+      <TableRow key={path} className={level > 0 ? "bg-muted/20" : ""}>
+        <TableCell style={{ paddingLeft: `${level * 20 + 12}px` }}>
+          <div className="flex items-center gap-2">
+            {hasChildren ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => toggleExpansion(path)}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
+            ) : (
+              <div className="w-6" />
+            )}
+            <span className={level === 0 ? "font-semibold" : level === 1 ? "font-medium" : ""}>
+              {node.name}
+            </span>
+          </div>
+        </TableCell>
+        <TableCell className="text-right font-mono">
+          {formatCurrency(node.amount)}
+        </TableCell>
+      </TableRow>
+    );
 
-  const toggleDetailedGroup = (groupKey: string) => {
-    const newExpanded = new Set(expandedDetailedGroups);
-    if (newExpanded.has(groupKey)) {
-      newExpanded.delete(groupKey);
-    } else {
-      newExpanded.add(groupKey);
+    // Children rows (if expanded)
+    if (hasChildren && isExpanded && node.children) {
+      Object.entries(node.children).forEach(([childKey, childNode]) => {
+        const childPath = `${path}.${childKey}`;
+        rows.push(...renderNode(childNode, childPath, level + 1));
+      });
     }
-    setExpandedDetailedGroups(newExpanded);
+
+    return rows;
   };
 
   return (
-    <div>
-      <h3 className="text-lg font-semibold mb-2">{title}</h3>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold">{title}</h3>
+        <div className="text-lg font-bold">
+          {formatCurrency(totalAmount)}
+        </div>
+      </div>
+      
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Account Hierarchy</TableHead>
+            <TableHead>Account</TableHead>
             <TableHead className="text-right">Amount</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {Object.entries(hierarchy).map(([mainGroupName, mainGroup]) => {
-            const mainGroupKey = mainGroupName;
-            const isMainGroupExpanded = expandedMainGroups.has(mainGroupKey);
-
-            return (
-              <React.Fragment key={mainGroupKey}>
-                {/* Level 1: Main Group */}
-                <TableRow className="bg-slate-100 font-bold border-b-2">
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="p-0 h-auto font-bold"
-                      onClick={() => toggleMainGroup(mainGroupKey)}
-                    >
-                      {isMainGroupExpanded ? <ChevronDown className="w-4 h-4 mr-1" /> : <ChevronRight className="w-4 h-4 mr-1" />}
-                      {mainGroup.name}
-                    </Button>
-                  </TableCell>
-                  <TableCell className="text-right font-bold">
-                    {formatCurrency(mainGroup.total)}
-                  </TableCell>
-                </TableRow>
-
-                {/* Level 2: Element Groups */}
-                {isMainGroupExpanded && Object.entries(mainGroup.elementGroups).map(([elementGroupName, elementGroup]) => {
-                  const elementGroupKey = `${mainGroupKey}-${elementGroupName}`;
-                  const isElementGroupExpanded = expandedElementGroups.has(elementGroupKey);
-
-                  return (
-                    <React.Fragment key={elementGroupKey}>
-                      <TableRow className="bg-slate-50 font-semibold">
-                        <TableCell className="pl-6">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="p-0 h-auto font-semibold"
-                            onClick={() => toggleElementGroup(elementGroupKey)}
-                          >
-                            {isElementGroupExpanded ? <ChevronDown className="w-4 h-4 mr-1" /> : <ChevronRight className="w-4 h-4 mr-1" />}
-                            {elementGroup.name}
-                          </Button>
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {formatCurrency(elementGroup.total)}
-                        </TableCell>
-                      </TableRow>
-
-                      {/* Level 3: Sub Element Groups */}
-                      {isElementGroupExpanded && Object.entries(elementGroup.subElementGroups).map(([subElementGroupName, subElementGroup]) => {
-                        const subElementGroupKey = `${elementGroupKey}-${subElementGroupName}`;
-                        const isSubElementGroupExpanded = expandedSubElementGroups.has(subElementGroupKey);
-
-                        return (
-                          <React.Fragment key={subElementGroupKey}>
-                            <TableRow className="bg-slate-25 font-medium">
-                              <TableCell className="pl-12">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="p-0 h-auto font-medium"
-                                  onClick={() => toggleSubElementGroup(subElementGroupKey)}
-                                >
-                                  {isSubElementGroupExpanded ? <ChevronDown className="w-4 h-4 mr-1" /> : <ChevronRight className="w-4 h-4 mr-1" />}
-                                  {subElementGroup.name}
-                                </Button>
-                              </TableCell>
-                              <TableCell className="text-right font-medium">
-                                {formatCurrency(subElementGroup.total)}
-                              </TableCell>
-                            </TableRow>
-
-                            {/* Level 4: Detailed Groups */}
-                            {isSubElementGroupExpanded && Object.entries(subElementGroup.detailedGroups).map(([detailedGroupName, detailedGroup]) => {
-                              const detailedGroupKey = `${subElementGroupKey}-${detailedGroupName}`;
-                              const isDetailedGroupExpanded = expandedDetailedGroups.has(detailedGroupKey);
-
-                              return (
-                                <React.Fragment key={detailedGroupKey}>
-                                  <TableRow className="font-medium text-slate-700">
-                                    <TableCell className="pl-18">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="p-0 h-auto"
-                                        onClick={() => toggleDetailedGroup(detailedGroupKey)}
-                                      >
-                                        {isDetailedGroupExpanded ? <ChevronDown className="w-4 h-4 mr-1" /> : <ChevronRight className="w-4 h-4 mr-1" />}
-                                        {detailedGroup.name}
-                                      </Button>
-                                    </TableCell>
-                                    <TableCell className="text-right font-medium">
-                                      {formatCurrency(detailedGroup.total)}
-                                    </TableCell>
-                                  </TableRow>
-
-                                  {/* Level 5: Individual Accounts */}
-                                  {isDetailedGroupExpanded && detailedGroup.accounts.map((account) => (
-                                    <TableRow key={account.id} className="text-slate-600">
-                                      <TableCell className="pl-24">
-                                        {account.accountNumber} - {account.name}
-                                      </TableCell>
-                                      <TableCell className="text-right">
-                                        {formatCurrency(account.balance)}
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                                </React.Fragment>
-                              );
-                            })}
-                          </React.Fragment>
-                        );
-                      })}
-                    </React.Fragment>
-                  );
-                })}
-              </React.Fragment>
-            );
+          {Object.entries(hierarchy).map(([key, node]) => {
+            return renderNode(node, key);
           })}
-
-          {/* Total Row */}
-          <TableRow className="font-bold border-t-2 bg-slate-200">
-            <TableCell>Total {title}</TableCell>
-            <TableCell className="text-right">
-              {formatCurrency(totalAmount)}
-            </TableCell>
-          </TableRow>
         </TableBody>
       </Table>
     </div>

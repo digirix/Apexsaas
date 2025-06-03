@@ -250,9 +250,9 @@ export default function BalanceSheetPage() {
                 ) : (
                   <div className="space-y-6">
                 {/* Assets Section - Hierarchical */}
-                {report?.assetHierarchy && Object.keys(report.assetHierarchy).length > 0 ? (
+                {report?.assetsHierarchy && Object.keys(report.assetsHierarchy).length > 0 ? (
                   <HierarchicalReport
-                    hierarchy={report.assetHierarchy}
+                    hierarchy={report.assetsHierarchy}
                     title="Assets"
                     totalAmount={report.totalAssets || "0"}
                   />
@@ -266,9 +266,9 @@ export default function BalanceSheetPage() {
                 <Separator />
 
                 {/* Liabilities Section - Hierarchical */}
-                {report?.liabilityHierarchy && Object.keys(report.liabilityHierarchy).length > 0 ? (
+                {report?.liabilitiesHierarchy && Object.keys(report.liabilitiesHierarchy).length > 0 ? (
                   <HierarchicalReport
-                    hierarchy={report.liabilityHierarchy}
+                    hierarchy={report.liabilitiesHierarchy}
                     title="Liabilities"
                     totalAmount={report.totalLiabilities || "0"}
                   />
