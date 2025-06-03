@@ -82,85 +82,20 @@ export default function BalanceSheetPage() {
     }).format(numAmount);
   };
 
-  // Group assets by element group
-  const assetGroups = report?.assets ? 
-    report.assets.reduce((groups: any, account: any) => {
-      const groupName = account.elementGroup?.name || 'Other Assets';
-      if (!groups[groupName]) {
-        groups[groupName] = [];
-      }
-      groups[groupName].push(account);
-      return groups;
-    }, {}) : {};
-
-  // Group liabilities by element group
-  const liabilityGroups = report?.liabilities ? 
-    report.liabilities.reduce((groups: any, account: any) => {
-      const groupName = account.elementGroup?.name || 'Other Liabilities';
-      if (!groups[groupName]) {
-        groups[groupName] = [];
-      }
-      groups[groupName].push(account);
-      return groups;
-    }, {}) : {};
-
-  // Group equity by element group
-  const equityGroups = report?.equity ? 
-    report.equity.reduce((groups: any, account: any) => {
-      const groupName = account.elementGroup?.name || 'Other Equity';
-      if (!groups[groupName]) {
-        groups[groupName] = [];
-      }
-      groups[groupName].push(account);
-      return groups;
-    }, {}) : {};
-
-  // Helper to calculate group totals
-  const calculateGroupTotal = (accounts: any[]) => {
-    return accounts.reduce((sum, account) => sum + parseFloat(account.balance), 0);
-  };
-
   // Calculate total liabilities and equity combined
   const totalLiabilitiesAndEquity = report ? 
-    (parseFloat(report.totalLiabilities) + parseFloat(report.totalEquity)).toFixed(2) : "0.00";
+    (parseFloat(report.totalLiabilities || "0") + parseFloat(report.totalEquity || "0")).toFixed(2) : "0.00";
     
   // Prepare data for charts
   const balanceSheetPieData = useMemo(() => {
     if (!report) return [];
     
     return [
-      { name: 'Assets', value: parseFloat(report.totalAssets) },
-      { name: 'Liabilities', value: parseFloat(report.totalLiabilities) },
-      { name: 'Equity', value: parseFloat(report.totalEquity) }
+      { name: 'Assets', value: parseFloat(report.totalAssets || "0") },
+      { name: 'Liabilities', value: parseFloat(report.totalLiabilities || "0") },
+      { name: 'Equity', value: parseFloat(report.totalEquity || "0") }
     ];
   }, [report]);
-  
-  const assetsBarData = useMemo(() => {
-    if (!report?.assets) return [];
-    
-    return Object.entries(assetGroups).map(([name, accounts]: [string, any]) => ({
-      name,
-      value: calculateGroupTotal(accounts)
-    }));
-  }, [report, assetGroups]);
-  
-  const liabilitiesAndEquityData = useMemo(() => {
-    if (!report) return [];
-    
-    const liabilitiesData = Object.entries(liabilityGroups).map(([name, accounts]: [string, any]) => ({
-      name,
-      value: calculateGroupTotal(accounts),
-      category: 'Liabilities'
-    }));
-    
-    const equityData = Object.entries(equityGroups).map(([name, accounts]: [string, any]) => ({
-      name,
-      value: calculateGroupTotal(accounts),
-      category: 'Equity'
-    }));
-    
-    return [...liabilitiesData, ...equityData];
-  }, [report, liabilityGroups, equityGroups]);
   
   // Colors for charts
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
