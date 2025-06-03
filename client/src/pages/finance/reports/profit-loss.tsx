@@ -63,6 +63,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HierarchicalReport } from "@/components/finance/hierarchical-report";
 import { FilteredReportDisplay } from "@/components/finance/filtered-report-display";
+import { PrintOnlyProfitLoss } from "@/components/finance/print-only-layout";
 import { PrintLayout, PrintHierarchicalReport } from "@/components/finance/print-layout";
 
 export default function ProfitAndLossPage() {
@@ -292,6 +293,11 @@ export default function ProfitAndLossPage() {
                   >
                     Export as Excel
                   </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => window.print()}
+                  >
+                    Print Preview
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -333,14 +339,14 @@ export default function ProfitAndLossPage() {
                   <FilteredReportDisplay
                     data={filteredRevenueHierarchy}
                     title="Revenues"
-                    totalAmount={report?.totalRevenues || "0"}
+                    totalAmount={report?.totalRevenue || "0"}
                     displayLevel={displayLevel}
                   />
                 ) : filteredRevenueHierarchy && Object.keys(filteredRevenueHierarchy).length > 0 ? (
                   <HierarchicalReport
                     hierarchy={filteredRevenueHierarchy}
                     title="Revenues"
-                    totalAmount={report?.totalRevenues || "0"}
+                    totalAmount={report?.totalRevenue || "0"}
                   />
                 ) : (
                   <div>
