@@ -201,8 +201,16 @@ export default function ProfitAndLossPage() {
           </div>
         </div>
 
-        <Card>
-          <CardHeader className="pb-2">
+        <PrintLayout
+          title="Profit & Loss Statement"
+          subtitle={startDate && endDate
+            ? `For the period ${format(startDate, "PP")} to ${format(endDate, "PP")}`
+            : "For the current period"}
+          companyName="Accounting Firm"
+          reportDate={endDate ? format(endDate, "PP") : format(new Date(), "PP")}
+        >
+          <Card className="print:shadow-none print:border-none">
+          <CardHeader className="pb-2 print:hidden">
             <CardTitle className="text-xl">
               Profit & Loss Statement
             </CardTitle>
@@ -212,7 +220,7 @@ export default function ProfitAndLossPage() {
                 : "For the current period"}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="print:p-0">
             {isLoading ? (
               <div className="space-y-4">
                 <Skeleton className="h-8 w-full" />
@@ -432,6 +440,7 @@ export default function ProfitAndLossPage() {
             )}
           </CardContent>
         </Card>
+        </PrintLayout>
       </div>
     </AppLayout>
   );
