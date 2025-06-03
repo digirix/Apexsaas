@@ -40,6 +40,7 @@ import BalanceSheetPage from "@/pages/finance/reports/balance-sheet";
 import CashFlowPage from "@/pages/finance/reports/cash-flow";
 import ExpenseReportPage from "@/pages/finance/reports/expenses";
 import TaxSummaryPage from "@/pages/finance/reports/tax-summary";
+import JournalEntriesReportPage from "@/pages/finance/reports/journal-entries";
 import WorkflowAutomationPage from "@/pages/workflow-automation";
 import { NotificationsPage } from "@/pages/notifications-page";
 import { EntityDetailPage } from "@/pages/entity-detail";
@@ -95,6 +96,7 @@ function Router() {
       <ProtectedRoute path="/finance/journal-entries/view/:id" component={ViewJournalEntryPage} />
       <ProtectedRoute path="/finance/reports" component={FinancialReportsPage} />
       <ProtectedRoute path="/finance/ledger" component={LedgerReportPage} />
+      <ProtectedRoute path="/finance/reports/journal-entries" component={JournalEntriesReportPage} />
       <ProtectedRoute path="/finance/reports/profit-loss" component={ProfitAndLossPage} />
       <ProtectedRoute path="/finance/reports/balance-sheet" component={BalanceSheetPage} />
       <ProtectedRoute path="/finance/reports/cash-flow" component={CashFlowPage} />

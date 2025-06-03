@@ -66,6 +66,13 @@ export default function FinancialReportsPage() {
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <ReportCard
+            title="Journal Entries"
+            description="Complete journal entries with CRUD operations and CSV export"
+            icon={<BookOpen className="h-5 w-5" />}
+            href="/finance/reports/journal-entries"
+          />
+          
+          <ReportCard
             title="General Ledger"
             description="Track all financial transactions by account"
             icon={<BookOpen className="h-5 w-5" />}
