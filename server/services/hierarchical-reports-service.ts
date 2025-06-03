@@ -118,7 +118,7 @@ export class HierarchicalReportsService {
       // Calculate balances for each account from journal entries
       const accountsWithBalances = await Promise.all(
         accounts.map(async (account) => {
-          const balance = await this.calculateAccountBalance(account.accountId, tenantId);
+          const balance = await this.calculateAccountBalance(account.accountId, tenantId, account.accountType);
           return {
             ...account,
             balance: balance
@@ -134,8 +134,18 @@ export class HierarchicalReportsService {
     }
   }
 
-  private async calculateAccountBalance(accountId: number, tenantId: number): Promise<number> {
+  private async calculateAccountBalance(accountId: number, tenantId: number, accountType?: string): Promise<number> {
     try {
+      // Get account type if not provided
+      if (!accountType) {
+        const accountInfo = await db
+          .select({ accountType: chartOfAccounts.accountType })
+          .from(chartOfAccounts)
+          .where(eq(chartOfAccounts.id, accountId))
+          .limit(1);
+        accountType = accountInfo[0]?.accountType;
+      }
+
       // Get the sum of debits and credits for this account
       const balanceQuery = await db
         .select({
@@ -154,8 +164,25 @@ export class HierarchicalReportsService {
       const totalDebits = parseFloat(result.totalDebits || '0');
       const totalCredits = parseFloat(result.totalCredits || '0');
 
-      // Calculate net balance based on account type
-      return totalDebits - totalCredits;
+      // Apply proper accounting sign conventions based on account type
+      switch (accountType) {
+        case 'asset':
+        case 'expense':
+          // Assets and Expenses: Debit increases, Credit decreases
+          // Normal balance is DEBIT (positive when debits > credits)
+          return totalDebits - totalCredits;
+          
+        case 'liability':
+        case 'equity':
+        case 'revenue':
+          // Liabilities, Equity, Revenue: Credit increases, Debit decreases
+          // Normal balance is CREDIT (positive when credits > debits)
+          return totalCredits - totalDebits;
+          
+        default:
+          // Default to standard debit-credit calculation
+          return totalDebits - totalCredits;
+      }
     } catch (error) {
       console.error('Error calculating account balance:', error);
       return 0;
