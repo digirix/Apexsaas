@@ -92,32 +92,24 @@ export default function ProfitAndLossPage() {
     }).format(numAmount);
   };
 
-  // Group revenue accounts by sub-element group
-  const revenueGroups = report?.revenues ? 
-    report.revenues.reduce((groups: any, account: any) => {
-      const groupName = account.subElementGroup?.name || 'Other Income';
-      if (!groups[groupName]) {
-        groups[groupName] = [];
-      }
-      groups[groupName].push(account);
-      return groups;
-    }, {}) : {};
-
-  // Group expense accounts by sub-element group
-  const expenseGroups = report?.expenses ? 
-    report.expenses.reduce((groups: any, account: any) => {
-      const groupName = account.subElementGroup?.name || 'Other Expenses';
-      if (!groups[groupName]) {
-        groups[groupName] = [];
-      }
-      groups[groupName].push(account);
-      return groups;
-    }, {}) : {};
-
-  // Helper to calculate group totals
-  const calculateGroupTotal = (accounts: any[]) => {
-    return accounts.reduce((sum, account) => sum + parseFloat(account.balance), 0);
-  };
+  // Charts data preparation
+  const chartData = report ? [
+    {
+      name: 'Revenue',
+      amount: parseFloat(report.totalRevenue || "0"),
+      fill: '#22c55e'
+    },
+    {
+      name: 'Expenses', 
+      amount: parseFloat(report.totalExpense || "0"),
+      fill: '#ef4444'
+    },
+    {
+      name: 'Net Income',
+      amount: parseFloat(report.netIncome || "0"),
+      fill: parseFloat(report.netIncome || "0") >= 0 ? '#3b82f6' : '#f43f5e'
+    }
+  ] : [];
 
   return (
     <AppLayout title="Profit & Loss">
@@ -230,89 +222,35 @@ export default function ProfitAndLossPage() {
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Revenue Section */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Revenue</h3>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Account</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {Object.entries(revenueGroups).map(([groupName, accounts]: [string, any]) => (
-                        <React.Fragment key={groupName}>
-                          <TableRow className="bg-muted/50">
-                            <TableCell className="font-medium">{groupName}</TableCell>
-                            <TableCell className="text-right font-medium">
-                              {formatCurrency(calculateGroupTotal(accounts))}
-                            </TableCell>
-                          </TableRow>
-                          {accounts.map((account: any) => (
-                            <TableRow key={account.id}>
-                              <TableCell className="pl-8">
-                                {account.accountName} ({account.accountCode})
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {formatCurrency(account.balance)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </React.Fragment>
-                      ))}
-                      <TableRow className="font-bold">
-                        <TableCell>Total Revenue</TableCell>
-                        <TableCell className="text-right">
-                          {report ? formatCurrency(report.totalRevenue) : formatCurrency(0)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
+                {/* Revenue Section - Hierarchical */}
+                {report?.revenueHierarchy && Object.keys(report.revenueHierarchy).length > 0 ? (
+                  <HierarchicalReport
+                    hierarchy={report.revenueHierarchy}
+                    title="Revenue"
+                    totalAmount={report.totalRevenue || "0"}
+                  />
+                ) : (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Revenue</h3>
+                    <p className="text-muted-foreground">No revenue accounts with balances found.</p>
+                  </div>
+                )}
 
                 <Separator />
 
-                {/* Expenses Section */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Expenses</h3>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Account</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {Object.entries(expenseGroups).map(([groupName, accounts]: [string, any]) => (
-                        <React.Fragment key={groupName}>
-                          <TableRow className="bg-muted/50">
-                            <TableCell className="font-medium">{groupName}</TableCell>
-                            <TableCell className="text-right font-medium">
-                              {formatCurrency(calculateGroupTotal(accounts))}
-                            </TableCell>
-                          </TableRow>
-                          {accounts.map((account: any) => (
-                            <TableRow key={account.id}>
-                              <TableCell className="pl-8">
-                                {account.accountName} ({account.accountCode})
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {formatCurrency(account.balance)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </React.Fragment>
-                      ))}
-                      <TableRow className="font-bold">
-                        <TableCell>Total Expenses</TableCell>
-                        <TableCell className="text-right">
-                          {report ? formatCurrency(report.totalExpense) : formatCurrency(0)}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
+                {/* Expenses Section - Hierarchical */}
+                {report?.expenseHierarchy && Object.keys(report.expenseHierarchy).length > 0 ? (
+                  <HierarchicalReport
+                    hierarchy={report.expenseHierarchy}
+                    title="Expenses"
+                    totalAmount={report.totalExpense || "0"}
+                  />
+                ) : (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Expenses</h3>
+                    <p className="text-muted-foreground">No expense accounts with balances found.</p>
+                  </div>
+                )}
 
                 <Separator />
 
@@ -342,26 +280,10 @@ export default function ProfitAndLossPage() {
                     
                     <TabsContent value="charts" className="p-4">
                       <h3 className="text-lg font-semibold mb-4">Revenue vs Expenses</h3>
-                      {report && (
+                      {chartData.length > 0 && (
                         <ResponsiveContainer width="100%" height={300}>
                           <BarChart
-                            data={[
-                              {
-                                name: 'Revenue',
-                                amount: parseFloat(report.totalRevenue),
-                                fill: '#22c55e'
-                              },
-                              {
-                                name: 'Expenses',
-                                amount: parseFloat(report.totalExpense),
-                                fill: '#ef4444'
-                              },
-                              {
-                                name: 'Net Income',
-                                amount: parseFloat(report.netIncome),
-                                fill: parseFloat(report.netIncome) >= 0 ? '#3b82f6' : '#f43f5e'
-                              }
-                            ]}
+                            data={chartData}
                             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                           >
                             <CartesianGrid strokeDasharray="3 3" />
