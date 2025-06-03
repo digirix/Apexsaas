@@ -29,6 +29,7 @@ import {
 import { AppLayout } from "@/components/layout/app-layout";
 import { HierarchicalReport } from "@/components/finance/hierarchical-report";
 import { FilteredReportDisplay } from "@/components/finance/filtered-report-display";
+import { PrintOnlyBalanceSheet } from "@/components/finance/print-only-layout";
 import { PrintLayout, PrintHierarchicalReport } from "@/components/finance/print-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -249,10 +250,6 @@ export default function BalanceSheetPage() {
               </SelectContent>
             </Select>
 
-            <Button onClick={handlePrint} variant="outline">
-              Print Report
-            </Button>
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">
@@ -280,6 +277,11 @@ export default function BalanceSheetPage() {
                   }}
                 >
                   Export as Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => window.print()}
+                >
+                  Print Preview
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -529,6 +531,18 @@ export default function BalanceSheetPage() {
       </Tabs>
       </div>
       </PrintLayout>
+
+      {/* Print-only layout */}
+      {report && (
+        <PrintOnlyBalanceSheet
+          title="Balance Sheet"
+          subtitle={asOfDate ? `As of ${format(asOfDate, "PP")}` : "As of today"}
+          reportData={report}
+          displayLevel={displayLevel}
+          companyName="Accounting Firm"
+          asOfDate={asOfDate}
+        />
+      )}
     </AppLayout>
   );
 }

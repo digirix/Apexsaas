@@ -558,6 +558,21 @@ export default function ProfitAndLossPage() {
           </CardContent>
         </Card>
         </PrintLayout>
+
+        {/* Print-only layout */}
+        {report && (
+          <PrintOnlyProfitLoss
+            title="Profit & Loss Statement"
+            subtitle={startDate && endDate
+              ? `For the period from ${format(startDate, "PP")} to ${format(endDate, "PP")}`
+              : "For the current period"}
+            reportData={report}
+            displayLevel={displayLevel}
+            companyName="Accounting Firm"
+            fromDate={startDate}
+            toDate={endDate}
+          />
+        )}
       </div>
     </AppLayout>
   );
