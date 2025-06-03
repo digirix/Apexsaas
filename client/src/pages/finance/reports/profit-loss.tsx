@@ -92,22 +92,22 @@ export default function ProfitAndLossPage() {
     }).format(numAmount);
   };
 
-  // Charts data preparation
+  // Charts data preparation - using new hierarchical structure
   const chartData = report ? [
     {
-      name: 'Revenue',
-      amount: parseFloat(report.totalRevenue || "0"),
+      name: 'Income',
+      amount: Math.abs(parseFloat(report.totalIncome || "0")),
       fill: '#22c55e'
     },
     {
       name: 'Expenses', 
-      amount: parseFloat(report.totalExpense || "0"),
+      amount: parseFloat(report.totalExpenses || "0"),
       fill: '#ef4444'
     },
     {
-      name: 'Net Income',
-      amount: parseFloat(report.netIncome || "0"),
-      fill: parseFloat(report.netIncome || "0") >= 0 ? '#3b82f6' : '#f43f5e'
+      name: 'Net Profit',
+      amount: parseFloat(report.netProfit || "0"),
+      fill: parseFloat(report.netProfit || "0") >= 0 ? '#3b82f6' : '#f43f5e'
     }
   ] : [];
 
@@ -222,17 +222,17 @@ export default function ProfitAndLossPage() {
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Revenue Section - Hierarchical */}
-                {report?.revenueHierarchy && Object.keys(report.revenueHierarchy).length > 0 ? (
+                {/* Income Section - Hierarchical */}
+                {report?.incomeHierarchy && Object.keys(report.incomeHierarchy).length > 0 ? (
                   <HierarchicalReport
-                    hierarchy={report.revenueHierarchy}
-                    title="Revenue"
-                    totalAmount={report.totalRevenue || "0"}
+                    hierarchy={report.incomeHierarchy}
+                    title="Income"
+                    totalAmount={report.totalIncome || "0"}
                   />
                 ) : (
                   <div>
-                    <h3 className="text-lg font-semibold mb-2">Revenue</h3>
-                    <p className="text-muted-foreground">No revenue accounts with balances found.</p>
+                    <h3 className="text-lg font-semibold mb-2">Income</h3>
+                    <p className="text-muted-foreground">No income accounts with balances found.</p>
                   </div>
                 )}
 
@@ -243,7 +243,7 @@ export default function ProfitAndLossPage() {
                   <HierarchicalReport
                     hierarchy={report.expenseHierarchy}
                     title="Expenses"
-                    totalAmount={report.totalExpense || "0"}
+                    totalAmount={report.totalExpenses || "0"}
                   />
                 ) : (
                   <div>
@@ -254,11 +254,11 @@ export default function ProfitAndLossPage() {
 
                 <Separator />
 
-                {/* Net Income */}
+                {/* Net Profit */}
                 <div className="flex justify-between items-center bg-muted/30 p-4 rounded-md">
-                  <h3 className="text-xl font-bold">Net Income</h3>
-                  <div className={`text-xl font-bold ${parseFloat(report?.netIncome || "0") >= 0 ? "text-green-600" : "text-red-600"}`}>
-                    {report ? formatCurrency(report.netIncome) : formatCurrency(0)}
+                  <h3 className="text-xl font-bold">Net Profit</h3>
+                  <div className={`text-xl font-bold ${parseFloat(report?.netProfit || "0") >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    {report ? formatCurrency(report.netProfit) : formatCurrency(0)}
                   </div>
                 </div>
 
@@ -356,29 +356,29 @@ export default function ProfitAndLossPage() {
                     
                     <TabsContent value="breakdown" className="p-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Revenue Breakdown */}
+                        {/* Income Breakdown */}
                         <div>
-                          <h3 className="text-lg font-semibold mb-4">Revenue Breakdown</h3>
-                          {report && report.revenues.length > 0 ? (
+                          <h3 className="text-lg font-semibold mb-4">Income Breakdown</h3>
+                          {report && report.incomeHierarchy && Object.keys(report.incomeHierarchy).length > 0 ? (
                             <ResponsiveContainer width="100%" height={300}>
                               <RechartPieChart>
                                 <Pie
-                                  data={Object.entries(revenueGroups).map(([name, accounts]: [string, any], index) => ({
-                                    name,
-                                    value: calculateGroupTotal(accounts),
-                                    fill: `hsl(${index * 40}, 70%, 50%)`
-                                  }))}
+                                  data={[
+                                    {
+                                      name: "Total Income",
+                                      value: Math.abs(parseFloat(report.totalIncome || "0")),
+                                      fill: "#22c55e"
+                                    }
+                                  ]}
                                   cx="50%"
                                   cy="50%"
                                   labelLine={true}
                                   outerRadius={80}
                                   dataKey="value"
                                   nameKey="name"
-                                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                  label={({ name, value }) => `${name}: ${formatCurrency(value)}`}
                                 >
-                                  {Object.entries(revenueGroups).map(([name, accounts]: [string, any], index) => (
-                                    <Cell key={`cell-${index}`} fill={`hsl(${index * 40}, 70%, 50%)`} />
-                                  ))}
+                                  <Cell fill="#22c55e" />
                                 </Pie>
                                 <Tooltip formatter={(value) => formatCurrency(value as number)} />
                               </RechartPieChart>
@@ -393,26 +393,26 @@ export default function ProfitAndLossPage() {
                         {/* Expense Breakdown */}
                         <div>
                           <h3 className="text-lg font-semibold mb-4">Expense Breakdown</h3>
-                          {report && report.expenses.length > 0 ? (
+                          {report && report.expenseHierarchy && Object.keys(report.expenseHierarchy).length > 0 ? (
                             <ResponsiveContainer width="100%" height={300}>
                               <RechartPieChart>
                                 <Pie
-                                  data={Object.entries(expenseGroups).map(([name, accounts]: [string, any], index) => ({
-                                    name,
-                                    value: calculateGroupTotal(accounts),
-                                    fill: `hsl(${index * 40}, 70%, 50%)`
-                                  }))}
+                                  data={[
+                                    {
+                                      name: "Total Expenses",
+                                      value: parseFloat(report.totalExpenses || "0"),
+                                      fill: "#ef4444"
+                                    }
+                                  ]}
                                   cx="50%"
                                   cy="50%"
                                   labelLine={true}
                                   outerRadius={80}
                                   dataKey="value"
                                   nameKey="name"
-                                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                  label={({ name, value }) => `${name}: ${formatCurrency(value)}`}
                                 >
-                                  {Object.entries(expenseGroups).map(([name, accounts]: [string, any], index) => (
-                                    <Cell key={`cell-${index}`} fill={`hsl(${index * 40}, 70%, 50%)`} />
-                                  ))}
+                                  <Cell fill="#ef4444" />
                                 </Pie>
                                 <Tooltip formatter={(value) => formatCurrency(value as number)} />
                               </RechartPieChart>
