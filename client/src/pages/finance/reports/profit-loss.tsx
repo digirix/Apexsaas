@@ -245,36 +245,51 @@ export default function ProfitAndLossPage() {
               </PopoverContent>
             </Popover>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <Download className="h-4 w-4 mr-2" />
-                  Export
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem
-                  onClick={() => {
-                    toast({
-                      title: "Export to PDF",
-                      description: "The report will be exported as a PDF file.",
-                    });
-                  }}
-                >
-                  Export as PDF
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    toast({
-                      title: "Export to Excel",
-                      description: "The report will be exported as an Excel file.",
-                    });
-                  }}
-                >
-                  Export as Excel
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-center gap-2">
+              <Select value={displayLevel} onValueChange={setDisplayLevel}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Select level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Levels (Account Name)</SelectItem>
+                  <SelectItem value="detailed">Detailed Group</SelectItem>
+                  <SelectItem value="sub_element">Sub Element Group</SelectItem>
+                  <SelectItem value="element">Element Group</SelectItem>
+                  <SelectItem value="main">Main Group</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    <Download className="h-4 w-4 mr-2" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      toast({
+                        title: "Export to PDF",
+                        description: "The report will be exported as a PDF file.",
+                      });
+                    }}
+                  >
+                    Export as PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      toast({
+                        title: "Export to Excel",
+                        description: "The report will be exported as an Excel file.",
+                      });
+                    }}
+                  >
+                    Export as Excel
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
 
@@ -308,28 +323,40 @@ export default function ProfitAndLossPage() {
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Income Section - Hierarchical */}
-                {report?.incomeHierarchy && Object.keys(report.incomeHierarchy).length > 0 ? (
+                {/* Revenues Section - Hierarchical */}
+                {filteredRevenueHierarchy && Object.keys(filteredRevenueHierarchy).length > 0 ? (
                   <HierarchicalReport
-                    hierarchy={report.incomeHierarchy}
-                    title="Income"
-                    totalAmount={report.totalIncome || "0"}
+                    hierarchy={filteredRevenueHierarchy}
+                    title="Revenues"
+                    totalAmount={report?.totalRevenues || "0"}
+                  />
+                ) : report?.revenueHierarchy && Object.keys(report.revenueHierarchy).length > 0 ? (
+                  <HierarchicalReport
+                    hierarchy={report.revenueHierarchy}
+                    title="Revenues"
+                    totalAmount={report?.totalRevenues || "0"}
                   />
                 ) : (
                   <div>
-                    <h3 className="text-lg font-semibold mb-2">Income</h3>
-                    <p className="text-muted-foreground">No income accounts with balances found.</p>
+                    <h3 className="text-lg font-semibold mb-2">Revenues</h3>
+                    <p className="text-muted-foreground">No revenue accounts with balances found.</p>
                   </div>
                 )}
 
                 <Separator />
 
                 {/* Expenses Section - Hierarchical */}
-                {report?.expenseHierarchy && Object.keys(report.expenseHierarchy).length > 0 ? (
+                {filteredExpenseHierarchy && Object.keys(filteredExpenseHierarchy).length > 0 ? (
+                  <HierarchicalReport
+                    hierarchy={filteredExpenseHierarchy}
+                    title="Expenses"
+                    totalAmount={report?.totalExpenses || "0"}
+                  />
+                ) : report?.expenseHierarchy && Object.keys(report.expenseHierarchy).length > 0 ? (
                   <HierarchicalReport
                     hierarchy={report.expenseHierarchy}
                     title="Expenses"
-                    totalAmount={report.totalExpenses || "0"}
+                    totalAmount={report?.totalExpenses || "0"}
                   />
                 ) : (
                   <div>
