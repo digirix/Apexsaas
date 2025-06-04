@@ -98,38 +98,33 @@ export function NotificationSettings() {
 
   // Fetch notification preferences
   const { data: preferences = [], isLoading: preferencesLoading } = useQuery({
-    queryKey: ['/api/v1/notifications/preferences'],
-    queryFn: () => apiRequest('/api/v1/notifications/preferences')
+    queryKey: ['/api/v1/notifications/preferences']
   });
 
   // Fetch email providers
   const { data: emailProviders = [], isLoading: providersLoading } = useQuery({
-    queryKey: ['/api/v1/notifications/email-providers'],
-    queryFn: () => apiRequest('/api/v1/notifications/email-providers')
+    queryKey: ['/api/v1/notifications/email-providers']
   });
 
   // Fetch notification triggers
   const { data: triggers = [], isLoading: triggersLoading } = useQuery({
-    queryKey: ['/api/v1/notifications/triggers'],
-    queryFn: () => apiRequest('/api/v1/notifications/triggers')
+    queryKey: ['/api/v1/notifications/triggers']
   });
 
   // Fetch email delivery logs
   const { data: emailLogs, isLoading: logsLoading } = useQuery({
-    queryKey: ['/api/v1/notifications/email-logs'],
-    queryFn: () => apiRequest('/api/v1/notifications/email-logs?limit=100')
+    queryKey: ['/api/v1/notifications/email-logs?limit=100']
   });
 
   // Fetch analytics
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
-    queryKey: ['/api/v1/notifications/analytics'],
-    queryFn: () => apiRequest('/api/v1/notifications/analytics')
+    queryKey: ['/api/v1/notifications/analytics']
   });
 
   // Mutations
   const updatePreferencesMutation = useMutation({
     mutationFn: (data: NotificationPreference[]) => 
-      apiRequest('/api/v1/notifications/preferences', { method: 'PUT', body: data }),
+      apiRequest('PUT', '/api/v1/notifications/preferences', data),
     onSuccess: () => {
       toast({ title: 'Preferences updated successfully' });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/notifications/preferences'] });
@@ -141,7 +136,7 @@ export function NotificationSettings() {
 
   const createProviderMutation = useMutation({
     mutationFn: (data: any) => 
-      apiRequest('/api/v1/notifications/email-providers', { method: 'POST', body: data }),
+      apiRequest('POST', '/api/v1/notifications/email-providers', data),
     onSuccess: () => {
       toast({ title: 'Email provider created successfully' });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/notifications/email-providers'] });
@@ -159,7 +154,7 @@ export function NotificationSettings() {
 
   const updateProviderMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: any }) => 
-      apiRequest(`/api/v1/notifications/email-providers/${id}`, { method: 'PUT', body: data }),
+      apiRequest('PUT', `/api/v1/notifications/email-providers/${id}`, data),
     onSuccess: () => {
       toast({ title: 'Email provider updated successfully' });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/notifications/email-providers'] });
@@ -177,7 +172,7 @@ export function NotificationSettings() {
 
   const deleteProviderMutation = useMutation({
     mutationFn: (id: number) => 
-      apiRequest(`/api/v1/notifications/email-providers/${id}`, { method: 'DELETE' }),
+      apiRequest('DELETE', `/api/v1/notifications/email-providers/${id}`),
     onSuccess: () => {
       toast({ title: 'Email provider deleted successfully' });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/notifications/email-providers'] });
@@ -186,10 +181,7 @@ export function NotificationSettings() {
 
   const testProviderMutation = useMutation({
     mutationFn: ({ id, email }: { id: number; email: string }) => 
-      apiRequest(`/api/v1/notifications/email-providers/${id}/test`, { 
-        method: 'POST', 
-        body: { testEmail: email } 
-      }),
+      apiRequest('POST', `/api/v1/notifications/email-providers/${id}/test`, { testEmail: email }),
     onSuccess: () => {
       toast({ title: 'Test email sent successfully' });
       setTestEmail('');
@@ -201,7 +193,7 @@ export function NotificationSettings() {
 
   const createTriggerMutation = useMutation({
     mutationFn: (data: any) => 
-      apiRequest('/api/v1/notifications/triggers', { method: 'POST', body: data }),
+      apiRequest('POST', '/api/v1/notifications/triggers', data),
     onSuccess: () => {
       toast({ title: 'Notification trigger created successfully' });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/notifications/triggers'] });
@@ -212,7 +204,7 @@ export function NotificationSettings() {
 
   const updateTriggerMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: any }) => 
-      apiRequest(`/api/v1/notifications/triggers/${id}`, { method: 'PUT', body: data }),
+      apiRequest('PUT', `/api/v1/notifications/triggers/${id}`, data),
     onSuccess: () => {
       toast({ title: 'Notification trigger updated successfully' });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/notifications/triggers'] });
@@ -223,7 +215,7 @@ export function NotificationSettings() {
 
   const deleteTriggerMutation = useMutation({
     mutationFn: (id: number) => 
-      apiRequest(`/api/v1/notifications/triggers/${id}`, { method: 'DELETE' }),
+      apiRequest('DELETE', `/api/v1/notifications/triggers/${id}`),
     onSuccess: () => {
       toast({ title: 'Notification trigger deleted successfully' });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/notifications/triggers'] });

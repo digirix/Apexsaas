@@ -517,6 +517,20 @@ export class NotificationService {
       ));
   }
 
+  // Get unread notification count for a user
+  async getUnreadNotificationCount(userId: number, tenantId: number): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(notifications)
+      .where(and(
+        eq(notifications.userId, userId),
+        eq(notifications.tenantId, tenantId),
+        eq(notifications.isRead, false)
+      ));
+
+    return result[0]?.count || 0;
+  }
+
   // Update user notification preferences
   async updatePreferences(
     userId: number,
