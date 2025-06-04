@@ -343,10 +343,14 @@ export function NotificationSettings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="preferences" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             Preferences
+          </TabsTrigger>
+          <TabsTrigger value="task-assignments" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Task Assignments
           </TabsTrigger>
           <TabsTrigger value="email-providers" className="flex items-center gap-2">
             <Mail className="h-4 w-4" />
@@ -365,6 +369,301 @@ export function NotificationSettings() {
             Analytics
           </TabsTrigger>
         </TabsList>
+
+        {/* Task Assignment Notifications Tab */}
+        <TabsContent value="task-assignments" className="space-y-6">
+          <div className="grid gap-6">
+            {/* Task Assignment Configuration */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Task Assignment Notification Controls
+                </CardTitle>
+                <CardDescription>
+                  Configure how users are notified when tasks are created, updated, or assigned to them
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Immediate Assignment Notifications */}
+                <div className="space-y-4">
+                  <h4 className="font-medium">Immediate Assignment Notifications</h4>
+                  <div className="grid gap-4">
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <Label className="font-medium">Task Assigned to User</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Send instant notification when a task is assigned to a user
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center space-x-2">
+                          <Switch id="task-assign-email" />
+                          <Label htmlFor="task-assign-email" className="text-sm">Email</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Switch id="task-assign-app" defaultChecked />
+                          <Label htmlFor="task-assign-app" className="text-sm">In-App</Label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <Label className="font-medium">Task Status Changed</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Notify relevant users when task status is updated
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center space-x-2">
+                          <Switch id="task-status-email" />
+                          <Label htmlFor="task-status-email" className="text-sm">Email</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Switch id="task-status-app" defaultChecked />
+                          <Label htmlFor="task-status-app" className="text-sm">In-App</Label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <Label className="font-medium">Task Completed</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Notify supervisors and clients when tasks are completed
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center space-x-2">
+                          <Switch id="task-complete-email" defaultChecked />
+                          <Label htmlFor="task-complete-email" className="text-sm">Email</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Switch id="task-complete-app" defaultChecked />
+                          <Label htmlFor="task-complete-app" className="text-sm">In-App</Label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Recipient Configuration */}
+                <div className="space-y-4">
+                  <h4 className="font-medium">Notification Recipients</h4>
+                  <div className="grid gap-4">
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <Label className="font-medium">Assigned User</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Always notify the user when a task is assigned to them
+                        </p>
+                      </div>
+                      <Switch defaultChecked disabled />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <Label className="font-medium">Task Creator</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Notify the user who created the task when status changes
+                        </p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <Label className="font-medium">Client Managers</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Notify users with client access for client-related tasks
+                        </p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <Label className="font-medium">Administrators</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Always notify admin users of task updates
+                        </p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Timing and Delivery Options */}
+                <div className="space-y-4">
+                  <h4 className="font-medium">Delivery Timing</h4>
+                  <div className="grid gap-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Task Assignment Delay</Label>
+                        <Select defaultValue="immediate">
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="immediate">Immediate</SelectItem>
+                            <SelectItem value="5min">5 minutes</SelectItem>
+                            <SelectItem value="15min">15 minutes</SelectItem>
+                            <SelectItem value="30min">30 minutes</SelectItem>
+                            <SelectItem value="1hour">1 hour</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Status Change Delay</Label>
+                        <Select defaultValue="immediate">
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="immediate">Immediate</SelectItem>
+                            <SelectItem value="5min">5 minutes</SelectItem>
+                            <SelectItem value="15min">15 minutes</SelectItem>
+                            <SelectItem value="30min">30 minutes</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <Label className="font-medium">Batch Notifications</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Group multiple task updates into digest emails
+                        </p>
+                      </div>
+                      <Switch />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <Label className="font-medium">Quiet Hours</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Respect user quiet hours for non-urgent notifications
+                        </p>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Priority-Based Notifications */}
+                <div className="space-y-4">
+                  <h4 className="font-medium">Priority-Based Notifications</h4>
+                  <div className="grid gap-4">
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <Label className="font-medium">High Priority Tasks</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Always send immediate notifications for high priority tasks
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center space-x-2">
+                          <Switch id="high-priority-email" defaultChecked />
+                          <Label htmlFor="high-priority-email" className="text-sm">Email</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Switch id="high-priority-app" defaultChecked />
+                          <Label htmlFor="high-priority-app" className="text-sm">In-App</Label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <Label className="font-medium">Overdue Tasks</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Send escalating notifications for overdue tasks
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center space-x-2">
+                          <Switch id="overdue-email" defaultChecked />
+                          <Label htmlFor="overdue-email" className="text-sm">Email</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Switch id="overdue-app" defaultChecked />
+                          <Label htmlFor="overdue-app" className="text-sm">In-App</Label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline">
+                    <Test className="h-4 w-4 mr-2" />
+                    Test Notifications
+                  </Button>
+                  <Button>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save Task Assignment Settings
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Template Customization */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Notification Templates</CardTitle>
+                <CardDescription>
+                  Customize the content and format of task assignment notifications
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <Label>Task Assignment Email Template</Label>
+                    <Textarea 
+                      placeholder="Hello {{assignee_name}}, you have been assigned a new task: {{task_title}}. Due date: {{due_date}}. Priority: {{priority}}."
+                      className="min-h-[100px]"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Task Status Change Template</Label>
+                    <Textarea 
+                      placeholder="Task '{{task_title}}' has been updated. Status changed from {{old_status}} to {{new_status}} by {{updated_by}}."
+                      className="min-h-[100px]"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Task Completion Template</Label>
+                    <Textarea 
+                      placeholder="Great news! Task '{{task_title}}' has been completed by {{completed_by}} on {{completion_date}}."
+                      className="min-h-[100px]"
+                    />
+                  </div>
+                </div>
+                
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Template Variables</AlertTitle>
+                  <AlertDescription>
+                    Available variables: {{assignee_name}}, {{task_title}}, {{due_date}}, {{priority}}, {{client_name}}, {{status}}, {{updated_by}}, {{completion_date}}
+                  </AlertDescription>
+                </Alert>
+
+                <Button>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Templates
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
         {/* Notification Preferences Tab */}
         <TabsContent value="preferences" className="space-y-6">

@@ -11,6 +11,7 @@ import { registerClientPortalRoutes } from "./routes/client-portal-routes";
 import { registerWorkflowRoutes } from "./api/workflow-routes";
 import { setupNotificationRoutes } from "./api/notification-routes";
 import { NotificationService } from "./services/notification-service";
+import taskNotificationRoutes from "./api/task-notification-routes";
 import { HierarchicalReportsService } from "./services/hierarchical-reports-service";
 // import { createAnalyticsRoutes } from "./api/analytics-routes";
 import { setupClientPortalAuth } from "./client-portal-auth";
