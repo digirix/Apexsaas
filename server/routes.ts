@@ -6508,6 +6508,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/v1/notifications', isAuthenticated, enhancedNotificationRoutes);
   console.log("Enhanced Notification System routes registered");
 
+  // Register Task Assignment Notification routes
+  app.use('/api/v1/task-notifications', isAuthenticated, taskNotificationRoutes);
+  console.log("Task Assignment Notification routes registered");
+
   // Register Analytics routes for Reports Module
   // app.use("/api/v1/reports/analytics", isAuthenticated, createAnalyticsRoutes(databaseStorage));
   console.log("Financial Analytics routes registered");
