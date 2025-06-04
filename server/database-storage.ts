@@ -3974,4 +3974,87 @@ export class DatabaseStorage implements IStorage {
       throw new Error(`Failed to retrieve user AI interactions: ${error}`);
     }
   }
+
+  // Notification operations
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    try {
+      const [newNotification] = await db.insert(notifications).values({
+        ...notification,
+        createdAt: new Date(),
+        isRead: false
+      }).returning();
+      return newNotification;
+    } catch (error) {
+      console.error("Error creating notification:", error);
+      throw new Error(`Failed to create notification: ${error}`);
+    }
+  }
+
+  async getNotifications(tenantId: number, userId?: number): Promise<Notification[]> {
+    try {
+      const conditions = [eq(notifications.tenantId, tenantId)];
+      if (userId) {
+        conditions.push(eq(notifications.userId, userId));
+      }
+
+      const result = await db.select()
+        .from(notifications)
+        .where(and(...conditions))
+        .orderBy(desc(notifications.createdAt));
+      
+      return result;
+    } catch (error) {
+      console.error("Error getting notifications:", error);
+      throw new Error(`Failed to get notifications: ${error}`);
+    }
+  }
+
+  async getUnreadNotificationCount(tenantId: number, userId: number): Promise<number> {
+    try {
+      const result = await db.select({ count: sql<number>`count(*)` })
+        .from(notifications)
+        .where(and(
+          eq(notifications.tenantId, tenantId),
+          eq(notifications.userId, userId),
+          eq(notifications.isRead, false)
+        ));
+      
+      return result[0]?.count || 0;
+    } catch (error) {
+      console.error("Error getting unread notification count:", error);
+      return 0;
+    }
+  }
+
+  async markNotificationAsRead(id: number, tenantId: number): Promise<boolean> {
+    try {
+      await db.update(notifications)
+        .set({ 
+          isRead: true,
+          readAt: new Date()
+        })
+        .where(and(
+          eq(notifications.id, id),
+          eq(notifications.tenantId, tenantId)
+        ));
+      return true;
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      return false;
+    }
+  }
+
+  async deleteNotification(id: number, tenantId: number): Promise<boolean> {
+    try {
+      await db.delete(notifications)
+        .where(and(
+          eq(notifications.id, id),
+          eq(notifications.tenantId, tenantId)
+        ));
+      return true;
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+      return false;
+    }
+  }
 }

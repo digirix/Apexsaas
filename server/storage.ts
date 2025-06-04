@@ -25,7 +25,9 @@ import type {
   // AI module types
   AiConfiguration, InsertAiConfiguration,
   AiInteraction, InsertAiInteraction,
-  AiAssistantCustomization, InsertAiAssistantCustomization
+  AiAssistantCustomization, InsertAiAssistantCustomization,
+  // Notification types
+  Notification, InsertNotification
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -362,6 +364,13 @@ export interface IStorage {
   getAiInteraction(id: number): Promise<AiInteraction | undefined>;
   updateAiInteractionFeedback(id: number, feedback: { feedbackRating: number; feedbackComment: string | null }): Promise<AiInteraction>;
   getUserAiInteractions(tenantId: number, userId: number, limit?: number): Promise<AiInteraction[]>;
+
+  // Notification operations
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  getNotifications(tenantId: number, userId?: number): Promise<Notification[]>;
+  getUnreadNotificationCount(tenantId: number, userId: number): Promise<number>;
+  markNotificationAsRead(id: number, tenantId: number): Promise<boolean>;
+  deleteNotification(id: number, tenantId: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -392,6 +401,7 @@ export class MemStorage implements IStorage {
   private paymentGatewaySettings: Map<number, PaymentGatewaySetting>;
   private chartOfAccounts: Map<number, ChartOfAccount>;
   private journalEntryTypes: Map<number, JournalEntryType>;
+  private notifications: Map<number, Notification>;
   
   sessionStore: MemoryStoreType;
   
@@ -422,6 +432,7 @@ export class MemStorage implements IStorage {
   private paymentGatewaySettingId: number = 1;
   private chartOfAccountId: number = 1;
   private journalEntryTypeId: number = 1;
+  private notificationId: number = 1;
 
   constructor() {
     this.tenants = new Map();
