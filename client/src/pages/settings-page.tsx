@@ -60,7 +60,7 @@ export default function SettingsPage() {
       case "display":
         return <DisplaySettings />;
       case "notifications":
-        return <NotificationSettings />;
+        return <EnhancedNotificationSettings />;
       case "backup":
         return <BackupSettings />;
       case "tasks":

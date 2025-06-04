@@ -1,5 +1,5 @@
 import { MailService } from '@sendgrid/mail';
-import * as nodemailer from 'nodemailer';
+import nodemailer from 'nodemailer';
 
 interface EmailParams {
   to: string;
