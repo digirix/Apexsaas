@@ -65,6 +65,7 @@ import { HierarchicalReport } from "@/components/finance/hierarchical-report";
 import { FilteredReportDisplay } from "@/components/finance/filtered-report-display";
 import { PrintOnlyProfitLoss } from "@/components/finance/print-only-layout";
 import { PrintLayout, PrintHierarchicalReport } from "@/components/finance/print-layout";
+import { exportProfitLossToExcel, exportToPDF, printReport } from "@/utils/export-utils";
 
 export default function ProfitAndLossPage() {
   const { toast } = useToast();
@@ -274,27 +275,53 @@ export default function ProfitAndLossPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   <DropdownMenuItem
-                    onClick={() => {
-                      toast({
-                        title: "Export to PDF",
-                        description: "The report will be exported as a PDF file.",
-                      });
+                    onClick={async () => {
+                      try {
+                        await exportToPDF('profit-loss-report', `profit-loss-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+                        toast({
+                          title: "PDF Export Complete",
+                          description: "The report has been exported as a PDF file.",
+                        });
+                      } catch (error) {
+                        toast({
+                          title: "Export Error",
+                          description: "Failed to export PDF. Please try again.",
+                          variant: "destructive",
+                        });
+                      }
                     }}
                   >
                     Export as PDF
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => {
-                      toast({
-                        title: "Export to Excel",
-                        description: "The report will be exported as an Excel file.",
-                      });
+                      try {
+                        if (report) {
+                          exportProfitLossToExcel(report, displayLevel, startDate, endDate);
+                          toast({
+                            title: "Excel Export Complete",
+                            description: "The report has been exported as an Excel file.",
+                          });
+                        }
+                      } catch (error) {
+                        toast({
+                          title: "Export Error",
+                          description: "Failed to export Excel. Please try again.",
+                          variant: "destructive",
+                        });
+                      }
                     }}
                   >
                     Export as Excel
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => window.print()}
+                    onClick={() => {
+                      try {
+                        printReport();
+                      } catch (error) {
+                        window.print();
+                      }
+                    }}
                   >
                     Print Preview
                   </DropdownMenuItem>
