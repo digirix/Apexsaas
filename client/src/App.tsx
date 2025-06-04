@@ -41,6 +41,7 @@ import CashFlowPage from "@/pages/finance/reports/cash-flow";
 import ExpenseReportPage from "@/pages/finance/reports/expenses";
 import TaxSummaryPage from "@/pages/finance/reports/tax-summary";
 import JournalEntriesReportPage from "@/pages/finance/reports/journal-entries";
+import AnalyticsDashboard from "@/pages/finance/reports/analytics-dashboard";
 import WorkflowAutomationPage from "@/pages/workflow-automation";
 import { NotificationsPage } from "@/pages/notifications-page";
 import { EntityDetailPage } from "@/pages/entity-detail";
@@ -102,6 +103,7 @@ function Router() {
       <ProtectedRoute path="/finance/reports/cash-flow" component={CashFlowPage} />
       <ProtectedRoute path="/finance/reports/expenses" component={ExpenseReportPage} />
       <ProtectedRoute path="/finance/reports/tax-summary" component={TaxSummaryPage} />
+      <ProtectedRoute path="/finance/reports/analytics" component={AnalyticsDashboard} />
       <ProtectedRoute path="/users" component={UsersPage} />
       <ProtectedRoute path="/users/:id/permissions" component={UsersPage} />
       <ProtectedRoute path="/settings" component={SettingsPage} />
