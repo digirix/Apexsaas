@@ -1543,35 +1543,40 @@ export class DatabaseStorage implements IStorage {
 
   async getAccountBalance(tenantId: number, accountId: number, startDate?: Date, endDate?: Date): Promise<number> {
     try {
-      let query = db.select({
+      console.log(`Calculating balance for account ${accountId} in tenant ${tenantId}`);
+      
+      // Build the where conditions properly
+      const conditions = [
+        eq(journalEntries.tenantId, tenantId),
+        eq(journalEntryLines.accountId, accountId)
+      ];
+
+      if (startDate && endDate) {
+        conditions.push(
+          gte(journalEntries.entryDate, startDate),
+          lte(journalEntries.entryDate, endDate)
+        );
+      }
+
+      const entries = await db.select({
         debitAmount: journalEntryLines.debitAmount,
         creditAmount: journalEntryLines.creditAmount
       })
       .from(journalEntryLines)
       .innerJoin(journalEntries, eq(journalEntryLines.journalEntryId, journalEntries.id))
-      .where(and(
-        eq(journalEntries.tenantId, tenantId),
-        eq(journalEntryLines.accountId, accountId)
-      ));
+      .where(and(...conditions));
 
-      if (startDate && endDate) {
-        query = query.where(and(
-          eq(journalEntries.tenantId, tenantId),
-          eq(journalEntryLines.accountId, accountId),
-          gte(journalEntries.entryDate, startDate),
-          lte(journalEntries.entryDate, endDate)
-        ));
-      }
-
-      const entries = await query;
+      console.log(`Found ${entries.length} journal entry lines for account ${accountId}`);
       
       let balance = 0;
       for (const entry of entries) {
         const debit = parseFloat(entry.debitAmount) || 0;
         const credit = parseFloat(entry.creditAmount) || 0;
+        console.log(`Entry: DR: ${debit.toFixed(2)}, CR: ${credit.toFixed(2)}`);
         balance += debit - credit;
       }
       
+      console.log(`Final calculated balance for account ${accountId}: ${balance.toFixed(2)}`);
       return isNaN(balance) ? 0 : balance;
     } catch (error) {
       console.error('Error calculating account balance:', error);

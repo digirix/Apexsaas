@@ -405,7 +405,7 @@ export default function AnalyticsDashboard() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis type="number" domain={[0, 50]} />
                     <YAxis dataKey="clientName" type="category" width={100} />
-                    <Tooltip formatter={(value: number) => `${value.toFixed(1)}%`} />
+                    <Tooltip formatter={(value: any) => `${safeParseNumber(value).toFixed(1)}%`} />
                     <Bar dataKey="profitMargin" fill="#00C49F" />
                   </BarChart>
                 </ResponsiveContainer>
