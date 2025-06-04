@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { format, isAfter, isBefore, addDays } from "date-fns";
 import { useMemo } from "react";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 
 interface DashboardMetrics {
   totalClients: number;
@@ -360,7 +361,10 @@ export default function DashboardPage() {
           {(canViewTasks || user?.isSuperAdmin) && (
             <div className="grid grid-cols-4 gap-2">
               {/* Active Tasks */}
-              <Card className="border-l-4 border-l-blue-500">
+              <Card className="border-l-4 border-l-blue-500 relative">
+                <div className="absolute top-1 right-1">
+                  <InfoTooltip content="Shows all tasks that are currently in progress or awaiting completion. Excludes completed tasks." />
+                </div>
                 <CardContent className="p-2">
                   <div className="flex items-center space-x-2">
                     <div className="p-1 bg-blue-500 rounded">
@@ -375,7 +379,10 @@ export default function DashboardPage() {
               </Card>
 
               {/* Completed Tasks */}
-              <Card className="border-l-4 border-l-green-500">
+              <Card className="border-l-4 border-l-green-500 relative">
+                <div className="absolute top-1 right-1">
+                  <InfoTooltip content="Shows tasks completed this month. Count resets at the beginning of each month." />
+                </div>
                 <CardContent className="p-2">
                   <div className="flex items-center space-x-2">
                     <div className="p-1 bg-green-500 rounded">
@@ -390,7 +397,10 @@ export default function DashboardPage() {
               </Card>
 
               {/* Overdue Tasks */}
-              <Card className="border-l-4 border-l-red-500">
+              <Card className="border-l-4 border-l-red-500 relative">
+                <div className="absolute top-1 right-1">
+                  <InfoTooltip content="Shows tasks that have passed their due date and are not yet completed. Requires immediate attention." />
+                </div>
                 <CardContent className="p-2">
                   <div className="flex items-center space-x-2">
                     <div className="p-1 bg-red-500 rounded">
@@ -405,7 +415,10 @@ export default function DashboardPage() {
               </Card>
 
               {/* Urgent This Week */}
-              <Card className="border-l-4 border-l-orange-500">
+              <Card className="border-l-4 border-l-orange-500 relative">
+                <div className="absolute top-1 right-1">
+                  <InfoTooltip content="Shows active tasks due within the next 7 days. These require priority attention to avoid becoming overdue." />
+                </div>
                 <CardContent className="p-2">
                   <div className="flex items-center space-x-2">
                     <div className="p-1 bg-orange-500 rounded">
@@ -423,7 +436,10 @@ export default function DashboardPage() {
 
           {/* Task Flow Analytics - Compact */}
           {(canViewTasks || user?.isSuperAdmin) && (
-            <Card className="border-t-4 border-t-blue-500">
+            <Card className="border-t-4 border-t-blue-500 relative">
+              <div className="absolute top-2 right-2 z-10">
+                <InfoTooltip content="Shows task completion trends over time. Green bars show completed tasks, yellow shows pending work, and red indicates overdue items." />
+              </div>
               <CardHeader className="p-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-2">
