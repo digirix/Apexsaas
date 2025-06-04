@@ -353,8 +353,8 @@ export default function AnalyticsDashboard() {
                         <span>Profit: {formatCurrency(client.profit)}</span>
                       </div>
                     </div>
-                    <Badge variant={client.profitMargin > 35 ? "default" : client.profitMargin > 25 ? "secondary" : "destructive"}>
-                      {client.profitMargin.toFixed(1)}% margin
+                    <Badge variant={safeParseNumber(client.profitMargin) > 35 ? "default" : safeParseNumber(client.profitMargin) > 25 ? "secondary" : "destructive"}>
+                      {safeParseNumber(client.profitMargin).toFixed(1)}% margin
                     </Badge>
                   </div>
                 ))}

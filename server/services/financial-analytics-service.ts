@@ -193,12 +193,14 @@ export class FinancialAnalyticsService {
 
   private async calculateClientRevenue(tenantId: number, clientId: number, startDate: Date, endDate: Date): Promise<number> {
     try {
-      // Calculate revenue from client invoices
+      // Calculate revenue from client invoices using existing method
       const invoices = await this.storage.getClientInvoices(tenantId, clientId, startDate, endDate);
       const revenue = invoices.reduce((total, invoice) => {
         const amount = parseFloat(invoice.totalAmount) || 0;
         return total + (isNaN(amount) ? 0 : amount);
       }, 0);
+      
+      console.log(`Client ${clientId} revenue from invoices: ${revenue}`);
       return isNaN(revenue) ? 0 : revenue;
     } catch (error) {
       console.error('Error calculating client revenue:', error);
@@ -208,10 +210,11 @@ export class FinancialAnalyticsService {
 
   private async calculateClientExpenses(tenantId: number, clientId: number, startDate: Date, endDate: Date): Promise<number> {
     try {
-      // Calculate expenses related to client (could be based on time tracking, allocated costs, etc.)
-      // For now, we'll estimate based on a percentage of revenue or direct expense allocation
+      // Calculate expenses using task-based estimation for now
       const tasks = await this.storage.getClientTasks(tenantId, clientId, startDate, endDate);
-      const estimatedExpenses = tasks.length * 500; // Estimated $500 per task as operational cost
+      const estimatedExpenses = tasks.length * 1500; // $1500 per task
+      
+      console.log(`Client ${clientId} expenses from ${tasks.length} tasks: ${estimatedExpenses}`);
       return isNaN(estimatedExpenses) ? 0 : estimatedExpenses;
     } catch (error) {
       console.error('Error calculating client expenses:', error);
