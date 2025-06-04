@@ -33,8 +33,8 @@ export function PrintOnlyProfitLoss({
   toDate
 }: PrintOnlyReportProps) {
   const filteredRevenueHierarchy = React.useMemo(() => {
-    if (!reportData?.revenueHierarchy) return {};
-    if (displayLevel === 'all') return reportData.revenueHierarchy;
+    if (!reportData?.incomeHierarchy) return {};
+    if (displayLevel === 'all') return reportData.incomeHierarchy;
     
     const getLevelNumber = (level: string): number => {
       switch (level) {
@@ -90,8 +90,8 @@ export function PrintOnlyProfitLoss({
     };
 
     const targetLevel = getLevelNumber(displayLevel);
-    return flattenToLevel(reportData.revenueHierarchy, targetLevel);
-  }, [reportData?.revenueHierarchy, displayLevel]);
+    return flattenToLevel(reportData.incomeHierarchy, targetLevel);
+  }, [reportData?.incomeHierarchy, displayLevel]);
 
   const filteredExpenseHierarchy = React.useMemo(() => {
     if (!reportData?.expenseHierarchy) return {};
@@ -184,20 +184,20 @@ export function PrintOnlyProfitLoss({
         </p>
       </div>
 
-      {/* Revenue Section */}
+      {/* Income Section */}
       <div className="mb-8">
         {displayLevel !== 'all' ? (
           <FilteredReportDisplay
             data={filteredRevenueHierarchy}
-            title="Revenues"
-            totalAmount={reportData?.totalRevenue || "0"}
+            title="Income"
+            totalAmount={reportData?.totalIncome || "0"}
             displayLevel={displayLevel}
           />
         ) : filteredRevenueHierarchy && Object.keys(filteredRevenueHierarchy).length > 0 ? (
           <HierarchicalReport
             hierarchy={filteredRevenueHierarchy}
-            title="Revenues"
-            totalAmount={reportData?.totalRevenue || "0"}
+            title="Income"
+            totalAmount={reportData?.totalIncome || "0"}
           />
         ) : (
           <div>

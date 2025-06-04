@@ -163,11 +163,11 @@ export default function ProfitAndLossPage() {
 
   // Filter hierarchies based on selected level
   const filteredRevenueHierarchy = useMemo(() => {
-    if (!report?.revenueHierarchy) return {};
-    if (displayLevel === 'all') return report.revenueHierarchy;
+    if (!report?.incomeHierarchy) return {};
+    if (displayLevel === 'all') return report.incomeHierarchy;
     const targetLevel = getLevelNumber(displayLevel);
-    return flattenToLevel(report.revenueHierarchy, targetLevel);
-  }, [report?.revenueHierarchy, displayLevel]);
+    return flattenToLevel(report.incomeHierarchy, targetLevel);
+  }, [report?.incomeHierarchy, displayLevel]);
 
   const filteredExpenseHierarchy = useMemo(() => {
     if (!report?.expenseHierarchy) return {};
@@ -334,24 +334,24 @@ export default function ProfitAndLossPage() {
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Revenues Section */}
+                {/* Income Section */}
                 {displayLevel !== 'all' ? (
                   <FilteredReportDisplay
                     data={filteredRevenueHierarchy}
-                    title="Revenues"
-                    totalAmount={report?.totalRevenue || "0"}
+                    title="Income"
+                    totalAmount={report?.totalIncome || "0"}
                     displayLevel={displayLevel}
                   />
                 ) : filteredRevenueHierarchy && Object.keys(filteredRevenueHierarchy).length > 0 ? (
                   <HierarchicalReport
                     hierarchy={filteredRevenueHierarchy}
-                    title="Revenues"
-                    totalAmount={report?.totalRevenue || "0"}
+                    title="Income"
+                    totalAmount={report?.totalIncome || "0"}
                   />
                 ) : (
                   <div>
-                    <h3 className="text-lg font-semibold mb-2">Revenues</h3>
-                    <p className="text-muted-foreground">No revenue accounts with balances found.</p>
+                    <h3 className="text-lg font-semibold mb-2">Income</h3>
+                    <p className="text-muted-foreground">No income accounts with balances found.</p>
                   </div>
                 )}
 
