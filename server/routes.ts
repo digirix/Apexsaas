@@ -3039,6 +3039,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update the task first
       const updatedTask = await storage.updateTask(id, taskUpdateData);
       
+      // Send notifications for task changes
+      const currentUserId = (req.user as any).id;
+      try {
+        // Check for status change
+        if (req.body.statusId !== undefined && req.body.statusId !== existingTask.statusId) {
+          const oldStatus = await storage.getTaskStatus(existingTask.statusId, tenantId);
+          const newStatus = await storage.getTaskStatus(req.body.statusId, tenantId);
+          
+          if (oldStatus && newStatus) {
+            // Notify assignee if different from current user
+            if (existingTask.assigneeId && existingTask.assigneeId !== currentUserId) {
+              await storage.createNotification({
+                tenantId,
+                userId: existingTask.assigneeId,
+                notificationType: 'TASK_STATUS_CHANGED',
+                title: 'Task Status Updated',
+                message: `Task "${existingTask.taskDetails || 'Task'}" status changed from ${oldStatus.name} to ${newStatus.name}`,
+                severity: newStatus.name.toLowerCase() === 'completed' ? 'SUCCESS' : 'INFO',
+                linkUrl: `/tasks/${id}`
+              });
+            }
+            
+            // Check if task is completed
+            if (newStatus.name.toLowerCase() === 'completed') {
+              // Notify task creator if different from current user and assignee
+              const taskCreatorId = existingTask.createdBy || existingTask.assigneeId;
+              if (taskCreatorId && taskCreatorId !== currentUserId && taskCreatorId !== existingTask.assigneeId) {
+                await storage.createNotification({
+                  tenantId,
+                  userId: taskCreatorId,
+                  notificationType: 'TASK_COMPLETED',
+                  title: 'Task Completed',
+                  message: `Task "${existingTask.taskDetails || 'Task'}" has been completed`,
+                  severity: 'SUCCESS',
+                  linkUrl: `/tasks/${id}`
+                });
+              }
+            }
+          }
+        }
+        
+        // Check for assignment change
+        if (req.body.assigneeId !== undefined && req.body.assigneeId !== existingTask.assigneeId) {
+          // Notify new assignee
+          if (req.body.assigneeId && req.body.assigneeId !== currentUserId) {
+            const newAssignee = await storage.getUser(req.body.assigneeId, tenantId);
+            if (newAssignee) {
+              await storage.createNotification({
+                tenantId,
+                userId: req.body.assigneeId,
+                notificationType: 'TASK_ASSIGNMENT',
+                title: 'Task Reassigned',
+                message: `You have been assigned to task: ${existingTask.taskDetails || 'Task'}`,
+                severity: 'INFO',
+                linkUrl: `/tasks/${id}`
+              });
+            }
+          }
+          
+          // Notify previous assignee about reassignment
+          if (existingTask.assigneeId && existingTask.assigneeId !== currentUserId && existingTask.assigneeId !== req.body.assigneeId) {
+            await storage.createNotification({
+              tenantId,
+              userId: existingTask.assigneeId,
+              notificationType: 'TASK_UPDATED',
+              title: 'Task Reassigned',
+              message: `Task "${existingTask.taskDetails || 'Task'}" has been reassigned to another user`,
+              severity: 'INFO',
+              linkUrl: `/tasks/${id}`
+            });
+          }
+        }
+      } catch (notifError) {
+        console.error("Error sending task update notifications:", notifError);
+        // Don't fail the task update if notification fails
+      }
+      
       // If there's an associated invoice, update it as well
       if (existingTask.invoiceId) {
         try {
@@ -4450,6 +4527,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         // Log the error but don't fail the invoice creation
         console.error("Failed to create accounting entries:", error);
+      }
+      
+      // Send notification for invoice creation
+      const currentUserId = (req.user as any).id;
+      try {
+        // Get client or entity information for notification context
+        let clientName = '';
+        if (invoice.clientId) {
+          const client = await storage.getClient(invoice.clientId, tenantId);
+          clientName = client ? client.name : 'Unknown Client';
+        } else if (invoice.entityId) {
+          const entity = await storage.getEntity(invoice.entityId, tenantId);
+          clientName = entity ? entity.name : 'Unknown Entity';
+        }
+        
+        // Notify relevant users about invoice creation
+        // For now, notify the creator (if different from current user) and administrators
+        const users = await storage.getUsers(tenantId);
+        const adminUsers = users.filter(user => user.role === 'admin' || user.role === 'super_admin');
+        
+        for (const admin of adminUsers) {
+          if (admin.id !== currentUserId) {
+            await storage.createNotification({
+              tenantId,
+              userId: admin.id,
+              notificationType: 'INVOICE_CREATED',
+              title: 'New Invoice Created',
+              message: `Invoice #${invoice.invoiceNumber} created for ${clientName} - Amount: ${invoice.currencyCode} ${invoice.totalAmount}`,
+              severity: 'INFO',
+              linkUrl: `/finance/invoices/${invoice.id}`
+            });
+          }
+        }
+      } catch (notifError) {
+        console.error("Error sending invoice creation notification:", notifError);
+        // Don't fail the invoice creation if notification fails
       }
       
       res.status(201).json({
