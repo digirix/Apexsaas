@@ -851,7 +851,10 @@ export default function DashboardPage() {
 
           {/* Priority Matrix - Compact */}
           {(canViewTasks || user?.isSuperAdmin) && (
-            <Card className="border-t-4 border-t-indigo-500">
+            <Card className="border-t-4 border-t-indigo-500 relative">
+              <div className="absolute top-2 right-2 z-10">
+                <InfoTooltip content="Categorizes tasks by priority levels: Critical (overdue), High (urgent), Medium (normal), and Completed (finished this month)." />
+              </div>
               <CardHeader className="p-3">
                 <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-2">
                   <Target className="h-4 w-4 text-indigo-600" />
@@ -881,7 +884,10 @@ export default function DashboardPage() {
 
           {/* Team Efficiency - Compact */}
           {(canViewTasks || user?.isSuperAdmin) && (
-            <Card className="border-t-4 border-t-green-500">
+            <Card className="border-t-4 border-t-green-500 relative">
+              <div className="absolute top-2 right-2 z-10">
+                <InfoTooltip content="Shows team performance metrics including task completion rate and overall productivity assessment based on deadlines met." />
+              </div>
               <CardHeader className="p-3">
                 <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-2">
                   <Zap className="h-4 w-4 text-green-600" />
