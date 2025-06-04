@@ -282,6 +282,41 @@ export function NotificationSettings() {
         {/* Task Assignment Notifications Tab */}
         <TabsContent value="task-assignments" className="space-y-6">
           <div className="grid gap-6">
+            {/* Demo Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="h-5 w-5" />
+                  Test Notification System
+                </CardTitle>
+                <CardDescription>
+                  Create sample notifications to see how the notification system works with your current settings
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button 
+                  onClick={async () => {
+                    try {
+                      await apiRequest('POST', '/api/v1/notifications/test-samples', {});
+                      toast({ title: 'Sample notifications created! Check the notification center.' });
+                      // Refresh notification count
+                      queryClient.invalidateQueries({ queryKey: ['/api/v1/me/notifications/unread-count'] });
+                    } catch (error: any) {
+                      toast({ 
+                        title: 'Failed to create test notifications', 
+                        description: error.message,
+                        variant: 'destructive' 
+                      });
+                    }
+                  }}
+                  className="w-full"
+                >
+                  <Bell className="h-4 w-4 mr-2" />
+                  Generate Test Notifications
+                </Button>
+              </CardContent>
+            </Card>
+
             {/* Task Assignment Configuration */}
             <Card>
               <CardHeader>

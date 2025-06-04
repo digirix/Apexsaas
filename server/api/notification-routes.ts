@@ -153,5 +153,75 @@ export function setupNotificationRoutes(app: express.Application, isAuthenticate
     }
   });
 
+  // Test endpoint to create sample notifications
+  app.post('/api/v1/notifications/test-samples', isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = req.user!.tenantId;
+      const userId = req.user!.id;
+
+      // Create various types of notifications to demonstrate the system
+      const notifications = [
+        {
+          tenantId,
+          userId,
+          notificationType: 'TASK_ASSIGNMENT' as const,
+          title: 'New Task Assigned',
+          message: 'You have been assigned a new task: Review quarterly financial statements',
+          severity: 'INFO' as const,
+          linkUrl: '/tasks'
+        },
+        {
+          tenantId,
+          userId,
+          notificationType: 'TASK_COMPLETED' as const,
+          title: 'Task Completed',
+          message: 'Task "Income Tax Return 2025" has been marked as completed',
+          severity: 'SUCCESS' as const,
+          linkUrl: '/tasks'
+        },
+        {
+          tenantId,
+          userId,
+          notificationType: 'TASK_OVERDUE' as const,
+          title: 'Urgent: Overdue Task',
+          message: 'High priority task is now overdue: Client compliance review',
+          severity: 'CRITICAL' as const,
+          linkUrl: '/tasks'
+        },
+        {
+          tenantId,
+          userId,
+          notificationType: 'INVOICE_CREATED' as const,
+          title: 'New Invoice Created',
+          message: 'Invoice #INV-2025-001 has been created for $2,500',
+          severity: 'INFO' as const,
+          linkUrl: '/finance/invoices'
+        },
+        {
+          tenantId,
+          userId,
+          notificationType: 'CLIENT_UPDATED' as const,
+          title: 'Client Information Updated',
+          message: 'Client profile has been updated with new contact information',
+          severity: 'INFO' as const,
+          linkUrl: '/clients'
+        }
+      ];
+
+      // Create all notifications
+      for (const notification of notifications) {
+        await storage.createNotification(notification);
+      }
+
+      res.json({ 
+        message: 'Sample notifications created successfully',
+        count: notifications.length
+      });
+    } catch (error) {
+      console.error('Error creating sample notifications:', error);
+      res.status(500).json({ message: 'Failed to create sample notifications' });
+    }
+  });
+
   console.log("Notification routes registered successfully");
 }
