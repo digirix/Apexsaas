@@ -1487,18 +1487,72 @@ export type CompleteWorkflow = z.infer<typeof completeWorkflowSchema>;
 
 // Internal Notification System Schema
 
-// Notification type enum
+// Notification type enum - comprehensive trigger-based notifications
 export const notificationTypeEnum = pgEnum('notification_type', [
+  // Task-related notifications
   'TASK_ASSIGNMENT',
-  'TASK_COMPLETED', 
+  'TASK_COMPLETED',
   'TASK_OVERDUE',
+  'TASK_STATUS_CHANGED',
+  'TASK_DUE_SOON',
+  'TASK_APPROVED',
+  'TASK_REJECTED',
+  'TASK_COMMENT_ADDED',
+  'RECURRING_TASK_GENERATED',
+  
+  // Client-related notifications
+  'CLIENT_CREATED',
+  'CLIENT_UPDATED',
+  'CLIENT_PORTAL_LOGIN',
+  'CLIENT_DOCUMENT_UPLOADED',
+  'CLIENT_STATUS_CHANGED',
+  
+  // Entity-related notifications
+  'ENTITY_CREATED',
+  'ENTITY_UPDATED',
+  'ENTITY_COMPLIANCE_DUE',
+  
+  // Financial notifications
+  'INVOICE_CREATED',
+  'INVOICE_SENT',
+  'INVOICE_PAID',
+  'INVOICE_OVERDUE',
+  'PAYMENT_RECEIVED',
+  'PAYMENT_FAILED',
+  'PAYMENT_REFUNDED',
+  
+  // User & Team notifications
+  'USER_CREATED',
+  'USER_UPDATED',
+  'USER_LOGIN',
+  'PERMISSION_CHANGED',
+  'ROLE_ASSIGNED',
+  
+  // Workflow notifications
+  'WORKFLOW_TRIGGERED',
+  'WORKFLOW_COMPLETED',
+  'WORKFLOW_FAILED',
   'WORKFLOW_ALERT',
+  
+  // System notifications
   'SYSTEM_MESSAGE',
+  'SYSTEM_ALERT',
+  'SYSTEM_MAINTENANCE',
+  'BACKUP_COMPLETED',
+  'BACKUP_FAILED',
+  
+  // AI & Reports
+  'AI_REPORT_GENERATED',
+  'AI_ANALYSIS_COMPLETED',
+  'REPORT_READY',
+  
+  // Compliance & Deadlines
+  'COMPLIANCE_DEADLINE_APPROACHING',
+  'COMPLIANCE_DEADLINE_MISSED',
+  'TAX_FILING_DUE',
+  
+  // Miscellaneous
   'MENTION',
-  'CLIENT_UPDATE',
-  'INVOICE_UPDATE',
-  'ENTITY_UPDATE',
-  'USER_UPDATE',
   'CUSTOM'
 ]);
 
@@ -1533,7 +1587,67 @@ export const notifications = pgTable("notifications", {
   };
 });
 
-// Notification preferences table (for future enhancement)
+// Email service provider enum
+export const emailProviderEnum = pgEnum('email_provider', [
+  'SENDGRID',
+  'MAILGUN',
+  'SES',
+  'SMTP',
+  'POSTMARK',
+  'RESEND'
+]);
+
+// Email service provider settings table - tenant-specific email configuration
+export const emailProviderSettings = pgTable("email_provider_settings", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  provider: emailProviderEnum("provider").notNull(),
+  isActive: boolean("is_active").default(false).notNull(),
+  fromEmail: text("from_email").notNull(),
+  fromName: text("from_name").notNull(),
+  replyToEmail: text("reply_to_email"),
+  apiKey: text("api_key").notNull(), // Encrypted
+  apiSecret: text("api_secret"), // For providers that need it
+  smtpHost: text("smtp_host"), // For SMTP provider
+  smtpPort: integer("smtp_port"), // For SMTP provider
+  smtpSecure: boolean("smtp_secure").default(true), // For SMTP provider
+  webhookSecret: text("webhook_secret"), // For delivery tracking
+  configData: text("config_data"), // JSON for additional provider-specific settings
+  dailyLimit: integer("daily_limit").default(1000).notNull(),
+  monthlyLimit: integer("monthly_limit").default(10000).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantProviderUnique: unique().on(table.tenantId, table.provider),
+    tenantFk: foreignKey({ columns: [table.tenantId], foreignColumns: [tenants.id] })
+  };
+});
+
+// Email delivery log table for tracking
+export const emailDeliveryLogs = pgTable("email_delivery_logs", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  notificationId: integer("notification_id"),
+  providerId: integer("provider_id").notNull(),
+  recipientEmail: text("recipient_email").notNull(),
+  subject: text("subject").notNull(),
+  status: text("status").notNull(), // sent, delivered, bounced, failed, opened, clicked
+  providerMessageId: text("provider_message_id"),
+  errorMessage: text("error_message"),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+  deliveredAt: timestamp("delivered_at"),
+  openedAt: timestamp("opened_at"),
+  clickedAt: timestamp("clicked_at"),
+}, (table) => {
+  return {
+    tenantFk: foreignKey({ columns: [table.tenantId], foreignColumns: [tenants.id] }),
+    notificationFk: foreignKey({ columns: [table.notificationId], foreignColumns: [notifications.id] }),
+    providerFk: foreignKey({ columns: [table.providerId], foreignColumns: [emailProviderSettings.id] })
+  };
+});
+
+// Enhanced notification preferences table with granular controls
 export const notificationPreferences = pgTable("notification_preferences", {
   id: serial("id").primaryKey(),
   tenantId: integer("tenant_id").notNull(),
@@ -1541,6 +1655,24 @@ export const notificationPreferences = pgTable("notification_preferences", {
   notificationType: notificationTypeEnum("notification_type").notNull(),
   inAppEnabled: boolean("in_app_enabled").default(true).notNull(),
   emailEnabled: boolean("email_enabled").default(false).notNull(),
+  smsEnabled: boolean("sms_enabled").default(false).notNull(),
+  pushEnabled: boolean("push_enabled").default(false).notNull(),
+  
+  // Timing preferences
+  immediateDelivery: boolean("immediate_delivery").default(true).notNull(),
+  digestFrequency: text("digest_frequency").default("none").notNull(), // none, daily, weekly
+  quietHoursStart: text("quiet_hours_start"), // HH:MM format
+  quietHoursEnd: text("quiet_hours_end"), // HH:MM format
+  weekendDelivery: boolean("weekend_delivery").default(true).notNull(),
+  
+  // Priority and filtering
+  minimumSeverity: notificationSeverityEnum("minimum_severity").default("INFO").notNull(),
+  keywords: text("keywords"), // JSON array of keywords to filter
+  excludeKeywords: text("exclude_keywords"), // JSON array of keywords to exclude
+  
+  // Custom settings
+  customSettings: text("custom_settings"), // JSON for additional user preferences
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => {
@@ -1548,6 +1680,43 @@ export const notificationPreferences = pgTable("notification_preferences", {
     userTypeUnique: unique().on(table.userId, table.notificationType),
     tenantFk: foreignKey({ columns: [table.tenantId], foreignColumns: [tenants.id] }),
     userFk: foreignKey({ columns: [table.userId], foreignColumns: [users.id] })
+  };
+});
+
+// Notification triggers table for automatic notifications
+export const notificationTriggers = pgTable("notification_triggers", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  triggerModule: text("trigger_module").notNull(), // tasks, clients, invoices, etc.
+  triggerEvent: text("trigger_event").notNull(), // created, updated, status_changed, etc.
+  triggerConditions: text("trigger_conditions"), // JSON conditions
+  notificationType: notificationTypeEnum("notification_type").notNull(),
+  severity: notificationSeverityEnum("severity").default("INFO").notNull(),
+  
+  // Template settings
+  titleTemplate: text("title_template").notNull(),
+  messageTemplate: text("message_template").notNull(),
+  linkTemplate: text("link_template"),
+  
+  // Recipients
+  recipientType: text("recipient_type").notNull(), // specific_users, role_based, conditional
+  recipientConfig: text("recipient_config").notNull(), // JSON configuration
+  
+  // Delivery settings
+  deliveryChannels: text("delivery_channels").notNull(), // JSON array: ["in_app", "email", "sms"]
+  deliveryDelay: integer("delivery_delay").default(0).notNull(), // Minutes to delay
+  batchDelivery: boolean("batch_delivery").default(false).notNull(),
+  
+  isActive: boolean("is_active").default(true).notNull(),
+  createdBy: integer("created_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantFk: foreignKey({ columns: [table.tenantId], foreignColumns: [tenants.id] }),
+    createdByFk: foreignKey({ columns: [table.createdBy], foreignColumns: [users.id] })
   };
 });
 
@@ -1565,12 +1734,74 @@ export const insertNotificationSchema = createInsertSchema(notifications).pick({
   relatedEntityId: true,
 });
 
+// Insert schemas for new notification tables
+export const insertEmailProviderSettingSchema = createInsertSchema(emailProviderSettings).pick({
+  tenantId: true,
+  provider: true,
+  isActive: true,
+  fromEmail: true,
+  fromName: true,
+  replyToEmail: true,
+  apiKey: true,
+  apiSecret: true,
+  smtpHost: true,
+  smtpPort: true,
+  smtpSecure: true,
+  webhookSecret: true,
+  configData: true,
+  dailyLimit: true,
+  monthlyLimit: true,
+});
+
+export const insertEmailDeliveryLogSchema = createInsertSchema(emailDeliveryLogs).pick({
+  tenantId: true,
+  notificationId: true,
+  providerId: true,
+  recipientEmail: true,
+  subject: true,
+  status: true,
+  providerMessageId: true,
+  errorMessage: true,
+});
+
 export const insertNotificationPreferenceSchema = createInsertSchema(notificationPreferences).pick({
   tenantId: true,
   userId: true,
   notificationType: true,
   inAppEnabled: true,
   emailEnabled: true,
+  smsEnabled: true,
+  pushEnabled: true,
+  immediateDelivery: true,
+  digestFrequency: true,
+  quietHoursStart: true,
+  quietHoursEnd: true,
+  weekendDelivery: true,
+  minimumSeverity: true,
+  keywords: true,
+  excludeKeywords: true,
+  customSettings: true,
+});
+
+export const insertNotificationTriggerSchema = createInsertSchema(notificationTriggers).pick({
+  tenantId: true,
+  name: true,
+  description: true,
+  triggerModule: true,
+  triggerEvent: true,
+  triggerConditions: true,
+  notificationType: true,
+  severity: true,
+  titleTemplate: true,
+  messageTemplate: true,
+  linkTemplate: true,
+  recipientType: true,
+  recipientConfig: true,
+  deliveryChannels: true,
+  deliveryDelay: true,
+  batchDelivery: true,
+  isActive: true,
+  createdBy: true,
 });
 
 // TypeScript types for notifications
@@ -1580,22 +1811,78 @@ export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type NotificationPreference = typeof notificationPreferences.$inferSelect;
 export type InsertNotificationPreference = z.infer<typeof insertNotificationPreferenceSchema>;
 
-// Notification creation with multiple recipients schema
+export type NotificationTrigger = typeof notificationTriggers.$inferSelect;
+export type InsertNotificationTrigger = z.infer<typeof insertNotificationTriggerSchema>;
+
+export type EmailProviderSetting = typeof emailProviderSettings.$inferSelect;
+export type InsertEmailProviderSetting = z.infer<typeof insertEmailProviderSettingSchema>;
+
+export type EmailDeliveryLog = typeof emailDeliveryLogs.$inferSelect;
+export type InsertEmailDeliveryLog = z.infer<typeof insertEmailDeliveryLogSchema>;
+
+// Enhanced notification creation schema with comprehensive options
 export const createNotificationSchema = z.object({
   tenantId: z.number(),
   userIds: z.array(z.number()).optional(), // For specific users
-  roleId: z.number().optional(), // For all users with a specific role
+  roleIds: z.array(z.number()).optional(), // For all users with specific roles
+  departmentIds: z.array(z.number()).optional(), // For all users in departments
+  conditionalRecipients: z.object({
+    module: z.string(),
+    conditions: z.record(z.any()),
+  }).optional(),
+  
   title: z.string().min(1),
   messageBody: z.string().min(1),
   linkUrl: z.string().optional(),
-  type: z.enum(['TASK_ASSIGNMENT', 'TASK_COMPLETED', 'TASK_OVERDUE', 'WORKFLOW_ALERT', 'SYSTEM_MESSAGE', 'MENTION', 'CLIENT_UPDATE', 'INVOICE_UPDATE', 'ENTITY_UPDATE', 'USER_UPDATE', 'CUSTOM']).default('SYSTEM_MESSAGE'),
+  type: z.enum([
+    'TASK_ASSIGNMENT', 'TASK_COMPLETED', 'TASK_OVERDUE', 'TASK_STATUS_CHANGED', 'TASK_DUE_SOON',
+    'TASK_APPROVED', 'TASK_REJECTED', 'TASK_COMMENT_ADDED', 'RECURRING_TASK_GENERATED',
+    'CLIENT_CREATED', 'CLIENT_UPDATED', 'CLIENT_PORTAL_LOGIN', 'CLIENT_DOCUMENT_UPLOADED', 'CLIENT_STATUS_CHANGED',
+    'ENTITY_CREATED', 'ENTITY_UPDATED', 'ENTITY_COMPLIANCE_DUE',
+    'INVOICE_CREATED', 'INVOICE_SENT', 'INVOICE_PAID', 'INVOICE_OVERDUE', 'PAYMENT_RECEIVED', 'PAYMENT_FAILED', 'PAYMENT_REFUNDED',
+    'USER_CREATED', 'USER_UPDATED', 'USER_LOGIN', 'PERMISSION_CHANGED', 'ROLE_ASSIGNED',
+    'WORKFLOW_TRIGGERED', 'WORKFLOW_COMPLETED', 'WORKFLOW_FAILED', 'WORKFLOW_ALERT',
+    'SYSTEM_MESSAGE', 'SYSTEM_ALERT', 'SYSTEM_MAINTENANCE', 'BACKUP_COMPLETED', 'BACKUP_FAILED',
+    'AI_REPORT_GENERATED', 'AI_ANALYSIS_COMPLETED', 'REPORT_READY',
+    'COMPLIANCE_DEADLINE_APPROACHING', 'COMPLIANCE_DEADLINE_MISSED', 'TAX_FILING_DUE',
+    'MENTION', 'CUSTOM'
+  ]).default('SYSTEM_MESSAGE'),
   severity: z.enum(['INFO', 'WARNING', 'CRITICAL', 'SUCCESS']).default('INFO'),
+  
+  deliveryChannels: z.array(z.enum(['in_app', 'email', 'sms', 'push'])).default(['in_app']),
+  deliveryDelay: z.number().default(0), // Minutes
+  batchDelivery: z.boolean().default(false),
+  
   createdBy: z.number().optional(),
   relatedModule: z.string().optional(),
   relatedEntityId: z.string().optional(),
+  
+  // Email-specific settings
+  emailTemplate: z.string().optional(),
+  emailSubject: z.string().optional(),
+  emailPriority: z.enum(['low', 'normal', 'high']).default('normal'),
+  
+  // Template variables for dynamic content
+  templateVariables: z.record(z.any()).optional(),
 });
 
 export type CreateNotification = z.infer<typeof createNotificationSchema>;
+
+// Notification filter and query schemas
+export const notificationFilterSchema = z.object({
+  userId: z.number().optional(),
+  tenantId: z.number(),
+  types: z.array(z.string()).optional(),
+  severities: z.array(z.string()).optional(),
+  isRead: z.boolean().optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  modules: z.array(z.string()).optional(),
+  limit: z.number().default(50),
+  offset: z.number().default(0),
+});
+
+export type NotificationFilter = z.infer<typeof notificationFilterSchema>;
 
 // Client Documents table for Client Portal document management
 export const clientDocuments = pgTable("client_documents", {
