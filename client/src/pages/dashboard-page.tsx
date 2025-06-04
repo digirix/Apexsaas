@@ -487,7 +487,10 @@ export default function DashboardPage() {
 
           {/* Task Lifecycle Analytics - Compact */}
           {(canViewTasks || user?.isSuperAdmin) && (
-            <Card className="border-t-4 border-t-emerald-500">
+            <Card className="border-t-4 border-t-emerald-500 relative">
+              <div className="absolute top-2 right-2 z-10">
+                <InfoTooltip content="Shows average task lifecycle metrics including creation patterns, completion rates, and processing efficiency." />
+              </div>
               <CardHeader className="p-3">
                 <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-2">
                   <Target className="h-4 w-4 text-emerald-600" />
@@ -574,7 +577,10 @@ export default function DashboardPage() {
 
           {/* Entity Performance Grid - Compact */}
           {(canViewClients || user?.isSuperAdmin) && entityPerformanceData.length > 0 && (
-            <Card className="border-t-4 border-t-purple-500">
+            <Card className="border-t-4 border-t-purple-500 relative">
+              <div className="absolute top-2 right-2 z-10">
+                <InfoTooltip content="Shows individual entity performance metrics including completed tasks, overdue items, and completion rates." />
+              </div>
               <CardHeader className="p-3">
                 <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-purple-600" />
@@ -619,7 +625,10 @@ export default function DashboardPage() {
         <div className="space-y-3 overflow-y-auto">
           {/* Task Status Distribution - Compact */}
           {(canViewTasks || user?.isSuperAdmin) && (
-            <Card className="border-t-4 border-t-purple-500">
+            <Card className="border-t-4 border-t-purple-500 relative">
+              <div className="absolute top-2 right-2 z-10">
+                <InfoTooltip content="Visual breakdown of all tasks by their current status. Hover over chart segments to see exact counts for each status." />
+              </div>
               <CardHeader className="p-3">
                 <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-2">
                   <PieChartIcon className="h-4 w-4 text-purple-600" />
@@ -651,7 +660,10 @@ export default function DashboardPage() {
 
           {/* Compliance Overview - Compact */}
           {(canViewTasks || user?.isSuperAdmin) && (
-            <Card className="border-t-4 border-t-blue-500">
+            <Card className="border-t-4 border-t-blue-500 relative">
+              <div className="absolute top-2 right-2 z-10">
+                <InfoTooltip content="Tracks compliance status across all tasks. Shows on-track items, upcoming deadlines, and overdue tasks with overall compliance rate." />
+              </div>
               <CardHeader className="p-3">
                 <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-blue-600" />
@@ -694,7 +706,10 @@ export default function DashboardPage() {
 
           {/* Risk Assessment - Compact */}
           {(canViewTasks || user?.isSuperAdmin) && (
-            <Card className="border-t-4 border-t-red-500">
+            <Card className="border-t-4 border-t-red-500 relative">
+              <div className="absolute top-2 right-2 z-10">
+                <InfoTooltip content="Evaluates organizational risk levels across regulatory, operational, and client dimensions based on overdue tasks and deadline pressures." />
+              </div>
               <CardHeader className="p-3">
                 <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-red-600" />
@@ -740,7 +755,10 @@ export default function DashboardPage() {
 
           {/* Jurisdiction Analysis - Compact */}
           {(canViewClients || user?.isSuperAdmin) && (
-            <Card className="border-t-4 border-t-teal-500">
+            <Card className="border-t-4 border-t-teal-500 relative">
+              <div className="absolute top-2 right-2 z-10">
+                <InfoTooltip content="Shows geographical distribution of entities across different countries and jurisdictions for compliance tracking." />
+              </div>
               <CardHeader className="p-3">
                 <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-teal-600" />
@@ -782,7 +800,10 @@ export default function DashboardPage() {
 
           {/* Upcoming Deadlines - Compact */}
           {(canViewTasks || user?.isSuperAdmin) && (
-            <Card className="border-t-4 border-t-orange-500">
+            <Card className="border-t-4 border-t-orange-500 relative">
+              <div className="absolute top-2 right-2 z-10">
+                <InfoTooltip content="Lists upcoming task deadlines with time remaining. Shows overdue tasks in red, urgent tasks in orange, and normal deadlines in yellow." />
+              </div>
               <CardHeader className="p-3">
                 <CardTitle className="text-sm font-semibold text-gray-800 flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-orange-600" />
