@@ -179,7 +179,11 @@ export class FinancialAnalyticsService {
     try {
       // Calculate revenue from client invoices
       const invoices = await this.storage.getClientInvoices(tenantId, clientId, startDate, endDate);
-      return invoices.reduce((total, invoice) => total + (invoice.totalAmount || 0), 0);
+      const revenue = invoices.reduce((total, invoice) => {
+        const amount = parseFloat(invoice.totalAmount) || 0;
+        return total + (isNaN(amount) ? 0 : amount);
+      }, 0);
+      return isNaN(revenue) ? 0 : revenue;
     } catch (error) {
       console.error('Error calculating client revenue:', error);
       return 0;
@@ -192,7 +196,7 @@ export class FinancialAnalyticsService {
       // For now, we'll estimate based on a percentage of revenue or direct expense allocation
       const tasks = await this.storage.getClientTasks(tenantId, clientId, startDate, endDate);
       const estimatedExpenses = tasks.length * 500; // Estimated $500 per task as operational cost
-      return estimatedExpenses;
+      return isNaN(estimatedExpenses) ? 0 : estimatedExpenses;
     } catch (error) {
       console.error('Error calculating client expenses:', error);
       return 0;

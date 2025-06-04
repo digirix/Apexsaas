@@ -1498,6 +1498,48 @@ export class DatabaseStorage implements IStorage {
       .returning({ id: paymentGatewaySettings.id });
     return !!deletedSetting;
   }
+
+  // Analytics-specific methods
+  async getClientInvoices(tenantId: number, clientId: number, startDate: Date, endDate: Date): Promise<Invoice[]> {
+    return await db.select().from(invoices)
+      .where(and(
+        eq(invoices.tenantId, tenantId),
+        eq(invoices.clientId, clientId),
+        gte(invoices.issueDate, startDate),
+        lte(invoices.issueDate, endDate)
+      ))
+      .orderBy(desc(invoices.issueDate));
+  }
+
+  async getClientTasks(tenantId: number, clientId: number, startDate: Date, endDate: Date): Promise<Task[]> {
+    return await db.select().from(tasks)
+      .where(and(
+        eq(tasks.tenantId, tenantId),
+        eq(tasks.clientId, clientId),
+        gte(tasks.createdAt, startDate),
+        lte(tasks.createdAt, endDate)
+      ))
+      .orderBy(desc(tasks.createdAt));
+  }
+
+  async getAccountsByType(tenantId: number, accountType: string): Promise<ChartOfAccount[]> {
+    return await db.select().from(chartOfAccounts)
+      .where(and(
+        eq(chartOfAccounts.tenantId, tenantId),
+        eq(chartOfAccounts.accountType, accountType)
+      ))
+      .orderBy(asc(chartOfAccounts.accountName));
+  }
+
+  async getInvoicesByDateRange(tenantId: number, startDate: Date, endDate: Date): Promise<Invoice[]> {
+    return await db.select().from(invoices)
+      .where(and(
+        eq(invoices.tenantId, tenantId),
+        gte(invoices.issueDate, startDate),
+        lte(invoices.issueDate, endDate)
+      ))
+      .orderBy(desc(invoices.issueDate));
+  }
   
   // Task operations
   async getTasks(tenantId?: number, clientId?: number, entityId?: number, statusId?: number): Promise<Task[]> {

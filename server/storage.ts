@@ -207,6 +207,12 @@ export interface IStorage {
   updatePayment(id: number, payment: Partial<InsertPayment>): Promise<Payment | undefined>;
   deletePayment(id: number, tenantId: number): Promise<boolean>;
   
+  // Analytics-specific methods
+  getClientInvoices(tenantId: number, clientId: number, startDate: Date, endDate: Date): Promise<Invoice[]>;
+  getClientTasks(tenantId: number, clientId: number, startDate: Date, endDate: Date): Promise<Task[]>;
+  getAccountsByType(tenantId: number, accountType: string): Promise<ChartOfAccount[]>;
+  getInvoicesByDateRange(tenantId: number, startDate: Date, endDate: Date): Promise<Invoice[]>;
+  
   // Payment Gateway Settings operations
   getPaymentGatewaySettings(tenantId: number): Promise<PaymentGatewaySetting[]>;
   getPaymentGatewaySetting(tenantId: number, gatewayType: string): Promise<PaymentGatewaySetting | undefined>;
