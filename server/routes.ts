@@ -1264,26 +1264,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const client = await storage.createClient(validatedData);
         console.log("Client created successfully:", client);
         
-        // Send notification to all staff about new client
+        // Send notification to relevant users about new client
         const currentUserId = (req.user as any).id;
         try {
-          // Get all staff members to notify
-          const allStaff = await storage.getUsers(tenantId);
-          const staffUserIds = allStaff.map(user => user.id);
+          // Notify administrators and relevant staff
+          const users = await storage.getUsers(tenantId);
+          const adminUsers = users.filter(user => user.role === 'admin' || user.role === 'super_admin');
           
-          if (staffUserIds.length > 0) {
-            await NotificationService.createNotification({
-              tenantId,
-              userIds: staffUserIds,
-              title: "New Client Added",
-              messageBody: `A new client "${client.displayName}" has been added to your portfolio. Review their profile and set up initial services.`,
-              type: 'CLIENT_UPDATE',
-              severity: 'SUCCESS',
-              createdBy: currentUserId,
-              relatedModule: 'Clients',
-              relatedEntityId: client.id.toString(),
-              linkUrl: `/clients/${client.id}`
-            });
+          for (const admin of adminUsers) {
+            if (admin.id !== currentUserId) {
+              await storage.createNotification({
+                tenantId,
+                userId: admin.id,
+                notificationType: 'CLIENT_CREATED',
+                title: 'New Client Added',
+                message: `New client "${client.displayName}" has been added to the system`,
+                severity: 'INFO',
+                linkUrl: `/clients/${client.id}`
+              });
+            }
           }
         } catch (notifError) {
           console.error("Error sending client creation notification:", notifError);
@@ -1357,6 +1356,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const updatedClient = await storage.updateClient(id, req.body);
+      
+      // Send notification for client updates
+      const currentUserId = (req.user as any).id;
+      try {
+        // Check for significant changes that warrant notifications
+        const hasSignificantChanges = 
+          req.body.displayName !== existingClient.displayName ||
+          req.body.email !== existingClient.email ||
+          req.body.status !== existingClient.status;
+        
+        if (hasSignificantChanges) {
+          // Notify administrators about client updates
+          const users = await storage.getUsers(tenantId);
+          const adminUsers = users.filter(user => user.role === 'admin' || user.role === 'super_admin');
+          
+          for (const admin of adminUsers) {
+            if (admin.id !== currentUserId) {
+              await storage.createNotification({
+                tenantId,
+                userId: admin.id,
+                notificationType: 'CLIENT_UPDATED',
+                title: 'Client Information Updated',
+                message: `Client "${updatedClient?.displayName || existingClient.displayName}" information has been updated`,
+                severity: 'INFO',
+                linkUrl: `/clients/${id}`
+              });
+            }
+          }
+        }
+      } catch (notifError) {
+        console.error("Error sending client update notification:", notifError);
+        // Don't fail the client update if notification fails
+      }
+      
       res.json(updatedClient);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -4810,6 +4843,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Log the error but don't fail the invoice update
           console.error("Failed to create accounting entries:", accountingError);
         }
+      }
+      
+      // Send notification for invoice status updates
+      const currentUserId = (req.user as any).id;
+      try {
+        // Check for status change
+        if (req.body.status && req.body.status !== existingInvoice.status) {
+          // Get client or entity information for notification context
+          let clientName = '';
+          if (existingInvoice.clientId) {
+            const client = await storage.getClient(existingInvoice.clientId, tenantId);
+            clientName = client ? client.name : 'Unknown Client';
+          } else if (existingInvoice.entityId) {
+            const entity = await storage.getEntity(existingInvoice.entityId, tenantId);
+            clientName = entity ? entity.name : 'Unknown Entity';
+          }
+          
+          // Notify relevant users about important status changes
+          const users = await storage.getUsers(tenantId);
+          const adminUsers = users.filter(user => user.role === 'admin' || user.role === 'super_admin');
+          
+          // Determine notification type and message based on status
+          let notificationType = 'INVOICE_UPDATED';
+          let severity = 'INFO';
+          let message = '';
+          
+          switch (req.body.status) {
+            case 'sent':
+              notificationType = 'INVOICE_SENT';
+              message = `Invoice #${existingInvoice.invoiceNumber} sent to ${clientName}`;
+              break;
+            case 'paid':
+              notificationType = 'INVOICE_PAID';
+              severity = 'SUCCESS';
+              message = `Invoice #${existingInvoice.invoiceNumber} marked as paid - ${clientName}`;
+              break;
+            case 'overdue':
+              notificationType = 'INVOICE_OVERDUE';
+              severity = 'WARNING';
+              message = `Invoice #${existingInvoice.invoiceNumber} is overdue - ${clientName}`;
+              break;
+            case 'approved':
+              message = `Invoice #${existingInvoice.invoiceNumber} approved for ${clientName}`;
+              break;
+            default:
+              message = `Invoice #${existingInvoice.invoiceNumber} status changed to ${req.body.status} - ${clientName}`;
+          }
+          
+          // Send notifications to administrators
+          for (const admin of adminUsers) {
+            if (admin.id !== currentUserId) {
+              await storage.createNotification({
+                tenantId,
+                userId: admin.id,
+                notificationType,
+                title: 'Invoice Status Updated',
+                message,
+                severity,
+                linkUrl: `/finance/invoices/${existingInvoice.id}`
+              });
+            }
+          }
+        }
+      } catch (notifError) {
+        console.error("Error sending invoice update notification:", notifError);
+        // Don't fail the invoice update if notification fails
       }
       
       res.json({
