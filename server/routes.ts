@@ -12,6 +12,7 @@ import { registerWorkflowRoutes } from "./api/workflow-routes";
 import { setupNotificationRoutes } from "./api/notification-routes";
 import { NotificationService } from "./services/notification-service";
 import { HierarchicalReportsService } from "./services/hierarchical-reports-service";
+import { createAnalyticsRoutes } from "./api/analytics-routes";
 import { setupClientPortalAuth } from "./client-portal-auth";
 import { requirePermission, requireModuleAccess, getUserModulePermissions } from "./middleware/permissions";
 import { checkPermission } from "./middleware/check-permissions";
@@ -6500,6 +6501,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register Internal Notification System routes
   setupNotificationRoutes(app, isAuthenticated, requirePermission, databaseStorage);
   console.log("Internal Notification System routes registered");
+
+  // Register Analytics routes for Reports Module
+  app.use("/api/v1/reports/analytics", isAuthenticated, createAnalyticsRoutes(databaseStorage));
+  console.log("Financial Analytics routes registered");
 
   // Create an HTTP server
   const httpServer = createServer(app);
