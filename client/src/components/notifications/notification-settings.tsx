@@ -24,7 +24,7 @@ import {
   Plus, 
   Edit, 
   Trash2, 
-  Test, 
+  PlayCircle, 
   Save, 
   AlertCircle, 
   CheckCircle, 
@@ -604,7 +604,7 @@ export function NotificationSettings() {
 
                 <div className="flex justify-end gap-2">
                   <Button variant="outline">
-                    <Test className="h-4 w-4 mr-2" />
+                    <PlayCircle className="h-4 w-4 mr-2" />
                     Test Notifications
                   </Button>
                   <Button>

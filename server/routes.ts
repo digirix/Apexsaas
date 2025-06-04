@@ -6509,6 +6509,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log("Enhanced Notification System routes registered");
 
   // Register Task Assignment Notification routes
+  const { taskNotificationRoutes } = await import('./api/task-notification-routes');
   app.use('/api/v1/task-notifications', isAuthenticated, taskNotificationRoutes);
   console.log("Task Assignment Notification routes registered");
 

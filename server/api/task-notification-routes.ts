@@ -353,4 +353,5 @@ async function updateTaskNotificationTriggers(tenantId: number, settings: any, u
   }
 }
 
+export { router as taskNotificationRoutes };
 export default router;
