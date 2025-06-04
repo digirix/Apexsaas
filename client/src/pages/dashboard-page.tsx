@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, PieChart } from "@/components/ui/chart";
@@ -35,6 +36,7 @@ interface DashboardMetrics {
 
 export default function DashboardPage() {
   const { user, permissions } = useAuth();
+  const [, setLocation] = useLocation();
   const [performanceTimeFilter, setPerformanceTimeFilter] = useState("6weeks");
   
   // Check permissions for different modules
@@ -110,6 +112,36 @@ export default function DashboardPage() {
       urgentDeadlines
     };
   }, [clients, entities, tasks, taskStatuses]);
+
+  // Navigation handlers for dashboard components
+  const handleNavigateToTasks = (filter?: string) => {
+    let url = "/tasks";
+    if (filter) {
+      url += `?filter=${filter}`;
+    }
+    setLocation(url);
+  };
+
+  const handleNavigateToClients = () => {
+    setLocation("/clients");
+  };
+
+  const handleNavigateToEntities = () => {
+    // Navigate to clients page since entities are managed within clients
+    setLocation("/clients");
+  };
+
+  const handleNavigateToCompliance = () => {
+    setLocation("/compliance");
+  };
+
+  const handleNavigateToUsers = () => {
+    setLocation("/users");
+  };
+
+  const handleNavigateToFinance = () => {
+    setLocation("/finance");
+  };
 
   // Generate task status distribution data
   const taskStatusData = useMemo(() => {
@@ -361,7 +393,10 @@ export default function DashboardPage() {
           {(canViewTasks || user?.isSuperAdmin) && (
             <div className="grid grid-cols-4 gap-2">
               {/* Active Tasks */}
-              <Card className="border-l-4 border-l-blue-500 relative">
+              <Card 
+                className="border-l-4 border-l-blue-500 relative cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => handleNavigateToTasks('active')}
+              >
                 <div className="absolute top-1 right-1">
                   <InfoTooltip content="Shows all tasks that are currently in progress or awaiting completion. Excludes completed tasks." />
                 </div>
@@ -379,7 +414,10 @@ export default function DashboardPage() {
               </Card>
 
               {/* Completed Tasks */}
-              <Card className="border-l-4 border-l-green-500 relative">
+              <Card 
+                className="border-l-4 border-l-green-500 relative cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => handleNavigateToTasks('completed')}
+              >
                 <div className="absolute top-1 right-1">
                   <InfoTooltip content="Shows tasks completed this month. Count resets at the beginning of each month." />
                 </div>
@@ -397,7 +435,10 @@ export default function DashboardPage() {
               </Card>
 
               {/* Overdue Tasks */}
-              <Card className="border-l-4 border-l-red-500 relative">
+              <Card 
+                className="border-l-4 border-l-red-500 relative cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => handleNavigateToTasks('overdue')}
+              >
                 <div className="absolute top-1 right-1">
                   <InfoTooltip content="Shows tasks that have passed their due date and are not yet completed. Requires immediate attention." />
                 </div>
