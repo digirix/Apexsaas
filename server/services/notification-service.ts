@@ -1,203 +1,720 @@
-import { eq, and, desc, count } from "drizzle-orm";
-import { db } from "../db";
-import { notifications, users, type CreateNotification, type InsertNotification } from "@shared/schema";
+import { 
+  notifications, 
+  notificationPreferences, 
+  notificationTriggers,
+  emailProviderSettings,
+  emailDeliveryLogs,
+  users,
+  tenants,
+  CreateNotification,
+  NotificationFilter,
+  InsertNotification,
+  InsertNotificationPreference,
+  InsertEmailDeliveryLog
+} from '@shared/schema';
+import { db } from '../db';
+import { eq, and, desc, sql, inArray, gte, lte, like, or } from 'drizzle-orm';
+import { sendEmail } from './email-service';
 
-export class NotificationService {
-  /**
-   * Create a notification for specific users
-   */
-  static async createNotification(data: CreateNotification): Promise<void> {
-    const { userIds, tenantId, ...notificationData } = data;
-    
-    let targetUserIds: number[] = [];
+// In-memory cache for performance optimization
+class NotificationCache {
+  private userPreferences: Map<string, any[]> = new Map();
+  private emailProviders: Map<number, any> = new Map();
+  private triggers: Map<number, any[]> = new Map();
+  private cacheExpiry: Map<string, number> = new Map();
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-    // If specific user IDs are provided, use them
-    if (userIds && userIds.length > 0) {
-      targetUserIds = userIds;
-    }
-
-    // If no users specified, throw error
-    if (targetUserIds.length === 0) {
-      throw new Error("No target users specified for notification");
-    }
-
-    // Create notification records for each user
-    const notificationRecords: InsertNotification[] = targetUserIds.map(userId => ({
-      tenantId,
-      userId,
-      ...notificationData
-    }));
-
-    await db.insert(notifications).values(notificationRecords);
-    
-    console.log(`Created ${notificationRecords.length} notifications for tenant ${tenantId}`);
+  private isExpired(key: string): boolean {
+    const expiry = this.cacheExpiry.get(key);
+    return !expiry || Date.now() > expiry;
   }
 
-  /**
-   * Get notifications for a specific user with pagination and filtering
-   */
-  static async getNotificationsForUser(
-    userId: number, 
-    tenantId: number, 
-    options: {
-      limit?: number;
-      offset?: number;
-      unreadOnly?: boolean;
-      type?: string;
-    } = {}
-  ) {
-    const { limit = 20, offset = 0, unreadOnly = false, type } = options;
+  private setExpiry(key: string): void {
+    this.cacheExpiry.set(key, Date.now() + this.CACHE_TTL);
+  }
 
-    let whereConditions = and(
-      eq(notifications.userId, userId),
-      eq(notifications.tenantId, tenantId)
-    );
-
-    if (unreadOnly) {
-      whereConditions = and(whereConditions, eq(notifications.isRead, false));
+  async getUserPreferences(userId: number): Promise<any[]> {
+    const key = `user_prefs_${userId}`;
+    if (!this.isExpired(key) && this.userPreferences.has(key)) {
+      return this.userPreferences.get(key)!;
     }
 
-    if (type) {
-      whereConditions = and(whereConditions, eq(notifications.type, type as any));
+    const prefs = await db
+      .select()
+      .from(notificationPreferences)
+      .where(eq(notificationPreferences.userId, userId));
+
+    this.userPreferences.set(key, prefs);
+    this.setExpiry(key);
+    return prefs;
+  }
+
+  async getEmailProvider(tenantId: number): Promise<any | null> {
+    const key = tenantId;
+    if (!this.isExpired(`email_provider_${key}`) && this.emailProviders.has(key)) {
+      return this.emailProviders.get(key)!;
     }
 
-    const result = await db
+    const provider = await db
+      .select()
+      .from(emailProviderSettings)
+      .where(and(
+        eq(emailProviderSettings.tenantId, tenantId),
+        eq(emailProviderSettings.isActive, true)
+      ))
+      .limit(1);
+
+    const result = provider[0] || null;
+    this.emailProviders.set(key, result);
+    this.setExpiry(`email_provider_${key}`);
+    return result;
+  }
+
+  async getTriggers(tenantId: number): Promise<any[]> {
+    const key = tenantId;
+    if (!this.isExpired(`triggers_${key}`) && this.triggers.has(key)) {
+      return this.triggers.get(key)!;
+    }
+
+    const triggers = await db
+      .select()
+      .from(notificationTriggers)
+      .where(and(
+        eq(notificationTriggers.tenantId, tenantId),
+        eq(notificationTriggers.isActive, true)
+      ));
+
+    this.triggers.set(key, triggers);
+    this.setExpiry(`triggers_${key}`);
+    return triggers;
+  }
+
+  invalidateUserPreferences(userId: number): void {
+    const key = `user_prefs_${userId}`;
+    this.userPreferences.delete(key);
+    this.cacheExpiry.delete(key);
+  }
+
+  invalidateEmailProvider(tenantId: number): void {
+    const key = `email_provider_${tenantId}`;
+    this.emailProviders.delete(tenantId);
+    this.cacheExpiry.delete(key);
+  }
+
+  invalidateTriggers(tenantId: number): void {
+    const key = `triggers_${tenantId}`;
+    this.triggers.delete(tenantId);
+    this.cacheExpiry.delete(key);
+  }
+
+  clear(): void {
+    this.userPreferences.clear();
+    this.emailProviders.clear();
+    this.triggers.clear();
+    this.cacheExpiry.clear();
+  }
+}
+
+const cache = new NotificationCache();
+
+export class NotificationService {
+  // Create a new notification with comprehensive delivery options
+  async createNotification(notificationData: CreateNotification): Promise<void> {
+    const { 
+      tenantId, 
+      userIds, 
+      roleIds, 
+      departmentIds, 
+      conditionalRecipients,
+      deliveryChannels = ['in_app'],
+      deliveryDelay = 0,
+      batchDelivery = false,
+      templateVariables = {},
+      ...baseNotification 
+    } = notificationData;
+
+    // Resolve recipients
+    const recipientIds = await this.resolveRecipients({
+      tenantId,
+      userIds,
+      roleIds,
+      departmentIds,
+      conditionalRecipients
+    });
+
+    if (recipientIds.length === 0) {
+      console.warn('No recipients found for notification');
+      return;
+    }
+
+    // Process delivery based on delay and batching settings
+    if (deliveryDelay > 0) {
+      setTimeout(() => {
+        this.processNotificationDelivery(
+          recipientIds, 
+          baseNotification, 
+          deliveryChannels, 
+          templateVariables,
+          batchDelivery
+        );
+      }, deliveryDelay * 60 * 1000);
+    } else {
+      await this.processNotificationDelivery(
+        recipientIds, 
+        baseNotification, 
+        deliveryChannels, 
+        templateVariables,
+        batchDelivery
+      );
+    }
+  }
+
+  // Process notification delivery to recipients
+  private async processNotificationDelivery(
+    recipientIds: number[],
+    baseNotification: any,
+    deliveryChannels: string[],
+    templateVariables: Record<string, any>,
+    batchDelivery: boolean
+  ): Promise<void> {
+    if (batchDelivery) {
+      // Process in batches to avoid overwhelming the system
+      const batchSize = 50;
+      for (let i = 0; i < recipientIds.length; i += batchSize) {
+        const batch = recipientIds.slice(i, i + batchSize);
+        await this.deliverToBatch(batch, baseNotification, deliveryChannels, templateVariables);
+        // Small delay between batches
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    } else {
+      await this.deliverToBatch(recipientIds, baseNotification, deliveryChannels, templateVariables);
+    }
+  }
+
+  // Deliver notifications to a batch of recipients
+  private async deliverToBatch(
+    recipientIds: number[],
+    baseNotification: any,
+    deliveryChannels: string[],
+    templateVariables: Record<string, any>
+  ): Promise<void> {
+    for (const userId of recipientIds) {
+      // Check user preferences for each delivery channel
+      const userPrefs = await cache.getUserPreferences(userId);
+      const relevantPref = userPrefs.find(p => p.notificationType === baseNotification.type);
+
+      // Create in-app notification if enabled
+      if (deliveryChannels.includes('in_app') && 
+          (!relevantPref || relevantPref.inAppEnabled)) {
+        await this.createInAppNotification(userId, baseNotification, templateVariables);
+      }
+
+      // Send email notification if enabled
+      if (deliveryChannels.includes('email') && 
+          relevantPref && relevantPref.emailEnabled) {
+        await this.sendEmailNotification(userId, baseNotification, templateVariables);
+      }
+
+      // SMS and Push notifications can be added here in the future
+    }
+  }
+
+  // Create in-app notification
+  private async createInAppNotification(
+    userId: number,
+    notificationData: any,
+    templateVariables: Record<string, any>
+  ): Promise<void> {
+    const processedTitle = this.processTemplate(notificationData.title, templateVariables);
+    const processedMessage = this.processTemplate(notificationData.messageBody, templateVariables);
+    const processedLink = notificationData.linkUrl ? 
+      this.processTemplate(notificationData.linkUrl, templateVariables) : null;
+
+    const notification: InsertNotification = {
+      tenantId: notificationData.tenantId,
+      userId,
+      title: processedTitle,
+      messageBody: processedMessage,
+      linkUrl: processedLink,
+      type: notificationData.type,
+      severity: notificationData.severity,
+      createdBy: notificationData.createdBy,
+      relatedModule: notificationData.relatedModule,
+      relatedEntityId: notificationData.relatedEntityId,
+    };
+
+    await db.insert(notifications).values(notification);
+  }
+
+  // Send email notification
+  private async sendEmailNotification(
+    userId: number,
+    notificationData: any,
+    templateVariables: Record<string, any>
+  ): Promise<void> {
+    try {
+      // Get user email
+      const user = await db
+        .select({ email: users.email, displayName: users.displayName })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user[0]?.email) {
+        console.warn(`No email found for user ${userId}`);
+        return;
+      }
+
+      // Get email provider for tenant
+      const emailProvider = await cache.getEmailProvider(notificationData.tenantId);
+      if (!emailProvider) {
+        console.warn(`No active email provider for tenant ${notificationData.tenantId}`);
+        return;
+      }
+
+      const processedTitle = this.processTemplate(notificationData.title, templateVariables);
+      const processedMessage = this.processTemplate(notificationData.messageBody, templateVariables);
+
+      // Send email using the email service
+      const emailSent = await sendEmail(emailProvider, {
+        to: user[0].email,
+        subject: processedTitle,
+        text: processedMessage,
+        html: this.generateEmailHTML(processedTitle, processedMessage, notificationData, templateVariables)
+      });
+
+      // Log email delivery
+      if (emailSent) {
+        const deliveryLog: InsertEmailDeliveryLog = {
+          tenantId: notificationData.tenantId,
+          providerId: emailProvider.id,
+          recipientEmail: user[0].email,
+          subject: processedTitle,
+          status: 'sent'
+        };
+
+        await db.insert(emailDeliveryLogs).values(deliveryLog);
+      }
+    } catch (error) {
+      console.error('Error sending email notification:', error);
+    }
+  }
+
+  // Process template variables in text
+  private processTemplate(template: string, variables: Record<string, any>): string {
+    let processed = template;
+    Object.keys(variables).forEach(key => {
+      const regex = new RegExp(`{{${key}}}`, 'g');
+      processed = processed.replace(regex, String(variables[key] || ''));
+    });
+    return processed;
+  }
+
+  // Generate HTML email template
+  private generateEmailHTML(
+    title: string, 
+    message: string, 
+    notificationData: any, 
+    templateVariables: Record<string, any>
+  ): string {
+    const severityColors = {
+      INFO: '#3b82f6',
+      SUCCESS: '#10b981',
+      WARNING: '#f59e0b',
+      CRITICAL: '#ef4444'
+    };
+
+    const color = severityColors[notificationData.severity] || severityColors.INFO;
+
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title}</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="border-left: 4px solid ${color}; padding: 20px; background-color: #f8f9fa; margin-bottom: 20px;">
+        <h2 style="margin: 0 0 10px 0; color: ${color};">${title}</h2>
+        <p style="margin: 0; font-size: 14px; color: #666;">
+            ${notificationData.type.replace(/_/g, ' ')} • ${notificationData.severity}
+        </p>
+    </div>
+    
+    <div style="padding: 20px 0;">
+        <p style="font-size: 16px; margin-bottom: 20px;">${message}</p>
+        
+        ${notificationData.linkUrl ? `
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="${notificationData.linkUrl}" style="background-color: ${color}; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+                View Details
+            </a>
+        </div>
+        ` : ''}
+    </div>
+    
+    <div style="border-top: 1px solid #eee; padding-top: 20px; margin-top: 30px; font-size: 12px; color: #888;">
+        <p>This is an automated notification from your accounting management system.</p>
+        <p>To manage your notification preferences, please log in to your account.</p>
+    </div>
+</body>
+</html>`;
+  }
+
+  // Resolve notification recipients based on various criteria
+  private async resolveRecipients(criteria: {
+    tenantId: number;
+    userIds?: number[];
+    roleIds?: number[];
+    departmentIds?: number[];
+    conditionalRecipients?: any;
+  }): Promise<number[]> {
+    const { tenantId, userIds, roleIds, departmentIds, conditionalRecipients } = criteria;
+    const recipientSet = new Set<number>();
+
+    // Add specific user IDs
+    if (userIds && userIds.length > 0) {
+      userIds.forEach(id => recipientSet.add(id));
+    }
+
+    // Add users by role (if role system is implemented)
+    if (roleIds && roleIds.length > 0) {
+      // This would require a roles/user_roles table implementation
+      // For now, we'll skip this
+    }
+
+    // Add users by department (if department assignment is implemented)
+    if (departmentIds && departmentIds.length > 0) {
+      // This would require department user assignments
+      // For now, we'll skip this
+    }
+
+    // Add users based on conditional criteria
+    if (conditionalRecipients) {
+      // This would implement complex recipient resolution
+      // Based on the module and conditions specified
+    }
+
+    // If no specific recipients, get all users in tenant
+    if (recipientSet.size === 0) {
+      const tenantUsers = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.tenantId, tenantId));
+      
+      tenantUsers.forEach(user => recipientSet.add(user.id));
+    }
+
+    return Array.from(recipientSet);
+  }
+
+  // Get notifications for a user with filtering
+  async getNotifications(filter: NotificationFilter): Promise<{
+    notifications: any[];
+    total: number;
+    unreadCount: number;
+  }> {
+    const { 
+      userId, 
+      tenantId, 
+      types, 
+      severities, 
+      isRead, 
+      dateFrom, 
+      dateTo, 
+      modules,
+      limit = 50, 
+      offset = 0 
+    } = filter;
+
+    // Build where conditions
+    const conditions = [eq(notifications.tenantId, tenantId)];
+    
+    if (userId) {
+      conditions.push(eq(notifications.userId, userId));
+    }
+
+    if (types && types.length > 0) {
+      conditions.push(inArray(notifications.type, types as any));
+    }
+
+    if (severities && severities.length > 0) {
+      conditions.push(inArray(notifications.severity, severities as any));
+    }
+
+    if (typeof isRead === 'boolean') {
+      conditions.push(eq(notifications.isRead, isRead));
+    }
+
+    if (dateFrom) {
+      conditions.push(gte(notifications.createdAt, new Date(dateFrom)));
+    }
+
+    if (dateTo) {
+      conditions.push(lte(notifications.createdAt, new Date(dateTo)));
+    }
+
+    if (modules && modules.length > 0) {
+      conditions.push(inArray(notifications.relatedModule, modules));
+    }
+
+    // Get notifications with pagination
+    const notificationResults = await db
       .select()
       .from(notifications)
-      .where(whereConditions)
+      .where(and(...conditions))
       .orderBy(desc(notifications.createdAt))
       .limit(limit)
       .offset(offset);
 
-    return result;
-  }
-
-  /**
-   * Get unread notification count for a user
-   */
-  static async getUnreadNotificationCount(userId: number, tenantId: number): Promise<number> {
-    const result = await db
-      .select({ count: count() })
+    // Get total count
+    const totalResult = await db
+      .select({ count: sql<number>`count(*)` })
       .from(notifications)
-      .where(
-        and(
-          eq(notifications.userId, userId),
-          eq(notifications.tenantId, tenantId),
-          eq(notifications.isRead, false)
-        )
-      );
+      .where(and(...conditions));
 
-    return result[0]?.count || 0;
+    // Get unread count for user
+    const unreadResult = userId ? await db
+      .select({ count: sql<number>`count(*)` })
+      .from(notifications)
+      .where(and(
+        eq(notifications.tenantId, tenantId),
+        eq(notifications.userId, userId),
+        eq(notifications.isRead, false)
+      )) : [{ count: 0 }];
+
+    return {
+      notifications: notificationResults,
+      total: totalResult[0]?.count || 0,
+      unreadCount: unreadResult[0]?.count || 0
+    };
   }
 
-  /**
-   * Mark a specific notification as read
-   */
-  static async markNotificationAsRead(
-    notificationId: number, 
-    userId: number, 
-    tenantId: number
-  ): Promise<boolean> {
-    const result = await db
+  // Mark notifications as read
+  async markAsRead(notificationIds: number[], userId?: number): Promise<void> {
+    const conditions = [inArray(notifications.id, notificationIds)];
+    
+    if (userId) {
+      conditions.push(eq(notifications.userId, userId));
+    }
+
+    await db
       .update(notifications)
       .set({ isRead: true })
-      .where(
-        and(
-          eq(notifications.id, notificationId),
-          eq(notifications.userId, userId),
-          eq(notifications.tenantId, tenantId)
-        )
-      );
-
-    return result.rowCount > 0;
+      .where(and(...conditions));
   }
 
-  /**
-   * Mark all notifications as read for a user
-   */
-  static async markAllNotificationsAsRead(userId: number, tenantId: number): Promise<number> {
-    const result = await db
+  // Mark all notifications as read for a user
+  async markAllAsRead(userId: number, tenantId: number): Promise<void> {
+    await db
       .update(notifications)
       .set({ isRead: true })
-      .where(
-        and(
-          eq(notifications.userId, userId),
-          eq(notifications.tenantId, tenantId),
-          eq(notifications.isRead, false)
-        )
-      );
-
-    return result.rowCount || 0;
+      .where(and(
+        eq(notifications.userId, userId),
+        eq(notifications.tenantId, tenantId),
+        eq(notifications.isRead, false)
+      ));
   }
 
-  /**
-   * Delete a notification (optional - currently unused)
-   */
-  static async deleteNotification(
-    notificationId: number, 
-    userId: number, 
-    tenantId: number
-  ): Promise<boolean> {
-    const result = await db
-      .delete(notifications)
-      .where(
-        and(
-          eq(notifications.id, notificationId),
-          eq(notifications.userId, userId),
-          eq(notifications.tenantId, tenantId)
-        )
-      );
-
-    return result.rowCount > 0;
-  }
-
-  /**
-   * Create a system notification for workflow alerts
-   */
-  static async createWorkflowNotification(
+  // Update user notification preferences
+  async updatePreferences(
+    userId: number,
     tenantId: number,
-    userIds: number[],
-    title: string,
-    message: string,
-    workflowId?: number,
-    createdBy?: number
+    preferences: Partial<InsertNotificationPreference>[]
   ): Promise<void> {
-    await this.createNotification({
-      tenantId,
-      userIds,
-      title,
-      messageBody: message,
-      type: 'WORKFLOW_ALERT',
-      severity: 'INFO',
-      createdBy,
-      relatedModule: 'Workflows',
-      relatedEntityId: workflowId?.toString(),
-      linkUrl: workflowId ? `/workflow/${workflowId}` : '/workflow'
-    });
+    // Delete existing preferences for the user
+    await db
+      .delete(notificationPreferences)
+      .where(and(
+        eq(notificationPreferences.userId, userId),
+        eq(notificationPreferences.tenantId, tenantId)
+      ));
+
+    // Insert new preferences
+    if (preferences.length > 0) {
+      await db
+        .insert(notificationPreferences)
+        .values(preferences.map(pref => ({
+          ...pref,
+          userId,
+          tenantId
+        })));
+    }
+
+    // Invalidate cache
+    cache.invalidateUserPreferences(userId);
   }
 
-  /**
-   * Create a task assignment notification
-   */
-  static async createTaskNotification(
+  // Process automatic notifications based on triggers
+  async processTrigger(
     tenantId: number,
-    assignedUserId: number,
-    title: string,
-    message: string,
-    taskId: number,
-    createdBy?: number
+    module: string,
+    event: string,
+    entityData: any,
+    userId?: number
   ): Promise<void> {
-    await this.createNotification({
-      tenantId,
-      userIds: [assignedUserId],
-      title,
-      messageBody: message,
-      type: 'TASK_ASSIGNMENT',
-      severity: 'INFO',
-      createdBy,
-      relatedModule: 'Tasks',
-      relatedEntityId: taskId.toString(),
-      linkUrl: `/tasks/${taskId}`
+    const triggers = await cache.getTriggers(tenantId);
+    
+    const matchingTriggers = triggers.filter(trigger => 
+      trigger.triggerModule === module && 
+      trigger.triggerEvent === event &&
+      this.evaluateTriggerConditions(trigger.triggerConditions, entityData)
+    );
+
+    for (const trigger of matchingTriggers) {
+      const templateVariables = {
+        ...entityData,
+        user: userId ? await this.getUserInfo(userId) : null,
+        timestamp: new Date().toISOString(),
+        tenantId
+      };
+
+      const notificationData: CreateNotification = {
+        tenantId,
+        title: trigger.titleTemplate,
+        messageBody: trigger.messageTemplate,
+        linkUrl: trigger.linkTemplate,
+        type: trigger.notificationType,
+        severity: trigger.severity,
+        deliveryChannels: JSON.parse(trigger.deliveryChannels || '["in_app"]'),
+        deliveryDelay: trigger.deliveryDelay || 0,
+        batchDelivery: trigger.batchDelivery || false,
+        createdBy: userId,
+        relatedModule: module,
+        relatedEntityId: String(entityData.id || ''),
+        templateVariables,
+        ...this.parseRecipientConfig(trigger.recipientType, trigger.recipientConfig)
+      };
+
+      await this.createNotification(notificationData);
+    }
+  }
+
+  // Evaluate trigger conditions
+  private evaluateTriggerConditions(conditions: string | null, entityData: any): boolean {
+    if (!conditions) return true;
+
+    try {
+      const conditionsObj = JSON.parse(conditions);
+      // Simple condition evaluation - can be enhanced
+      return Object.keys(conditionsObj).every(key => {
+        const expectedValue = conditionsObj[key];
+        const actualValue = entityData[key];
+        
+        if (typeof expectedValue === 'object' && expectedValue !== null) {
+          // Handle operators like { "$gt": 100 }, { "$in": [1, 2, 3] }
+          if (expectedValue.$gt !== undefined) return actualValue > expectedValue.$gt;
+          if (expectedValue.$lt !== undefined) return actualValue < expectedValue.$lt;
+          if (expectedValue.$in !== undefined) return expectedValue.$in.includes(actualValue);
+          if (expectedValue.$ne !== undefined) return actualValue !== expectedValue.$ne;
+        }
+        
+        return actualValue === expectedValue;
+      });
+    } catch {
+      return true;
+    }
+  }
+
+  // Parse recipient configuration
+  private parseRecipientConfig(recipientType: string, recipientConfig: string): any {
+    try {
+      const config = JSON.parse(recipientConfig);
+      
+      switch (recipientType) {
+        case 'specific_users':
+          return { userIds: config.userIds || [] };
+        case 'role_based':
+          return { roleIds: config.roleIds || [] };
+        case 'department_based':
+          return { departmentIds: config.departmentIds || [] };
+        case 'conditional':
+          return { conditionalRecipients: config };
+        default:
+          return {};
+      }
+    } catch {
+      return {};
+    }
+  }
+
+  // Get user info for template variables
+  private async getUserInfo(userId: number): Promise<any> {
+    const user = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        displayName: users.displayName,
+        email: users.email
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    return user[0] || null;
+  }
+
+  // Get notification statistics
+  async getNotificationStats(tenantId: number, userId?: number): Promise<{
+    total: number;
+    unread: number;
+    byType: Record<string, number>;
+    bySeverity: Record<string, number>;
+  }> {
+    const conditions = [eq(notifications.tenantId, tenantId)];
+    if (userId) {
+      conditions.push(eq(notifications.userId, userId));
+    }
+
+    const [totalResult, unreadResult, byTypeResult, bySeverityResult] = await Promise.all([
+      db.select({ count: sql<number>`count(*)` })
+        .from(notifications)
+        .where(and(...conditions)),
+      
+      db.select({ count: sql<number>`count(*)` })
+        .from(notifications)
+        .where(and(...conditions, eq(notifications.isRead, false))),
+      
+      db.select({
+        type: notifications.type,
+        count: sql<number>`count(*)`
+      })
+        .from(notifications)
+        .where(and(...conditions))
+        .groupBy(notifications.type),
+      
+      db.select({
+        severity: notifications.severity,
+        count: sql<number>`count(*)`
+      })
+        .from(notifications)
+        .where(and(...conditions))
+        .groupBy(notifications.severity)
+    ]);
+
+    const byType: Record<string, number> = {};
+    byTypeResult.forEach(row => {
+      byType[row.type] = row.count;
     });
+
+    const bySeverity: Record<string, number> = {};
+    bySeverityResult.forEach(row => {
+      bySeverity[row.severity] = row.count;
+    });
+
+    return {
+      total: totalResult[0]?.count || 0,
+      unread: unreadResult[0]?.count || 0,
+      byType,
+      bySeverity
+    };
+  }
+
+  // Clear cache (useful for testing or manual cache invalidation)
+  clearCache(): void {
+    cache.clear();
   }
 }
+
+export const notificationService = new NotificationService();

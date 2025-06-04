@@ -6501,6 +6501,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register Internal Notification System routes
   setupNotificationRoutes(app, isAuthenticated, requirePermission, databaseStorage);
   console.log("Internal Notification System routes registered");
+  
+  // Register Enhanced Notification System routes
+  const { enhancedNotificationRoutes } = await import('./api/enhanced-notification-routes');
+  app.use('/api/v1/notifications', isAuthenticated, enhancedNotificationRoutes);
+  console.log("Enhanced Notification System routes registered");
 
   // Register Analytics routes for Reports Module
   // app.use("/api/v1/reports/analytics", isAuthenticated, createAnalyticsRoutes(databaseStorage));

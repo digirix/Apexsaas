@@ -5,7 +5,7 @@ import { SettingsNavigation } from "@/components/settings/settings-navigation";
 import { GeneralSettings } from "@/components/settings/general-settings";
 import { SecuritySettings } from "@/components/settings/security-settings";
 import { DisplaySettings } from "@/components/settings/display-settings";
-import { NotificationSettings } from "@/components/settings/notification-settings";
+import { NotificationSettings as EnhancedNotificationSettings } from "@/components/notifications/notification-settings";
 import { BackupSettings } from "@/components/settings/backup-settings";
 import { TaskSettings } from "@/components/settings/task-settings";
 import { InvoiceSettings } from "@/components/settings/invoice-settings";
