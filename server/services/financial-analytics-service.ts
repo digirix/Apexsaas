@@ -31,21 +31,30 @@ interface ClientProfitability {
 export class FinancialAnalyticsService {
   constructor(private storage: DatabaseStorage) {}
 
+  private sanitizeNumber(value: any): number {
+    if (typeof value === 'number' && !isNaN(value)) return value;
+    if (typeof value === 'string') {
+      const parsed = parseFloat(value.replace(/[^\d.-]/g, ''));
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    return 0;
+  }
+
   async getKPIMetrics(tenantId: number, periodMonths: number): Promise<KPIMetrics> {
     const currentPeriodStart = startOfMonth(subMonths(new Date(), periodMonths - 1));
     const currentPeriodEnd = endOfMonth(new Date());
     const previousPeriodStart = startOfMonth(subMonths(currentPeriodStart, periodMonths));
     const previousPeriodEnd = endOfMonth(subMonths(new Date(), periodMonths));
 
-    // Get current period metrics
-    const currentRevenue = await this.calculateTotalRevenue(tenantId, currentPeriodStart, currentPeriodEnd);
-    const currentExpenses = await this.calculateTotalExpenses(tenantId, currentPeriodStart, currentPeriodEnd);
-    const currentActiveClients = await this.getActiveClientsCount(tenantId, currentPeriodStart, currentPeriodEnd);
+    // Get current period metrics and sanitize
+    const currentRevenue = this.sanitizeNumber(await this.calculateTotalRevenue(tenantId, currentPeriodStart, currentPeriodEnd));
+    const currentExpenses = this.sanitizeNumber(await this.calculateTotalExpenses(tenantId, currentPeriodStart, currentPeriodEnd));
+    const currentActiveClients = this.sanitizeNumber(await this.getActiveClientsCount(tenantId, currentPeriodStart, currentPeriodEnd));
 
-    // Get previous period metrics for comparison
-    const previousRevenue = await this.calculateTotalRevenue(tenantId, previousPeriodStart, previousPeriodEnd);
-    const previousExpenses = await this.calculateTotalExpenses(tenantId, previousPeriodStart, previousPeriodEnd);
-    const previousActiveClients = await this.getActiveClientsCount(tenantId, previousPeriodStart, previousPeriodEnd);
+    // Get previous period metrics for comparison and sanitize
+    const previousRevenue = this.sanitizeNumber(await this.calculateTotalRevenue(tenantId, previousPeriodStart, previousPeriodEnd));
+    const previousExpenses = this.sanitizeNumber(await this.calculateTotalExpenses(tenantId, previousPeriodStart, previousPeriodEnd));
+    const previousActiveClients = this.sanitizeNumber(await this.getActiveClientsCount(tenantId, previousPeriodStart, previousPeriodEnd));
 
     // Calculate metrics
     const currentProfit = currentRevenue - currentExpenses;
@@ -86,12 +95,17 @@ export class FinancialAnalyticsService {
       const expenses = await this.calculateTotalExpenses(tenantId, monthStart, monthEnd);
       const clients = await this.getActiveClientsCount(tenantId, monthStart, monthEnd);
 
+      // Ensure all numeric values are properly formatted
+      const safeRevenue = this.sanitizeNumber(revenue);
+      const safeExpenses = this.sanitizeNumber(expenses);
+      const safeClients = this.sanitizeNumber(clients);
+
       trends.push({
         period: format(monthStart, 'MMM yyyy'),
-        revenue,
-        expenses,
-        profit: revenue - expenses,
-        clients
+        revenue: safeRevenue,
+        expenses: safeExpenses,
+        profit: safeRevenue - safeExpenses,
+        clients: safeClients
       });
     }
 
@@ -107,8 +121,8 @@ export class FinancialAnalyticsService {
     const profitability: ClientProfitability[] = [];
 
     for (const client of clients) {
-      const revenue = await this.calculateClientRevenue(tenantId, client.id, periodStart, periodEnd);
-      const expenses = await this.calculateClientExpenses(tenantId, client.id, periodStart, periodEnd);
+      const revenue = this.sanitizeNumber(await this.calculateClientRevenue(tenantId, client.id, periodStart, periodEnd));
+      const expenses = this.sanitizeNumber(await this.calculateClientExpenses(tenantId, client.id, periodStart, periodEnd));
       const profit = revenue - expenses;
       const profitMargin = revenue > 0 ? (profit / revenue) * 100 : 0;
 
@@ -118,7 +132,7 @@ export class FinancialAnalyticsService {
           revenue,
           expenses,
           profit,
-          profitMargin
+          profitMargin: this.sanitizeNumber(profitMargin)
         });
       }
     }
