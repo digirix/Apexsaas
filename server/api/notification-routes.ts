@@ -1,5 +1,5 @@
 import express from "express";
-import { NotificationService } from "../services/notification-service";
+import { notificationService } from "../services/notification-service";
 import { createNotificationSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -17,7 +17,7 @@ export function setupNotificationRoutes(app: express.Application, isAuthenticate
         type: type as string || undefined
       };
 
-      const notifications = await NotificationService.getNotificationsForUser(
+      const notifications = await notificationService.getNotificationsForUser(
         user.id,
         user.tenantId,
         options
@@ -35,7 +35,7 @@ export function setupNotificationRoutes(app: express.Application, isAuthenticate
     try {
       const user = req.user as any;
       
-      const count = await NotificationService.getUnreadNotificationCount(
+      const count = await notificationService.getUnreadNotificationCount(
         user.id,
         user.tenantId
       );

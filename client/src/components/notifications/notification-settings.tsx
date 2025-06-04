@@ -913,7 +913,7 @@ export function NotificationSettings() {
                             <Input placeholder="Task {{taskName}} is overdue" {...field} />
                           </FormControl>
                           <FormDescription>
-                            Use {{variableName}} for dynamic content
+                            Use {"{{variableName}}"} for dynamic content
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
