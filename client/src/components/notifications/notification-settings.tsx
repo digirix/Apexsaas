@@ -652,7 +652,7 @@ export function NotificationSettings() {
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Template Variables</AlertTitle>
                   <AlertDescription>
-                    Available variables: {{assignee_name}}, {{task_title}}, {{due_date}}, {{priority}}, {{client_name}}, {{status}}, {{updated_by}}, {{completion_date}}
+                    Available variables: {`{{assignee_name}}, {{task_title}}, {{due_date}}, {{priority}}, {{client_name}}, {{status}}, {{updated_by}}, {{completion_date}}`}
                   </AlertDescription>
                 </Alert>
 
