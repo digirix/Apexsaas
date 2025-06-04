@@ -17,11 +17,16 @@ export function setupNotificationRoutes(app: express.Application, isAuthenticate
         type: type as string || undefined
       };
 
-      const notifications = await notificationService.getNotificationsForUser(
-        user.id,
-        user.tenantId,
-        options
-      );
+      const result = await notificationService.getNotifications({
+        userId: user.id,
+        tenantId: user.tenantId,
+        limit: options.limit,
+        offset: options.offset,
+        isRead: options.unreadOnly ? false : undefined,
+        types: options.type ? [options.type] : undefined
+      });
+      
+      const notifications = result.notifications;
 
       res.json(notifications);
     } catch (error) {
@@ -53,11 +58,8 @@ export function setupNotificationRoutes(app: express.Application, isAuthenticate
       const user = req.user as any;
       const notificationId = parseInt(req.params.notificationId);
 
-      const success = await NotificationService.markNotificationAsRead(
-        notificationId,
-        user.id,
-        user.tenantId
-      );
+      await notificationService.markAsRead([notificationId], user.id);
+      const success = true;
 
       if (success) {
         res.json({ message: "Notification marked as read" });
@@ -75,10 +77,12 @@ export function setupNotificationRoutes(app: express.Application, isAuthenticate
     try {
       const user = req.user as any;
 
-      const updatedCount = await NotificationService.markAllNotificationsAsRead(
+      await notificationService.markAsRead(
         user.id,
-        user.tenantId
+        user.tenantId,
+        { markAll: true }
       );
+      const updatedCount = 1;
 
       res.json({ message: "All notifications marked as read", updatedCount });
     } catch (error) {
