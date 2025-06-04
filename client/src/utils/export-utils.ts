@@ -24,29 +24,225 @@ interface ReportData {
   totalEquity?: string;
 }
 
-// Helper function to flatten hierarchy for Excel export
-function flattenHierarchy(hierarchy: Record<string, HierarchyNode>, level = 0): Array<{
-  level: number;
-  name: string;
+// Helper function to extract account-level data and calculate hierarchy totals
+function extractAccountLevelData(hierarchy: Record<string, HierarchyNode>): Array<{
+  accountName: string;
   amount: number;
-  indent: string;
+  detailedGroup: string;
+  subElementGroup: string;
+  elementGroup: string;
+  mainGroup: string;
 }> {
-  const result: Array<{ level: number; name: string; amount: number; indent: string }> = [];
-  
-  for (const [key, node] of Object.entries(hierarchy)) {
-    const indent = '  '.repeat(level);
-    result.push({
-      level,
-      name: node.name,
-      amount: parseFloat(node.amount || '0'),
-      indent
-    });
-    
-    if (node.children) {
-      result.push(...flattenHierarchy(node.children, level + 1));
+  const accounts: Array<{
+    accountName: string;
+    amount: number;
+    detailedGroup: string;
+    subElementGroup: string;
+    elementGroup: string;
+    mainGroup: string;
+  }> = [];
+
+  // Navigate through the hierarchy: Main Group -> Element Group -> Sub Element Group -> Detailed Group -> Account Name
+  for (const [mainGroupKey, mainGroupNode] of Object.entries(hierarchy)) {
+    if (mainGroupNode.children) {
+      for (const [elementGroupKey, elementGroupNode] of Object.entries(mainGroupNode.children)) {
+        if (elementGroupNode.children) {
+          for (const [subElementGroupKey, subElementGroupNode] of Object.entries(elementGroupNode.children)) {
+            if (subElementGroupNode.children) {
+              for (const [detailedGroupKey, detailedGroupNode] of Object.entries(subElementGroupNode.children)) {
+                if (detailedGroupNode.children) {
+                  // This is the account level
+                  for (const [accountKey, accountNode] of Object.entries(detailedGroupNode.children)) {
+                    const amount = parseFloat(accountNode.amount || '0');
+                    if (amount !== 0) { // Only include accounts with non-zero balances
+                      accounts.push({
+                        accountName: accountNode.name,
+                        amount: amount,
+                        detailedGroup: detailedGroupNode.name,
+                        subElementGroup: subElementGroupNode.name,
+                        elementGroup: elementGroupNode.name,
+                        mainGroup: mainGroupNode.name
+                      });
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
-  
+
+  return accounts;
+}
+
+// Helper function to build Excel hierarchy with calculated totals
+function buildExcelHierarchy(accounts: Array<{
+  accountName: string;
+  amount: number;
+  detailedGroup: string;
+  subElementGroup: string;
+  elementGroup: string;
+  mainGroup: string;
+}>): Array<{
+  level: number;
+  name: string;
+  amount: number | string;
+  indent: string;
+  isTotal: boolean;
+}> {
+  const result: Array<{
+    level: number;
+    name: string;
+    amount: number | string;
+    indent: string;
+    isTotal: boolean;
+  }> = [];
+
+  // Group accounts by hierarchy levels
+  const hierarchyMap = new Map();
+
+  accounts.forEach(account => {
+    const mainGroupKey = account.mainGroup;
+    const elementGroupKey = `${mainGroupKey}|${account.elementGroup}`;
+    const subElementGroupKey = `${elementGroupKey}|${account.subElementGroup}`;
+    const detailedGroupKey = `${subElementGroupKey}|${account.detailedGroup}`;
+
+    if (!hierarchyMap.has(mainGroupKey)) {
+      hierarchyMap.set(mainGroupKey, {
+        name: account.mainGroup,
+        level: 0,
+        amount: 0,
+        elementGroups: new Map()
+      });
+    }
+
+    if (!hierarchyMap.get(mainGroupKey).elementGroups.has(elementGroupKey)) {
+      hierarchyMap.get(mainGroupKey).elementGroups.set(elementGroupKey, {
+        name: account.elementGroup,
+        level: 1,
+        amount: 0,
+        subElementGroups: new Map()
+      });
+    }
+
+    if (!hierarchyMap.get(mainGroupKey).elementGroups.get(elementGroupKey).subElementGroups.has(subElementGroupKey)) {
+      hierarchyMap.get(mainGroupKey).elementGroups.get(elementGroupKey).subElementGroups.set(subElementGroupKey, {
+        name: account.subElementGroup,
+        level: 2,
+        amount: 0,
+        detailedGroups: new Map()
+      });
+    }
+
+    if (!hierarchyMap.get(mainGroupKey).elementGroups.get(elementGroupKey).subElementGroups.get(subElementGroupKey).detailedGroups.has(detailedGroupKey)) {
+      hierarchyMap.get(mainGroupKey).elementGroups.get(elementGroupKey).subElementGroups.get(subElementGroupKey).detailedGroups.set(detailedGroupKey, {
+        name: account.detailedGroup,
+        level: 3,
+        amount: 0,
+        accounts: []
+      });
+    }
+
+    // Add the account
+    hierarchyMap.get(mainGroupKey).elementGroups.get(elementGroupKey).subElementGroups.get(subElementGroupKey).detailedGroups.get(detailedGroupKey).accounts.push(account);
+    
+    // Update amounts at all levels
+    hierarchyMap.get(mainGroupKey).elementGroups.get(elementGroupKey).subElementGroups.get(subElementGroupKey).detailedGroups.get(detailedGroupKey).amount += account.amount;
+    hierarchyMap.get(mainGroupKey).elementGroups.get(elementGroupKey).subElementGroups.get(subElementGroupKey).amount += account.amount;
+    hierarchyMap.get(mainGroupKey).elementGroups.get(elementGroupKey).amount += account.amount;
+    hierarchyMap.get(mainGroupKey).amount += account.amount;
+  });
+
+  // Build the flattened structure
+  for (const [, mainGroup] of hierarchyMap) {
+    result.push({
+      level: 0,
+      name: mainGroup.name,
+      amount: '',
+      indent: '',
+      isTotal: false
+    });
+
+    for (const [, elementGroup] of mainGroup.elementGroups) {
+      result.push({
+        level: 1,
+        name: elementGroup.name,
+        amount: '',
+        indent: '  ',
+        isTotal: false
+      });
+
+      for (const [, subElementGroup] of elementGroup.subElementGroups) {
+        result.push({
+          level: 2,
+          name: subElementGroup.name,
+          amount: '',
+          indent: '    ',
+          isTotal: false
+        });
+
+        for (const [, detailedGroup] of subElementGroup.detailedGroups) {
+          result.push({
+            level: 3,
+            name: detailedGroup.name,
+            amount: '',
+            indent: '      ',
+            isTotal: false
+          });
+
+          // Add accounts with actual figures
+          detailedGroup.accounts.forEach((account: any) => {
+            result.push({
+              level: 4,
+              name: account.accountName,
+              amount: account.amount,
+              indent: '        ',
+              isTotal: false
+            });
+          });
+
+          // Add detailed group total
+          result.push({
+            level: 3,
+            name: `Total ${detailedGroup.name}`,
+            amount: detailedGroup.amount,
+            indent: '      ',
+            isTotal: true
+          });
+        }
+
+        // Add sub element group total
+        result.push({
+          level: 2,
+          name: `Total ${subElementGroup.name}`,
+          amount: subElementGroup.amount,
+          indent: '    ',
+          isTotal: true
+        });
+      }
+
+      // Add element group total
+      result.push({
+        level: 1,
+        name: `Total ${elementGroup.name}`,
+        amount: elementGroup.amount,
+        indent: '  ',
+        isTotal: true
+      });
+    }
+
+    // Add main group total
+    result.push({
+      level: 0,
+      name: `Total ${mainGroup.name}`,
+      amount: mainGroup.amount,
+      indent: '',
+      isTotal: true
+    });
+  }
+
   return result;
 }
 
@@ -84,9 +280,14 @@ export function exportProfitLossToExcel(
   // Income Section
   data.push(['INCOME', '', '']);
   if (reportData.incomeHierarchy) {
-    const incomeItems = flattenHierarchy(reportData.incomeHierarchy);
-    incomeItems.forEach(item => {
-      data.push([item.indent + item.name, '', formatCurrency(item.amount)]);
+    const incomeAccounts = extractAccountLevelData(reportData.incomeHierarchy);
+    const incomeHierarchy = buildExcelHierarchy(incomeAccounts);
+    incomeHierarchy.forEach(item => {
+      if (item.amount === '') {
+        data.push([item.indent + item.name, '', '']);
+      } else {
+        data.push([item.indent + item.name, '', formatCurrency(typeof item.amount === 'number' ? item.amount : 0)]);
+      }
     });
   }
   data.push(['Total Income', '', formatCurrency(parseFloat(reportData.totalIncome || '0'))]);
@@ -95,9 +296,14 @@ export function exportProfitLossToExcel(
   // Expenses Section
   data.push(['EXPENSES', '', '']);
   if (reportData.expenseHierarchy) {
-    const expenseItems = flattenHierarchy(reportData.expenseHierarchy);
-    expenseItems.forEach(item => {
-      data.push([item.indent + item.name, '', formatCurrency(item.amount)]);
+    const expenseAccounts = extractAccountLevelData(reportData.expenseHierarchy);
+    const expenseHierarchy = buildExcelHierarchy(expenseAccounts);
+    expenseHierarchy.forEach(item => {
+      if (item.amount === '') {
+        data.push([item.indent + item.name, '', '']);
+      } else {
+        data.push([item.indent + item.name, '', formatCurrency(typeof item.amount === 'number' ? item.amount : 0)]);
+      }
     });
   }
   data.push(['Total Expenses', '', formatCurrency(parseFloat(reportData.totalExpenses || '0'))]);
@@ -146,9 +352,14 @@ export function exportBalanceSheetToExcel(
   // Assets Section
   data.push(['ASSETS', '', '']);
   if (reportData.assetsHierarchy) {
-    const assetItems = flattenHierarchy(reportData.assetsHierarchy);
-    assetItems.forEach(item => {
-      data.push([item.indent + item.name, '', formatCurrency(item.amount)]);
+    const assetAccounts = extractAccountLevelData(reportData.assetsHierarchy);
+    const assetHierarchy = buildExcelHierarchy(assetAccounts);
+    assetHierarchy.forEach(item => {
+      if (item.amount === '') {
+        data.push([item.indent + item.name, '', '']);
+      } else {
+        data.push([item.indent + item.name, '', formatCurrency(typeof item.amount === 'number' ? item.amount : 0)]);
+      }
     });
   }
   data.push(['Total Assets', '', formatCurrency(parseFloat(reportData.totalAssets || '0'))]);
@@ -157,9 +368,14 @@ export function exportBalanceSheetToExcel(
   // Liabilities Section
   data.push(['LIABILITIES', '', '']);
   if (reportData.liabilitiesHierarchy) {
-    const liabilityItems = flattenHierarchy(reportData.liabilitiesHierarchy);
-    liabilityItems.forEach(item => {
-      data.push([item.indent + item.name, '', formatCurrency(item.amount)]);
+    const liabilityAccounts = extractAccountLevelData(reportData.liabilitiesHierarchy);
+    const liabilityHierarchy = buildExcelHierarchy(liabilityAccounts);
+    liabilityHierarchy.forEach(item => {
+      if (item.amount === '') {
+        data.push([item.indent + item.name, '', '']);
+      } else {
+        data.push([item.indent + item.name, '', formatCurrency(typeof item.amount === 'number' ? item.amount : 0)]);
+      }
     });
   }
   data.push(['Total Liabilities', '', formatCurrency(parseFloat(reportData.totalLiabilities || '0'))]);
@@ -168,9 +384,14 @@ export function exportBalanceSheetToExcel(
   // Equity Section
   data.push(['EQUITY', '', '']);
   if (reportData.equityHierarchy) {
-    const equityItems = flattenHierarchy(reportData.equityHierarchy);
-    equityItems.forEach(item => {
-      data.push([item.indent + item.name, '', formatCurrency(item.amount)]);
+    const equityAccounts = extractAccountLevelData(reportData.equityHierarchy);
+    const equityHierarchy = buildExcelHierarchy(equityAccounts);
+    equityHierarchy.forEach(item => {
+      if (item.amount === '') {
+        data.push([item.indent + item.name, '', '']);
+      } else {
+        data.push([item.indent + item.name, '', formatCurrency(typeof item.amount === 'number' ? item.amount : 0)]);
+      }
     });
   }
   data.push(['Total Equity', '', formatCurrency(parseFloat(reportData.totalEquity || '0'))]);
