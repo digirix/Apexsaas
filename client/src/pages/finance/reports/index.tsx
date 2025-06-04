@@ -94,12 +94,7 @@ export default function FinancialReportsPage() {
           
 
           
-          <ReportCard
-            title="Financial Analytics"
-            description="Advanced KPIs, trends, and executive dashboards"
-            icon={<TrendingUp className="h-5 w-5" />}
-            href="/finance/reports/analytics"
-          />
+
         </div>
       </div>
     </AppLayout>
