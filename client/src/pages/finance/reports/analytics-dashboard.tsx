@@ -72,15 +72,41 @@ export default function AnalyticsDashboard() {
     enabled: true
   });
 
-  const formatCurrency = (value: number) => {
+  const safeParseNumber = (value: any): number => {
+    if (typeof value === 'number' && !isNaN(value)) return value;
+    if (typeof value === 'string') {
+      const parsed = parseFloat(value.replace(/[^\d.-]/g, ''));
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    return 0;
+  };
+
+  const formatCurrency = (value: any) => {
+    const numValue = safeParseNumber(value);
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'
-    }).format(value);
+    }).format(numValue);
   };
 
-  const formatPercentage = (value: number) => {
-    return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
+  const formatPercentage = (value: any) => {
+    const numValue = safeParseNumber(value);
+    return `${numValue >= 0 ? '+' : ''}${numValue.toFixed(1)}%`;
+  };
+
+  const sanitizeChartData = (data: any[]): any[] => {
+    if (!Array.isArray(data)) return [];
+    return data.map(item => {
+      const sanitized: any = {};
+      for (const [key, value] of Object.entries(item)) {
+        if (key === 'period' || key === 'clientName' || typeof value === 'string') {
+          sanitized[key] = value;
+        } else {
+          sanitized[key] = safeParseNumber(value);
+        }
+      }
+      return sanitized;
+    });
   };
 
   const kpiMetrics: KPIMetric[] = kpiData ? [
@@ -159,22 +185,10 @@ export default function AnalyticsDashboard() {
     revenuePerClientChange: 8.3
   };
 
-  // Use real data only, filter out invalid values
-  const displayTrendData = (trendData || []).map(item => ({
-    ...item,
-    revenue: isNaN(item.revenue) ? 0 : item.revenue,
-    expenses: isNaN(item.expenses) ? 0 : item.expenses,
-    profit: isNaN(item.profit) ? 0 : item.profit,
-    clients: isNaN(item.clients) ? 0 : item.clients
-  }));
-  
-  const displayClientData = (clientProfitability || []).map(item => ({
-    ...item,
-    revenue: isNaN(item.revenue) ? 0 : item.revenue,
-    expenses: isNaN(item.expenses) ? 0 : item.expenses,
-    profit: isNaN(item.profit) ? 0 : item.profit,
-    profitMargin: isNaN(item.profitMargin) ? 0 : item.profitMargin
-  }));
+  // Use real data only, properly sanitized
+  const displayTrendData = sanitizeChartData(trendData || []);
+  const displayClientData = sanitizeChartData(clientProfitability || []);
+  const displayCashFlowData = sanitizeChartData(cashFlowData || []);
   
   const displayKPIData = {
     totalRevenue: isNaN(kpiData?.totalRevenue) ? 0 : (kpiData?.totalRevenue || 0),

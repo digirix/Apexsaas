@@ -212,6 +212,7 @@ export interface IStorage {
   getClientTasks(tenantId: number, clientId: number, startDate: Date, endDate: Date): Promise<Task[]>;
   getAccountsByType(tenantId: number, accountType: string): Promise<ChartOfAccount[]>;
   getInvoicesByDateRange(tenantId: number, startDate: Date, endDate: Date): Promise<Invoice[]>;
+  getAccountBalance(tenantId: number, accountId: number, startDate?: Date, endDate?: Date): Promise<number>;
   
   // Payment Gateway Settings operations
   getPaymentGatewaySettings(tenantId: number): Promise<PaymentGatewaySetting[]>;

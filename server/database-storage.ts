@@ -1540,6 +1540,44 @@ export class DatabaseStorage implements IStorage {
       ))
       .orderBy(desc(invoices.issueDate));
   }
+
+  async getAccountBalance(tenantId: number, accountId: number, startDate?: Date, endDate?: Date): Promise<number> {
+    try {
+      let query = db.select({
+        debitAmount: journalEntryLines.debitAmount,
+        creditAmount: journalEntryLines.creditAmount
+      })
+      .from(journalEntryLines)
+      .innerJoin(journalEntries, eq(journalEntryLines.journalEntryId, journalEntries.id))
+      .where(and(
+        eq(journalEntries.tenantId, tenantId),
+        eq(journalEntryLines.accountId, accountId)
+      ));
+
+      if (startDate && endDate) {
+        query = query.where(and(
+          eq(journalEntries.tenantId, tenantId),
+          eq(journalEntryLines.accountId, accountId),
+          gte(journalEntries.entryDate, startDate),
+          lte(journalEntries.entryDate, endDate)
+        ));
+      }
+
+      const entries = await query;
+      
+      let balance = 0;
+      for (const entry of entries) {
+        const debit = parseFloat(entry.debitAmount) || 0;
+        const credit = parseFloat(entry.creditAmount) || 0;
+        balance += debit - credit;
+      }
+      
+      return isNaN(balance) ? 0 : balance;
+    } catch (error) {
+      console.error('Error calculating account balance:', error);
+      return 0;
+    }
+  }
   
   // Task operations
   async getTasks(tenantId?: number, clientId?: number, entityId?: number, statusId?: number): Promise<Task[]> {

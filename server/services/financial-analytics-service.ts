@@ -130,15 +130,16 @@ export class FinancialAnalyticsService {
   private async calculateTotalRevenue(tenantId: number, startDate: Date, endDate: Date): Promise<number> {
     try {
       // Get revenue from income accounts through journal entries
-      const revenueAccounts = await this.storage.getAccountsByType(tenantId, 'income');
+      const revenueAccounts = await this.storage.getAccountsByType(tenantId, 'revenue');
       let totalRevenue = 0;
 
       for (const account of revenueAccounts) {
         const balance = await this.storage.getAccountBalance(tenantId, account.id, startDate, endDate);
-        totalRevenue += Math.abs(balance); // Income accounts have credit balances (negative), so we take absolute
+        const validBalance = isNaN(balance) ? 0 : Math.abs(balance); // Income accounts have credit balances (negative), so we take absolute
+        totalRevenue += validBalance;
       }
 
-      return totalRevenue;
+      return isNaN(totalRevenue) ? 0 : totalRevenue;
     } catch (error) {
       console.error('Error calculating total revenue:', error);
       return 0;
@@ -153,10 +154,11 @@ export class FinancialAnalyticsService {
 
       for (const account of expenseAccounts) {
         const balance = await this.storage.getAccountBalance(tenantId, account.id, startDate, endDate);
-        totalExpenses += balance; // Expense accounts have debit balances (positive)
+        const validBalance = isNaN(balance) ? 0 : balance; // Expense accounts have debit balances (positive)
+        totalExpenses += validBalance;
       }
 
-      return totalExpenses;
+      return isNaN(totalExpenses) ? 0 : totalExpenses;
     } catch (error) {
       console.error('Error calculating total expenses:', error);
       return 0;
