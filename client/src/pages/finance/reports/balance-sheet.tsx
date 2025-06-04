@@ -31,6 +31,7 @@ import { HierarchicalReport } from "@/components/finance/hierarchical-report";
 import { FilteredReportDisplay } from "@/components/finance/filtered-report-display";
 import { PrintOnlyBalanceSheet } from "@/components/finance/print-only-layout";
 import { PrintLayout, PrintHierarchicalReport } from "@/components/finance/print-layout";
+import { exportBalanceSheetToExcel, exportToPDF, printReport } from "@/utils/export-utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -259,27 +260,53 @@ export default function BalanceSheetPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuItem
-                  onClick={() => {
-                    toast({
-                      title: "Export to PDF",
-                      description: "The report will be exported as a PDF file.",
-                    });
+                  onClick={async () => {
+                    try {
+                      await exportToPDF('balance-sheet-report', `balance-sheet-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+                      toast({
+                        title: "PDF Export Complete",
+                        description: "The report has been exported as a PDF file.",
+                      });
+                    } catch (error) {
+                      toast({
+                        title: "Export Error",
+                        description: "Failed to export PDF. Please try again.",
+                        variant: "destructive",
+                      });
+                    }
                   }}
                 >
                   Export as PDF
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {
-                    toast({
-                      title: "Export to Excel",
-                      description: "The report will be exported as an Excel file.",
-                    });
+                    try {
+                      if (report) {
+                        exportBalanceSheetToExcel(report, displayLevel, asOfDate);
+                        toast({
+                          title: "Excel Export Complete",
+                          description: "The report has been exported as an Excel file.",
+                        });
+                      }
+                    } catch (error) {
+                      toast({
+                        title: "Export Error",
+                        description: "Failed to export Excel. Please try again.",
+                        variant: "destructive",
+                      });
+                    }
                   }}
                 >
                   Export as Excel
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => window.print()}
+                  onClick={() => {
+                    try {
+                      printReport();
+                    } catch (error) {
+                      window.print();
+                    }
+                  }}
                 >
                   Print Preview
                 </DropdownMenuItem>
@@ -346,7 +373,7 @@ export default function BalanceSheetPage() {
           </TabsList>
           
           <TabsContent value="table">
-            <Card>
+            <Card id="balance-sheet-report">
               <CardHeader className="pb-2">
                 <CardTitle className="text-xl">
                   Balance Sheet

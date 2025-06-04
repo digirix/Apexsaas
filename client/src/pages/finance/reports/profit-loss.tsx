@@ -339,7 +339,7 @@ export default function ProfitAndLossPage() {
           companyName="Accounting Firm"
           reportDate={endDate ? format(endDate, "PP") : format(new Date(), "PP")}
         >
-          <Card className="print:shadow-none print:border-none">
+          <Card className="print:shadow-none print:border-none" id="profit-loss-report">
           <CardHeader className="pb-2 print:hidden">
             <CardTitle className="text-xl">
               Profit & Loss Statement
