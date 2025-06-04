@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
 import { TaskScheduler } from "./task-scheduler";
+import { runDatabaseMigrations, seedDefaultData } from "./db-migration";
 
 const app = express();
 app.use(express.json());
@@ -41,6 +42,18 @@ app.use((req, res, next) => {
 (async () => {
   console.log("Starting server...");
   try {
+    // Run database migrations first
+    console.log("Initializing database...");
+    const migrationSuccess = await runDatabaseMigrations();
+    if (!migrationSuccess) {
+      console.error("Database migration failed. Server will not start.");
+      process.exit(1);
+    }
+    
+    // Seed default data if needed
+    await seedDefaultData();
+    console.log("Database initialization completed");
+
     console.log("Registering routes...");
     const server = await registerRoutes(app);
     console.log("Routes registered successfully");
