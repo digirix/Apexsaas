@@ -5,6 +5,8 @@ import {
   emailProviderSettings,
   emailDeliveryLogs,
   users,
+  userPermissions,
+  tasks,
   tenants,
   CreateNotification,
   NotificationFilter,
@@ -362,51 +364,202 @@ export class NotificationService {
 </html>`;
   }
 
-  // Resolve notification recipients based on various criteria
+  // Resolve notification recipients based on various criteria with permission checking
   private async resolveRecipients(criteria: {
     tenantId: number;
     userIds?: number[];
     roleIds?: number[];
     departmentIds?: number[];
     conditionalRecipients?: any;
+    module?: string;
+    requiredPermission?: string;
   }): Promise<number[]> {
-    const { tenantId, userIds, roleIds, departmentIds, conditionalRecipients } = criteria;
+    const { tenantId, userIds, roleIds, departmentIds, conditionalRecipients, module, requiredPermission } = criteria;
     const recipientSet = new Set<number>();
 
-    // Add specific user IDs
+    // Add specific user IDs (with permission check)
     if (userIds && userIds.length > 0) {
-      userIds.forEach(id => recipientSet.add(id));
+      for (const userId of userIds) {
+        const hasPermission = await this.checkUserPermission(userId, tenantId, module, requiredPermission);
+        if (hasPermission) {
+          recipientSet.add(userId);
+        }
+      }
     }
 
-    // Add users by role (if role system is implemented)
-    if (roleIds && roleIds.length > 0) {
-      // This would require a roles/user_roles table implementation
-      // For now, we'll skip this
+    // Add users by admin role
+    if (roleIds && roleIds.includes('admin')) {
+      const adminUsers = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(and(
+          eq(users.tenantId, tenantId),
+          eq(users.isAdmin, true),
+          eq(users.isActive, true)
+        ));
+      
+      adminUsers.forEach(user => recipientSet.add(user.id));
     }
 
-    // Add users by department (if department assignment is implemented)
-    if (departmentIds && departmentIds.length > 0) {
-      // This would require department user assignments
-      // For now, we'll skip this
+    // Add users by module permissions
+    if (module && requiredPermission) {
+      const usersWithPermission = await db
+        .select({ userId: userPermissions.userId })
+        .from(userPermissions)
+        .innerJoin(users, eq(userPermissions.userId, users.id))
+        .where(and(
+          eq(userPermissions.tenantId, tenantId),
+          eq(userPermissions.module, module),
+          eq(users.isActive, true),
+          this.getPermissionCondition(requiredPermission)
+        ));
+
+      usersWithPermission.forEach(({ userId }) => recipientSet.add(userId));
     }
 
-    // Add users based on conditional criteria
+    // Add users based on conditional criteria (task assignments, client relationships, etc.)
     if (conditionalRecipients) {
-      // This would implement complex recipient resolution
-      // Based on the module and conditions specified
+      const conditionalUsers = await this.resolveConditionalRecipients(tenantId, conditionalRecipients);
+      conditionalUsers.forEach(userId => recipientSet.add(userId));
     }
 
-    // If no specific recipients, get all users in tenant
-    if (recipientSet.size === 0) {
+    // If no specific recipients and no module restrictions, get all active users
+    if (recipientSet.size === 0 && !module) {
       const tenantUsers = await db
         .select({ id: users.id })
         .from(users)
-        .where(eq(users.tenantId, tenantId));
+        .where(and(
+          eq(users.tenantId, tenantId),
+          eq(users.isActive, true)
+        ));
       
       tenantUsers.forEach(user => recipientSet.add(user.id));
     }
 
     return Array.from(recipientSet);
+  }
+
+  // Check if user has specific permission for a module
+  private async checkUserPermission(
+    userId: number, 
+    tenantId: number, 
+    module?: string, 
+    permission?: string
+  ): Promise<boolean> {
+    if (!module || !permission) return true;
+
+    // Check if user is admin (admins have all permissions)
+    const user = await db
+      .select({ isAdmin: users.isAdmin })
+      .from(users)
+      .where(and(
+        eq(users.id, userId),
+        eq(users.tenantId, tenantId),
+        eq(users.isActive, true)
+      ))
+      .limit(1);
+
+    if (user[0]?.isAdmin) return true;
+
+    // Check specific module permission
+    const userPermission = await db
+      .select()
+      .from(userPermissions)
+      .where(and(
+        eq(userPermissions.userId, userId),
+        eq(userPermissions.tenantId, tenantId),
+        eq(userPermissions.module, module)
+      ))
+      .limit(1);
+
+    if (!userPermission[0]) return false;
+
+    const perm = userPermission[0];
+    switch (permission) {
+      case 'read': return perm.canRead;
+      case 'create': return perm.canCreate;
+      case 'update': return perm.canUpdate;
+      case 'delete': return perm.canDelete;
+      default: return perm.canRead; // Default to read permission
+    }
+  }
+
+  // Get SQL condition for permission check
+  private getPermissionCondition(permission: string) {
+    switch (permission) {
+      case 'create': return eq(userPermissions.canCreate, true);
+      case 'update': return eq(userPermissions.canUpdate, true);
+      case 'delete': return eq(userPermissions.canDelete, true);
+      case 'read':
+      default: return eq(userPermissions.canRead, true);
+    }
+  }
+
+  // Resolve conditional recipients based on business logic
+  private async resolveConditionalRecipients(tenantId: number, conditions: any): Promise<number[]> {
+    const recipients: number[] = [];
+
+    // Task-related notifications
+    if (conditions.taskId) {
+      const task = await db
+        .select({ assignedTo: tasks.assignedTo, clientId: tasks.clientId })
+        .from(tasks)
+        .where(and(
+          eq(tasks.id, conditions.taskId),
+          eq(tasks.tenantId, tenantId)
+        ))
+        .limit(1);
+
+      if (task[0]?.assignedTo) {
+        recipients.push(task[0].assignedTo);
+      }
+
+      // Add client relationship managers if applicable
+      if (task[0]?.clientId && conditions.includeClientManagers) {
+        // This would require a client-manager relationship table
+        // For now, we'll include all users with client module permissions
+        const clientManagers = await db
+          .select({ userId: userPermissions.userId })
+          .from(userPermissions)
+          .where(and(
+            eq(userPermissions.tenantId, tenantId),
+            eq(userPermissions.module, 'clients'),
+            eq(userPermissions.canRead, true)
+          ));
+
+        clientManagers.forEach(({ userId }) => recipients.push(userId));
+      }
+    }
+
+    // Client-related notifications
+    if (conditions.clientId) {
+      const clientUsers = await db
+        .select({ userId: userPermissions.userId })
+        .from(userPermissions)
+        .where(and(
+          eq(userPermissions.tenantId, tenantId),
+          eq(userPermissions.module, 'clients'),
+          eq(userPermissions.canRead, true)
+        ));
+
+      clientUsers.forEach(({ userId }) => recipients.push(userId));
+    }
+
+    // Financial notifications (invoices, payments)
+    if (conditions.invoiceId || conditions.paymentId) {
+      const financeUsers = await db
+        .select({ userId: userPermissions.userId })
+        .from(userPermissions)
+        .where(and(
+          eq(userPermissions.tenantId, tenantId),
+          eq(userPermissions.module, 'finance'),
+          eq(userPermissions.canRead, true)
+        ));
+
+      financeUsers.forEach(({ userId }) => recipients.push(userId));
+    }
+
+    return Array.from(new Set(recipients)); // Remove duplicates
   }
 
   // Get notifications for a user with filtering
@@ -631,20 +784,37 @@ export class NotificationService {
     }
   }
 
-  // Parse recipient configuration
+  // Parse recipient configuration with permission context
   private parseRecipientConfig(recipientType: string, recipientConfig: string): any {
     try {
       const config = JSON.parse(recipientConfig);
       
       switch (recipientType) {
         case 'specific_users':
-          return { userIds: config.userIds || [] };
+          return { 
+            userIds: config.userIds || [],
+            module: config.module,
+            requiredPermission: config.requiredPermission || 'read'
+          };
         case 'role_based':
-          return { roleIds: config.roleIds || [] };
-        case 'department_based':
-          return { departmentIds: config.departmentIds || [] };
+          return { 
+            roleIds: config.roleIds || [],
+            module: config.module,
+            requiredPermission: config.requiredPermission || 'read'
+          };
+        case 'module_users':
+          return {
+            module: config.module,
+            requiredPermission: config.requiredPermission || 'read'
+          };
         case 'conditional':
-          return { conditionalRecipients: config };
+          return { 
+            conditionalRecipients: config,
+            module: config.module,
+            requiredPermission: config.requiredPermission || 'read'
+          };
+        case 'all_users':
+          return {};
         default:
           return {};
       }
