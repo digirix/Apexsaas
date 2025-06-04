@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Task, User, TaskStatus, Client, Entity, TaskCategory } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import { 
   Search, 
   Plus, 
@@ -468,11 +469,16 @@ function EnhancedColumnManager({
 
 export function TaskList() {
   const { toast } = useToast();
+  const [location] = useLocation();
+  
+  // Parse URL parameters for initial filter state
+  const urlParams = new URLSearchParams(location.split('?')[1] || '');
+  const initialQuickFilter = urlParams.get('quickFilter') || 'all';
   
   // Minimal state management
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [searchTerm, setSearchTerm] = useState("");
-  const [quickFilter, setQuickFilter] = useState<string>('all');
+  const [quickFilter, setQuickFilter] = useState<string>(initialQuickFilter);
   const [showFilters, setShowFilters] = useState(false);
   
   // Individual column filters

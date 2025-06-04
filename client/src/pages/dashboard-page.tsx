@@ -117,7 +117,7 @@ export default function DashboardPage() {
   const handleNavigateToTasks = (filter?: string) => {
     let url = "/tasks";
     if (filter) {
-      url += `?filter=${filter}`;
+      url += `?quickFilter=${filter}`;
     }
     setLocation(url);
   };
@@ -710,7 +710,10 @@ export default function DashboardPage() {
 
           {/* Compliance Overview - Compact */}
           {(canViewTasks || user?.isSuperAdmin) && (
-            <Card className="border-t-4 border-t-blue-500 relative">
+            <Card 
+              className="border-t-4 border-t-blue-500 relative cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => handleNavigateToCompliance()}
+            >
               <div className="absolute top-2 right-2 z-10">
                 <InfoTooltip content="Tracks compliance status across all tasks. Shows on-track items, upcoming deadlines, and overdue tasks with overall compliance rate." />
               </div>
@@ -756,7 +759,10 @@ export default function DashboardPage() {
 
           {/* Risk Assessment - Compact */}
           {(canViewTasks || user?.isSuperAdmin) && (
-            <Card className="border-t-4 border-t-red-500 relative">
+            <Card 
+              className="border-t-4 border-t-red-500 relative cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => handleNavigateToTasks('overdue')}
+            >
               <div className="absolute top-2 right-2 z-10">
                 <InfoTooltip content="Evaluates organizational risk levels across regulatory, operational, and client dimensions based on overdue tasks and deadline pressures." />
               </div>
