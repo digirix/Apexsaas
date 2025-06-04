@@ -456,7 +456,10 @@ export default function DashboardPage() {
               </Card>
 
               {/* Urgent This Week */}
-              <Card className="border-l-4 border-l-orange-500 relative">
+              <Card 
+                className="border-l-4 border-l-orange-500 relative cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => handleNavigateToTasks('urgent')}
+              >
                 <div className="absolute top-1 right-1">
                   <InfoTooltip content="Shows active tasks due within the next 7 days. These require priority attention to avoid becoming overdue." />
                 </div>
@@ -477,7 +480,10 @@ export default function DashboardPage() {
 
           {/* Task Flow Analytics - Compact */}
           {(canViewTasks || user?.isSuperAdmin) && (
-            <Card className="border-t-4 border-t-blue-500 relative">
+            <Card 
+              className="border-t-4 border-t-blue-500 relative cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => handleNavigateToTasks()}
+            >
               <div className="absolute top-2 right-2 z-10">
                 <InfoTooltip content="Shows task completion trends over time. Green bars show completed tasks, yellow shows pending work, and red indicates overdue items." />
               </div>
@@ -666,7 +672,10 @@ export default function DashboardPage() {
         <div className="space-y-3 overflow-y-auto">
           {/* Task Status Distribution - Compact */}
           {(canViewTasks || user?.isSuperAdmin) && (
-            <Card className="border-t-4 border-t-purple-500 relative">
+            <Card 
+              className="border-t-4 border-t-purple-500 relative cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => handleNavigateToTasks()}
+            >
               <div className="absolute top-2 right-2 z-10">
                 <InfoTooltip content="Visual breakdown of all tasks by their current status. Hover over chart segments to see exact counts for each status." />
               </div>
