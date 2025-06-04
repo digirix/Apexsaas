@@ -159,9 +159,33 @@ export default function AnalyticsDashboard() {
     revenuePerClientChange: 8.3
   };
 
-  const displayTrendData = trendData || mockTrendData;
-  const displayClientData = clientProfitability || mockClientData;
-  const displayKPIData = kpiData || mockKPIData;
+  // Use real data only, filter out invalid values
+  const displayTrendData = (trendData || []).map(item => ({
+    ...item,
+    revenue: isNaN(item.revenue) ? 0 : item.revenue,
+    expenses: isNaN(item.expenses) ? 0 : item.expenses,
+    profit: isNaN(item.profit) ? 0 : item.profit,
+    clients: isNaN(item.clients) ? 0 : item.clients
+  }));
+  
+  const displayClientData = (clientProfitability || []).map(item => ({
+    ...item,
+    revenue: isNaN(item.revenue) ? 0 : item.revenue,
+    expenses: isNaN(item.expenses) ? 0 : item.expenses,
+    profit: isNaN(item.profit) ? 0 : item.profit,
+    profitMargin: isNaN(item.profitMargin) ? 0 : item.profitMargin
+  }));
+  
+  const displayKPIData = {
+    totalRevenue: isNaN(kpiData?.totalRevenue) ? 0 : (kpiData?.totalRevenue || 0),
+    revenueChange: isNaN(kpiData?.revenueChange) ? 0 : (kpiData?.revenueChange || 0),
+    profitMargin: isNaN(kpiData?.profitMargin) ? 0 : (kpiData?.profitMargin || 0),
+    profitMarginChange: isNaN(kpiData?.profitMarginChange) ? 0 : (kpiData?.profitMarginChange || 0),
+    activeClients: isNaN(kpiData?.activeClients) ? 0 : (kpiData?.activeClients || 0),
+    clientChange: isNaN(kpiData?.clientChange) ? 0 : (kpiData?.clientChange || 0),
+    revenuePerClient: isNaN(kpiData?.revenuePerClient) ? 0 : (kpiData?.revenuePerClient || 0),
+    revenuePerClientChange: isNaN(kpiData?.revenuePerClientChange) ? 0 : (kpiData?.revenuePerClientChange || 0)
+  };
 
   return (
     <div className="space-y-6">

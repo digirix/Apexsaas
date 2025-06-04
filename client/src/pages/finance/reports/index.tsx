@@ -13,9 +13,7 @@ import { Button } from '@/components/ui/button';
 import { 
   BarChart3, 
   BookOpen, 
-  FileText, 
-  LineChart, 
-  PieChart,
+  FileText,
   TrendingUp
 } from 'lucide-react';
 
@@ -94,26 +92,7 @@ export default function FinancialReportsPage() {
             href="/finance/reports/balance-sheet"
           />
           
-          <ReportCard
-            title="Cash Flow"
-            description="Track changes in cash position over time"
-            icon={<LineChart className="h-5 w-5" />}
-            href="/finance/reports/cash-flow"
-          />
-          
-          <ReportCard
-            title="Expense Report"
-            description="Detailed breakdown of all expenses"
-            icon={<PieChart className="h-5 w-5" />}
-            href="/finance/reports/expenses"
-          />
-          
-          <ReportCard
-            title="Tax Summary"
-            description="Overview of tax liabilities and payments"
-            icon={<FileText className="h-5 w-5" />}
-            href="/finance/reports/tax-summary"
-          />
+
           
           <ReportCard
             title="Financial Analytics"
