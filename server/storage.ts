@@ -462,6 +462,7 @@ export class MemStorage implements IStorage {
     this.paymentGatewaySettings = new Map();
     this.chartOfAccounts = new Map();
     this.journalEntryTypes = new Map();
+    this.notifications = new Map();
     
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000, // 24h
@@ -2247,6 +2248,60 @@ export class MemStorage implements IStorage {
 
   async getUserAiInteractions(tenantId: number, userId: number, limit: number = 20): Promise<AiInteraction[]> {
     return [];
+  }
+
+  // Notification operations
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const id = this.notificationId++;
+    const newNotification: Notification = {
+      ...notification,
+      id,
+      createdAt: new Date(),
+      readAt: null,
+      isRead: false
+    };
+    this.notifications.set(id, newNotification);
+    return newNotification;
+  }
+
+  async getNotifications(tenantId: number, userId?: number): Promise<Notification[]> {
+    const allNotifications = Array.from(this.notifications.values());
+    let filtered = allNotifications.filter(n => n.tenantId === tenantId);
+    
+    if (userId) {
+      filtered = filtered.filter(n => n.userId === userId);
+    }
+    
+    return filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getUnreadNotificationCount(tenantId: number, userId: number): Promise<number> {
+    const notifications = Array.from(this.notifications.values());
+    return notifications.filter(n => 
+      n.tenantId === tenantId && 
+      n.userId === userId && 
+      !n.isRead
+    ).length;
+  }
+
+  async markNotificationAsRead(id: number, tenantId: number): Promise<boolean> {
+    const notification = this.notifications.get(id);
+    if (notification && notification.tenantId === tenantId) {
+      notification.isRead = true;
+      notification.readAt = new Date();
+      this.notifications.set(id, notification);
+      return true;
+    }
+    return false;
+  }
+
+  async deleteNotification(id: number, tenantId: number): Promise<boolean> {
+    const notification = this.notifications.get(id);
+    if (notification && notification.tenantId === tenantId) {
+      this.notifications.delete(id);
+      return true;
+    }
+    return false;
   }
 }
 
