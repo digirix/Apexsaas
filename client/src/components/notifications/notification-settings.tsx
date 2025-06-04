@@ -53,27 +53,7 @@ const emailProviderSchema = z.object({
   isActive: z.boolean().default(false)
 });
 
-// Notification Trigger Schema
-const notificationTriggerSchema = z.object({
-  triggerName: z.string().min(1, 'Trigger name is required'),
-  triggerModule: z.string().min(1, 'Module is required'),
-  triggerEvent: z.string().min(1, 'Event is required'),
-  notificationType: z.string().min(1, 'Notification type is required'),
-  severity: z.enum(['INFO', 'SUCCESS', 'WARNING', 'CRITICAL']),
-  titleTemplate: z.string().min(1, 'Title template is required'),
-  messageTemplate: z.string().min(1, 'Message template is required'),
-  linkTemplate: z.string().optional(),
-  recipientType: z.enum(['all_users', 'specific_users', 'role_based', 'department_based', 'conditional']),
-  recipientConfig: z.string().default('{}'),
-  deliveryChannels: z.array(z.string()).default(['in_app']),
-  deliveryDelay: z.number().default(0),
-  batchDelivery: z.boolean().default(false),
-  triggerConditions: z.string().optional(),
-  isActive: z.boolean().default(true)
-});
-
 type EmailProvider = z.infer<typeof emailProviderSchema> & { id: number; createdAt: string; updatedAt: string };
-type NotificationTrigger = z.infer<typeof notificationTriggerSchema> & { id: number; createdAt: string; updatedAt: string };
 
 interface NotificationPreference {
   id?: number;
@@ -91,9 +71,7 @@ export function NotificationSettings() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('preferences');
   const [isProviderDialogOpen, setIsProviderDialogOpen] = useState(false);
-  const [isTriggerDialogOpen, setIsTriggerDialogOpen] = useState(false);
   const [editingProvider, setEditingProvider] = useState<EmailProvider | null>(null);
-  const [editingTrigger, setEditingTrigger] = useState<NotificationTrigger | null>(null);
   const [testEmail, setTestEmail] = useState('');
 
   // Fetch notification preferences
@@ -106,10 +84,7 @@ export function NotificationSettings() {
     queryKey: ['/api/v1/notifications/email-providers']
   });
 
-  // Fetch notification triggers
-  const { data: triggers = [], isLoading: triggersLoading } = useQuery({
-    queryKey: ['/api/v1/notifications/triggers']
-  });
+
 
   // Fetch email delivery logs
   const { data: emailLogs, isLoading: logsLoading } = useQuery({
@@ -281,7 +256,7 @@ export function NotificationSettings() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="preferences" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             Preferences
@@ -293,10 +268,6 @@ export function NotificationSettings() {
           <TabsTrigger value="email-providers" className="flex items-center gap-2">
             <Mail className="h-4 w-4" />
             Email Providers
-          </TabsTrigger>
-          <TabsTrigger value="triggers" className="flex items-center gap-2">
-            <Bell className="h-4 w-4" />
-            Triggers
           </TabsTrigger>
           <TabsTrigger value="logs" className="flex items-center gap-2">
             <Eye className="h-4 w-4" />
