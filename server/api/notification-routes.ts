@@ -77,11 +77,7 @@ export function setupNotificationRoutes(app: express.Application, isAuthenticate
     try {
       const user = req.user as any;
 
-      await notificationService.markAsRead(
-        user.id,
-        user.tenantId,
-        { markAll: true }
-      );
+      await notificationService.markAllAsRead(user.id, user.tenantId);
       const updatedCount = 1;
 
       res.json({ message: "All notifications marked as read", updatedCount });
