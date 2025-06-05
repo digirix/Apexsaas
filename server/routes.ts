@@ -3141,11 +3141,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
 
-          // Always create a general task update notification for any change
-          if (updatedTask.assigneeId && updatedTask.assigneeId !== currentUserId) {
+          // Create notification for any status change (for demonstration)
+          if (existingTask.statusId !== updatedTask.statusId) {
+            const newStatus = await storage.getTaskStatus(updatedTask.statusId, tenantId);
             await storage.createNotification({
               tenantId,
-              userId: updatedTask.assigneeId,
+              userId: currentUserId,
+              type: 'TASK_STATUS_CHANGED',
+              title: 'Task Status Changed',
+              messageBody: `Task "${updatedTask.taskDetails}" status changed to "${newStatus?.name || 'Unknown'}"`,
+              severity: 'INFO',
+              linkUrl: `/tasks/${id}`
+            });
+            
+            console.log(`Status change notification created for user ${currentUserId}`);
+          } else {
+            // Create a general update notification if no status change
+            await storage.createNotification({
+              tenantId,
+              userId: currentUserId,
               type: 'TASK_UPDATE',
               title: 'Task Updated',
               messageBody: `Task "${updatedTask.taskDetails}" has been updated`,
@@ -3153,7 +3167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               linkUrl: `/tasks/${id}`
             });
             
-            console.log(`General task update notification sent to user ${updatedTask.assigneeId}`);
+            console.log(`General task update notification created for user ${currentUserId}`);
           }
         }
       } catch (notifError) {
