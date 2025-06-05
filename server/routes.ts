@@ -65,7 +65,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log("Starting to register routes...");
   
   // Initialize notification services
-  const taskNotifications = new TaskNotificationIntegration(storage);
+  const notificationService = new SimpleNotificationService(storage);
   
   // Setup authentication
   console.log("Setting up authentication...");
@@ -3070,7 +3070,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update the task first
       const updatedTask = await storage.updateTask(id, taskUpdateData);
       
-
+      // Send notifications for task updates
+      const currentUserId = (req.user as any).id;
+      try {
+        await notificationService.handleTaskUpdate(id, existingTask, updatedTask, currentUserId);
+      } catch (notifError) {
+        console.error("Error sending task update notification:", notifError);
+        // Don't fail the task update if notification fails
+      }
       
       // If there's an associated invoice, update it as well
       if (existingTask.invoiceId) {
