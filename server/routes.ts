@@ -3075,58 +3075,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send notifications using the event-driven notification system
       const currentUserId = (req.user as any).id;
       try {
-        const { notificationEventService } = await import('./services/notification-event-service');
+        const { NotificationEventService } = await import('./services/notification-event-service');
         
         // Check for status change
         if (req.body.statusId !== undefined && req.body.statusId !== existingTask.statusId) {
-          await notificationEventService.emitTaskEvent(
+          console.log(`[NotificationEvent] Task ${id} status changed from ${existingTask.statusId} to ${req.body.statusId}`);
+          await NotificationEventService.processEvent('tasks.status_changed', {
             tenantId,
-            'status_changed',
-            {
-              ...updatedTask,
-              previousStatus: existingTask.statusId,
-              newStatus: req.body.statusId
-            },
-            currentUserId,
-            existingTask
-          );
+            taskId: id,
+            userId: currentUserId,
+            oldStatusId: existingTask.statusId,
+            newStatusId: req.body.statusId,
+            taskDetails: updatedTask?.taskDetails || `Task #${id}`,
+            assigneeId: updatedTask?.assigneeId
+          });
           
           // If task completed, emit completion event
           const newStatus = await storage.getTaskStatus(req.body.statusId, tenantId);
           if (newStatus && newStatus.name.toLowerCase() === 'completed') {
-            await notificationEventService.emitTaskEvent(
+            console.log(`[NotificationEvent] Task ${id} completed`);
+            await NotificationEventService.processEvent('tasks.completed', {
               tenantId,
-              'completed',
-              updatedTask,
-              currentUserId,
-              existingTask
-            );
+              taskId: id,
+              userId: currentUserId,
+              taskDetails: updatedTask?.taskDetails || `Task #${id}`,
+              assigneeId: updatedTask?.assigneeId
+            });
           }
         }
         
         // Check for assignee change
         if (req.body.assigneeId !== undefined && req.body.assigneeId !== existingTask.assigneeId) {
-          await notificationEventService.emitTaskEvent(
+          console.log(`[NotificationEvent] Task ${id} assignee changed from ${existingTask.assigneeId} to ${req.body.assigneeId}`);
+          await NotificationEventService.processEvent('tasks.assigned', {
             tenantId,
-            'assigned',
-            {
-              ...updatedTask,
-              previousAssignee: existingTask.assigneeId,
-              newAssignee: req.body.assigneeId
-            },
-            currentUserId,
-            existingTask
-          );
+            taskId: id,
+            userId: currentUserId,
+            oldAssigneeId: existingTask.assigneeId,
+            newAssigneeId: req.body.assigneeId,
+            taskDetails: updatedTask?.taskDetails || `Task #${id}`
+          });
         }
         
         // General task update event
-        await notificationEventService.emitTaskEvent(
+        console.log(`[NotificationEvent] Task ${id} updated`);
+        await NotificationEventService.processEvent('tasks.updated', {
           tenantId,
-          'updated',
-          updatedTask,
-          currentUserId,
-          existingTask
-        );
+          taskId: id,
+          userId: currentUserId,
+          taskDetails: updatedTask?.taskDetails || `Task #${id}`,
+          assigneeId: updatedTask?.assigneeId
+        });
         
       } catch (notifError) {
         console.error("Error sending task update notifications:", notifError);

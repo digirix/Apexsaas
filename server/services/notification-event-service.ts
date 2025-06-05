@@ -1,5 +1,8 @@
 import { notificationService } from './notification-service';
 import { IStorage } from '../storage';
+import { db } from '../db';
+import { eq, and } from 'drizzle-orm';
+import { notificationTriggers, notifications } from '@shared/schema';
 
 export interface NotificationEvent {
   tenantId: number;
@@ -11,6 +14,133 @@ export interface NotificationEvent {
 }
 
 class NotificationEventService {
+  // Process a notification event based on configured triggers
+  async processEvent(eventKey: string, eventData: any): Promise<void> {
+    try {
+      const [module, event] = eventKey.split('.');
+      console.log(`[NotificationEvent] Processing event: ${eventKey}`, {
+        tenantId: eventData.tenantId,
+        taskId: eventData.taskId,
+        userId: eventData.userId
+      });
+
+      // Find matching notification triggers for this event
+      const triggers = await db
+        .select()
+        .from(notificationTriggers)
+        .where(
+          and(
+            eq(notificationTriggers.tenantId, eventData.tenantId),
+            eq(notificationTriggers.triggerModule, module),
+            eq(notificationTriggers.triggerEvent, event),
+            eq(notificationTriggers.isActive, true)
+          )
+        );
+
+      console.log(`[NotificationEvent] Found ${triggers.length} triggers for ${eventKey}`);
+
+      // Process each trigger
+      for (const trigger of triggers) {
+        try {
+          await this.executeTrigger(trigger, eventData);
+        } catch (triggerError) {
+          console.error(`[NotificationEvent] Failed to execute trigger ${trigger.id}:`, triggerError);
+        }
+      }
+
+      console.log(`[NotificationEvent] Event processed: ${eventKey}`);
+    } catch (error) {
+      console.error(`[NotificationEvent] Failed to process event ${eventKey}:`, error);
+    }
+  }
+
+  // Execute a specific notification trigger
+  private async executeTrigger(trigger: any, eventData: any): Promise<void> {
+    console.log(`[NotificationEvent] Executing trigger: ${trigger.name}`);
+
+    // Parse recipient configuration
+    const recipientConfig = JSON.parse(trigger.recipientConfig || '{}');
+    const deliveryChannels = JSON.parse(trigger.deliveryChannels || '[]');
+
+    // Determine recipients based on trigger configuration
+    const recipients = await this.resolveRecipients(trigger, eventData, recipientConfig);
+
+    console.log(`[NotificationEvent] Resolved ${recipients.length} recipients for trigger ${trigger.name}`);
+
+    // Create notifications for each recipient
+    for (const recipientId of recipients) {
+      // Skip if recipient is the current user and excludeCurrentUser is true
+      if (recipientConfig.excludeCurrentUser && recipientId === eventData.userId) {
+        continue;
+      }
+
+      try {
+        // Process message template
+        const processedTitle = this.processTemplate(trigger.titleTemplate, eventData);
+        const processedMessage = this.processTemplate(trigger.messageTemplate, eventData);
+        const processedLink = trigger.linkTemplate ? this.processTemplate(trigger.linkTemplate, eventData) : null;
+
+        // Create the notification
+        await db.insert(notifications).values({
+          tenantId: eventData.tenantId,
+          userId: recipientId,
+          title: processedTitle,
+          messageBody: processedMessage,
+          linkUrl: processedLink,
+          type: trigger.notificationType,
+          severity: trigger.severity,
+          createdBy: eventData.userId || trigger.createdBy,
+          relatedModule: trigger.triggerModule,
+          relatedEntityId: eventData.taskId?.toString() || null,
+          isRead: false
+        });
+
+        console.log(`[NotificationEvent] Created notification for user ${recipientId}: ${processedTitle}`);
+      } catch (notifError) {
+        console.error(`[NotificationEvent] Failed to create notification for user ${recipientId}:`, notifError);
+      }
+    }
+  }
+
+  // Resolve recipients based on trigger configuration
+  private async resolveRecipients(trigger: any, eventData: any, recipientConfig: any): Promise<number[]> {
+    const recipients: Set<number> = new Set();
+
+    // Handle different recipient types
+    if (trigger.recipientType === 'task_assignee' || trigger.recipientType === 'task_stakeholders') {
+      // Include the assignee if specified
+      if (recipientConfig.includeAssignee && eventData.assigneeId) {
+        recipients.add(eventData.assigneeId);
+      }
+
+      // Include new assignee for assignment events
+      if (recipientConfig.includeNewAssignee && eventData.newAssigneeId) {
+        recipients.add(eventData.newAssigneeId);
+      }
+
+      // Include task creator if specified
+      if (recipientConfig.includeCreator) {
+        // For now, we'll include the user who created the notification trigger
+        // In a full implementation, you'd track task creators
+        recipients.add(trigger.createdBy);
+      }
+    }
+
+    return Array.from(recipients);
+  }
+
+  // Process template variables
+  private processTemplate(template: string, eventData: any): string {
+    let processed = template;
+
+    // Replace common variables
+    processed = processed.replace(/{{taskDetails}}/g, eventData.taskDetails || `Task #${eventData.taskId}`);
+    processed = processed.replace(/{{id}}/g, eventData.taskId?.toString() || '');
+    processed = processed.replace(/{{taskId}}/g, eventData.taskId?.toString() || '');
+
+    return processed;
+  }
+
   // Emit a notification event that triggers configured notifications
   async emitEvent(event: NotificationEvent): Promise<void> {
     try {
@@ -356,4 +486,5 @@ class NotificationEventService {
   }
 }
 
+export const NotificationEventService = new NotificationEventService();
 export const notificationEventService = new NotificationEventService();
