@@ -1659,3 +1659,72 @@ export const insertTaskAcknowledgmentSchema = createInsertSchema(taskAcknowledgm
 
 export type TaskAcknowledgment = typeof taskAcknowledgments.$inferSelect;
 export type InsertTaskAcknowledgment = z.infer<typeof insertTaskAcknowledgmentSchema>;
+
+// Notification System Schema
+export const notificationTypeEnum = pgEnum('notification_type', [
+  'TASK_ASSIGNMENT',
+  'TASK_UPDATE', 
+  'TASK_COMPLETED',
+  'TASK_DUE_SOON',
+  'TASK_OVERDUE',
+  'TASK_STATUS_CHANGED',
+  'MENTION',
+  'WORKFLOW_APPROVAL',
+  'WORKFLOW_ALERT',
+  'WORKFLOW_COMPLETION',
+  'CLIENT_ASSIGNMENT',
+  'CLIENT_MESSAGE',
+  'CLIENT_DOCUMENT',
+  'INVOICE_PAID',
+  'PAYMENT_REVIEW',
+  'AI_SUGGESTION',
+  'AI_RISK_ALERT',
+  'SYSTEM_ALERT',
+  'BROADCAST',
+  'CUSTOM'
+]);
+
+export const notificationSeverityEnum = pgEnum('notification_severity', [
+  'INFO',
+  'WARNING', 
+  'ERROR',
+  'SUCCESS'
+]);
+
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  messageBody: text("message_body").notNull(),
+  linkUrl: text("link_url"),
+  type: notificationTypeEnum("type").notNull(),
+  severity: notificationSeverityEnum("severity").default("INFO").notNull(),
+  isRead: boolean("is_read").default(false).notNull(),
+  readAt: timestamp("read_at"),
+  deliveryChannels: text("delivery_channels").default('["in_app"]').notNull(),
+  deliveryDelay: integer("delivery_delay").default(0).notNull(),
+  batchDelivery: boolean("batch_delivery").default(false).notNull(),
+  createdBy: integer("created_by").references(() => users.id, { onDelete: "set null" }),
+  relatedModule: text("related_module"),
+  relatedEntityId: text("related_entity_id"),
+  templateVariables: text("template_variables"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).pick({
+  tenantId: true,
+  userId: true,
+  title: true,
+  messageBody: true,
+  linkUrl: true,
+  type: true,
+  severity: true,
+  createdBy: true,
+  relatedModule: true,
+  relatedEntityId: true,
+  templateVariables: true,
+});
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
