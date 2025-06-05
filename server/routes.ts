@@ -65,8 +65,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log("Starting to register routes...");
   
   // Initialize notification services
-  const notificationService = new NotificationService(storage);
-  const taskNotifications = new TaskNotificationIntegration(notificationService, storage);
+  const taskNotifications = new TaskNotificationIntegration(storage);
   
   // Setup authentication
   console.log("Setting up authentication...");

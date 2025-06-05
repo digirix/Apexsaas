@@ -274,7 +274,7 @@ export function NotificationsPage() {
           ) : (
             <>
               <div className="bg-card rounded-lg border divide-y">
-                {filteredNotifications.map((notification) => (
+                {filteredNotifications.map((notification: any) => (
                   <div key={notification.id} className="p-1">
                     <NotificationItem
                       notification={notification}
