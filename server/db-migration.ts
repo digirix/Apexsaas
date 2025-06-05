@@ -39,6 +39,71 @@ export async function runDatabaseMigrations() {
       END $$
     `);
 
+    // Create notification_type enum
+    await db.execute(sql`
+      DO $$ BEGIN
+        CREATE TYPE notification_type AS ENUM (
+          'TASK_ASSIGNMENT',
+          'TASK_COMPLETED',
+          'TASK_OVERDUE',
+          'TASK_STATUS_CHANGED',
+          'TASK_DUE_SOON',
+          'TASK_APPROVED',
+          'TASK_REJECTED',
+          'TASK_COMMENT_ADDED',
+          'RECURRING_TASK_GENERATED',
+          'CLIENT_CREATED',
+          'CLIENT_UPDATED',
+          'CLIENT_PORTAL_LOGIN',
+          'CLIENT_DOCUMENT_UPLOADED',
+          'CLIENT_STATUS_CHANGED',
+          'ENTITY_CREATED',
+          'ENTITY_UPDATED',
+          'ENTITY_COMPLIANCE_DUE',
+          'INVOICE_CREATED',
+          'INVOICE_SENT',
+          'INVOICE_PAID',
+          'INVOICE_OVERDUE',
+          'PAYMENT_RECEIVED',
+          'PAYMENT_FAILED',
+          'PAYMENT_REFUNDED',
+          'USER_CREATED',
+          'USER_UPDATED',
+          'USER_LOGIN',
+          'PERMISSION_CHANGED',
+          'ROLE_ASSIGNED',
+          'WORKFLOW_TRIGGERED',
+          'WORKFLOW_COMPLETED',
+          'WORKFLOW_FAILED',
+          'WORKFLOW_ALERT',
+          'SYSTEM_MESSAGE',
+          'SYSTEM_ALERT',
+          'SYSTEM_MAINTENANCE',
+          'BACKUP_COMPLETED',
+          'BACKUP_FAILED',
+          'AI_REPORT_GENERATED',
+          'AI_ANALYSIS_COMPLETED',
+          'REPORT_READY',
+          'COMPLIANCE_DEADLINE_APPROACHING',
+          'COMPLIANCE_DEADLINE_MISSED',
+          'TAX_FILING_DUE',
+          'MENTION',
+          'CUSTOM'
+        );
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$
+    `);
+
+    // Create notification_severity enum
+    await db.execute(sql`
+      DO $$ BEGIN
+        CREATE TYPE notification_severity AS ENUM ('INFO', 'WARNING', 'CRITICAL', 'SUCCESS');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$
+    `);
+
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS user_permissions (
         id SERIAL PRIMARY KEY,
