@@ -3151,7 +3151,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               title: 'Task Status Changed',
               messageBody: `Task "${updatedTask.taskDetails}" status changed to "${newStatus?.name || 'Unknown'}"`,
               severity: 'INFO',
-              linkUrl: `/tasks/${id}`
+              linkUrl: `/tasks/${id}`,
+              deliveryChannels: '["in_app"]',
+              deliveryDelay: 0,
+              batchDelivery: false
             });
             
             console.log(`Status change notification created for user ${currentUserId}`);
@@ -3164,7 +3167,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               title: 'Task Updated',
               messageBody: `Task "${updatedTask.taskDetails}" has been updated`,
               severity: 'INFO',
-              linkUrl: `/tasks/${id}`
+              linkUrl: `/tasks/${id}`,
+              deliveryChannels: '["in_app"]',
+              deliveryDelay: 0,
+              batchDelivery: false
             });
             
             console.log(`General task update notification created for user ${currentUserId}`);
