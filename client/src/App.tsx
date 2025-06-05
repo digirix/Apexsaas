@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/hooks/use-auth";
 import { TenantProvider } from "@/hooks/use-tenant";
 import { ProtectedRoute } from "@/lib/protected-route";
+import { useWebSocket } from "@/hooks/use-websocket";
 import { ChatWidget } from "@/components/chatbot/chat-widget";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";

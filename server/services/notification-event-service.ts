@@ -320,20 +320,34 @@ class NotificationEventServiceClass {
         await storage.createNotification({
           tenantId: event.tenantId,
           userId: recipientId,
-          notificationType: trigger.notificationType,
+          type: trigger.notificationType,
           title,
-          message,
+          messageBody: message,
           severity: trigger.severity,
           linkUrl,
-          metadata: {
-            triggerName: trigger.name,
-            triggerId: trigger.id,
-            originalEvent: event
-          }
+          relatedModule: event.module,
+          relatedEntityId: event.entityData?.id?.toString() || null
         });
       }
       
       console.log(`Created ${recipients.length} notifications for trigger: ${trigger.name}`);
+      
+      // Broadcast real-time notification update to connected clients
+      if ((global as any).broadcastToTenant) {
+        (global as any).broadcastToTenant(event.tenantId, {
+          type: 'notification_created',
+          count: recipients.length,
+          trigger: trigger.name,
+          module: event.module
+        });
+        
+        // Also broadcast data refresh signal for dashboard components
+        (global as any).broadcastToTenant(event.tenantId, {
+          type: 'data_refresh',
+          module: event.module,
+          entity: event.entityData?.id || null
+        });
+      }
       
     } catch (error) {
       console.error(`Error processing trigger ${trigger.name}:`, error);

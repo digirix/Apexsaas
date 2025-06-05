@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { DatabaseStorage } from "./database-storage";
@@ -6735,6 +6736,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Create an HTTP server
   const httpServer = createServer(app);
+
+  // Create WebSocket server for real-time updates
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Store connected clients by tenant
+  const connectedClients = new Map<number, Set<WebSocket>>();
+  
+  wss.on('connection', (ws, req) => {
+    console.log('WebSocket client connected');
+    
+    ws.on('message', (message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        if (data.type === 'auth' && data.tenantId) {
+          const tenantId = data.tenantId;
+          if (!connectedClients.has(tenantId)) {
+            connectedClients.set(tenantId, new Set());
+          }
+          connectedClients.get(tenantId)!.add(ws);
+          console.log(`Client authenticated for tenant ${tenantId}`);
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    });
+    
+    ws.on('close', () => {
+      // Remove client from all tenant groups
+      for (const [tenantId, clients] of connectedClients.entries()) {
+        clients.delete(ws);
+        if (clients.size === 0) {
+          connectedClients.delete(tenantId);
+        }
+      }
+      console.log('WebSocket client disconnected');
+    });
+  });
+  
+  // Add WebSocket broadcast function to global context for notifications
+  (global as any).broadcastToTenant = (tenantId: number, message: any) => {
+    const clients = connectedClients.get(tenantId);
+    if (clients) {
+      const messageStr = JSON.stringify(message);
+      for (const client of clients) {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(messageStr);
+        }
+      }
+    }
+  };
 
   return httpServer;
 }
