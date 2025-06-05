@@ -1530,7 +1530,7 @@ export const emailProviderSettings = pgTable("email_provider_settings", {
 export const emailDeliveryLogs = pgTable("email_delivery_logs", {
   id: serial("id").primaryKey(),
   tenantId: integer("tenant_id").notNull(),
-  notificationId: integer("notification_id"),
+
   providerId: integer("provider_id").notNull(),
   recipientEmail: text("recipient_email").notNull(),
   subject: text("subject").notNull(),

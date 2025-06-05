@@ -2918,26 +2918,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const task = await storage.createTask(validatedData);
       
-      // Send notification to assigned user if different from creator
-      const currentUserId = (req.user as any).id;
-      if (task.assigneeId && task.assigneeId !== currentUserId) {
-        try {
-          const assignee = await storage.getUser(task.assigneeId, tenantId);
-          if (assignee) {
-            await NotificationService.createTaskNotification(
-              tenantId,
-              task.assigneeId,
-              "New Task Assigned",
-              `You have been assigned a new task: ${task.taskDetails || 'Task'} due ${task.dueDate.toLocaleDateString()}`,
-              task.id,
-              currentUserId
-            );
-          }
-        } catch (notifError) {
-          console.error("Error sending task assignment notification:", notifError);
-          // Don't fail the task creation if notification fails
-        }
-      }
+
       
       res.status(201).json(task);
     } catch (error) {
