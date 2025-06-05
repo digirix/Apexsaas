@@ -3071,86 +3071,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update the task first
       const updatedTask = await storage.updateTask(id, taskUpdateData);
       
-      // Send notifications using the event-driven notification system
-      const currentUserId = (req.user as any).id;
-      try {
-        const { NotificationEventService } = await import('./services/notification-event-service');
-        
-        // Check for status change
-        if (req.body.statusId !== undefined && req.body.statusId !== existingTask.statusId) {
-          console.log(`[NotificationEvent] Task ${id} status changed from ${existingTask.statusId} to ${req.body.statusId}`);
-          await NotificationEventService.emitTaskEvent(
-            tenantId,
-            'status_changed',
-            {
-              id,
-              taskId: id,
-              taskDetails: updatedTask?.taskDetails || `Task #${id}`,
-              assigneeId: updatedTask?.assigneeId,
-              oldStatusId: existingTask.statusId,
-              newStatusId: req.body.statusId,
-              createdBy: existingTask.createdBy
-            },
-            currentUserId
-          );
-          
-          // If task completed, emit completion event
-          const newStatus = await storage.getTaskStatus(req.body.statusId, tenantId);
-          if (newStatus && newStatus.name.toLowerCase() === 'completed') {
-            console.log(`[NotificationEvent] Task ${id} completed`);
-            await NotificationEventService.emitTaskEvent(
-              tenantId,
-              'completed',
-              {
-                id,
-                taskId: id,
-                taskDetails: updatedTask?.taskDetails || `Task #${id}`,
-                assigneeId: updatedTask?.assigneeId,
-                createdBy: existingTask.createdBy
-              },
-              currentUserId
-            );
-          }
-        }
-        
-        // Check for assignee change
-        if (req.body.assigneeId !== undefined && req.body.assigneeId !== existingTask.assigneeId) {
-          console.log(`[NotificationEvent] Task ${id} assignee changed from ${existingTask.assigneeId} to ${req.body.assigneeId}`);
-          await NotificationEventService.emitTaskEvent(
-            tenantId,
-            'assigned',
-            {
-              id,
-              taskId: id,
-              taskDetails: updatedTask?.taskDetails || `Task #${id}`,
-              assigneeId: req.body.assigneeId,
-              oldAssigneeId: existingTask.assigneeId,
-              newAssigneeId: req.body.assigneeId,
-              createdBy: existingTask.createdBy
-            },
-            currentUserId
-          );
-        }
-        
-        // General task update event
-        console.log(`[NotificationEvent] Task ${id} updated`);
-        await NotificationEventService.emitTaskEvent(
-          tenantId,
-          'updated',
-          {
-            id,
-            taskId: id,
-            taskDetails: updatedTask?.taskDetails || `Task #${id}`,
-            assigneeId: updatedTask?.assigneeId,
-            createdBy: existingTask.createdBy
-          },
-          currentUserId
-        );
-        
-      } catch (notifError) {
-        console.error("Error sending task update notifications:", notifError);
-        // Don't fail the task update if notification fails
-      }
+
       
       // If there's an associated invoice, update it as well
       if (existingTask.invoiceId) {
@@ -6718,15 +6639,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   console.log("Internal Notification System routes registered");
   
-  // Register Enhanced Notification System routes
-  const { enhancedNotificationRoutes } = await import('./api/enhanced-notification-routes');
-  app.use('/api/v1/notifications', isAuthenticated, enhancedNotificationRoutes);
-  console.log("Enhanced Notification System routes registered");
 
-  // Register Task Assignment Notification routes
-  const { taskNotificationRoutes } = await import('./api/task-notification-routes');
-  app.use('/api/v1/task-notifications', isAuthenticated, taskNotificationRoutes);
-  console.log("Task Assignment Notification routes registered");
 
   // Register Analytics routes for Reports Module
   // app.use("/api/v1/reports/analytics", isAuthenticated, createAnalyticsRoutes(databaseStorage));

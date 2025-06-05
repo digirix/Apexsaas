@@ -1544,7 +1544,7 @@ export const emailDeliveryLogs = pgTable("email_delivery_logs", {
 }, (table) => {
   return {
     tenantFk: foreignKey({ columns: [table.tenantId], foreignColumns: [tenants.id] }),
-    notificationFk: foreignKey({ columns: [table.notificationId], foreignColumns: [notifications.id] }),
+
     providerFk: foreignKey({ columns: [table.providerId], foreignColumns: [emailProviderSettings.id] })
   };
 });
