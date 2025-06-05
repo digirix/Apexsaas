@@ -3158,6 +3158,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             
             console.log(`Status change notification created for user ${currentUserId}`);
+            
+            // Send real-time WebSocket notification
+            broadcastToUser(tenantId, currentUserId, {
+              type: 'notification',
+              data: { type: 'TASK_STATUS_CHANGED', taskId: id }
+            });
           } else {
             // Create a general update notification if no status change
             await storage.createNotification({
@@ -3174,6 +3180,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             
             console.log(`General task update notification created for user ${currentUserId}`);
+            
+            // Send real-time WebSocket notification
+            broadcastToUser(tenantId, currentUserId, {
+              type: 'notification',
+              data: { type: 'TASK_UPDATE', taskId: id }
+            });
           }
         }
       } catch (notifError) {
