@@ -25,11 +25,14 @@ export function NotificationItem({ notification, onMarkAsRead }: NotificationIte
   const [, setLocation] = useLocation();
 
   const handleClick = () => {
+    // Mark as read first
     if (!notification.isRead) {
       onMarkAsRead(notification.id);
     }
     
+    // Navigate to the specific task or page
     if (notification.linkUrl) {
+      console.log('Navigating to:', notification.linkUrl);
       setLocation(notification.linkUrl);
     }
   };

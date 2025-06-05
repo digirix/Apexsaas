@@ -54,6 +54,10 @@ export function NotificationPanel({ onMarkAllAsRead, onClose }: NotificationPane
     }
   };
 
+  const handleMarkAsRead = (notificationId: number) => {
+    markAsReadMutation.mutate(notificationId);
+  };
+
   const handleViewAllClick = () => {
     setLocation("/notifications");
     onClose();
@@ -106,7 +110,7 @@ export function NotificationPanel({ onMarkAllAsRead, onClose }: NotificationPane
               <div key={notification.id}>
                 <NotificationItem
                   notification={notification}
-                  onClick={() => handleNotificationClick(notification)}
+                  onMarkAsRead={handleMarkAsRead}
                 />
                 {index < notifications.length - 1 && (
                   <Separator className="my-1" />
