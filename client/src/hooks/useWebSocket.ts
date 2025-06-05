@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { queryClient } from "@/lib/queryClient";
+import { useQuery } from "@tanstack/react-query";
 
 interface WebSocketMessage {
   type: string;
@@ -10,7 +11,17 @@ export function useWebSocket() {
   const ws = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
+  // Get current user info for authentication
+  const { data: user } = useQuery({
+    queryKey: ['/api/v1/auth/me'],
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  }) as { data: { id: number; tenantId: number } | null };
+
   useEffect(() => {
+    if (!user?.id || !user?.tenantId) {
+      return; // Don't connect if user is not authenticated
+    }
+
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws`;
     
@@ -21,6 +32,15 @@ export function useWebSocket() {
         ws.current.onopen = () => {
           console.log("WebSocket connected");
           setIsConnected(true);
+          
+          // Send authentication message
+          if (ws.current && user?.id && user?.tenantId) {
+            ws.current.send(JSON.stringify({
+              type: 'auth',
+              tenantId: user.tenantId,
+              userId: user.id
+            }));
+          }
         };
         
         ws.current.onmessage = (event) => {
@@ -29,7 +49,7 @@ export function useWebSocket() {
             console.log("WebSocket message received:", message);
             
             if (message.type === 'notification') {
-              // Invalidate queries to refresh notification data
+              // Invalidate queries to refresh notification data immediately
               queryClient.invalidateQueries({ queryKey: ['/api/v1/notifications'] });
               queryClient.invalidateQueries({ queryKey: ['/api/v1/notifications/unread-count'] });
             }
@@ -62,7 +82,7 @@ export function useWebSocket() {
         ws.current.close();
       }
     };
-  }, []);
+  }, [user?.id, user?.tenantId]);
 
   return { isConnected };
 }
