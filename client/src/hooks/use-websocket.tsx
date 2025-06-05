@@ -21,7 +21,7 @@ export function useWebSocket() {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    if (!user || !tenant) return;
+    if (!user || !currentTenant) return;
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//${window.location.host}/ws`;
@@ -38,7 +38,7 @@ export function useWebSocket() {
       // Authenticate with tenant ID
       ws.send(JSON.stringify({
         type: 'auth',
-        tenantId: tenant.id
+        tenantId: currentTenant.id
       }));
     };
 
