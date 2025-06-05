@@ -44,7 +44,7 @@ import TaxSummaryPage from "@/pages/finance/reports/tax-summary";
 import JournalEntriesReportPage from "@/pages/finance/reports/journal-entries";
 
 import WorkflowAutomationPage from "@/pages/workflow-automation";
-import { NotificationsPage } from "@/pages/notifications-page";
+
 import { EntityDetailPage } from "@/pages/entity-detail";
 import ReportsPage from "@/pages/reports/reports-page";
 import TaskPerformanceReport from "@/pages/reports/task-performance-report";
@@ -108,7 +108,7 @@ function Router() {
       <ProtectedRoute path="/users" component={UsersPage} />
       <ProtectedRoute path="/users/:id/permissions" component={UsersPage} />
       <ProtectedRoute path="/settings" component={SettingsPage} />
-      <ProtectedRoute path="/notifications" component={NotificationsPage} />
+
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>

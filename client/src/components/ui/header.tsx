@@ -1,7 +1,7 @@
 import { Bell, ChevronDown, Search, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTenant } from "@/hooks/use-tenant";
-import { NotificationBell } from "@/components/notifications/notification-bell";
+
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
@@ -107,7 +107,9 @@ export function Header({ title, subtitle }: HeaderProps) {
 
             {/* Right side - User actions */}
             <div className="flex items-center space-x-4">
-              <NotificationBell />
+              <Button variant="ghost" size="icon" disabled>
+              <Bell className="h-5 w-5" />
+            </Button>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

@@ -44,7 +44,7 @@ const settingCategories: SettingCategory[] = [
   {
     id: "notifications",
     name: "Notifications",
-    description: "Manage alerts and notification preferences",
+    description: "Notification system removed",
     icon: <Bell className="h-5 w-5" />,
   },
   {

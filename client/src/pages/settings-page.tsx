@@ -5,7 +5,7 @@ import { SettingsNavigation } from "@/components/settings/settings-navigation";
 import { GeneralSettings } from "@/components/settings/general-settings";
 import { SecuritySettings } from "@/components/settings/security-settings";
 import { DisplaySettings } from "@/components/settings/display-settings";
-import { NotificationSettings as EnhancedNotificationSettings } from "@/components/notifications/notification-settings";
+
 import { BackupSettings } from "@/components/settings/backup-settings";
 import { TaskSettings } from "@/components/settings/task-settings";
 import { InvoiceSettings } from "@/components/settings/invoice-settings";
@@ -60,7 +60,14 @@ export default function SettingsPage() {
       case "display":
         return <DisplaySettings />;
       case "notifications":
-        return <EnhancedNotificationSettings />;
+        return (
+          <div className="p-8 text-center">
+            <h2 className="text-xl font-semibold">Notification Settings</h2>
+            <p className="text-muted-foreground mt-2">
+              Notification system has been removed from the application.
+            </p>
+          </div>
+        );
       case "backup":
         return <BackupSettings />;
       case "tasks":
