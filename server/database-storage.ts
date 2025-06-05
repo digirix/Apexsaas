@@ -9,9 +9,7 @@ import {
   // AI module
   aiConfigurations, aiInteractions, aiAssistantCustomizations,
   // Workflow automation module
-  workflows, workflowTriggers, workflowActions, workflowExecutionLogs, workflowTemplates,
-  // Notification module
-  notifications
+  workflows, workflowTriggers, workflowActions, workflowExecutionLogs, workflowTemplates
 } from "@shared/schema";
 import type { 
   Tenant, User, InsertUser, InsertTenant, 

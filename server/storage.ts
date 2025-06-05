@@ -26,8 +26,7 @@ import type {
   AiConfiguration, InsertAiConfiguration,
   AiInteraction, InsertAiInteraction,
   AiAssistantCustomization, InsertAiAssistantCustomization,
-  // Notification types
-  Notification, InsertNotification
+
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";

@@ -10,9 +10,7 @@ import { registerAiReportingRoutes } from "./api/ai-reporting-routes";
 import { registerAICustomizationRoutes } from "./api/ai-customization-routes";
 import { registerClientPortalRoutes } from "./routes/client-portal-routes";
 import { registerWorkflowRoutes } from "./api/workflow-routes";
-import { setupNotificationRoutes } from "./api/notification-routes";
-import { NotificationService } from "./services/notification-service";
-import taskNotificationRoutes from "./api/task-notification-routes";
+
 import { HierarchicalReportsService } from "./services/hierarchical-reports-service";
 // import { createAnalyticsRoutes } from "./api/analytics-routes";
 import { setupClientPortalAuth } from "./client-portal-auth";
@@ -6717,7 +6715,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   console.log("Workflow Automation routes registered");
   
   // Register Internal Notification System routes
-  setupNotificationRoutes(app, isAuthenticated, requirePermission, databaseStorage);
+
   console.log("Internal Notification System routes registered");
   
   // Register Enhanced Notification System routes
