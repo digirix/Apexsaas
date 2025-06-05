@@ -57,8 +57,16 @@ import { eq, and, desc } from "drizzle-orm";
 import { queryAI } from './services/ai-service';
 import { fetchTenantDataForQuery } from './services/chatbot-data-service';
 
+// Import notification services
+import { NotificationService } from './services/notification-service';
+import { TaskNotificationIntegration } from './integrations/task-notifications';
+
 export async function registerRoutes(app: Express): Promise<Server> {
   console.log("Starting to register routes...");
+  
+  // Initialize notification services
+  const notificationService = new NotificationService(storage);
+  const taskNotifications = new TaskNotificationIntegration(notificationService, storage);
   
   // Setup authentication
   console.log("Setting up authentication...");
@@ -2918,7 +2926,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const task = await storage.createTask(validatedData);
       
-
+      // Send notification for task assignment
+      if (task) {
+        await taskNotifications.handleTaskCreated({
+          taskId: task.id,
+          tenantId,
+          currentUserId: (req.user as any).id,
+          assigneeId: task.assigneeId || undefined,
+          taskDetails: task.taskDetails || 'New Task',
+          clientId: task.clientId || undefined,
+          entityId: task.entityId || undefined
+        });
+      }
       
       res.status(201).json(task);
     } catch (error) {

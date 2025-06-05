@@ -29,7 +29,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
 
   // Mark all as read mutation
   const markAllAsReadMutation = useMutation({
-    mutationFn: () => apiRequest("/api/v1/notifications/mark-all-read", "PUT"),
+    mutationFn: () => apiRequest("PUT", "/api/v1/notifications/mark-all-read"),
     onSuccess: () => {
       // Invalidate and refetch notification queries
       queryClient.invalidateQueries({ queryKey: ["/api/v1/notifications"] });

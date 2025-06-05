@@ -31,7 +31,7 @@ export function NotificationPanel({ onMarkAllAsRead, onClose }: NotificationPane
   // Mark notification as read mutation
   const markAsReadMutation = useMutation({
     mutationFn: (notificationId: number) => 
-      apiRequest(`/api/v1/notifications/${notificationId}/read`, "PUT"),
+      apiRequest("PUT", `/api/v1/notifications/${notificationId}/read`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/v1/notifications"] });
       queryClient.invalidateQueries({ queryKey: ["/api/v1/notifications/unread-count"] });
