@@ -16,7 +16,6 @@ interface TaskNotificationContext {
 
 export class TaskNotificationIntegration {
   constructor(
-    private notificationService: NotificationService,
     private storage: IStorage
   ) {}
 
@@ -65,9 +64,9 @@ export class TaskNotificationIntegration {
       // Notify new assignee
       if (assigneeId && assigneeId !== currentUserId) {
         try {
-          const assignee = await this.storage.getUser(assigneeId, tenantId);
+          const assignee = await this.storage.getUser(assigneeId);
           if (assignee) {
-            await this.notificationService.createNotification({
+            await NotificationService.createNotification({
               tenantId,
               userId: assigneeId,
               title: 'Task Assigned to You',
@@ -89,9 +88,9 @@ export class TaskNotificationIntegration {
       // Notify previous assignee about removal (if different from current user)
       if (previousAssigneeId && previousAssigneeId !== currentUserId && previousAssigneeId !== assigneeId) {
         try {
-          const previousAssignee = await this.storage.getUser(previousAssigneeId, tenantId);
+          const previousAssignee = await this.storage.getUser(previousAssigneeId);
           if (previousAssignee) {
-            await this.notificationService.createNotification({
+            await NotificationService.createNotification({
               tenantId,
               userId: previousAssigneeId,
               title: 'Task Reassigned',
@@ -120,9 +119,9 @@ export class TaskNotificationIntegration {
         ]);
 
         if (currentStatus && previousStatus && assigneeId && assigneeId !== currentUserId) {
-          const assignee = await this.storage.getUser(assigneeId, tenantId);
+          const assignee = await this.storage.getUser(assigneeId);
           if (assignee) {
-            await this.notificationService.createNotification({
+            await NotificationService.createNotification({
               tenantId,
               userId: assigneeId,
               title: 'Task Status Updated',
@@ -157,9 +156,9 @@ export class TaskNotificationIntegration {
       if (task && task.assigneeId && task.assigneeId !== currentUserId) {
         // Also try to find the task creator/manager
         // For now, we'll notify the assignee if they didn't complete it themselves
-        const assignee = await this.storage.getUser(task.assigneeId, tenantId);
+        const assignee = await this.storage.getUser(task.assigneeId);
         if (assignee) {
-          await this.notificationService.createNotification({
+          await NotificationService.createNotification({
             tenantId,
             userId: task.assigneeId,
             title: 'Task Completed',
