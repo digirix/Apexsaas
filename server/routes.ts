@@ -3080,27 +3080,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Check for status change
         if (req.body.statusId !== undefined && req.body.statusId !== existingTask.statusId) {
           console.log(`[NotificationEvent] Task ${id} status changed from ${existingTask.statusId} to ${req.body.statusId}`);
-          await NotificationEventService.processEvent('tasks.status_changed', {
+          await NotificationEventService.emitTaskEvent(
             tenantId,
-            taskId: id,
-            userId: currentUserId,
-            oldStatusId: existingTask.statusId,
-            newStatusId: req.body.statusId,
-            taskDetails: updatedTask?.taskDetails || `Task #${id}`,
-            assigneeId: updatedTask?.assigneeId
-          });
+            'status_changed',
+            {
+              id,
+              taskId: id,
+              taskDetails: updatedTask?.taskDetails || `Task #${id}`,
+              assigneeId: updatedTask?.assigneeId,
+              oldStatusId: existingTask.statusId,
+              newStatusId: req.body.statusId,
+              createdBy: existingTask.createdBy
+            },
+            currentUserId
+          );
           
           // If task completed, emit completion event
           const newStatus = await storage.getTaskStatus(req.body.statusId, tenantId);
           if (newStatus && newStatus.name.toLowerCase() === 'completed') {
             console.log(`[NotificationEvent] Task ${id} completed`);
-            await NotificationEventService.processEvent('tasks.completed', {
+            await NotificationEventService.emitTaskEvent(
               tenantId,
-              taskId: id,
-              userId: currentUserId,
-              taskDetails: updatedTask?.taskDetails || `Task #${id}`,
-              assigneeId: updatedTask?.assigneeId
-            });
+              'completed',
+              {
+                id,
+                taskId: id,
+                taskDetails: updatedTask?.taskDetails || `Task #${id}`,
+                assigneeId: updatedTask?.assigneeId,
+                createdBy: existingTask.createdBy
+              },
+              currentUserId
+            );
           }
         }
         

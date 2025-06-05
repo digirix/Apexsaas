@@ -13,7 +13,7 @@ export interface NotificationEvent {
   metadata?: any;
 }
 
-class NotificationEventService {
+class NotificationEventServiceClass {
   // Process a notification event based on configured triggers
   async processEvent(eventKey: string, eventData: any): Promise<void> {
     try {
@@ -486,5 +486,4 @@ class NotificationEventService {
   }
 }
 
-export const NotificationEventService = new NotificationEventService();
-export const notificationEventService = new NotificationEventService();
+export const NotificationEventService = new NotificationEventServiceClass();
