@@ -3072,78 +3072,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update the task first
       const updatedTask = await storage.updateTask(id, taskUpdateData);
       
-      // Send notifications for task changes
+      // Send notifications using the event-driven notification system
       const currentUserId = (req.user as any).id;
       try {
+        const { notificationEventService } = await import('./services/notification-event-service');
+        
         // Check for status change
         if (req.body.statusId !== undefined && req.body.statusId !== existingTask.statusId) {
-          const oldStatus = await storage.getTaskStatus(existingTask.statusId, tenantId);
-          const newStatus = await storage.getTaskStatus(req.body.statusId, tenantId);
+          await notificationEventService.emitTaskEvent(
+            tenantId,
+            'status_changed',
+            {
+              ...updatedTask,
+              previousStatus: existingTask.statusId,
+              newStatus: req.body.statusId
+            },
+            currentUserId,
+            existingTask
+          );
           
-          if (oldStatus && newStatus) {
-            // Notify assignee if different from current user
-            if (existingTask.assigneeId && existingTask.assigneeId !== currentUserId) {
-              await storage.createNotification({
-                tenantId,
-                userId: existingTask.assigneeId,
-                notificationType: 'TASK_STATUS_CHANGED',
-                title: 'Task Status Updated',
-                message: `Task "${existingTask.taskDetails || 'Task'}" status changed from ${oldStatus.name} to ${newStatus.name}`,
-                severity: newStatus.name.toLowerCase() === 'completed' ? 'SUCCESS' : 'INFO',
-                linkUrl: `/tasks/${id}`
-              });
-            }
-            
-            // Check if task is completed
-            if (newStatus.name.toLowerCase() === 'completed') {
-              // Notify task creator if different from current user and assignee
-              const taskCreatorId = existingTask.createdBy || existingTask.assigneeId;
-              if (taskCreatorId && taskCreatorId !== currentUserId && taskCreatorId !== existingTask.assigneeId) {
-                await storage.createNotification({
-                  tenantId,
-                  userId: taskCreatorId,
-                  notificationType: 'TASK_COMPLETED',
-                  title: 'Task Completed',
-                  message: `Task "${existingTask.taskDetails || 'Task'}" has been completed`,
-                  severity: 'SUCCESS',
-                  linkUrl: `/tasks/${id}`
-                });
-              }
-            }
+          // If task completed, emit completion event
+          const newStatus = await storage.getTaskStatus(req.body.statusId, tenantId);
+          if (newStatus && newStatus.name.toLowerCase() === 'completed') {
+            await notificationEventService.emitTaskEvent(
+              tenantId,
+              'completed',
+              updatedTask,
+              currentUserId,
+              existingTask
+            );
           }
         }
         
-        // Check for assignment change
+        // Check for assignee change
         if (req.body.assigneeId !== undefined && req.body.assigneeId !== existingTask.assigneeId) {
-          // Notify new assignee
-          if (req.body.assigneeId && req.body.assigneeId !== currentUserId) {
-            const newAssignee = await storage.getUser(req.body.assigneeId, tenantId);
-            if (newAssignee) {
-              await storage.createNotification({
-                tenantId,
-                userId: req.body.assigneeId,
-                notificationType: 'TASK_ASSIGNMENT',
-                title: 'Task Reassigned',
-                message: `You have been assigned to task: ${existingTask.taskDetails || 'Task'}`,
-                severity: 'INFO',
-                linkUrl: `/tasks/${id}`
-              });
-            }
-          }
-          
-          // Notify previous assignee about reassignment
-          if (existingTask.assigneeId && existingTask.assigneeId !== currentUserId && existingTask.assigneeId !== req.body.assigneeId) {
-            await storage.createNotification({
-              tenantId,
-              userId: existingTask.assigneeId,
-              notificationType: 'TASK_UPDATED',
-              title: 'Task Reassigned',
-              message: `Task "${existingTask.taskDetails || 'Task'}" has been reassigned to another user`,
-              severity: 'INFO',
-              linkUrl: `/tasks/${id}`
-            });
-          }
+          await notificationEventService.emitTaskEvent(
+            tenantId,
+            'assigned',
+            {
+              ...updatedTask,
+              previousAssignee: existingTask.assigneeId,
+              newAssignee: req.body.assigneeId
+            },
+            currentUserId,
+            existingTask
+          );
         }
+        
+        // General task update event
+        await notificationEventService.emitTaskEvent(
+          tenantId,
+          'updated',
+          updatedTask,
+          currentUserId,
+          existingTask
+        );
+        
       } catch (notifError) {
         console.error("Error sending task update notifications:", notifError);
         // Don't fail the task update if notification fails
