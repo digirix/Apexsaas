@@ -3071,67 +3071,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Send notifications for task updates
       const currentUserId = (req.user as any).id;
+      console.log(`DEBUG: Starting notification process for task ${id}:`);
+      console.log(`- Current user ID: ${currentUserId}`);
+      console.log(`- Task updated successfully: ${!!updatedTask}`);
+      console.log(`- Existing task status: ${existingTask.statusId}, assignee: ${existingTask.assigneeId}`);
+      if (updatedTask) {
+        console.log(`- Updated task status: ${updatedTask.statusId}, assignee: ${updatedTask.assigneeId}`);
+      }
+      
       try {
-        // Handle status changes
-        if (existingTask.statusId !== updatedTask.statusId && updatedTask.assigneeId && updatedTask.assigneeId !== currentUserId) {
-          const oldStatus = await storage.getTaskStatus(existingTask.statusId, tenantId);
-          const newStatus = await storage.getTaskStatus(updatedTask.statusId, tenantId);
-          
-          await storage.createNotification({
-            tenantId,
-            userId: updatedTask.assigneeId,
-            type: 'TASK_STATUS_CHANGED',
-            title: 'Task Status Updated',
-            messageBody: `Task "${updatedTask.taskDetails}" status changed from "${oldStatus?.name || 'Unknown'}" to "${newStatus?.name || 'Unknown'}"`,
-            severity: 'INFO',
-            linkUrl: `/tasks/${id}`,
-            isRead: false
-          });
-          
-          console.log(`Task status change notification sent to user ${updatedTask.assigneeId}`);
-        }
-
-        // Handle assignment changes
-        if (existingTask.assigneeId !== updatedTask.assigneeId && updatedTask.assigneeId && updatedTask.assigneeId !== currentUserId) {
-          await storage.createNotification({
-            tenantId,
-            userId: updatedTask.assigneeId,
-            type: 'TASK_ASSIGNMENT',
-            title: 'New Task Assigned',
-            messageBody: `You have been assigned task: "${updatedTask.taskDetails}"`,
-            severity: 'INFO',
-            linkUrl: `/tasks/${id}`,
-            isRead: false
-          });
-          
-          console.log(`Task assignment notification sent to user ${updatedTask.assigneeId}`);
-        }
-
-        // Handle task completion
-        if (existingTask.statusId !== updatedTask.statusId) {
-          const newStatus = await storage.getTaskStatus(updatedTask.statusId, tenantId);
-          if (newStatus?.name?.toLowerCase().includes('completed') || newStatus?.name?.toLowerCase().includes('done')) {
-            // Notify managers and admins about completion
-            const users = await storage.getUsers(tenantId);
-            const notifyUsers = users.filter(user => 
-              user.id !== currentUserId && 
-              (user.isSuperAdmin || user.designationId)
-            );
-
-            for (const user of notifyUsers) {
-              await storage.createNotification({
-                tenantId,
-                userId: user.id,
-                type: 'TASK_COMPLETED',
-                title: 'Task Completed',
-                messageBody: `Task "${updatedTask.taskDetails}" has been completed`,
-                severity: 'SUCCESS',
-                linkUrl: `/tasks/${id}`,
-                isRead: false
-              });
-            }
+        if (updatedTask) {
+          // Handle status changes
+          if (existingTask.statusId !== updatedTask.statusId && updatedTask.assigneeId && updatedTask.assigneeId !== currentUserId) {
+            const oldStatus = await storage.getTaskStatus(existingTask.statusId, tenantId);
+            const newStatus = await storage.getTaskStatus(updatedTask.statusId, tenantId);
             
-            console.log(`Task completion notifications sent to ${notifyUsers.length} users`);
+            await storage.createNotification({
+              tenantId,
+              userId: updatedTask.assigneeId,
+              type: 'TASK_STATUS_CHANGED',
+              title: 'Task Status Updated',
+              messageBody: `Task "${updatedTask.taskDetails}" status changed from "${oldStatus?.name || 'Unknown'}" to "${newStatus?.name || 'Unknown'}"`,
+              severity: 'INFO',
+              linkUrl: `/tasks/${id}`
+            });
+            
+            console.log(`Task status change notification sent to user ${updatedTask.assigneeId}`);
+          }
+
+          // Handle assignment changes
+          if (existingTask.assigneeId !== updatedTask.assigneeId && updatedTask.assigneeId && updatedTask.assigneeId !== currentUserId) {
+            await storage.createNotification({
+              tenantId,
+              userId: updatedTask.assigneeId,
+              type: 'TASK_ASSIGNMENT',
+              title: 'New Task Assigned',
+              messageBody: `You have been assigned task: "${updatedTask.taskDetails}"`,
+              severity: 'INFO',
+              linkUrl: `/tasks/${id}`
+            });
+            
+            console.log(`Task assignment notification sent to user ${updatedTask.assigneeId}`);
+          }
+
+          // Handle task completion
+          if (existingTask.statusId !== updatedTask.statusId) {
+            const newStatus = await storage.getTaskStatus(updatedTask.statusId, tenantId);
+            if (newStatus?.name?.toLowerCase().includes('completed') || newStatus?.name?.toLowerCase().includes('done')) {
+              // Notify managers and admins about completion
+              const users = await storage.getUsers(tenantId);
+              const notifyUsers = users.filter(user => 
+                user.id !== currentUserId && 
+                (user.isSuperAdmin || user.designationId)
+              );
+
+              for (const user of notifyUsers) {
+                await storage.createNotification({
+                  tenantId,
+                  userId: user.id,
+                  type: 'TASK_COMPLETED',
+                  title: 'Task Completed',
+                  messageBody: `Task "${updatedTask.taskDetails}" has been completed`,
+                  severity: 'SUCCESS',
+                  linkUrl: `/tasks/${id}`
+                });
+              }
+              
+              console.log(`Task completion notifications sent to ${notifyUsers.length} users`);
+            }
+          }
+
+          // Always create a general task update notification for any change
+          if (updatedTask.assigneeId && updatedTask.assigneeId !== currentUserId) {
+            await storage.createNotification({
+              tenantId,
+              userId: updatedTask.assigneeId,
+              type: 'TASK_UPDATE',
+              title: 'Task Updated',
+              messageBody: `Task "${updatedTask.taskDetails}" has been updated`,
+              severity: 'INFO',
+              linkUrl: `/tasks/${id}`
+            });
+            
+            console.log(`General task update notification sent to user ${updatedTask.assigneeId}`);
           }
         }
       } catch (notifError) {
