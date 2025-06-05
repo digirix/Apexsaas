@@ -1,6 +1,24 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
+
+// WebSocket connections map: tenantId -> userId -> Set<WebSocket>
+const wsConnections = new Map<number, Map<number, Set<WebSocket>>>();
+
+function broadcastToUser(tenantId: number, userId: number, message: any) {
+  const tenantConnections = wsConnections.get(tenantId);
+  if (tenantConnections) {
+    const userConnections = tenantConnections.get(userId);
+    if (userConnections) {
+      const messageStr = JSON.stringify(message);
+      userConnections.forEach(ws => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(messageStr);
+        }
+      });
+    }
+  }
+}
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { DatabaseStorage } from "./database-storage";
@@ -6785,13 +6803,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     ws.on('message', (message) => {
       try {
         const data = JSON.parse(message.toString());
-        if (data.type === 'auth' && data.tenantId) {
+        if (data.type === 'auth' && data.tenantId && data.userId) {
           const tenantId = data.tenantId;
-          if (!connectedClients.has(tenantId)) {
-            connectedClients.set(tenantId, new Set());
+          const userId = data.userId;
+          
+          // Initialize tenant connections if needed
+          if (!wsConnections.has(tenantId)) {
+            wsConnections.set(tenantId, new Map());
           }
-          connectedClients.get(tenantId)!.add(ws);
-          console.log(`Client authenticated for tenant ${tenantId}`);
+          
+          // Initialize user connections if needed
+          if (!wsConnections.get(tenantId)!.has(userId)) {
+            wsConnections.get(tenantId)!.set(userId, new Set());
+          }
+          
+          // Add this WebSocket to the user's connections
+          wsConnections.get(tenantId)!.get(userId)!.add(ws);
+          console.log(`Client authenticated for tenant ${tenantId}, user ${userId}`);
         }
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
@@ -6799,11 +6827,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
     
     ws.on('close', () => {
-      // Remove client from all tenant groups
-      for (const [tenantId, clients] of connectedClients.entries()) {
-        clients.delete(ws);
-        if (clients.size === 0) {
-          connectedClients.delete(tenantId);
+      // Remove client from all tenant/user groups
+      for (const [tenantId, tenantConnections] of wsConnections.entries()) {
+        for (const [userId, userConnections] of tenantConnections.entries()) {
+          userConnections.delete(ws);
+          if (userConnections.size === 0) {
+            tenantConnections.delete(userId);
+          }
+        }
+        if (tenantConnections.size === 0) {
+          wsConnections.delete(tenantId);
         }
       }
       console.log('WebSocket client disconnected');

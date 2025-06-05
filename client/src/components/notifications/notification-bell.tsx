@@ -10,6 +10,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { NotificationPanel } from "./notification-panel";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 interface NotificationBellProps {
   className?: string;
