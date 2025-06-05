@@ -64,8 +64,7 @@ import { TaskNotificationIntegration } from './integrations/task-notifications';
 export async function registerRoutes(app: Express): Promise<Server> {
   console.log("Starting to register routes...");
   
-  // Initialize notification services
-  const notificationService = new SimpleNotificationService(storage);
+  // Notification system integrated directly into routes
   
   // Setup authentication
   console.log("Setting up authentication...");
@@ -3073,7 +3072,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send notifications for task updates
       const currentUserId = (req.user as any).id;
       try {
-        await notificationService.handleTaskUpdate(id, existingTask, updatedTask, currentUserId);
+        // Handle status changes
+        if (existingTask.statusId !== updatedTask.statusId && updatedTask.assigneeId && updatedTask.assigneeId !== currentUserId) {
+          const oldStatus = await storage.getTaskStatus(existingTask.statusId, tenantId);
+          const newStatus = await storage.getTaskStatus(updatedTask.statusId, tenantId);
+          
+          await storage.createNotification({
+            tenantId,
+            userId: updatedTask.assigneeId,
+            type: 'TASK_STATUS_CHANGED',
+            title: 'Task Status Updated',
+            messageBody: `Task "${updatedTask.taskDetails}" status changed from "${oldStatus?.name || 'Unknown'}" to "${newStatus?.name || 'Unknown'}"`,
+            severity: 'INFO',
+            linkUrl: `/tasks/${id}`,
+            isRead: false
+          });
+          
+          console.log(`Task status change notification sent to user ${updatedTask.assigneeId}`);
+        }
+
+        // Handle assignment changes
+        if (existingTask.assigneeId !== updatedTask.assigneeId && updatedTask.assigneeId && updatedTask.assigneeId !== currentUserId) {
+          await storage.createNotification({
+            tenantId,
+            userId: updatedTask.assigneeId,
+            type: 'TASK_ASSIGNMENT',
+            title: 'New Task Assigned',
+            messageBody: `You have been assigned task: "${updatedTask.taskDetails}"`,
+            severity: 'INFO',
+            linkUrl: `/tasks/${id}`,
+            isRead: false
+          });
+          
+          console.log(`Task assignment notification sent to user ${updatedTask.assigneeId}`);
+        }
+
+        // Handle task completion
+        if (existingTask.statusId !== updatedTask.statusId) {
+          const newStatus = await storage.getTaskStatus(updatedTask.statusId, tenantId);
+          if (newStatus?.name?.toLowerCase().includes('completed') || newStatus?.name?.toLowerCase().includes('done')) {
+            // Notify managers and admins about completion
+            const users = await storage.getUsers(tenantId);
+            const notifyUsers = users.filter(user => 
+              user.id !== currentUserId && 
+              (user.isSuperAdmin || user.designationId)
+            );
+
+            for (const user of notifyUsers) {
+              await storage.createNotification({
+                tenantId,
+                userId: user.id,
+                type: 'TASK_COMPLETED',
+                title: 'Task Completed',
+                messageBody: `Task "${updatedTask.taskDetails}" has been completed`,
+                severity: 'SUCCESS',
+                linkUrl: `/tasks/${id}`,
+                isRead: false
+              });
+            }
+            
+            console.log(`Task completion notifications sent to ${notifyUsers.length} users`);
+          }
+        }
       } catch (notifError) {
         console.error("Error sending task update notification:", notifError);
         // Don't fail the task update if notification fails
