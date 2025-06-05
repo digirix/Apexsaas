@@ -25,7 +25,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
-  const unreadCount = unreadCountData?.count || 0;
+  const unreadCount = (unreadCountData as { count: number } | undefined)?.count || 0;
 
   // Mark all as read mutation
   const markAllAsReadMutation = useMutation({

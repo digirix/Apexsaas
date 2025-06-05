@@ -75,14 +75,14 @@ export function NotificationsPage() {
     },
   });
 
-  const notifications = notificationsData?.notifications || [];
-  const total = notificationsData?.total || 0;
-  const hasMore = notificationsData?.hasMore || false;
-  const unreadCount = unreadCountData?.count || 0;
+  const notifications = (notificationsData as { notifications: any[]; total: number; hasMore: boolean } | undefined)?.notifications || [];
+  const total = (notificationsData as { notifications: any[]; total: number; hasMore: boolean } | undefined)?.total || 0;
+  const hasMore = (notificationsData as { notifications: any[]; total: number; hasMore: boolean } | undefined)?.hasMore || false;
+  const unreadCount = (unreadCountData as { count: number } | undefined)?.count || 0;
 
   // Filter notifications by search term
   const filteredNotifications = filters.search
-    ? notifications.filter(n => 
+    ? notifications.filter((n: any) => 
         n.title.toLowerCase().includes(filters.search.toLowerCase()) ||
         n.messageBody.toLowerCase().includes(filters.search.toLowerCase())
       )

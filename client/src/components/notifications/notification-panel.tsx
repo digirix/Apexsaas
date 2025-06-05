@@ -38,8 +38,8 @@ export function NotificationPanel({ onMarkAllAsRead, onClose }: NotificationPane
     },
   });
 
-  const notifications = notificationsData?.notifications || [];
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const notifications = (notificationsData as { notifications: any[] } | undefined)?.notifications || [];
+  const unreadCount = notifications.filter((n: any) => !n.isRead).length;
 
   const handleNotificationClick = (notification: any) => {
     // Mark as read if not already read
