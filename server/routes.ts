@@ -3117,25 +3117,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Check for assignee change
         if (req.body.assigneeId !== undefined && req.body.assigneeId !== existingTask.assigneeId) {
           console.log(`[NotificationEvent] Task ${id} assignee changed from ${existingTask.assigneeId} to ${req.body.assigneeId}`);
-          await NotificationEventService.processEvent('tasks.assigned', {
+          await NotificationEventService.emitTaskEvent(
             tenantId,
-            taskId: id,
-            userId: currentUserId,
-            oldAssigneeId: existingTask.assigneeId,
-            newAssigneeId: req.body.assigneeId,
-            taskDetails: updatedTask?.taskDetails || `Task #${id}`
-          });
+            'assigned',
+            {
+              id,
+              taskId: id,
+              taskDetails: updatedTask?.taskDetails || `Task #${id}`,
+              assigneeId: req.body.assigneeId,
+              oldAssigneeId: existingTask.assigneeId,
+              newAssigneeId: req.body.assigneeId,
+              createdBy: existingTask.createdBy
+            },
+            currentUserId
+          );
         }
         
         // General task update event
         console.log(`[NotificationEvent] Task ${id} updated`);
-        await NotificationEventService.processEvent('tasks.updated', {
+        await NotificationEventService.emitTaskEvent(
           tenantId,
-          taskId: id,
-          userId: currentUserId,
-          taskDetails: updatedTask?.taskDetails || `Task #${id}`,
-          assigneeId: updatedTask?.assigneeId
-        });
+          'updated',
+          {
+            id,
+            taskId: id,
+            taskDetails: updatedTask?.taskDetails || `Task #${id}`,
+            assigneeId: updatedTask?.assigneeId,
+            createdBy: existingTask.createdBy
+          },
+          currentUserId
+        );
         
       } catch (notifError) {
         console.error("Error sending task update notifications:", notifError);
