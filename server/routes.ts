@@ -6616,9 +6616,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerWorkflowRoutes(app, databaseStorage);
   console.log("Workflow Automation routes registered");
   
-  // Register Internal Notification System routes
-
-  console.log("Internal Notification System routes registered");
+  // Register Notification System routes
+  try {
+    const notificationRoutes = await import("./api/notification-routes");
+    app.use("/api/v1/notifications", isAuthenticated, hasTenantAccess, notificationRoutes.default);
+    console.log("Notification System routes registered");
+  } catch (error) {
+    console.error("Error registering Notification System routes:", error);
+  }
   
 
 
