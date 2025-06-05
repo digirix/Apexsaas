@@ -32,8 +32,8 @@ export function NotificationsPage() {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({
     isRead: undefined as boolean | undefined,
-    type: '',
-    severity: '',
+    type: 'ALL_TYPES',
+    severity: 'ALL_SEVERITIES',
     search: ''
   });
 
@@ -42,8 +42,8 @@ export function NotificationsPage() {
     page,
     limit: 20,
     ...(filters.isRead !== undefined && { isRead: filters.isRead }),
-    ...(filters.type && { type: filters.type }),
-    ...(filters.severity && { severity: filters.severity })
+    ...(filters.type && filters.type !== 'ALL_TYPES' && { type: filters.type }),
+    ...(filters.severity && filters.severity !== 'ALL_SEVERITIES' && { severity: filters.severity })
   };
 
   // Fetch notifications
@@ -118,8 +118,8 @@ export function NotificationsPage() {
   const clearFilters = () => {
     setFilters({
       isRead: undefined,
-      type: '',
-      severity: '',
+      type: 'ALL_TYPES',
+      severity: 'ALL_SEVERITIES', 
       search: ''
     });
     setPage(1);
@@ -214,7 +214,7 @@ export function NotificationsPage() {
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="ALL_TYPES">All Types</SelectItem>
                 <SelectItem value="TASK_ASSIGNMENT">Task Assignment</SelectItem>
                 <SelectItem value="TASK_UPDATE">Task Update</SelectItem>
                 <SelectItem value="MENTION">Mention</SelectItem>
@@ -235,7 +235,7 @@ export function NotificationsPage() {
                 <SelectValue placeholder="Severity" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Severities</SelectItem>
+                <SelectItem value="ALL_SEVERITIES">All Severities</SelectItem>
                 <SelectItem value="INFO">Info</SelectItem>
                 <SelectItem value="SUCCESS">Success</SelectItem>
                 <SelectItem value="WARNING">Warning</SelectItem>
@@ -245,7 +245,7 @@ export function NotificationsPage() {
           </div>
 
           {/* Clear Filters */}
-          {(filters.isRead !== undefined || filters.type || filters.severity || filters.search) && (
+          {(filters.isRead !== undefined || (filters.type && filters.type !== 'ALL_TYPES') || (filters.severity && filters.severity !== 'ALL_SEVERITIES') || filters.search) && (
             <div className="flex justify-end">
               <Button variant="ghost" size="sm" onClick={clearFilters}>
                 Clear filters
