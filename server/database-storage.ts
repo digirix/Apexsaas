@@ -11,7 +11,7 @@ import {
   // Workflow automation module
   workflows, workflowTriggers, workflowActions, workflowExecutionLogs, workflowTemplates,
   // Notification system
-  notifications
+  notifications, notificationPreferences
 } from "@shared/schema";
 import type { 
   Tenant, User, InsertUser, InsertTenant, 
@@ -42,7 +42,7 @@ import type {
   WorkflowAction, InsertWorkflowAction, WorkflowExecutionLog, InsertWorkflowExecutionLog,
   WorkflowTemplate, InsertWorkflowTemplate, CompleteWorkflow,
   // Notification types
-  Notification, InsertNotification
+  Notification, InsertNotification, NotificationPreference, InsertNotificationPreference
 } from "@shared/schema";
 import { IStorage } from "./storage";
 import { db } from "./db";
@@ -4055,6 +4055,197 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Error deleting notification:", error);
       return false;
+    }
+  }
+
+  // Notification Preferences operations
+  async getNotificationPreferences(tenantId: number, userId: number): Promise<NotificationPreference[]> {
+    try {
+      const result = await db.select()
+        .from(notificationPreferences)
+        .where(and(
+          eq(notificationPreferences.tenantId, tenantId),
+          eq(notificationPreferences.userId, userId)
+        ))
+        .orderBy(asc(notificationPreferences.notificationType));
+      
+      return result;
+    } catch (error) {
+      console.error("Error getting notification preferences:", error);
+      return [];
+    }
+  }
+
+  async getNotificationPreference(tenantId: number, userId: number, notificationType: string): Promise<NotificationPreference | undefined> {
+    try {
+      const result = await db.select()
+        .from(notificationPreferences)
+        .where(and(
+          eq(notificationPreferences.tenantId, tenantId),
+          eq(notificationPreferences.userId, userId),
+          eq(notificationPreferences.notificationType, notificationType as any)
+        ))
+        .limit(1);
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error getting notification preference:", error);
+      return undefined;
+    }
+  }
+
+  async createNotificationPreference(preference: InsertNotificationPreference): Promise<NotificationPreference> {
+    try {
+      const result = await db.insert(notificationPreferences)
+        .values({
+          tenantId: preference.tenantId,
+          userId: preference.userId,
+          notificationType: preference.notificationType,
+          isEnabled: preference.isEnabled ?? true,
+          deliveryChannels: preference.deliveryChannels ?? '["in_app"]'
+        })
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error creating notification preference:", error);
+      throw new Error(`Failed to create notification preference: ${error}`);
+    }
+  }
+
+  async updateNotificationPreference(tenantId: number, userId: number, notificationType: string, isEnabled: boolean, deliveryChannels?: string): Promise<NotificationPreference | undefined> {
+    try {
+      const result = await db.update(notificationPreferences)
+        .set({
+          isEnabled,
+          deliveryChannels: deliveryChannels ?? '["in_app"]',
+          updatedAt: new Date()
+        })
+        .where(and(
+          eq(notificationPreferences.tenantId, tenantId),
+          eq(notificationPreferences.userId, userId),
+          eq(notificationPreferences.notificationType, notificationType as any)
+        ))
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error updating notification preference:", error);
+      return undefined;
+    }
+  }
+
+  async deleteNotificationPreference(tenantId: number, userId: number, notificationType: string): Promise<boolean> {
+    try {
+      await db.delete(notificationPreferences)
+        .where(and(
+          eq(notificationPreferences.tenantId, tenantId),
+          eq(notificationPreferences.userId, userId),
+          eq(notificationPreferences.notificationType, notificationType as any)
+        ));
+      return true;
+    } catch (error) {
+      console.error("Error deleting notification preference:", error);
+      return false;
+    }
+  }
+
+  async initializeDefaultNotificationPreferences(tenantId: number, userId: number): Promise<NotificationPreference[]> {
+    try {
+      // Define all notification types with default enabled state
+      const defaultNotificationTypes = [
+        // Task-related notifications
+        { type: 'TASK_ASSIGNMENT', enabled: true },
+        { type: 'TASK_UPDATE', enabled: true },
+        { type: 'TASK_COMPLETED', enabled: true },
+        { type: 'TASK_DUE_SOON', enabled: true },
+        { type: 'TASK_OVERDUE', enabled: true },
+        { type: 'TASK_STATUS_CHANGED', enabled: false },
+        { type: 'TASK_APPROVED', enabled: true },
+        { type: 'TASK_REJECTED', enabled: true },
+        { type: 'TASK_COMMENT_ADDED', enabled: false },
+        
+        // Client-related notifications
+        { type: 'CLIENT_CREATED', enabled: false },
+        { type: 'CLIENT_UPDATED', enabled: false },
+        { type: 'CLIENT_DEACTIVATED', enabled: true },
+        { type: 'CLIENT_PORTAL_ACCESS_GRANTED', enabled: true },
+        { type: 'CLIENT_PORTAL_ACCESS_REVOKED', enabled: true },
+        { type: 'CLIENT_DOCUMENT_UPLOADED', enabled: true },
+        { type: 'CLIENT_MESSAGE_RECEIVED', enabled: true },
+        
+        // Entity-related notifications
+        { type: 'ENTITY_CREATED', enabled: false },
+        { type: 'ENTITY_UPDATED', enabled: false },
+        { type: 'ENTITY_DEACTIVATED', enabled: true },
+        { type: 'ENTITY_SERVICE_SUBSCRIPTION_CHANGED', enabled: true },
+        
+        // Invoice and Payment notifications
+        { type: 'INVOICE_CREATED', enabled: true },
+        { type: 'INVOICE_SENT', enabled: true },
+        { type: 'INVOICE_PAID', enabled: true },
+        { type: 'INVOICE_OVERDUE', enabled: true },
+        { type: 'PAYMENT_RECEIVED', enabled: true },
+        { type: 'PAYMENT_FAILED', enabled: true },
+        
+        // User and System notifications
+        { type: 'USER_CREATED', enabled: false },
+        { type: 'USER_UPDATED', enabled: false },
+        { type: 'USER_DEACTIVATED', enabled: true },
+        { type: 'USER_PERMISSION_CHANGED', enabled: true },
+        { type: 'SYSTEM_MAINTENANCE', enabled: true },
+        { type: 'SYSTEM_UPDATE', enabled: false },
+        { type: 'SYSTEM_ERROR', enabled: true },
+        
+        // Workflow notifications
+        { type: 'WORKFLOW_STARTED', enabled: false },
+        { type: 'WORKFLOW_COMPLETED', enabled: true },
+        { type: 'WORKFLOW_FAILED', enabled: true },
+        { type: 'WORKFLOW_ACTION_REQUIRED', enabled: true },
+        
+        // AI and Reports
+        { type: 'AI_INTERACTION_COMPLETED', enabled: false },
+        { type: 'REPORT_GENERATED', enabled: true },
+        { type: 'REPORT_FAILED', enabled: true },
+        
+        // Compliance and Tax
+        { type: 'COMPLIANCE_DEADLINE_APPROACHING', enabled: true },
+        { type: 'COMPLIANCE_DEADLINE_MISSED', enabled: true },
+        { type: 'TAX_FILING_DUE', enabled: true },
+        { type: 'TAX_FILING_SUBMITTED', enabled: true },
+        
+        // Custom notifications
+        { type: 'CUSTOM', enabled: true }
+      ];
+
+      // Clear existing preferences
+      await db.delete(notificationPreferences)
+        .where(and(
+          eq(notificationPreferences.tenantId, tenantId),
+          eq(notificationPreferences.userId, userId)
+        ));
+
+      // Insert default preferences
+      const preferences: NotificationPreference[] = [];
+      for (const notifType of defaultNotificationTypes) {
+        try {
+          const preference = await this.createNotificationPreference({
+            tenantId,
+            userId,
+            notificationType: notifType.type as any,
+            isEnabled: notifType.enabled,
+            deliveryChannels: '["in_app"]'
+          });
+          preferences.push(preference);
+        } catch (error) {
+          console.error(`Error creating default preference for ${notifType.type}:`, error);
+        }
+      }
+
+      return preferences;
+    } catch (error) {
+      console.error("Error initializing default notification preferences:", error);
+      return [];
     }
   }
 }
