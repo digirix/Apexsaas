@@ -1660,26 +1660,87 @@ export const insertTaskAcknowledgmentSchema = createInsertSchema(taskAcknowledgm
 export type TaskAcknowledgment = typeof taskAcknowledgments.$inferSelect;
 export type InsertTaskAcknowledgment = z.infer<typeof insertTaskAcknowledgmentSchema>;
 
-// Notification System Schema
+// Notification System Schema - Comprehensive notification types for all modules
 export const notificationTypeEnum = pgEnum('notification_type', [
+  // Task Management Module
   'TASK_ASSIGNMENT',
   'TASK_UPDATE', 
   'TASK_COMPLETED',
   'TASK_DUE_SOON',
   'TASK_OVERDUE',
   'TASK_STATUS_CHANGED',
-  'MENTION',
-  'WORKFLOW_APPROVAL',
-  'WORKFLOW_ALERT',
-  'WORKFLOW_COMPLETION',
+  'TASK_APPROVED',
+  'TASK_REJECTED',
+  'TASK_COMMENT_ADDED',
+  'RECURRING_TASK_GENERATED',
+  
+  // Client Management Module
+  'CLIENT_CREATED',
+  'CLIENT_UPDATED',
   'CLIENT_ASSIGNMENT',
   'CLIENT_MESSAGE',
   'CLIENT_DOCUMENT',
+  'CLIENT_PORTAL_LOGIN',
+  'CLIENT_STATUS_CHANGED',
+  
+  // Entity Management Module
+  'ENTITY_CREATED',
+  'ENTITY_UPDATED',
+  'ENTITY_COMPLIANCE_DUE',
+  'ENTITY_STATUS_CHANGED',
+  
+  // Invoice & Payment Module
+  'INVOICE_CREATED',
+  'INVOICE_SENT',
   'INVOICE_PAID',
+  'INVOICE_OVERDUE',
+  'PAYMENT_RECEIVED',
+  'PAYMENT_FAILED',
+  'PAYMENT_REFUNDED',
   'PAYMENT_REVIEW',
+  
+  // User & Permission Module
+  'USER_CREATED',
+  'USER_UPDATED',
+  'USER_LOGIN',
+  'PERMISSION_CHANGED',
+  'ROLE_ASSIGNED',
+  
+  // Workflow Module
+  'WORKFLOW_TRIGGERED',
+  'WORKFLOW_APPROVAL',
+  'WORKFLOW_ALERT',
+  'WORKFLOW_COMPLETION',
+  'WORKFLOW_FAILED',
+  
+  // Financial Analytics Module
+  'REPORT_GENERATED',
+  'REPORT_READY',
+  'ANALYTICS_ALERT',
+  'BUDGET_EXCEEDED',
+  'FINANCIAL_ANOMALY',
+  
+  // AI Module
   'AI_SUGGESTION',
   'AI_RISK_ALERT',
+  'AI_REPORT_GENERATED',
+  'AI_ANALYSIS_COMPLETED',
+  
+  // Compliance Module
+  'COMPLIANCE_DEADLINE_APPROACHING',
+  'COMPLIANCE_DEADLINE_MISSED',
+  'TAX_FILING_DUE',
+  'COMPLIANCE_ALERT',
+  
+  // System Module
   'SYSTEM_ALERT',
+  'SYSTEM_MESSAGE',
+  'SYSTEM_MAINTENANCE',
+  'BACKUP_COMPLETED',
+  'BACKUP_FAILED',
+  
+  // General
+  'MENTION',
   'BROADCAST',
   'CUSTOM'
 ]);
@@ -1728,3 +1789,32 @@ export const insertNotificationSchema = createInsertSchema(notifications).pick({
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
+// Notification Preferences table - User-specific notification settings
+export const notificationPreferences = pgTable("notification_preferences", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  notificationType: notificationTypeEnum("notification_type").notNull(),
+  isEnabled: boolean("is_enabled").default(true).notNull(),
+  deliveryChannels: text("delivery_channels").default('["in_app"]').notNull(), // JSON array: ["in_app", "email", "sms"]
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    tenantUserTypeUnique: unique().on(table.tenantId, table.userId, table.notificationType),
+    tenantFk: foreignKey({ columns: [table.tenantId], foreignColumns: [tenants.id] }),
+    userFk: foreignKey({ columns: [table.userId], foreignColumns: [users.id] }),
+  };
+});
+
+export const insertNotificationPreferenceSchema = createInsertSchema(notificationPreferences).pick({
+  tenantId: true,
+  userId: true,
+  notificationType: true,
+  isEnabled: true,
+  deliveryChannels: true,
+});
+
+export type NotificationPreference = typeof notificationPreferences.$inferSelect;
+export type InsertNotificationPreference = z.infer<typeof insertNotificationPreferenceSchema>;
