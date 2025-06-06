@@ -2922,7 +2922,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = (req.user as any).id;
-      const isSuperAdmin = (req.user as any).isSuperAdmin;
+      const isSuperAdmin = Boolean((req.user as any).isSuperAdmin);
       const clientId = req.query.clientId ? parseInt(req.query.clientId as string) : undefined;
       const entityId = req.query.entityId ? parseInt(req.query.entityId as string) : undefined;
       const isAdmin = req.query.isAdmin === "true" ? true : 
