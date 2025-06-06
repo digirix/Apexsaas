@@ -1512,6 +1512,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertEntitySchema.parse(data);
       const entity = await storage.createEntity(validatedData);
       
+      // Send notification about new entity creation
+      const currentUserId = (req.user as any).id;
+      try {
+        const users = await storage.getUsers(tenantId);
+        const adminUsers = users.filter(u => u.isSuperAdmin || u.designationId === 1);
+        
+        for (const admin of adminUsers) {
+          if (admin.id !== currentUserId) {
+            await storage.createNotification({
+              tenantId,
+              userId: admin.id,
+              type: 'ENTITY_CREATED',
+              title: 'New Entity Added',
+              message: `New entity "${entity.name}" has been added for client`,
+              severity: 'INFO',
+              linkUrl: `/entities/${entity.id}`
+            });
+          }
+        }
+      } catch (notifError) {
+        console.error("Error sending entity creation notification:", notifError);
+      }
+      
       res.status(201).json(entity);
     } catch (error) {
       console.error("Error creating entity:", error);
@@ -1535,6 +1558,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const updatedEntity = await storage.updateEntity(id, req.body);
+      
+      // Send notification about entity update
+      const currentUserId = (req.user as any).id;
+      try {
+        const users = await storage.getUsers(tenantId);
+        const adminUsers = users.filter(u => u.isSuperAdmin || u.designationId === 1);
+        
+        for (const admin of adminUsers) {
+          if (admin.id !== currentUserId) {
+            await storage.createNotification({
+              tenantId,
+              userId: admin.id,
+              type: 'ENTITY_UPDATED',
+              title: 'Entity Information Updated',
+              message: `Entity "${updatedEntity?.name}" information has been updated`,
+              severity: 'INFO',
+              linkUrl: `/entities/${updatedEntity?.id}`
+            });
+          }
+        }
+      } catch (notifError) {
+        console.error("Error sending entity update notification:", notifError);
+      }
+      
       res.json(updatedEntity);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -2125,6 +2172,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Creating user with data:", validatedData);
         const user = await storage.createUser(validatedData);
         
+        // Send notification about new user creation
+        const currentUserId = (req.user as any).id;
+        try {
+          const users = await storage.getUsers(tenantId);
+          const adminUsers = users.filter(u => u.isSuperAdmin || u.designationId === 1);
+          
+          for (const admin of adminUsers) {
+            if (admin.id !== currentUserId) {
+              await storage.createNotification({
+                tenantId,
+                userId: admin.id,
+                type: 'USER_CREATED',
+                title: 'New User Added',
+                message: `New user "${user.displayName}" has been added to the system`,
+                severity: 'INFO',
+                linkUrl: `/users/${user.id}`
+              });
+            }
+          }
+        } catch (notifError) {
+          console.error("Error sending user creation notification:", notifError);
+        }
+        
         // Don't send password back to client
         const { password, ...userData } = user;
         
@@ -2189,6 +2259,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedUser = await storage.updateUser(id, req.body);
       if (!updatedUser) {
         return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Send notification about user update
+      const currentUserId = (req.user as any).id;
+      try {
+        const users = await storage.getUsers(tenantId);
+        const adminUsers = users.filter(u => u.isSuperAdmin || u.designationId === 1);
+        
+        for (const admin of adminUsers) {
+          if (admin.id !== currentUserId) {
+            await storage.createNotification({
+              tenantId,
+              userId: admin.id,
+              type: 'USER_UPDATED',
+              title: 'User Information Updated',
+              message: `User "${updatedUser.displayName}" information has been updated`,
+              severity: 'INFO',
+              linkUrl: `/users/${updatedUser.id}`
+            });
+          }
+        }
+      } catch (notifError) {
+        console.error("Error sending user update notification:", notifError);
       }
       
       // Don't send password back to client
