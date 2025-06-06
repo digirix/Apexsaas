@@ -1818,3 +1818,37 @@ export const insertNotificationPreferenceSchema = createInsertSchema(notificatio
 
 export type NotificationPreference = typeof notificationPreferences.$inferSelect;
 export type InsertNotificationPreference = z.infer<typeof insertNotificationPreferenceSchema>;
+
+// Task Notes for comprehensive notes history tracking
+export const taskNotes = pgTable("task_notes", {
+  id: serial("id").primaryKey(),
+  taskId: integer("task_id").notNull().references(() => tasks.id, { onDelete: 'cascade' }),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  note: text("note").notNull(),
+  isSystemNote: boolean("is_system_note").default(false).notNull(), // For system-generated notes (assignments, status changes)
+  action: text("action"), // Type of action: 'assigned', 'status_changed', 'updated', 'comment'
+  oldValue: text("old_value"), // Previous value for tracking changes
+  newValue: text("new_value"), // New value for tracking changes
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    taskFk: foreignKey({ columns: [table.taskId], foreignColumns: [tasks.id] }),
+    tenantFk: foreignKey({ columns: [table.tenantId], foreignColumns: [tenants.id] }),
+    userFk: foreignKey({ columns: [table.userId], foreignColumns: [users.id] }),
+  };
+});
+
+export const insertTaskNoteSchema = createInsertSchema(taskNotes).pick({
+  taskId: true,
+  tenantId: true,
+  userId: true,
+  note: true,
+  isSystemNote: true,
+  action: true,
+  oldValue: true,
+  newValue: true,
+});
+
+export type TaskNote = typeof taskNotes.$inferSelect;
+export type InsertTaskNote = z.infer<typeof insertTaskNoteSchema>;

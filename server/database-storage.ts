@@ -11,7 +11,9 @@ import {
   // Workflow automation module
   workflows, workflowTriggers, workflowActions, workflowExecutionLogs, workflowTemplates,
   // Notification system
-  notifications, notificationPreferences
+  notifications, notificationPreferences,
+  // Task notes
+  taskNotes
 } from "@shared/schema";
 import type { 
   Tenant, User, InsertUser, InsertTenant, 
