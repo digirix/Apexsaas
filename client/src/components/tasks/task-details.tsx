@@ -827,12 +827,27 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
           setIsEditing(false);
         }
       }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Task Details</DialogTitle>
-            <DialogDescription>
-              View and manage task information
-            </DialogDescription>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="border-b pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-xl font-semibold">{task?.taskDetails || "Task Details"}</DialogTitle>
+                <DialogDescription className="mt-1">
+                  {task?.isAdmin ? "Administrative Task" : "Revenue Task"} • ID: {task?.id}
+                </DialogDescription>
+              </div>
+              {!isEditing && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditing(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Edit className="h-4 w-4" />
+                  Edit Task
+                </Button>
+              )}
+            </div>
           </DialogHeader>
         
         {isLoadingTask ? (
@@ -846,147 +861,267 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
         ) : (
           <>
             {!isEditing ? (
-              <>
-                <div className="flex flex-col gap-6">
-                  {/* Basic task information */}
-                  <div>
-                    <h3 className="text-xl font-semibold mb-2">{task.taskDetails}</h3>
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      <Badge variant={task.isAdmin ? "outline" : "default"}>
-                        {task.isAdmin ? "Administrative Task" : "Revenue Task"}
-                      </Badge>
-                      
-                      {/* Replace static status badge with interactive TaskStatusWorkflow */}
-                      {task.statusId && (
-                        <TaskStatusWorkflow 
-                          taskId={task.id} 
-                          currentStatusId={task.statusId} 
-                          variant="icon"
-                        />
-                      )}
-                      
-                      <Badge variant="outline">{task.taskType}</Badge>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-6">
+                {/* Left Column - Task Information */}
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Task Overview Card */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                          <FileText className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">Task Overview</h3>
+                          <p className="text-sm text-gray-600">Key information at a glance</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Badge variant={task.isAdmin ? "outline" : "default"} className="bg-white">
+                          {task.isAdmin ? "Admin" : "Revenue"}
+                        </Badge>
+                        {task.statusId && (
+                          <TaskStatusWorkflow 
+                            taskId={task.id} 
+                            currentStatusId={task.statusId} 
+                            variant="icon"
+                          />
+                        )}
+                      </div>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="flex items-start gap-2">
-                        <User className="h-5 w-5 text-slate-400 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-medium text-slate-500">Assignee</p>
-                          <p>{assignee?.displayName || "Unassigned"}</p>
+                    {/* Information Grid */}
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Assignee */}
+                      <div className="space-y-2">
+                        <div className="flex items-center text-sm text-slate-600">
+                          <User className="h-4 w-4 mr-2" />
+                          <span className="font-medium">Assignee</span>
                         </div>
+                        <p className="text-sm pl-6">{assignee?.displayName || "Unassigned"}</p>
                       </div>
-                      
-                      <div className="flex items-start gap-2">
-                        <CalendarIcon2 className="h-5 w-5 text-slate-400 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-medium text-slate-500">Due Date</p>
-                          <p>{formattedDueDate}</p>
+
+                      {/* Status */}
+                      <div className="space-y-2">
+                        <div className="flex items-center text-sm text-slate-600">
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          <span className="font-medium">Status</span>
                         </div>
+                        <p className="text-sm pl-6">{taskStatuses?.find((s: any) => s.id === task.statusId)?.name || "No status"}</p>
                       </div>
-                      
-                      <div className="flex items-start gap-2">
-                        <Tag className="h-5 w-5 text-slate-400 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-medium text-slate-500">Category</p>
-                          <p>{category?.name || "Uncategorized"}</p>
+
+                      {/* Dates & Category */}
+                      <div className="space-y-2">
+                        <div className="flex items-center text-sm text-slate-600">
+                          <Clock className="h-4 w-4 mr-2" />
+                          <span className="font-medium">Due Date</span>
                         </div>
+                        <p className="text-sm pl-6">{format(new Date(task.dueDate), "PPP")}</p>
+                        
+                        <div className="flex items-center text-sm text-slate-600 mt-3">
+                          <Tag className="h-4 w-4 mr-2" />
+                          <span className="font-medium">Category</span>
+                        </div>
+                        <p className="text-sm pl-6">{taskCategories?.find((c: any) => c.id === task.taskCategoryId)?.name || "No category"}</p>
                       </div>
-                      
+
+                      {/* Client & Entity (for revenue tasks) */}
                       {!task.isAdmin && (
-                        <div className="flex items-start gap-2">
-                          <Building className="h-5 w-5 text-slate-400 mt-0.5" />
-                          <div>
-                            <p className="text-sm font-medium text-slate-500">Client</p>
-                            <p>{client?.displayName || "None"}</p>
+                        <>
+                          <div className="space-y-2">
+                            <div className="flex items-center text-sm text-slate-600">
+                              <Users className="h-4 w-4 mr-2" />
+                              <span className="font-medium">Client</span>
+                            </div>
+                            <p className="text-sm pl-6">{clients?.find((c: any) => c.id === task.clientId)?.displayName || "No client"}</p>
+                            
+                            {task.entityId && (
+                              <>
+                                <div className="flex items-center text-sm text-slate-600 mt-3">
+                                  <Building className="h-4 w-4 mr-2" />
+                                  <span className="font-medium">Entity</span>
+                                </div>
+                                <p className="text-sm pl-6">{entities?.find((e: any) => e.id === task.entityId)?.name || "No entity"}</p>
+                              </>
+                            )}
                           </div>
-                        </div>
-                      )}
-                      
-                      {!task.isAdmin && task.entityId && (
-                        <div className="flex items-start gap-2">
-                          <Building className="h-5 w-5 text-slate-400 mt-0.5" />
-                          <div>
-                            <p className="text-sm font-medium text-slate-500">Entity</p>
-                            <p>{entity?.name || "None"}</p>
-                          </div>
-                        </div>
+
+                          {/* Service Rate */}
+                          {(task.serviceRate || task.currency) && (
+                            <div className="space-y-2">
+                              <div className="flex items-center text-sm text-slate-600">
+                                <Banknote className="h-4 w-4 mr-2" />
+                                <span className="font-medium">Service Rate</span>
+                              </div>
+                              <p className="text-sm pl-6">
+                                {task.serviceRate ? `${task.serviceRate} ${task.currency || ''}` : 'Not set'}
+                              </p>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
-                  
-                  {/* Notes */}
+
+                  {/* Task Notes Section */}
                   {task.notes && (
-                    <div>
-                      <h4 className="text-sm font-medium text-slate-500 mb-1">Notes</h4>
-                      <div className="bg-slate-50 p-3 rounded-md text-slate-800 whitespace-pre-wrap">
+                    <div className="bg-white border rounded-lg p-6">
+                      <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4" />
+                        Task Notes
+                      </h4>
+                      <div className="bg-gray-50 p-4 rounded-lg text-gray-800 whitespace-pre-wrap">
                         {task.notes}
                       </div>
                     </div>
                   )}
-                  
-                  {/* Compliance information for revenue tasks */}
+
+                  {/* Compliance Information (for revenue tasks) */}
                   {!task.isAdmin && task.complianceFrequency && (
-                    <div>
-                      <h4 className="text-sm font-medium text-slate-500 mb-3">Compliance Information</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-md">
+                    <div className="bg-white border rounded-lg p-6">
+                      <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <Receipt className="h-4 w-4" />
+                        Compliance Information
+                      </h4>
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <p className="text-sm font-medium">Frequency</p>
-                          <p>{task.complianceFrequency}</p>
+                          <p className="text-sm font-medium text-gray-600">Frequency</p>
+                          <p className="text-gray-900">{task.complianceFrequency}</p>
                         </div>
                         
                         {task.complianceYear && (
                           <div>
-                            <p className="text-sm font-medium">Year(s)</p>
-                            <p>{task.complianceYear}</p>
+                            <p className="text-sm font-medium text-gray-600">Year(s)</p>
+                            <p className="text-gray-900">{task.complianceYear}</p>
                           </div>
                         )}
                         
                         {task.complianceStartDate && (
                           <div>
-                            <p className="text-sm font-medium">Start Date</p>
-                            <p>{formattedComplianceStartDate}</p>
+                            <p className="text-sm font-medium text-gray-600">Start Date</p>
+                            <p className="text-gray-900">{formattedComplianceStartDate}</p>
                           </div>
                         )}
                         
                         {task.complianceEndDate && (
                           <div>
-                            <p className="text-sm font-medium">End Date</p>
-                            <p>{formattedComplianceEndDate}</p>
+                            <p className="text-sm font-medium text-gray-600">End Date</p>
+                            <p className="text-gray-900">{formattedComplianceEndDate}</p>
                           </div>
                         )}
                         
                         {task.complianceDeadline && (
                           <div>
-                            <p className="text-sm font-medium">Compliance Deadline</p>
-                            <p>{format(new Date(task.complianceDeadline), "PPP")}</p>
+                            <p className="text-sm font-medium text-gray-600">Compliance Deadline</p>
+                            <p className="text-gray-900">{format(new Date(task.complianceDeadline), "PPP")}</p>
                           </div>
                         )}
                         
                         <div>
-                          <p className="text-sm font-medium">Recurring</p>
-                          <p>{task.isRecurring ? "Yes" : "No"}</p>
+                          <p className="text-sm font-medium text-gray-600">Recurring</p>
+                          <p className="text-gray-900">{task.isRecurring ? "Yes" : "No"}</p>
                         </div>
                       </div>
                     </div>
                   )}
-                  
-                  {/* Billing information for revenue tasks */}
-                  {!task.isAdmin && (task.serviceRate || task.currency) && (
-                    <div>
-                      <h4 className="text-sm font-medium text-slate-500 mb-3">Billing Information</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-md">
-                        {task.serviceRate !== undefined && task.serviceRate !== null && (
-                          <div>
-                            <p className="text-sm font-medium">Service Rate</p>
-                            <p>{task.serviceRate} {task.currency}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
-              </>
+
+                {/* Right Column - Notes & Actions */}
+                <div className="space-y-6">
+                  {/* Task Notes & History */}
+                  <div className="bg-white border rounded-lg">
+                    <div className="border-b p-4">
+                      <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4" />
+                        Notes & History
+                      </h4>
+                      <p className="text-sm text-gray-600 mt-1">Track progress and communication</p>
+                    </div>
+                    
+                    {/* Notes List */}
+                    <div className="p-4 max-h-80 overflow-y-auto">
+                      {isNotesLoading ? (
+                        <div className="flex justify-center py-4">
+                          <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                        </div>
+                      ) : taskNotes && taskNotes.length > 0 ? (
+                        <div className="space-y-3">
+                          {taskNotes.map((note: any) => (
+                            <div key={note.id} className="bg-gray-50 rounded-lg p-3">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-sm font-medium text-gray-900">
+                                      {note.userName || 'Unknown User'}
+                                    </span>
+                                    {note.isSystemNote && (
+                                      <Badge variant="outline" className="text-xs">System</Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{note.note}</p>
+                                  <p className="text-xs text-gray-500 mt-2">
+                                    {format(new Date(note.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                                  </p>
+                                </div>
+                                {!note.isSystemNote && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => deleteNote(note.id)}
+                                    className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    disabled={deleteNoteMutation.isPending}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <MessageSquare className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                          <p className="text-sm">No notes yet</p>
+                          <p className="text-xs">Add the first note to start tracking progress</p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Add Note Form */}
+                    <div className="border-t p-4">
+                      <div className="flex gap-2">
+                        <Textarea
+                          value={newNote}
+                          onChange={(e) => setNewNote(e.target.value)}
+                          placeholder="Add a note..."
+                          className="min-h-[60px] resize-none"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && e.metaKey) {
+                              e.preventDefault();
+                              addNote();
+                            }
+                          }}
+                        />
+                        <Button
+                          onClick={addNote}
+                          disabled={!newNote.trim() || addNoteMutation.isPending}
+                          size="sm"
+                          className="self-end"
+                        >
+                          {addNoteMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Plus className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Press Cmd+Enter to add note quickly
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             ) : (
               <>
                 {/* Edit mode - form for the task */}
