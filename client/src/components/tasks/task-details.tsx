@@ -58,7 +58,6 @@ import {
   Loader2,
   CalendarIcon,
   CheckCircle,
-  Clock,
   FileText,
   Building,
   User,
@@ -280,9 +279,47 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
     enabled: !!task?.invoiceId && isOpen,
   });
 
-  // Update form values when task data is loaded
+  // Task notes mutations
+  const addNoteMutation = useMutation({
+    mutationFn: async (note: string) => {
+      const response = await fetch(`/api/v1/tasks/${taskId}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note }),
+      });
+      if (!response.ok) throw new Error('Failed to add note');
+      return response.json();
+    },
+    onSuccess: () => {
+      refetchNotes();
+      setNewNote("");
+      setIsAddingNote(false);
+      toast({ title: "Note added successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to add note", variant: "destructive" });
+    },
+  });
+
+  const deleteNoteMutation = useMutation({
+    mutationFn: async (noteId: number) => {
+      const response = await fetch(`/api/v1/tasks/${taskId}/notes/${noteId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to delete note');
+    },
+    onSuccess: () => {
+      refetchNotes();
+      toast({ title: "Note deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete note", variant: "destructive" });
+    },
+  });
+
+  // Update form values when task data is loaded - Fixed to load on first click
   useEffect(() => {
-    if (task && isEditing) {
+    if (task && isOpen) {
 
       
       if (task.isAdmin) {
@@ -1896,6 +1933,189 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
               </DialogFooter>
             )}
           </>
+        )}
+
+        {/* Compact View Section - Show when not editing */}
+        {!isEditing && task && (
+          <div className="space-y-6">
+            {/* Compact Task Info Display */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 bg-slate-50 rounded-lg">
+              {/* Task Details */}
+              <div className="space-y-2">
+                <div className="flex items-center text-sm text-slate-600">
+                  <FileText className="h-4 w-4 mr-2" />
+                  <span className="font-medium">Task Details</span>
+                </div>
+                <p className="text-sm pl-6">{task.taskDetails || "No description"}</p>
+              </div>
+
+              {/* Assignment & Status */}
+              <div className="space-y-2">
+                <div className="flex items-center text-sm text-slate-600">
+                  <User className="h-4 w-4 mr-2" />
+                  <span className="font-medium">Assignee</span>
+                </div>
+                <p className="text-sm pl-6">{users?.find((u: any) => u.id === task.assigneeId)?.displayName || "Unassigned"}</p>
+                
+                <div className="flex items-center text-sm text-slate-600 mt-3">
+                  <Tag className="h-4 w-4 mr-2" />
+                  <span className="font-medium">Status</span>
+                </div>
+                <Badge variant="outline" className="ml-6">
+                  {taskStatuses?.find((s: any) => s.id === task.statusId)?.name || "Unknown"}
+                </Badge>
+              </div>
+
+              {/* Dates & Category */}
+              <div className="space-y-2">
+                <div className="flex items-center text-sm text-slate-600">
+                  <Clock className="h-4 w-4 mr-2" />
+                  <span className="font-medium">Due Date</span>
+                </div>
+                <p className="text-sm pl-6">{format(new Date(task.dueDate), "PPP")}</p>
+                
+                <div className="flex items-center text-sm text-slate-600 mt-3">
+                  <Tag className="h-4 w-4 mr-2" />
+                  <span className="font-medium">Category</span>
+                </div>
+                <p className="text-sm pl-6">{taskCategories?.find((c: any) => c.id === task.taskCategoryId)?.name || "No category"}</p>
+              </div>
+
+              {/* Client & Entity (for revenue tasks) */}
+              {!task.isAdmin && (
+                <>
+                  <div className="space-y-2">
+                    <div className="flex items-center text-sm text-slate-600">
+                      <Users className="h-4 w-4 mr-2" />
+                      <span className="font-medium">Client</span>
+                    </div>
+                    <p className="text-sm pl-6">{clients?.find((c: any) => c.id === task.clientId)?.displayName || "No client"}</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center text-sm text-slate-600">
+                      <Building className="h-4 w-4 mr-2" />
+                      <span className="font-medium">Entity</span>
+                    </div>
+                    <p className="text-sm pl-6">{entities?.find((e: any) => e.id === task.entityId)?.name || "No entity"}</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center text-sm text-slate-600">
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      <span className="font-medium">Service Rate</span>
+                    </div>
+                    <p className="text-sm pl-6">{task.serviceRate || 0} {task.currencyCode || "USD"}</p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Notes Section with History Tracking */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  <h3 className="font-medium">Notes & History</h3>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => setIsAddingNote(true)}
+                  disabled={isAddingNote}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Note
+                </Button>
+              </div>
+
+              {/* Add Note Form */}
+              {isAddingNote && (
+                <div className="border rounded-lg p-3 bg-slate-50">
+                  <Textarea
+                    placeholder="Enter your note..."
+                    value={newNote}
+                    onChange={(e) => setNewNote(e.target.value)}
+                    className="mb-2"
+                    rows={3}
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (newNote.trim() && !addNoteMutation.isPending) {
+                          addNoteMutation.mutate(newNote.trim());
+                        }
+                      }}
+                      disabled={!newNote.trim() || addNoteMutation.isPending}
+                    >
+                      {addNoteMutation.isPending ? "Adding..." : "Add Note"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setIsAddingNote(false);
+                        setNewNote("");
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Notes History */}
+              <div className="space-y-3 max-h-60 overflow-y-auto">
+                {taskNotes?.length > 0 ? (
+                  taskNotes.map((note: any) => (
+                    <div
+                      key={note.id}
+                      className={`border rounded-lg p-3 ${
+                        note.isSystemNote ? "bg-blue-50 border-blue-200" : "bg-white"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-medium">
+                              {note.userName || "Unknown User"}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              {format(new Date(note.createdAt), "PPpp")}
+                            </span>
+                            {note.isSystemNote && (
+                              <Badge variant="secondary" className="text-xs">
+                                System
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-slate-700">{note.note}</p>
+                        </div>
+                        {!note.isSystemNote && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => {
+                              if (confirm("Are you sure you want to delete this note?")) {
+                                deleteNoteMutation.mutate(note.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-500 text-center py-4">
+                    No notes yet. Add the first note to start tracking task history.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </DialogContent>
     </Dialog>
