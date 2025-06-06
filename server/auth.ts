@@ -119,6 +119,7 @@ export function setupAuth(app: Express) {
 
   passport.deserializeUser(async (serialized: { id: number, type: string }, done) => {
     try {
+      console.log(`DEBUG DESERIALIZE: Starting deserialization for user ID ${serialized.id}, type: ${serialized.type}`);
       if (serialized.type === 'client-portal') {
         try {
           // For client portal users, fetch from clientPortalAccess and clients tables
@@ -183,6 +184,8 @@ export function setupAuth(app: Express) {
         try {
           console.log(`Deserializing staff user with ID: ${serialized.id}`);
           const user = await storage.getUser(serialized.id);
+          console.log(`DEBUG AUTH: Retrieved user:`, JSON.stringify(user, null, 2));
+          console.log(`DEBUG AUTH: isSuperAdmin type:`, typeof user?.isSuperAdmin, 'value:', user?.isSuperAdmin);
           return done(null, user);
         } catch (error) {
           console.error('Error deserializing staff user:', error);
