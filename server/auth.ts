@@ -272,7 +272,7 @@ export function setupAuth(app: Express) {
   });
 
   // Login firm user
-  app.post("/api/v1/auth/login/firm", (req, res, next) => {
+  app.post("/api/v1/auth/login", (req, res, next) => {
     console.log("Login attempt:", req.body);
     
     // No need to access in-memory storage directly for debugging

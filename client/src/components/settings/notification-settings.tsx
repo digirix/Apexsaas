@@ -232,9 +232,16 @@ export function NotificationSettings() {
   // Update preference mutation
   const updatePreferenceMutation = useMutation({
     mutationFn: async ({ notificationType, isEnabled }: { notificationType: string; isEnabled: boolean }) => {
-      return apiRequest(`/api/v1/notification-preferences/${notificationType}`, {
+      return fetch(`/api/v1/notification-preferences/${notificationType}`, {
         method: "PUT",
-        body: { isEnabled, deliveryChannels: '["in_app"]' }
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ isEnabled, deliveryChannels: '["in_app"]' })
+      }).then(res => {
+        if (!res.ok) throw new Error('Failed to update preference');
+        return res.json();
       });
     },
     onSuccess: () => {
@@ -256,8 +263,15 @@ export function NotificationSettings() {
   // Reset to defaults mutation
   const resetDefaultsMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("/api/v1/notification-preferences/reset", {
-        method: "POST"
+      return fetch("/api/v1/notification-preferences/reset", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include"
+      }).then(res => {
+        if (!res.ok) throw new Error('Failed to reset preferences');
+        return res.json();
       });
     },
     onSuccess: () => {
