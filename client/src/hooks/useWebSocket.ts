@@ -49,9 +49,14 @@ export function useWebSocket() {
             console.log("WebSocket message received:", message);
             
             if (message.type === 'notification') {
-              // Invalidate queries to refresh notification data immediately
+              console.log("Processing notification WebSocket message");
+              // Force refresh of notification data with aggressive cache invalidation
               queryClient.invalidateQueries({ queryKey: ['/api/v1/notifications'] });
               queryClient.invalidateQueries({ queryKey: ['/api/v1/notifications/unread-count'] });
+              
+              // Also refetch to ensure immediate update
+              queryClient.refetchQueries({ queryKey: ['/api/v1/notifications'] });
+              queryClient.refetchQueries({ queryKey: ['/api/v1/notifications/unread-count'] });
             }
           } catch (error) {
             console.error("Error parsing WebSocket message:", error);
