@@ -215,7 +215,7 @@ export function NotificationSettings() {
   }
 
   return (
-    <div className="w-full space-y-6">
+    <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold">Notification Preferences</h2>
         <p className="text-muted-foreground">
