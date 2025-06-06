@@ -1589,9 +1589,35 @@ export class DatabaseStorage implements IStorage {
   }
   
   // Task operations
-  async getTasks(tenantId?: number, clientId?: number, entityId?: number, statusId?: number): Promise<Task[]> {
+  async getTasks(tenantId?: number, clientId?: number, entityId?: number, isAdmin?: boolean, categoryId?: number, statusId?: number): Promise<Task[]> {
     try {
       // Use explicit column selection to avoid schema mismatches with columns that might not exist yet
+      let conditions = [];
+      
+      if (tenantId) {
+        conditions.push(eq(tasks.tenantId, tenantId));
+      }
+      
+      if (clientId) {
+        conditions.push(eq(tasks.clientId, clientId));
+      }
+      
+      if (entityId) {
+        conditions.push(eq(tasks.entityId, entityId));
+      }
+      
+      if (isAdmin !== undefined) {
+        conditions.push(eq(tasks.isAdmin, isAdmin));
+      }
+      
+      if (categoryId) {
+        conditions.push(eq(tasks.taskCategoryId, categoryId));
+      }
+      
+      if (statusId) {
+        conditions.push(eq(tasks.statusId, statusId));
+      }
+      
       let query = db.select({
         id: tasks.id,
         tenantId: tasks.tenantId,
@@ -1622,20 +1648,8 @@ export class DatabaseStorage implements IStorage {
         createdAt: tasks.createdAt
       }).from(tasks);
       
-      if (tenantId) {
-        query = query.where(eq(tasks.tenantId, tenantId));
-      }
-      
-      if (clientId) {
-        query = query.where(eq(tasks.clientId, clientId));
-      }
-      
-      if (entityId) {
-        query = query.where(eq(tasks.entityId, entityId));
-      }
-      
-      if (statusId) {
-        query = query.where(eq(tasks.statusId, statusId));
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
       }
       
       const result = await query.orderBy(desc(tasks.dueDate));

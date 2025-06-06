@@ -2944,10 +2944,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         (task.isCanceled === false || task.isCanceled === null || task.isCanceled === undefined)
       );
       
+      // Debug logging for task filtering
+      console.log(`DEBUG: User ${userId} (${isSuperAdmin ? 'Super Admin' : 'Regular User'}) fetching tasks`);
+      console.log(`DEBUG: Found ${tasks.length} tasks before user filtering`);
+      
       // Role-based filtering: Regular members can only see tasks assigned to them
       // Super admins can see all tasks
       if (!isSuperAdmin) {
+        const beforeFilter = tasks.length;
         tasks = tasks.filter(task => task.assigneeId === userId);
+        console.log(`DEBUG: Filtered from ${beforeFilter} to ${tasks.length} tasks for user ${userId}`);
+        console.log(`DEBUG: Task assignee IDs: ${tasks.map(t => t.assigneeId).join(', ')}`);
       }
       
       res.json(tasks);
