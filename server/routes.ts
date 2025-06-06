@@ -1484,21 +1484,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send notification about new entity creation
       const currentUserId = (req.user as any).id;
       try {
+        // Use comprehensive triggers that respect user preferences
         const users = await storage.getUsers(tenantId);
-        const adminUsers = users.filter(u => u.isSuperAdmin || u.designationId === 1);
+        const targetUserIds = users.filter(u => u.id !== currentUserId).map(u => u.id);
         
-        for (const admin of adminUsers) {
-          if (admin.id !== currentUserId) {
-            await storage.createNotification({
-              tenantId,
-              userId: admin.id,
-              type: 'ENTITY_CREATED',
-              title: 'New Entity Added',
-              message: `New entity "${entity.name}" has been added for client`,
-              severity: 'INFO',
-              linkUrl: `/entities/${entity.id}`
-            });
-          }
+        if (targetUserIds.length > 0) {
+          await NotificationService.createNotification({
+            tenantId,
+            userIds: targetUserIds,
+            title: 'New Entity Added',
+            messageBody: `New entity "${entity.name}" has been added`,
+            linkUrl: `/entities/${entity.id}`,
+            type: 'ENTITY_CREATED',
+            severity: 'INFO',
+            createdBy: currentUserId,
+            relatedModule: 'entities',
+            relatedEntityId: entity.id.toString()
+          });
         }
       } catch (notifError) {
         console.error("Error sending entity creation notification:", notifError);
@@ -3198,46 +3200,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (existingTask.statusId !== updatedTask.statusId) {
             const newStatus = await storage.getTaskStatus(updatedTask.statusId, tenantId);
             if (newStatus?.name?.toLowerCase().includes('completed') || newStatus?.name?.toLowerCase().includes('done')) {
-              // Notify managers and admins about completion
-              const users = await storage.getUsers(tenantId);
-              const notifyUsers = users.filter(user => 
-                user.id !== currentUserId && 
-                (user.isSuperAdmin || user.designationId)
-              );
-
-              for (const user of notifyUsers) {
-                await storage.createNotification({
-                  tenantId,
-                  userId: user.id,
-                  type: 'TASK_COMPLETED',
-                  title: 'Task Completed',
-                  messageBody: `Task "${updatedTask.taskDetails}" has been completed`,
-                  severity: 'SUCCESS',
-                  linkUrl: `/tasks/${id}`
-                });
-              }
-              
-              console.log(`Task completion notifications sent to ${notifyUsers.length} users`);
+              // Notify using comprehensive triggers that respect preferences
+              await ComprehensiveNotificationTriggers.triggerTaskCompleted(tenantId, id, currentUserId);
             }
           }
 
-          // Create notification for any status change (for demonstration)
+          // Create notification for any status change using comprehensive triggers
           if (existingTask.statusId !== updatedTask.statusId) {
             const newStatus = await storage.getTaskStatus(updatedTask.statusId, tenantId);
-            await storage.createNotification({
-              tenantId,
-              userId: currentUserId,
-              type: 'TASK_STATUS_CHANGED',
-              title: 'Task Status Changed',
-              messageBody: `Task "${updatedTask.taskDetails}" status changed to "${newStatus?.name || 'Unknown'}"`,
-              severity: 'INFO',
-              linkUrl: `/tasks/${id}`,
-              deliveryChannels: '["in_app"]',
-              deliveryDelay: 0,
-              batchDelivery: false
-            });
-            
-            console.log(`Status change notification created for user ${currentUserId}`);
+            await ComprehensiveNotificationTriggers.triggerTaskStatusChanged(
+              tenantId, 
+              id, 
+              newStatus?.name || 'Unknown', 
+              currentUserId
+            );
             
             // Send real-time WebSocket notification
             broadcastToUser(tenantId, currentUserId, {
@@ -3245,21 +3221,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               data: { type: 'TASK_STATUS_CHANGED', taskId: id }
             });
           } else {
-            // Create a general update notification if no status change
-            await storage.createNotification({
-              tenantId,
-              userId: currentUserId,
-              type: 'TASK_UPDATE',
-              title: 'Task Updated',
-              messageBody: `Task "${updatedTask.taskDetails}" has been updated`,
-              severity: 'INFO',
-              linkUrl: `/tasks/${id}`,
-              deliveryChannels: '["in_app"]',
-              deliveryDelay: 0,
-              batchDelivery: false
-            });
-            
-            console.log(`General task update notification created for user ${currentUserId}`);
+            // Create a general update notification using comprehensive triggers
+            await ComprehensiveNotificationTriggers.triggerTaskUpdate(tenantId, id, currentUserId);
             
             // Send real-time WebSocket notification
             broadcastToUser(tenantId, currentUserId, {
