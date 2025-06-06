@@ -552,9 +552,36 @@ export function TaskList({ highlightTaskId }: TaskListProps) {
     select: (data) => data || { id: 0 }
   });
 
-  const { data: tasks = [], isLoading: isLoadingTasks } = useQuery<Task[]>({
+  const { data: tasks = [], isLoading: isLoadingTasks, refetch: refetchTasks } = useQuery<Task[]>({
     queryKey: ["/api/v1/tasks"],
+    staleTime: 0, // Force fresh data
+    refetchOnMount: true,
   });
+
+  // Force refetch tasks on component mount
+  React.useEffect(() => {
+    console.log('TaskList mounted, refetching tasks...');
+    console.log('Current URL:', window.location.href);
+    console.log('Forcing immediate tasks API call...');
+    
+    // Navigate to tasks page if not already there
+    if (!window.location.pathname.includes('/tasks')) {
+      console.log('Not on tasks page, navigating...');
+      window.history.pushState({}, '', '/tasks');
+    }
+    
+    fetch('/api/v1/tasks', {
+      credentials: 'include'
+    }).then(response => {
+      console.log('Manual fetch response status:', response.status);
+      return response.json();
+    }).then(data => {
+      console.log('Manual fetch tasks data:', data);
+    }).catch(error => {
+      console.error('Manual fetch error:', error);
+    });
+    refetchTasks();
+  }, [refetchTasks]);
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/v1/users"],
