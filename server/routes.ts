@@ -3183,7 +3183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Handle assignment changes
           if (existingTask.assigneeId !== updatedTask.assigneeId && updatedTask.assigneeId && updatedTask.assigneeId !== currentUserId) {
             // Use comprehensive triggers that respect user preferences
-            await ComprehensiveNotificationTriggers.triggerTaskAssigned(tenantId, id, currentUserId);
+            await ComprehensiveNotificationTriggers.triggerTaskAssignment(tenantId, id, currentUserId);
             
             console.log(`Task assignment notification sent to user ${updatedTask.assigneeId}`);
           }
@@ -4659,18 +4659,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const users = await storage.getUsers(tenantId);
         const adminUsers = users.filter(user => user.role === 'admin' || user.role === 'super_admin');
         
-        for (const admin of adminUsers) {
-          if (admin.id !== currentUserId) {
-            await storage.createNotification({
-              tenantId,
-              userId: admin.id,
-              notificationType: 'INVOICE_CREATED',
-              title: 'New Invoice Created',
-              message: `Invoice #${invoice.invoiceNumber} created for ${clientName} - Amount: ${invoice.currencyCode} ${invoice.totalAmount}`,
-              severity: 'INFO',
-              linkUrl: `/finance/invoices/${invoice.id}`
-            });
-          }
+        // Use comprehensive triggers that respect user preferences
+        const targetUserIds = adminUsers.filter(u => u.id !== currentUserId).map(u => u.id);
+        
+        if (targetUserIds.length > 0) {
+          await NotificationService.createNotification({
+            tenantId,
+            userIds: targetUserIds,
+            title: 'New Invoice Created',
+            messageBody: `Invoice #${invoice.invoiceNumber} created for ${clientName} - Amount: ${invoice.currencyCode} ${invoice.totalAmount}`,
+            linkUrl: `/finance/invoices/${invoice.id}`,
+            type: 'INVOICE_CREATED',
+            severity: 'INFO',
+            createdBy: currentUserId,
+            relatedModule: 'invoices',
+            relatedEntityId: invoice.id.toString()
+          });
         }
       } catch (notifError) {
         console.error("Error sending invoice creation notification:", notifError);
@@ -4973,14 +4977,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Send notifications to administrators
           for (const admin of adminUsers) {
             if (admin.id !== currentUserId) {
-              await storage.createNotification({
+              // Use comprehensive triggers that respect user preferences
+              await NotificationService.createNotification({
                 tenantId,
-                userId: admin.id,
-                notificationType,
+                userIds: [admin.id],
                 title: 'Invoice Status Updated',
-                message,
-                severity,
-                linkUrl: `/finance/invoices/${existingInvoice.id}`
+                messageBody: message,
+                linkUrl: `/finance/invoices/${existingInvoice.id}`,
+                type: notificationType as any,
+                severity: severity as any,
+                createdBy: currentUserId,
+                relatedModule: 'payments',
+                relatedEntityId: existingInvoice.id.toString()
               });
             }
           }
