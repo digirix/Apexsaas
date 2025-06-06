@@ -17,14 +17,14 @@ const INTEGRATED_CATEGORIES = {
     isIntegrated: true,
     types: [
       { key: "TASK_ASSIGNMENT", label: "Task Assignments", description: "When tasks are assigned to you" },
-      { key: "TASK_UPDATE", label: "Task Updates", description: "When task details are modified" },
       { key: "TASK_COMPLETED", label: "Task Completions", description: "When tasks are marked complete" },
       { key: "TASK_DUE_SOON", label: "Due Date Reminders", description: "When tasks are approaching due dates" },
       { key: "TASK_OVERDUE", label: "Overdue Tasks", description: "When tasks become overdue" },
       { key: "TASK_STATUS_CHANGED", label: "Status Changes", description: "When task status is updated" },
       { key: "TASK_APPROVED", label: "Task Approvals", description: "When tasks are approved" },
       { key: "TASK_REJECTED", label: "Task Rejections", description: "When tasks are rejected" },
-      { key: "TASK_COMMENT_ADDED", label: "Task Comments", description: "When comments are added to tasks" }
+      { key: "TASK_COMMENT_ADDED", label: "Task Comments", description: "When comments are added to tasks" },
+      { key: "RECURRING_TASK_GENERATED", label: "Recurring Tasks", description: "When recurring tasks are generated" }
     ]
   },
   "Clients & Entities": {
@@ -33,8 +33,11 @@ const INTEGRATED_CATEGORIES = {
     types: [
       { key: "CLIENT_CREATED", label: "New Clients", description: "When new clients are added" },
       { key: "CLIENT_UPDATED", label: "Client Updates", description: "When client information is modified" },
+      { key: "CLIENT_PORTAL_LOGIN", label: "Client Login", description: "When clients access the portal" },
+      { key: "CLIENT_STATUS_CHANGED", label: "Client Status", description: "When client status changes" },
       { key: "ENTITY_CREATED", label: "New Entities", description: "When new entities are created" },
-      { key: "ENTITY_UPDATED", label: "Entity Updates", description: "When entity information is modified" }
+      { key: "ENTITY_UPDATED", label: "Entity Updates", description: "When entity information is modified" },
+      { key: "ENTITY_COMPLIANCE_DUE", label: "Entity Compliance", description: "When entity compliance deadlines approach" }
     ]
   },
   "Users & Administration": {
@@ -42,7 +45,10 @@ const INTEGRATED_CATEGORIES = {
     isIntegrated: true,
     types: [
       { key: "USER_CREATED", label: "New Users", description: "When new users are added to the system" },
-      { key: "USER_UPDATED", label: "User Updates", description: "When user information is modified" }
+      { key: "USER_UPDATED", label: "User Updates", description: "When user information is modified" },
+      { key: "USER_LOGIN", label: "User Login", description: "When users log into the system" },
+      { key: "PERMISSION_CHANGED", label: "Permission Changes", description: "When user permissions are modified" },
+      { key: "ROLE_ASSIGNED", label: "Role Assignments", description: "When roles are assigned to users" }
     ]
   },
   "Invoices & Billing": {
@@ -50,65 +56,37 @@ const INTEGRATED_CATEGORIES = {
     isIntegrated: true,
     types: [
       { key: "INVOICE_CREATED", label: "New Invoices", description: "When new invoices are created" },
-      { key: "INVOICE_UPDATED", label: "Invoice Updates", description: "When invoice details are modified" },
       { key: "INVOICE_SENT", label: "Invoice Sent", description: "When invoices are sent to clients" },
       { key: "INVOICE_PAID", label: "Payment Received", description: "When invoice payments are received" },
-      { key: "INVOICE_OVERDUE", label: "Overdue Invoices", description: "When invoices become overdue" }
+      { key: "INVOICE_OVERDUE", label: "Overdue Invoices", description: "When invoices become overdue" },
+      { key: "PAYMENT_RECEIVED", label: "Payment Received", description: "When payments are processed" },
+      { key: "PAYMENT_FAILED", label: "Payment Failed", description: "When payment processing fails" },
+      { key: "PAYMENT_REFUNDED", label: "Payment Refunded", description: "When payments are refunded" }
     ]
   }
 };
 
 // Unintegrated notification types (schema exists but no business logic triggers)
 const UNINTEGRATED_CATEGORIES = {
-  "User Management": {
-    icon: Users,
-    isIntegrated: false,
-    types: [
-      { key: "USER_DELETED", label: "User Deletion", description: "When users are removed from the system" },
-      { key: "USER_PERMISSION_CHANGED", label: "Permission Changes", description: "When user permissions are modified" }
-    ]
-  },
-  "Entity Management": {
-    icon: Building2,
-    isIntegrated: false,
-    types: [
-      { key: "ENTITY_DELETED", label: "Entity Deletion", description: "When entities are removed" }
-    ]
-  },
-  "Payment Processing": {
-    icon: DollarSign,
-    isIntegrated: false,
-    types: [
-      { key: "PAYMENT_RECEIVED", label: "Payment Received", description: "When payments are processed" },
-      { key: "PAYMENT_FAILED", label: "Payment Failed", description: "When payment processing fails" },
-      { key: "PAYMENT_PENDING", label: "Payment Pending", description: "When payments are pending processing" }
-    ]
-  },
   "Workflow Automation": {
     icon: Workflow,
     isIntegrated: false,
     types: [
-      { key: "WORKFLOW_STARTED", label: "Workflow Started", description: "When automated workflows begin" },
-      { key: "WORKFLOW_COMPLETED", label: "Workflow Completed", description: "When workflows finish successfully" },
-      { key: "WORKFLOW_FAILED", label: "Workflow Failed", description: "When workflows encounter errors" }
-    ]
-  },
-  "System Administration": {
-    icon: Settings,
-    isIntegrated: false,
-    types: [
-      { key: "SYSTEM_MAINTENANCE", label: "System Maintenance", description: "System maintenance notifications" },
-      { key: "SYSTEM_UPDATE", label: "System Updates", description: "When system updates are available" },
-      { key: "SYSTEM_BACKUP_COMPLETED", label: "Backup Completed", description: "When system backups complete" }
+      { key: "WORKFLOW_TRIGGERED", label: "Workflow Triggered", description: "When automated workflows begin" },
+      { key: "WORKFLOW_COMPLETION", label: "Workflow Completed", description: "When workflows finish successfully" },
+      { key: "WORKFLOW_FAILED", label: "Workflow Failed", description: "When workflows encounter errors" },
+      { key: "WORKFLOW_APPROVAL", label: "Workflow Approval", description: "When workflows require approval" },
+      { key: "WORKFLOW_ALERT", label: "Workflow Alert", description: "When workflows trigger alerts" }
     ]
   },
   "AI & Analytics": {
     icon: Brain,
     isIntegrated: false,
     types: [
-      { key: "AI_TASK_COMPLETED", label: "AI Task Completed", description: "When AI processing tasks complete" },
-      { key: "AI_ANALYSIS_READY", label: "AI Analysis Ready", description: "When AI analysis results are available" },
-      { key: "AI_ERROR", label: "AI Processing Error", description: "When AI processing encounters errors" }
+      { key: "AI_SUGGESTION", label: "AI Suggestions", description: "When AI provides recommendations" },
+      { key: "AI_RISK_ALERT", label: "AI Risk Alert", description: "When AI detects risks" },
+      { key: "AI_REPORT_GENERATED", label: "AI Report Generated", description: "When AI generates reports" },
+      { key: "AI_ANALYSIS_COMPLETED", label: "AI Analysis Completed", description: "When AI analysis completes" }
     ]
   },
   "Reporting & Analytics": {
@@ -116,8 +94,10 @@ const UNINTEGRATED_CATEGORIES = {
     isIntegrated: false,
     types: [
       { key: "REPORT_GENERATED", label: "Report Generated", description: "When scheduled reports are generated" },
-      { key: "REPORT_SCHEDULED", label: "Report Scheduled", description: "When new reports are scheduled" },
-      { key: "REPORT_FAILED", label: "Report Failed", description: "When report generation fails" }
+      { key: "REPORT_READY", label: "Report Ready", description: "When reports are ready for review" },
+      { key: "ANALYTICS_ALERT", label: "Analytics Alert", description: "When analytics detect anomalies" },
+      { key: "BUDGET_EXCEEDED", label: "Budget Exceeded", description: "When budgets are exceeded" },
+      { key: "FINANCIAL_ANOMALY", label: "Financial Anomaly", description: "When financial anomalies are detected" }
     ]
   },
   "Compliance & Tax": {
@@ -125,9 +105,37 @@ const UNINTEGRATED_CATEGORIES = {
     isIntegrated: false,
     types: [
       { key: "COMPLIANCE_DEADLINE_APPROACHING", label: "Compliance Deadline", description: "When compliance deadlines approach" },
-      { key: "COMPLIANCE_VIOLATION_DETECTED", label: "Compliance Violation", description: "When compliance violations are detected" },
-      { key: "TAX_DEADLINE_APPROACHING", label: "Tax Deadline", description: "When tax deadlines approach" },
-      { key: "TAX_FILING_COMPLETED", label: "Tax Filing Completed", description: "When tax filings are completed" }
+      { key: "COMPLIANCE_DEADLINE_MISSED", label: "Compliance Deadline Missed", description: "When compliance deadlines are missed" },
+      { key: "TAX_FILING_DUE", label: "Tax Filing Due", description: "When tax filings are due" }
+    ]
+  },
+  "System Administration": {
+    icon: Settings,
+    isIntegrated: false,
+    types: [
+      { key: "SYSTEM_MESSAGE", label: "System Messages", description: "System-wide announcements" },
+      { key: "SYSTEM_ALERT", label: "System Alerts", description: "Critical system notifications" },
+      { key: "SYSTEM_MAINTENANCE", label: "System Maintenance", description: "System maintenance notifications" },
+      { key: "BACKUP_COMPLETED", label: "Backup Completed", description: "When system backups complete" },
+      { key: "BACKUP_FAILED", label: "Backup Failed", description: "When system backups fail" }
+    ]
+  },
+  "Client Documents": {
+    icon: FileText,
+    isIntegrated: false,
+    types: [
+      { key: "CLIENT_ASSIGNMENT", label: "Client Assignment", description: "When clients are assigned to staff" },
+      { key: "CLIENT_MESSAGE", label: "Client Messages", description: "When clients send messages" },
+      { key: "CLIENT_DOCUMENT", label: "Client Documents", description: "When clients upload documents" },
+      { key: "CLIENT_DOCUMENT_UPLOADED", label: "Document Uploaded", description: "When documents are uploaded" }
+    ]
+  },
+  "Miscellaneous": {
+    icon: Bell,
+    isIntegrated: false,
+    types: [
+      { key: "MENTION", label: "Mentions", description: "When you are mentioned in comments" },
+      { key: "CUSTOM", label: "Custom Notifications", description: "Custom notification types" }
     ]
   }
 };
