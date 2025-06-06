@@ -58,8 +58,10 @@ export function setupAuth(app: Express) {
     saveUninitialized: false,
     store: storage.sessionStore,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 1000 * 60 * 60 * 24 // 24 hours
+      secure: false, // Set to false for development to allow HTTP cookies
+      httpOnly: true,
+      maxAge: 1000 * 60 * 60 * 24, // 24 hours
+      sameSite: 'lax' // Allow cookies for same-site requests
     }
   };
 
