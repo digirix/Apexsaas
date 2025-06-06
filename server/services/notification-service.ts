@@ -111,6 +111,9 @@ export class NotificationService {
     notificationType: string
   ): Promise<number[]> {
     try {
+      console.log(`DEBUG: Filtering users for notification type ${notificationType} in tenant ${tenantId}`);
+      console.log(`DEBUG: Target user IDs: ${userIds.join(', ')}`);
+      
       // Get notification preferences for all users
       const preferences = await db.select()
         .from(notificationPreferences)
@@ -118,6 +121,11 @@ export class NotificationService {
           eq(notificationPreferences.tenantId, tenantId),
           eq(notificationPreferences.notificationType, notificationType as any)
         ));
+
+      console.log(`DEBUG: Found ${preferences.length} preferences for type ${notificationType}`);
+      preferences.forEach(pref => {
+        console.log(`DEBUG: User ${pref.userId} has ${notificationType} preference: enabled=${pref.isEnabled}`);
+      });
 
       // Create a map of user preferences
       const userPreferencesMap = new Map<number, boolean>();
@@ -129,14 +137,18 @@ export class NotificationService {
       const eligibleUsers = userIds.filter(userId => {
         const hasPreference = userPreferencesMap.has(userId);
         if (hasPreference) {
-          return userPreferencesMap.get(userId) === true;
+          const isEnabled = userPreferencesMap.get(userId) === true;
+          console.log(`DEBUG: User ${userId} has explicit preference: enabled=${isEnabled}`);
+          return isEnabled;
         } else {
           // If no preference exists, default to enabled (this handles new users)
+          console.log(`DEBUG: User ${userId} has no explicit preference, defaulting to enabled`);
           return true;
         }
       });
 
-      console.log(`Notification ${notificationType}: ${eligibleUsers.length}/${userIds.length} users eligible`);
+      console.log(`DEBUG: Notification ${notificationType}: ${eligibleUsers.length}/${userIds.length} users eligible`);
+      console.log(`DEBUG: Eligible users: ${eligibleUsers.join(', ')}`);
       return eligibleUsers;
     } catch (error) {
       console.error('Error filtering users by preferences:', error);
