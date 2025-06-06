@@ -234,67 +234,7 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
     enabled: !!taskId && isOpen,
   });
 
-  // Add note mutation
-  const addNoteMutation = useMutation({
-    mutationFn: async (note: string) => {
-      if (!taskId) throw new Error("Task ID is required");
-      const response = await fetch(`/api/v1/tasks/${taskId}/notes`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ note }),
-      });
-      if (!response.ok) {
-        throw new Error("Failed to add note");
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      refetchNotes();
-      setNewNote("");
-      setIsAddingNote(false);
-      toast({ title: "Note added successfully" });
-    },
-    onError: () => {
-      toast({ title: "Failed to add note", variant: "destructive" });
-    },
-  });
 
-  // Delete note mutation
-  const deleteNoteMutation = useMutation({
-    mutationFn: async (noteId: number) => {
-      if (!taskId) throw new Error("Task ID is required");
-      const response = await fetch(`/api/v1/tasks/${taskId}/notes/${noteId}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) {
-        throw new Error("Failed to delete note");
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      refetchNotes();
-      toast({ title: "Note deleted successfully" });
-    },
-    onError: () => {
-      toast({ title: "Failed to delete note", variant: "destructive" });
-    },
-  });
-
-  // Helper function to delete a note
-  const deleteNote = (noteId: number) => {
-    if (confirm("Are you sure you want to delete this note?")) {
-      deleteNoteMutation.mutate(noteId);
-    }
-  };
-
-  // Helper function to add a note
-  const addNote = () => {
-    if (newNote.trim() && !addNoteMutation.isPending) {
-      addNoteMutation.mutate(newNote.trim());
-    }
-  };
   
   // Initialize admin task form
   const adminTaskForm = useForm<AdminTaskFormValues>({
@@ -844,46 +784,50 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
   const addNoteMutation = useMutation({
     mutationFn: async (note: string) => {
       if (!taskId) throw new Error("Task ID is required");
-      const response = await apiRequest("POST", `/api/v1/tasks/${taskId}/notes`, {
-        note: note.trim(),
-        isSystemNote: false
+      const response = await fetch(`/api/v1/tasks/${taskId}/notes`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ note }),
       });
+      if (!response.ok) {
+        throw new Error("Failed to add note");
+      }
       return response.json();
     },
     onSuccess: () => {
       refetchNotes();
       setNewNote("");
-      toast({
-        title: "Success",
-        description: "Note added successfully",
-      });
+      setIsAddingNote(false);
+      toast({ title: "Note added successfully" });
     },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to add note",
-        variant: "destructive",
-      });
+    onError: () => {
+      toast({ title: "Failed to add note", variant: "destructive" });
     },
   });
 
   // Delete note mutation
   const deleteNoteMutation = useMutation({
     mutationFn: async (noteId: number) => {
-      const response = await apiRequest("DELETE", `/api/v1/tasks/notes/${noteId}`);
+      if (!taskId) throw new Error("Task ID is required");
+      const response = await fetch(`/api/v1/tasks/${taskId}/notes/${noteId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to delete note");
+      }
       return response.json();
     },
     onSuccess: () => {
       refetchNotes();
       toast({
-        title: "Success",
-        description: "Note deleted successfully",
+        title: "Note deleted successfully",
       });
     },
-    onError: (error: any) => {
+    onError: () => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to delete note",
+        title: "Failed to delete note",
         variant: "destructive",
       });
     },
@@ -891,13 +835,15 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
 
   // Functions for note management
   const addNote = () => {
-    if (newNote.trim()) {
-      addNoteMutation.mutate(newNote);
+    if (newNote.trim() && !addNoteMutation.isPending) {
+      addNoteMutation.mutate(newNote.trim());
     }
   };
 
   const deleteNote = (noteId: number) => {
-    deleteNoteMutation.mutate(noteId);
+    if (confirm("Are you sure you want to delete this note?")) {
+      deleteNoteMutation.mutate(noteId);
+    }
   };
   
   // Get current task status
