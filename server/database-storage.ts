@@ -44,7 +44,9 @@ import type {
   WorkflowAction, InsertWorkflowAction, WorkflowExecutionLog, InsertWorkflowExecutionLog,
   WorkflowTemplate, InsertWorkflowTemplate, CompleteWorkflow,
   // Notification types
-  Notification, InsertNotification, NotificationPreference, InsertNotificationPreference
+  Notification, InsertNotification, NotificationPreference, InsertNotificationPreference,
+  // Task notes types
+  TaskNote, InsertTaskNote
 } from "@shared/schema";
 import { IStorage } from "./storage";
 import { db } from "./db";
@@ -4249,5 +4251,84 @@ export class DatabaseStorage implements IStorage {
       console.error("Error initializing default notification preferences:", error);
       return [];
     }
+  }
+
+  // Task Notes Management
+  async createTaskNote(data: InsertTaskNote): Promise<TaskNote> {
+    const [note] = await db.insert(taskNotes).values(data).returning();
+    return note;
+  }
+
+  async getTaskNotes(taskId: number, tenantId: number): Promise<TaskNote[]> {
+    return await db.select({
+      id: taskNotes.id,
+      taskId: taskNotes.taskId,
+      tenantId: taskNotes.tenantId,
+      userId: taskNotes.userId,
+      note: taskNotes.note,
+      isSystemNote: taskNotes.isSystemNote,
+      action: taskNotes.action,
+      oldValue: taskNotes.oldValue,
+      newValue: taskNotes.newValue,
+      createdAt: taskNotes.createdAt,
+      // Join user information
+      userName: users.displayName,
+      userEmail: users.email
+    })
+    .from(taskNotes)
+    .leftJoin(users, eq(taskNotes.userId, users.id))
+    .where(and(
+      eq(taskNotes.taskId, taskId),
+      eq(taskNotes.tenantId, tenantId)
+    ))
+    .orderBy(desc(taskNotes.createdAt));
+  }
+
+  async deleteTaskNote(id: number, tenantId: number): Promise<void> {
+    await db.delete(taskNotes)
+      .where(and(
+        eq(taskNotes.id, id),
+        eq(taskNotes.tenantId, tenantId)
+      ));
+  }
+
+  // Helper method to create system notes for task changes
+  async createSystemTaskNote(
+    taskId: number, 
+    tenantId: number, 
+    userId: number, 
+    action: string, 
+    oldValue?: string, 
+    newValue?: string
+  ): Promise<TaskNote> {
+    let noteText = '';
+    
+    switch (action) {
+      case 'assigned':
+        noteText = `Task assigned to ${newValue}`;
+        break;
+      case 'status_changed':
+        noteText = `Status changed from ${oldValue} to ${newValue}`;
+        break;
+      case 'updated':
+        noteText = `Task details updated`;
+        break;
+      case 'created':
+        noteText = `Task created`;
+        break;
+      default:
+        noteText = `Task ${action}`;
+    }
+
+    return this.createTaskNote({
+      taskId,
+      tenantId,
+      userId,
+      note: noteText,
+      isSystemNote: true,
+      action,
+      oldValue,
+      newValue
+    });
   }
 }

@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format, addMonths, addYears, addQuarters } from "date-fns";
-import { Receipt } from "lucide-react";
+import { Receipt, MessageSquare, Plus, Trash2, User, Edit, Save, X, FileText, Clock, Tag, DollarSign, Building, Users } from "lucide-react";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 
 // Import UI components
@@ -158,6 +158,8 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(initialEditingState);
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [newNote, setNewNote] = useState("");
+  const [isAddingNote, setIsAddingNote] = useState(false);
   
   // Fetch task details if taskId is provided
   const { data: task, isLoading: isLoadingTask } = useQuery({
@@ -215,6 +217,12 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
       return response.json();
     },
     enabled: isOpen && task && !task.isAdmin && !!task.clientId,
+  });
+
+  // Fetch task notes for history tracking
+  const { data: taskNotes = [], refetch: refetchNotes } = useQuery({
+    queryKey: ["/api/v1/tasks", taskId, "notes"],
+    enabled: !!taskId && isOpen,
   });
   
   // Initialize admin task form

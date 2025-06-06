@@ -3646,6 +3646,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Task Notes API routes
+  
+  // Get task notes with history
+  app.get("/api/v1/tasks/:id/notes", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const taskId = parseInt(req.params.id);
+      
+      // Verify task exists and belongs to tenant
+      const task = await storage.getTask(taskId, tenantId);
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      const notes = await storage.getTaskNotes(taskId, tenantId);
+      res.json(notes);
+    } catch (error) {
+      console.error("Error fetching task notes:", error);
+      res.status(500).json({ message: "Failed to fetch task notes" });
+    }
+  });
+  
+  // Create a new task note
+  app.post("/api/v1/tasks/:id/notes", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = (req.user as any).id;
+      const taskId = parseInt(req.params.id);
+      const { note } = req.body;
+      
+      if (!note || note.trim() === "") {
+        return res.status(400).json({ message: "Note content is required" });
+      }
+      
+      // Verify task exists and belongs to tenant
+      const task = await storage.getTask(taskId, tenantId);
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      const newNote = await storage.createTaskNote({
+        taskId,
+        tenantId,
+        userId,
+        note: note.trim(),
+        isSystemNote: false,
+        action: 'comment'
+      });
+      
+      res.status(201).json(newNote);
+    } catch (error) {
+      console.error("Error creating task note:", error);
+      res.status(500).json({ message: "Failed to create task note" });
+    }
+  });
+  
+  // Delete a task note
+  app.delete("/api/v1/tasks/:taskId/notes/:noteId", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = (req.user as any).id;
+      const isSuperAdmin = (req.user as any).isSuperAdmin;
+      const taskId = parseInt(req.params.taskId);
+      const noteId = parseInt(req.params.noteId);
+      
+      // Verify task exists and belongs to tenant
+      const task = await storage.getTask(taskId, tenantId);
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      // Get the note to check ownership
+      const notes = await storage.getTaskNotes(taskId, tenantId);
+      const note = notes.find(n => n.id === noteId);
+      
+      if (!note) {
+        return res.status(404).json({ message: "Note not found" });
+      }
+      
+      // Only allow deletion by the note creator or super admin, and only non-system notes
+      if (!isSuperAdmin && (note.userId !== userId || note.isSystemNote)) {
+        return res.status(403).json({ message: "Access denied. You can only delete your own notes." });
+      }
+      
+      if (note.isSystemNote && !isSuperAdmin) {
+        return res.status(403).json({ message: "System notes cannot be deleted." });
+      }
+      
+      await storage.deleteTaskNote(noteId, tenantId);
+      res.json({ message: "Note deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting task note:", error);
+      res.status(500).json({ message: "Failed to delete task note" });
+    }
+  });
+
   // Tenant Settings routes
   app.get("/api/v1/tenant/settings", isAuthenticated, async (req, res) => {
     try {
