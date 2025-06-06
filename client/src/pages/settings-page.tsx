@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { AppLayout } from "@/components/layout/app-layout";
 import { SettingsNavigation } from "@/components/settings/settings-navigation";
 import { GeneralSettings } from "@/components/settings/general-settings";
 import { SecuritySettings } from "@/components/settings/security-settings";
@@ -44,21 +45,23 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-8rem)]">
-        <SettingsNavigation 
-          activeCategory={activeCategory} 
-          onCategoryChange={setActiveCategory} 
-        />
-        
-        <div className="flex-1 overflow-auto">
-          <div className="bg-card rounded-r-lg md:rounded-l-none rounded-lg border min-h-full">
-            <div className="p-6">
-              {renderActiveComponent()}
+    <AppLayout>
+      <div className="container mx-auto p-6">
+        <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-8rem)]">
+          <SettingsNavigation 
+            activeCategory={activeCategory} 
+            onCategoryChange={setActiveCategory} 
+          />
+          
+          <div className="flex-1 overflow-auto">
+            <div className="bg-card rounded-r-lg md:rounded-l-none rounded-lg border min-h-full">
+              <div className="p-6">
+                {renderActiveComponent()}
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }
