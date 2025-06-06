@@ -322,7 +322,7 @@ export class NotificationService {
     // Apply permission-based filtering after retrieval
     // First, get user information to check if they're super admin
     const storage = new DatabaseStorage();
-    const user = await storage.getUser(userId, tenantId);
+    const user = await storage.getUser(tenantId, userId);
     
     const filteredNotifications = [];
     for (const notification of userNotifications) {
@@ -363,8 +363,9 @@ export class NotificationService {
    * Get unread notification count for a user
    */
   static async getUnreadNotificationCount(userId: number, tenantId: number): Promise<number> {
-    const result = await db
-      .select({ count: count() })
+    // Get all unread notifications first
+    const unreadNotifications = await db
+      .select()
       .from(notifications)
       .where(
         and(
@@ -374,7 +375,35 @@ export class NotificationService {
         )
       );
 
-    return result[0]?.count || 0;
+    // Apply permission-based filtering
+    const storage = new DatabaseStorage();
+    const user = await storage.getUser(tenantId, userId);
+    
+    let filteredCount = 0;
+    for (const notification of unreadNotifications) {
+      // Determine the module for this notification type
+      const module = NOTIFICATION_MODULE_MAP[notification.type];
+      
+      if (!module) {
+        // If no module mapping exists, include the notification
+        filteredCount++;
+        continue;
+      }
+      
+      // Check if user has permission for this module
+      const hasPermission = await this.hasModulePermission(
+        userId, 
+        tenantId, 
+        user?.isSuperAdmin || false, 
+        module
+      );
+      
+      if (hasPermission) {
+        filteredCount++;
+      }
+    }
+
+    return filteredCount;
   }
 
   /**
