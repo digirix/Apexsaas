@@ -20,10 +20,12 @@ export function NotificationBell({ className }: NotificationBellProps) {
   const [isOpen, setIsOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  // Fetch unread count
+  // Fetch unread count with aggressive real-time settings
   const { data: unreadCountData } = useQuery({
     queryKey: ["/api/v1/notifications/unread-count"],
-    refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 0, // Always consider data stale
+    gcTime: 0, // Don't cache results
+    refetchInterval: 2000, // Refetch every 2 seconds for real-time updates
   });
 
   const unreadCount = (unreadCountData as { count: number } | undefined)?.count || 0;

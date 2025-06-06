@@ -23,9 +23,12 @@ export function NotificationPanel({ onMarkAllAsRead, onClose }: NotificationPane
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
 
-  // Fetch recent notifications (limited set for panel)
+  // Fetch recent notifications (limited set for panel) with reduced cache time for real-time updates
   const { data: notificationsData, isLoading } = useQuery({
     queryKey: ["/api/v1/notifications", { page: 1, limit: 10 }],
+    staleTime: 0, // Always refetch when needed
+    gcTime: 0, // Don't cache results
+    refetchInterval: 5000, // Refetch every 5 seconds
   });
 
   // Mark notification as read mutation

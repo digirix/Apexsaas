@@ -6845,14 +6845,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Add WebSocket broadcast function to global context for notifications
   (global as any).broadcastToTenant = (tenantId: number, message: any) => {
-    const clients = connectedClients.get(tenantId);
-    if (clients) {
+    console.log(`Broadcasting to tenant ${tenantId}:`, message);
+    const tenantConnections = wsConnections.get(tenantId);
+    if (tenantConnections) {
       const messageStr = JSON.stringify(message);
-      for (const client of clients) {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(messageStr);
+      let sentCount = 0;
+      for (const [userId, userConnections] of tenantConnections.entries()) {
+        for (const ws of userConnections) {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(messageStr);
+            sentCount++;
+          }
         }
       }
+      console.log(`Notification broadcast sent to ${sentCount} connections for tenant ${tenantId}`);
+    } else {
+      console.log(`No connections found for tenant ${tenantId}`);
     }
   };
 
