@@ -17,14 +17,12 @@ async function testNotificationPreferences() {
   }
 }
 
-if (require.main === module) {
-  testNotificationPreferences()
-    .then(() => {
-      console.log('Test completed');
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('Test failed:', error);
-      process.exit(1);
-    });
-}
+testNotificationPreferences()
+  .then(() => {
+    console.log('Test completed');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('Test failed:', error);
+    process.exit(1);
+  });
