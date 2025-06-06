@@ -215,7 +215,7 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
   });
 
   // Fetch task notes for history tracking
-  const { data: taskNotes = [], refetch: refetchNotes } = useQuery({
+  const { data: taskNotes = [], refetch: refetchNotes, isLoading: isNotesLoading } = useQuery({
     queryKey: ["/api/v1/tasks", taskId, "notes"],
     enabled: !!taskId && isOpen,
   });
@@ -275,43 +275,7 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
     enabled: !!task?.invoiceId && isOpen,
   });
 
-  // Task notes mutations
-  const addNoteMutation = useMutation({
-    mutationFn: async (note: string) => {
-      const response = await fetch(`/api/v1/tasks/${taskId}/notes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note }),
-      });
-      if (!response.ok) throw new Error('Failed to add note');
-      return response.json();
-    },
-    onSuccess: () => {
-      refetchNotes();
-      setNewNote("");
-      setIsAddingNote(false);
-      toast({ title: "Note added successfully" });
-    },
-    onError: () => {
-      toast({ title: "Failed to add note", variant: "destructive" });
-    },
-  });
 
-  const deleteNoteMutation = useMutation({
-    mutationFn: async (noteId: number) => {
-      const response = await fetch(`/api/v1/tasks/${taskId}/notes/${noteId}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) throw new Error('Failed to delete note');
-    },
-    onSuccess: () => {
-      refetchNotes();
-      toast({ title: "Note deleted successfully" });
-    },
-    onError: () => {
-      toast({ title: "Failed to delete note", variant: "destructive" });
-    },
-  });
 
   // Update form values when task data is loaded - Fixed to load on first click
   useEffect(() => {
@@ -799,6 +763,66 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
       }
     });
   }
+
+  // Add note mutation
+  const addNoteMutation = useMutation({
+    mutationFn: async (note: string) => {
+      if (!taskId) throw new Error("Task ID is required");
+      const response = await apiRequest("POST", `/api/v1/tasks/${taskId}/notes`, {
+        note: note.trim(),
+        isSystemNote: false
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      refetchNotes();
+      setNewNote("");
+      toast({
+        title: "Success",
+        description: "Note added successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add note",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete note mutation
+  const deleteNoteMutation = useMutation({
+    mutationFn: async (noteId: number) => {
+      const response = await apiRequest("DELETE", `/api/v1/tasks/notes/${noteId}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      refetchNotes();
+      toast({
+        title: "Success",
+        description: "Note deleted successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete note",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Functions for note management
+  const addNote = () => {
+    if (newNote.trim()) {
+      addNoteMutation.mutate(newNote);
+    }
+  };
+
+  const deleteNote = (noteId: number) => {
+    deleteNoteMutation.mutate(noteId);
+  };
   
   // Get current task status
   const taskStatus = task?.statusId ? taskStatuses.find(s => s.id === task.statusId) : null;
