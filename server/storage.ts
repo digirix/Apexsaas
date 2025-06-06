@@ -3,7 +3,8 @@ import {
   entityTypes, taskStatuses, taskStatusWorkflowRules, taxJurisdictions, serviceTypes, 
   clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions, 
   userPermissions, invoices, invoiceLineItems, payments, paymentGatewaySettings, chartOfAccounts,
-  journalEntries, journalEntryLines, journalEntryTypes, aiConfigurations, aiInteractions, aiAssistantCustomizations
+  journalEntries, journalEntryLines, journalEntryTypes, aiConfigurations, aiInteractions, aiAssistantCustomizations,
+  notificationPreferences
 } from "@shared/schema";
 import type { 
   Tenant, User, InsertUser, InsertTenant, 
@@ -26,6 +27,8 @@ import type {
   AiConfiguration, InsertAiConfiguration,
   AiInteraction, InsertAiInteraction,
   AiAssistantCustomization, InsertAiAssistantCustomization,
+  // Notification preference types
+  NotificationPreference, InsertNotificationPreference,
 
 } from "@shared/schema";
 import session from "express-session";
@@ -364,7 +367,13 @@ export interface IStorage {
   updateAiInteractionFeedback(id: number, feedback: { feedbackRating: number; feedbackComment: string | null }): Promise<AiInteraction>;
   getUserAiInteractions(tenantId: number, userId: number, limit?: number): Promise<AiInteraction[]>;
 
-
+  // Notification Preferences operations
+  getNotificationPreferences(tenantId: number, userId: number): Promise<NotificationPreference[]>;
+  getNotificationPreference(tenantId: number, userId: number, notificationType: string): Promise<NotificationPreference | undefined>;
+  createNotificationPreference(preference: InsertNotificationPreference): Promise<NotificationPreference>;
+  updateNotificationPreference(tenantId: number, userId: number, notificationType: string, isEnabled: boolean, deliveryChannels?: string): Promise<NotificationPreference | undefined>;
+  deleteNotificationPreference(tenantId: number, userId: number, notificationType: string): Promise<boolean>;
+  initializeDefaultNotificationPreferences(tenantId: number, userId: number): Promise<NotificationPreference[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -2241,6 +2250,42 @@ export class MemStorage implements IStorage {
   }
 
   async getUserAiInteractions(tenantId: number, userId: number, limit: number = 20): Promise<AiInteraction[]> {
+    return [];
+  }
+
+  // Notification Preferences operations
+  async getNotificationPreferences(tenantId: number, userId: number): Promise<NotificationPreference[]> {
+    return [];
+  }
+
+  async getNotificationPreference(tenantId: number, userId: number, notificationType: string): Promise<NotificationPreference | undefined> {
+    return undefined;
+  }
+
+  async createNotificationPreference(preference: InsertNotificationPreference): Promise<NotificationPreference> {
+    const id = Date.now();
+    const newPreference: NotificationPreference = {
+      id,
+      tenantId: preference.tenantId,
+      userId: preference.userId,
+      notificationType: preference.notificationType,
+      isEnabled: preference.isEnabled ?? true,
+      deliveryChannels: preference.deliveryChannels ?? '["in_app"]',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    return newPreference;
+  }
+
+  async updateNotificationPreference(tenantId: number, userId: number, notificationType: string, isEnabled: boolean, deliveryChannels?: string): Promise<NotificationPreference | undefined> {
+    return undefined;
+  }
+
+  async deleteNotificationPreference(tenantId: number, userId: number, notificationType: string): Promise<boolean> {
+    return false;
+  }
+
+  async initializeDefaultNotificationPreferences(tenantId: number, userId: number): Promise<NotificationPreference[]> {
     return [];
   }
 

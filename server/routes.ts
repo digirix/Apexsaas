@@ -6864,5 +6864,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   };
 
+  // Notification Preferences routes
+  app.get("/api/v1/notification-preferences", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = (req.user as any).id;
+      
+      const preferences = await storage.getNotificationPreferences(tenantId, userId);
+      
+      // If no preferences exist, initialize defaults
+      if (preferences.length === 0) {
+        const defaultPreferences = await storage.initializeDefaultNotificationPreferences(tenantId, userId);
+        return res.json(defaultPreferences);
+      }
+      
+      res.json(preferences);
+    } catch (error) {
+      console.error("Error fetching notification preferences:", error);
+      res.status(500).json({ message: "Failed to fetch notification preferences" });
+    }
+  });
+
+  app.put("/api/v1/notification-preferences/:notificationType", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = (req.user as any).id;
+      const { notificationType } = req.params;
+      const { isEnabled, deliveryChannels } = req.body;
+      
+      const preference = await storage.updateNotificationPreference(
+        tenantId, 
+        userId, 
+        notificationType, 
+        isEnabled, 
+        deliveryChannels || '["in_app"]'
+      );
+      
+      if (!preference) {
+        // Create new preference if it doesn't exist
+        const newPreference = await storage.createNotificationPreference({
+          tenantId,
+          userId,
+          notificationType: notificationType as any,
+          isEnabled,
+          deliveryChannels: deliveryChannels || '["in_app"]'
+        });
+        return res.json(newPreference);
+      }
+      
+      res.json(preference);
+    } catch (error) {
+      console.error("Error updating notification preference:", error);
+      res.status(500).json({ message: "Failed to update notification preference" });
+    }
+  });
+
+  app.post("/api/v1/notification-preferences/reset", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const userId = (req.user as any).id;
+      
+      const defaultPreferences = await storage.initializeDefaultNotificationPreferences(tenantId, userId);
+      res.json(defaultPreferences);
+    } catch (error) {
+      console.error("Error resetting notification preferences:", error);
+      res.status(500).json({ message: "Failed to reset notification preferences" });
+    }
+  });
+
   return httpServer;
 }
