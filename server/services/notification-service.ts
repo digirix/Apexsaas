@@ -1,6 +1,6 @@
 import { eq, and, desc, count, sql } from "drizzle-orm";
 import { db } from "../db";
-import { notifications, users, type InsertNotification, type Notification } from "../../shared/schema";
+import { notifications, users, notificationPreferences, type InsertNotification, type Notification, type NotificationPreference } from "../../shared/schema";
 
 export interface CreateNotificationData {
   tenantId: number;
@@ -36,6 +36,7 @@ export interface NotificationOptions {
 export class NotificationService {
   /**
    * Create a notification for one or more users
+   * Only creates notifications for users who have this notification type enabled
    */
   static async createNotification(data: CreateNotificationData): Promise<Notification[]> {
     const {
@@ -64,8 +65,16 @@ export class NotificationService {
       throw new Error('Either userId or userIds must be provided');
     }
 
-    // Create notifications for each user
-    const notificationsData: InsertNotification[] = targetUserIds.map(uid => ({
+    // Filter users based on notification preferences
+    const eligibleUserIds = await this.filterUsersByPreferences(tenantId, targetUserIds, type);
+    
+    if (eligibleUserIds.length === 0) {
+      console.log(`No users have ${type} notifications enabled. Skipping notification creation.`);
+      return [];
+    }
+
+    // Create notifications for eligible users only
+    const notificationsData: InsertNotification[] = eligibleUserIds.map(uid => ({
       tenantId,
       userId: uid,
       title,
@@ -83,12 +92,57 @@ export class NotificationService {
       .values(notificationsData)
       .returning();
 
+    console.log(`Created ${createdNotifications.length} notifications of type ${type} for eligible users`);
+
     // Emit WebSocket events for real-time updates
     for (const notification of createdNotifications) {
       this.emitNotificationEvent(notification);
     }
 
     return createdNotifications;
+  }
+
+  /**
+   * Filter users based on their notification preferences
+   */
+  private static async filterUsersByPreferences(
+    tenantId: number, 
+    userIds: number[], 
+    notificationType: string
+  ): Promise<number[]> {
+    try {
+      // Get notification preferences for all users
+      const preferences = await db.select()
+        .from(notificationPreferences)
+        .where(and(
+          eq(notificationPreferences.tenantId, tenantId),
+          eq(notificationPreferences.notificationType, notificationType as any)
+        ));
+
+      // Create a map of user preferences
+      const userPreferencesMap = new Map<number, boolean>();
+      preferences.forEach(pref => {
+        userPreferencesMap.set(pref.userId, pref.isEnabled);
+      });
+
+      // Filter users: include only those with enabled preferences or no preferences (default enabled)
+      const eligibleUsers = userIds.filter(userId => {
+        const hasPreference = userPreferencesMap.has(userId);
+        if (hasPreference) {
+          return userPreferencesMap.get(userId) === true;
+        } else {
+          // If no preference exists, default to enabled (this handles new users)
+          return true;
+        }
+      });
+
+      console.log(`Notification ${notificationType}: ${eligibleUsers.length}/${userIds.length} users eligible`);
+      return eligibleUsers;
+    } catch (error) {
+      console.error('Error filtering users by preferences:', error);
+      // If there's an error, fall back to all users to avoid breaking notifications
+      return userIds;
+    }
   }
 
   /**

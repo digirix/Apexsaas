@@ -78,6 +78,7 @@ import { fetchTenantDataForQuery } from './services/chatbot-data-service';
 // Import notification services
 import { NotificationService } from './services/notification-service';
 import { TaskNotificationIntegration } from './integrations/task-notifications';
+import { ComprehensiveNotificationTriggers } from './services/comprehensive-notification-triggers';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   console.log("Starting to register routes...");
@@ -1290,23 +1291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Send notification to relevant users about new client
         const currentUserId = (req.user as any).id;
         try {
-          // Notify administrators and relevant staff
-          const users = await storage.getUsers(tenantId);
-          const adminUsers = users.filter(user => user.role === 'admin' || user.role === 'super_admin');
-          
-          for (const admin of adminUsers) {
-            if (admin.id !== currentUserId) {
-              await storage.createNotification({
-                tenantId,
-                userId: admin.id,
-                notificationType: 'CLIENT_CREATED',
-                title: 'New Client Added',
-                message: `New client "${client.displayName}" has been added to the system`,
-                severity: 'INFO',
-                linkUrl: `/clients/${client.id}`
-              });
-            }
-          }
+          await ComprehensiveNotificationTriggers.triggerClientCreated(tenantId, client.id, currentUserId);
         } catch (notifError) {
           console.error("Error sending client creation notification:", notifError);
           // Don't fail the client creation if notification fails
@@ -1390,23 +1375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           req.body.status !== existingClient.status;
         
         if (hasSignificantChanges) {
-          // Notify administrators about client updates
-          const users = await storage.getUsers(tenantId);
-          const adminUsers = users.filter(user => user.role === 'admin' || user.role === 'super_admin');
-          
-          for (const admin of adminUsers) {
-            if (admin.id !== currentUserId) {
-              await storage.createNotification({
-                tenantId,
-                userId: admin.id,
-                notificationType: 'CLIENT_UPDATED',
-                title: 'Client Information Updated',
-                message: `Client "${updatedClient?.displayName || existingClient.displayName}" information has been updated`,
-                severity: 'INFO',
-                linkUrl: `/clients/${id}`
-              });
-            }
-          }
+          await ComprehensiveNotificationTriggers.triggerClientUpdated(tenantId, id, currentUserId);
         }
       } catch (notifError) {
         console.error("Error sending client update notification:", notifError);
