@@ -2921,6 +2921,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/v1/tasks", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
+      const userId = (req.user as any).id;
+      const isSuperAdmin = (req.user as any).isSuperAdmin;
       const clientId = req.query.clientId ? parseInt(req.query.clientId as string) : undefined;
       const entityId = req.query.entityId ? parseInt(req.query.entityId as string) : undefined;
       const isAdmin = req.query.isAdmin === "true" ? true : 
@@ -2942,6 +2944,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         (task.isCanceled === false || task.isCanceled === null || task.isCanceled === undefined)
       );
       
+      // Role-based filtering: Regular members can only see tasks assigned to them
+      // Super admins can see all tasks
+      if (!isSuperAdmin) {
+        tasks = tasks.filter(task => task.assigneeId === userId);
+      }
+      
       res.json(tasks);
     } catch (error) {
       console.error("Error fetching tasks:", error);
@@ -2952,11 +2960,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/v1/tasks/:id", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
+      const userId = (req.user as any).id;
+      const isSuperAdmin = (req.user as any).isSuperAdmin;
       const id = parseInt(req.params.id);
       
       const task = await storage.getTask(id, tenantId);
       if (!task) {
         return res.status(404).json({ message: "Task not found" });
+      }
+      
+      // Role-based access control: Regular members can only access tasks assigned to them
+      if (!isSuperAdmin && task.assigneeId !== userId) {
+        return res.status(403).json({ message: "Access denied. You can only view tasks assigned to you." });
       }
       
       res.json(task);
@@ -3037,12 +3052,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/v1/tasks/:id", isAuthenticated, requirePermission(storage, "tasks", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
+      const userId = (req.user as any).id;
+      const isSuperAdmin = (req.user as any).isSuperAdmin;
       const id = parseInt(req.params.id);
       
       // Check if task belongs to tenant
       const existingTask = await storage.getTask(id, tenantId);
       if (!existingTask) {
         return res.status(404).json({ message: "Task not found" });
+      }
+      
+      // Role-based access control: Regular members can only update tasks assigned to them
+      if (!isSuperAdmin && existingTask.assigneeId !== userId) {
+        return res.status(403).json({ message: "Access denied. You can only update tasks assigned to you." });
       }
       
       // For admin tasks, ensure no client or entity is being assigned
@@ -3350,7 +3372,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/v1/tasks/:id", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
+      const userId = (req.user as any).id;
+      const isSuperAdmin = (req.user as any).isSuperAdmin;
       const id = parseInt(req.params.id);
+      
+      // Check if task exists and belongs to tenant
+      const existingTask = await storage.getTask(id, tenantId);
+      if (!existingTask) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      // Role-based access control: Regular members can only delete tasks assigned to them
+      if (!isSuperAdmin && existingTask.assigneeId !== userId) {
+        return res.status(403).json({ message: "Access denied. You can only delete tasks assigned to you." });
+      }
       
       const success = await storage.deleteTask(id, tenantId);
       if (!success) {
