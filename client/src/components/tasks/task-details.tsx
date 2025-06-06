@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format, addMonths, addYears, addQuarters } from "date-fns";
-import { Receipt, MessageSquare, Plus, Trash2, User, Edit, Save, X, FileText, Clock, Tag, DollarSign, Building, Users } from "lucide-react";
+import { Receipt, MessageSquare, Plus, Trash2, User, Edit, Save, X, Clock, Tag, DollarSign, Building, Users, FileText } from "lucide-react";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 
 // Import UI components
@@ -58,10 +58,6 @@ import {
   Loader2,
   CalendarIcon,
   CheckCircle,
-  FileText,
-  Building,
-  User,
-  Tag,
   Banknote,
   Calendar as CalendarIcon2,
 } from "lucide-react";
