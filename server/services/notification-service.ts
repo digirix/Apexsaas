@@ -1,6 +1,7 @@
 import { eq, and, desc, count, sql } from "drizzle-orm";
 import { db } from "../db";
 import { notifications, users, notificationPreferences, type InsertNotification, type Notification, type NotificationPreference } from "../../shared/schema";
+import { DatabaseStorage } from "../database-storage";
 
 export interface CreateNotificationData {
   tenantId: number;
@@ -33,7 +34,103 @@ export interface NotificationOptions {
   sortOrder?: 'asc' | 'desc';
 }
 
+// Mapping of notification types to required modules
+const NOTIFICATION_MODULE_MAP: Record<string, string> = {
+  // Task Management Module
+  'TASK_ASSIGNMENT': 'tasks',
+  'TASK_UPDATE': 'tasks', 
+  'TASK_COMPLETED': 'tasks',
+  'TASK_DUE_SOON': 'tasks',
+  'TASK_OVERDUE': 'tasks',
+  'TASK_STATUS_CHANGED': 'tasks',
+  'TASK_APPROVED': 'tasks',
+  'TASK_REJECTED': 'tasks',
+  'TASK_COMMENT_ADDED': 'tasks',
+  'RECURRING_TASK_GENERATED': 'tasks',
+  
+  // Client Management Module
+  'CLIENT_CREATED': 'clients',
+  'CLIENT_UPDATED': 'clients',
+  'CLIENT_ASSIGNMENT': 'clients',
+  'CLIENT_MESSAGE': 'clients',
+  'CLIENT_DOCUMENT': 'clients',
+  'CLIENT_PORTAL_LOGIN': 'clients',
+  'CLIENT_STATUS_CHANGED': 'clients',
+  
+  // Entity Management Module
+  'ENTITY_CREATED': 'entities',
+  'ENTITY_UPDATED': 'entities',
+  'ENTITY_COMPLIANCE_DUE': 'entities',
+  'ENTITY_STATUS_CHANGED': 'entities',
+  
+  // Invoice & Payment Module
+  'INVOICE_CREATED': 'invoices',
+  'INVOICE_SENT': 'invoices',
+  'INVOICE_PAID': 'invoices',
+  'INVOICE_OVERDUE': 'invoices',
+  'PAYMENT_RECEIVED': 'payments',
+  'PAYMENT_FAILED': 'payments',
+  'PAYMENT_REFUNDED': 'payments',
+  'PAYMENT_REVIEW': 'payments',
+  
+  // User & Permission Module
+  'USER_CREATED': 'users',
+  'USER_UPDATED': 'users',
+  'USER_LOGIN': 'users',
+  'PERMISSION_CHANGED': 'users',
+  'ROLE_ASSIGNED': 'users',
+  
+  // Workflow Module
+  'WORKFLOW_TRIGGERED': 'workflows',
+  'WORKFLOW_APPROVAL': 'workflows',
+  'WORKFLOW_ALERT': 'workflows',
+  'WORKFLOW_COMPLETION': 'workflows',
+  'WORKFLOW_FAILED': 'workflows',
+  
+  // Financial Analytics Module
+  'REPORT_GENERATED': 'finance',
+  'REPORT_READY': 'finance',
+  'ANALYTICS_ALERT': 'finance',
+  'BUDGET_EXCEEDED': 'finance',
+  'FINANCIAL_ANOMALY': 'finance',
+  
+  // AI Module
+  'AI_SUGGESTION': 'ai',
+  'AI_RISK_ALERT': 'ai',
+  'AI_REPORT_GENERATED': 'ai',
+  'AI_ANALYSIS_COMPLETED': 'ai',
+  
+  // Compliance Module
+  'COMPLIANCE_DEADLINE_APPROACHING': 'compliance',
+  'COMPLIANCE_DEADLINE_MISSED': 'compliance',
+  'TAX_FILING_DUE': 'compliance',
+};
+
 export class NotificationService {
+  /**
+   * Check if user has permission to view notifications for a specific module
+   */
+  static async hasModulePermission(userId: number, tenantId: number, isSuperAdmin: boolean, module: string): Promise<boolean> {
+    // Super admins have access to all notifications
+    if (isSuperAdmin) {
+      return true;
+    }
+    
+    try {
+      const storage = new DatabaseStorage();
+      const permissions = await storage.getUserPermissions(tenantId, userId);
+      const modulePermission = permissions.find(p => p.module === module);
+      
+      // User needs at least "read" permission for the module
+      return modulePermission && 
+             modulePermission.accessLevel !== "restricted" && 
+             (modulePermission.accessLevel === "full" || modulePermission.canRead === true);
+    } catch (error) {
+      console.error(`Error checking module permission for user ${userId}, module ${module}:`, error);
+      return false;
+    }
+  }
+
   /**
    * Create a notification for one or more users
    * Only creates notifications for users who have this notification type enabled
@@ -159,6 +256,7 @@ export class NotificationService {
 
   /**
    * Get notifications for a specific user with pagination and filtering
+   * Includes permission-based filtering for module access
    */
   static async getNotificationsForUser(
     userId: number,
@@ -221,12 +319,43 @@ export class NotificationService {
       .limit(limit)
       .offset(offset);
 
-    const hasMore = offset + userNotifications.length < total;
+    // Apply permission-based filtering after retrieval
+    // First, get user information to check if they're super admin
+    const storage = new DatabaseStorage();
+    const user = await storage.getUser(userId, tenantId);
+    
+    const filteredNotifications = [];
+    for (const notification of userNotifications) {
+      // Determine the module for this notification type
+      const module = NOTIFICATION_MODULE_MAP[notification.type];
+      
+      if (!module) {
+        // If no module mapping exists, include the notification
+        filteredNotifications.push(notification);
+        continue;
+      }
+      
+      // Check if user has permission for this module
+      const hasPermission = await this.hasModulePermission(
+        userId, 
+        tenantId, 
+        user?.isSuperAdmin || false, 
+        module
+      );
+      
+      if (hasPermission) {
+        filteredNotifications.push(notification);
+      }
+    }
+
+    // Recalculate totals for filtered results
+    const filteredTotal = filteredNotifications.length;
+    const filteredHasMore = offset + filteredNotifications.length < filteredTotal;
 
     return {
-      notifications: userNotifications,
-      total,
-      hasMore
+      notifications: filteredNotifications,
+      total: filteredTotal,
+      hasMore: filteredHasMore
     };
   }
 
