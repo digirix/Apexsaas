@@ -466,7 +466,11 @@ function EnhancedColumnManager({
   );
 }
 
-export function TaskList() {
+interface TaskListProps {
+  highlightTaskId?: number;
+}
+
+export function TaskList({ highlightTaskId }: TaskListProps) {
   const { toast } = useToast();
   
   // Minimal state management
@@ -632,6 +636,28 @@ export function TaskList() {
       saveColumnPreferences(newColumns);
     }
   };
+
+  // Auto-scroll to highlighted task when navigating from notification
+  useEffect(() => {
+    if (highlightTaskId && tasks.length > 0) {
+      const taskExists = tasks.find(task => task.id === highlightTaskId);
+      if (taskExists) {
+        // Auto-select the highlighted task
+        setSelectedTaskId(highlightTaskId);
+        
+        // Scroll to the task after a small delay to ensure DOM is ready
+        setTimeout(() => {
+          const taskElement = document.querySelector(`[data-task-id="${highlightTaskId}"]`);
+          if (taskElement) {
+            taskElement.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'center' 
+            });
+          }
+        }, 100);
+      }
+    }
+  }, [highlightTaskId, tasks]);
 
   // Enhanced filter state based on visible columns
   const getAvailableFilterOptions = () => {
@@ -1385,8 +1411,13 @@ export function TaskList() {
                         
                         return (
                           <tr 
-                            key={task.id} 
-                            className={`hover:bg-slate-50 cursor-pointer ${isOverdue ? 'bg-red-50' : ''}`}
+                            key={task.id}
+                            data-task-id={task.id}
+                            className={`hover:bg-slate-50 cursor-pointer transition-colors ${
+                              isOverdue ? 'bg-red-50' : ''
+                            } ${
+                              highlightTaskId === task.id ? 'bg-blue-100 ring-2 ring-blue-500' : ''
+                            }`}
                             onClick={() => handleViewTaskDetails(task.id)}
                           >
                             <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
@@ -1475,9 +1506,12 @@ export function TaskList() {
                     
                     return (
                       <Card 
-                        key={task.id} 
+                        key={task.id}
+                        data-task-id={task.id}
                         className={`group hover:shadow-md transition-all duration-200 cursor-pointer ${
                           isOverdue ? 'border-red-200 bg-red-50' : 'border-slate-200'
+                        } ${
+                          highlightTaskId === task.id ? 'bg-blue-100 ring-2 ring-blue-500' : ''
                         }`}
                         onClick={() => handleViewTaskDetails(task.id)}
                       >
