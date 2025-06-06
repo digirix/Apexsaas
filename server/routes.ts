@@ -1485,8 +1485,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentUserId = (req.user as any).id;
       try {
         // Use comprehensive triggers that respect user preferences
-        const users = await storage.getUsers(tenantId);
-        const targetUserIds = users.filter(u => u.id !== currentUserId).map(u => u.id);
+        const allUsers = await storage.getUsers(tenantId);
+        const targetUserIds = allUsers.filter(u => u.id !== currentUserId).map(u => u.id);
         
         if (targetUserIds.length > 0) {
           await NotificationService.createNotification({
@@ -1533,21 +1533,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send notification about entity update
       const currentUserId = (req.user as any).id;
       try {
+        // Use comprehensive triggers that respect user preferences
         const users = await storage.getUsers(tenantId);
-        const adminUsers = users.filter(u => u.isSuperAdmin || u.designationId === 1);
+        const targetUserIds = users.filter(u => u.id !== currentUserId).map(u => u.id);
         
-        for (const admin of adminUsers) {
-          if (admin.id !== currentUserId) {
-            await storage.createNotification({
-              tenantId,
-              userId: admin.id,
-              type: 'ENTITY_UPDATED',
-              title: 'Entity Information Updated',
-              message: `Entity "${updatedEntity?.name}" information has been updated`,
-              severity: 'INFO',
-              linkUrl: `/entities/${updatedEntity?.id}`
-            });
-          }
+        if (targetUserIds.length > 0) {
+          await NotificationService.createNotification({
+            tenantId,
+            userIds: targetUserIds,
+            title: 'Entity Information Updated',
+            messageBody: `Entity "${updatedEntity?.name}" information has been updated`,
+            linkUrl: `/entities/${updatedEntity?.id}`,
+            type: 'ENTITY_UPDATED',
+            severity: 'INFO',
+            createdBy: currentUserId,
+            relatedModule: 'entities',
+            relatedEntityId: updatedEntity?.id?.toString()
+          });
         }
       } catch (notifError) {
         console.error("Error sending entity update notification:", notifError);
@@ -2146,21 +2148,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Send notification about new user creation
         const currentUserId = (req.user as any).id;
         try {
-          const users = await storage.getUsers(tenantId);
-          const adminUsers = users.filter(u => u.isSuperAdmin || u.designationId === 1);
+          // Use comprehensive triggers that respect user preferences
+          const allUsers = await storage.getUsers(tenantId);
+          const targetUserIds = allUsers.filter(u => u.id !== currentUserId).map(u => u.id);
           
-          for (const admin of adminUsers) {
-            if (admin.id !== currentUserId) {
-              await storage.createNotification({
-                tenantId,
-                userId: admin.id,
-                type: 'USER_CREATED',
-                title: 'New User Added',
-                message: `New user "${user.displayName}" has been added to the system`,
-                severity: 'INFO',
-                linkUrl: `/users/${user.id}`
-              });
-            }
+          if (targetUserIds.length > 0) {
+            await NotificationService.createNotification({
+              tenantId,
+              userIds: targetUserIds,
+              title: 'New User Added',
+              messageBody: `New user "${user.displayName}" has been added to the system`,
+              linkUrl: `/users/${user.id}`,
+              type: 'USER_CREATED',
+              severity: 'INFO',
+              createdBy: currentUserId,
+              relatedModule: 'users',
+              relatedEntityId: user.id.toString()
+            });
           }
         } catch (notifError) {
           console.error("Error sending user creation notification:", notifError);
@@ -2235,21 +2239,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send notification about user update
       const currentUserId = (req.user as any).id;
       try {
-        const users = await storage.getUsers(tenantId);
-        const adminUsers = users.filter(u => u.isSuperAdmin || u.designationId === 1);
+        // Use comprehensive triggers that respect user preferences
+        const allUsers = await storage.getUsers(tenantId);
+        const targetUserIds = allUsers.filter(u => u.id !== currentUserId).map(u => u.id);
         
-        for (const admin of adminUsers) {
-          if (admin.id !== currentUserId) {
-            await storage.createNotification({
-              tenantId,
-              userId: admin.id,
-              type: 'USER_UPDATED',
-              title: 'User Information Updated',
-              message: `User "${updatedUser.displayName}" information has been updated`,
-              severity: 'INFO',
-              linkUrl: `/users/${updatedUser.id}`
-            });
-          }
+        if (targetUserIds.length > 0) {
+          await NotificationService.createNotification({
+            tenantId,
+            userIds: targetUserIds,
+            title: 'User Information Updated',
+            messageBody: `User "${updatedUser.displayName}" information has been updated`,
+            linkUrl: `/users/${updatedUser.id}`,
+            type: 'USER_UPDATED',
+            severity: 'INFO',
+            createdBy: currentUserId,
+            relatedModule: 'users',
+            relatedEntityId: updatedUser.id.toString()
+          });
         }
       } catch (notifError) {
         console.error("Error sending user update notification:", notifError);
@@ -3168,30 +3174,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const oldStatus = await storage.getTaskStatus(existingTask.statusId, tenantId);
             const newStatus = await storage.getTaskStatus(updatedTask.statusId, tenantId);
             
-            await storage.createNotification({
-              tenantId,
-              userId: updatedTask.assigneeId,
-              type: 'TASK_STATUS_CHANGED',
-              title: 'Task Status Updated',
-              messageBody: `Task "${updatedTask.taskDetails}" status changed from "${oldStatus?.name || 'Unknown'}" to "${newStatus?.name || 'Unknown'}"`,
-              severity: 'INFO',
-              linkUrl: `/tasks/${id}`
-            });
+            // Use comprehensive triggers that respect user preferences
+            await ComprehensiveNotificationTriggers.triggerTaskStatusChanged(tenantId, id, currentUserId);
             
             console.log(`Task status change notification sent to user ${updatedTask.assigneeId}`);
           }
 
           // Handle assignment changes
           if (existingTask.assigneeId !== updatedTask.assigneeId && updatedTask.assigneeId && updatedTask.assigneeId !== currentUserId) {
-            await storage.createNotification({
-              tenantId,
-              userId: updatedTask.assigneeId,
-              type: 'TASK_ASSIGNMENT',
-              title: 'New Task Assigned',
-              messageBody: `You have been assigned task: "${updatedTask.taskDetails}"`,
-              severity: 'INFO',
-              linkUrl: `/tasks/${id}`
-            });
+            // Use comprehensive triggers that respect user preferences
+            await ComprehensiveNotificationTriggers.triggerTaskAssigned(tenantId, id, currentUserId);
             
             console.log(`Task assignment notification sent to user ${updatedTask.assigneeId}`);
           }
