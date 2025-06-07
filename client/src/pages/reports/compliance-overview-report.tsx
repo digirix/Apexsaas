@@ -323,7 +323,11 @@ export default function ComplianceOverviewReport() {
         {/* Ultra-Compact Single Row Filters */}
         <Card className="bg-gray-50/50">
           <CardContent className="p-2">
-            <div className="flex flex-wrap gap-1">
+            <div className="flex items-center gap-1 flex-wrap">
+              <div className="flex items-center gap-1 text-xs font-medium text-gray-600">
+                <Filter className="w-3 h-3" />
+                Filters:
+              </div>
               {/* Time Frame Filter */}
               <div className="space-y-2">
                 <Label>Time Frame</Label>

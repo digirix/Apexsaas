@@ -309,31 +309,33 @@ export default function TeamEfficiencyReport() {
         {/* Ultra-Compact Single Row Filters */}
         <Card className="bg-gray-50/50">
           <CardContent className="p-2">
-            <div className="flex flex-wrap gap-1">
+            <div className="flex items-center gap-1 flex-wrap">
               {/* Period Filter */}
-              <div className="flex items-center gap-1">
+              <div className="space-y-2">
+                <Label>Time Period</Label>
                 <Select value={filters.period} onValueChange={(value) => setFilters(prev => ({ ...prev, period: value }))}>
-                  <SelectTrigger className="h-6 w-20 text-xs">
-                    <SelectValue />
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select period" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="7">7d</SelectItem>
-                    <SelectItem value="30">30d</SelectItem>
-                    <SelectItem value="90">90d</SelectItem>
-                    <SelectItem value="365">1y</SelectItem>
-                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="7">Last 7 days</SelectItem>
+                    <SelectItem value="30">Last 30 days</SelectItem>
+                    <SelectItem value="90">Last 90 days</SelectItem>
+                    <SelectItem value="365">Last year</SelectItem>
+                    <SelectItem value="all">All time</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {/* Department Filter */}
-              <div className="flex items-center gap-1">
+              <div className="space-y-2">
+                <Label>Department</Label>
                 <Select value={filters.department} onValueChange={(value) => setFilters(prev => ({ ...prev, department: value }))}>
-                  <SelectTrigger className="h-6 w-20 text-xs">
-                    <SelectValue />
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="all">All Departments</SelectItem>
                     {departments.map((dept: any) => (
                       <SelectItem key={dept.id} value={dept.id.toString()}>
                         {dept.name}
@@ -344,13 +346,14 @@ export default function TeamEfficiencyReport() {
               </div>
 
               {/* Team Member Filter */}
-              <div className="flex items-center gap-1">
+              <div className="space-y-2">
+                <Label>Team Member</Label>
                 <Select value={filters.teamMember} onValueChange={(value) => setFilters(prev => ({ ...prev, teamMember: value }))}>
-                  <SelectTrigger className="h-6 w-20 text-xs">
-                    <SelectValue />
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select member" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="all">All Members</SelectItem>
                     {users.map((user: any) => (
                       <SelectItem key={user.id} value={user.id.toString()}>
                         {user.displayName || user.username}
@@ -361,13 +364,14 @@ export default function TeamEfficiencyReport() {
               </div>
 
               {/* Task Type Filter */}
-              <div className="flex items-center gap-1">
+              <div className="space-y-2">
+                <Label>Task Type</Label>
                 <Select value={filters.taskType} onValueChange={(value) => setFilters(prev => ({ ...prev, taskType: value }))}>
-                  <SelectTrigger className="h-6 w-20 text-xs">
-                    <SelectValue />
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="all">All Types</SelectItem>
                     <SelectItem value="Regular">Regular</SelectItem>
                     <SelectItem value="Recurring">Recurring</SelectItem>
                     <SelectItem value="Compliance">Compliance</SelectItem>
@@ -376,13 +380,14 @@ export default function TeamEfficiencyReport() {
               </div>
 
               {/* Status Filter */}
-              <div className="flex items-center gap-1">
+              <div className="space-y-2">
+                <Label>Status</Label>
                 <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
-                  <SelectTrigger className="h-6 w-20 text-xs">
-                    <SelectValue />
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="all">All Statuses</SelectItem>
                     {taskStatuses.map((status: any) => (
                       <SelectItem key={status.id} value={status.id.toString()}>
                         {status.name}
