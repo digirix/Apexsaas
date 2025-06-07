@@ -519,11 +519,7 @@ export default function RiskAssessmentReport() {
             </Card>
           </div>
 
-          {/* AI-Powered Insights */}
-          <AIInsightsPanel 
-            reportType="risk-assessment" 
-            filters={filters}
-          />
+
 
           {/* Critical Compliance Risks Table */}
           <Card>

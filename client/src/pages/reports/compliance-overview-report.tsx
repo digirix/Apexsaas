@@ -416,67 +416,24 @@ export default function ComplianceOverviewReport() {
                 </Select>
               </div>
 
-              {/* Date From */}
-              <div className="space-y-2">
-                <Label>From Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {filters.dateFrom ? format(filters.dateFrom, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={filters.dateFrom || undefined}
-                      onSelect={(date) => setFilters(prev => ({ ...prev, dateFrom: date || null }))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Date To */}
-              <div className="space-y-2">
-                <Label>To Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {filters.dateTo ? format(filters.dateTo, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={filters.dateTo || undefined}
-                      onSelect={(date) => setFilters(prev => ({ ...prev, dateTo: date || null }))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
               {/* Clear Filters */}
-              <div className="flex items-end">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setFilters({
-                    jurisdiction: "all",
-                    riskLevel: "all",
-                    timeFrame: "30",
-                    entityType: "all",
-                    complianceType: "all",
-                    status: "all",
-                    dateFrom: null,
-                    dateTo: null
-                  })}
-                  className="w-full"
-                >
-                  Clear Filters
-                </Button>
-              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setFilters({
+                  jurisdiction: "all",
+                  riskLevel: "all",
+                  timeFrame: "30",
+                  entityType: "all",
+                  complianceType: "all",
+                  status: "all",
+                  dateFrom: null,
+                  dateTo: null
+                })}
+                className="h-6 px-2 text-xs"
+              >
+                Clear
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -536,11 +493,7 @@ export default function ComplianceOverviewReport() {
             </Card>
           </div>
 
-          {/* AI-Powered Insights */}
-          <AIInsightsPanel 
-            reportType="compliance-overview" 
-            filters={filters}
-          />
+
 
           {/* Entity Compliance Table */}
           <Card>
