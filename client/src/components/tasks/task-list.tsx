@@ -1274,15 +1274,24 @@ REQUIRED DETAILED ANALYSIS:
 Focus on providing specific, actionable guidance tailored to the entity type (${entityTypeInfo}), tax jurisdictions (${taxJurisdictionInfo}), and compliance requirements. Include jurisdiction-specific forms, filing requirements, and procedural considerations that an accounting professional needs to execute this task successfully.`;
 
       console.log('Sending comprehensive AI analysis request...');
+      console.log('Request payload:', {
+        messages: [{ role: 'user', content: promptMessage.substring(0, 200) + '...' }],
+        conversationId: `task-assistant-${task.id}-${Date.now()}`
+      });
 
-      const response = await apiRequest('POST', '/api/v1/ai/chat', {
+      const apiResponse = await apiRequest('POST', '/api/v1/ai/chat', {
         messages: [
           { role: 'user', content: promptMessage }
         ],
         conversationId: `task-assistant-${task.id}-${Date.now()}`
       });
 
+      // Parse the JSON response
+      const response = await apiResponse.json();
+      
       console.log('AI analysis response received:', response);
+      console.log('Response type:', typeof response);
+      console.log('Response keys:', response ? Object.keys(response) : 'null/undefined');
 
       // Handle different response structures
       let aiContent = '';
