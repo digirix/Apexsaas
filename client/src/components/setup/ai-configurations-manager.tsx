@@ -523,27 +523,14 @@ export default function AiConfigurationsManager() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Default Model</FormLabel>
-                      <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select AI Model" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {getSuggestedModels(provider).map(model => (
-                            <SelectItem key={model.value} value={model.value}>
-                              {model.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="Enter model name (e.g., gpt-4, claude-3-sonnet, gemini-pro)"
+                        />
+                      </FormControl>
                       <FormDescription>
-                        {provider === 'OpenAI' && field.value === 'google/gemini-flash-1.5-8b-exp' 
-                          ? 'Using Google Gemini Flash 1.5 8B model via OpenRouter.ai for optimal performance'
-                          : 'Select the default AI model to use with this provider'}
+                        Enter the exact model name to use with this provider. Examples: gpt-4, gpt-3.5-turbo, claude-3-sonnet-20240229, gemini-pro, google/gemini-flash-1.5-8b-exp
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

@@ -450,19 +450,252 @@ export const registerAICustomizationRoutes = (app: Express, isAuthenticated: any
         return res.status(400).json({ error: 'Provider, API key, and model are required' });
       }
       
-      // In a real implementation, we would make a test call to the AI provider here
-      // For now, we'll simulate a successful test after a delay
-      setTimeout(() => {
-        return res.json({ 
-          success: true, 
-          message: 'Connection test successful',
+      // Test the actual API connection based on provider
+      let testResult;
+      
+      if (provider === 'OpenAI') {
+        // Test OpenAI/OpenRouter API with a minimal chat completion request
+        try {
+          const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+              'HTTP-Referer': 'http://localhost:5000',
+              'X-Title': 'AccFirm API Test'
+            },
+            body: JSON.stringify({
+              model: model,
+              messages: [{ role: 'user', content: 'test' }],
+              max_tokens: 1,
+              stream: false
+            })
+          });
+          
+          console.log(`OpenRouter API test response status: ${response.status}`);
+          
+          if (response.status === 401) {
+            return res.status(400).json({ 
+              success: false,
+              error: 'Invalid API key - authentication failed',
+              details: {
+                provider,
+                model,
+                status: 'unauthorized',
+                statusCode: response.status
+              }
+            });
+          }
+          
+          if (response.status === 400) {
+            const errorData = await response.json();
+            console.log('OpenRouter error response:', errorData);
+            
+            if (errorData.error?.code === 'invalid_api_key') {
+              return res.status(400).json({
+                success: false,
+                error: 'Invalid API key',
+                details: {
+                  provider,
+                  model,
+                  status: 'invalid_key'
+                }
+              });
+            }
+            
+            if (errorData.error?.message?.includes('model') || errorData.error?.message?.includes('Model')) {
+              return res.status(400).json({
+                success: false,
+                error: `Model "${model}" not available`,
+                details: {
+                  provider,
+                  model,
+                  status: 'model_not_found'
+                }
+              });
+            }
+          }
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.log('OpenRouter unexpected error:', errorText);
+            return res.status(400).json({
+              success: false,
+              error: `API request failed with status ${response.status}`,
+              details: {
+                provider,
+                model,
+                status: 'api_error',
+                statusCode: response.status
+              }
+            });
+          }
+          
+          // If we reach here, the API call was successful
+          testResult = {
+            success: true,
+            message: 'Connection test successful',
+            details: {
+              provider,
+              model,
+              status: 'connected'
+            }
+          };
+          
+        } catch (error: any) {
+          console.log('OpenRouter connection error:', error.message);
+          return res.status(400).json({
+            success: false,
+            error: 'Failed to connect to OpenRouter API',
+            details: {
+              provider,
+              model,
+              status: 'connection_failed',
+              message: error.message
+            }
+          });
+        }
+        
+      } else if (provider === 'Google') {
+        // Test Google AI API
+        try {
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+          
+          if (!response.ok) {
+            return res.status(400).json({
+              success: false,
+              error: 'Invalid Google AI API key or authentication failed',
+              details: {
+                provider,
+                model,
+                status: 'failed',
+                statusCode: response.status
+              }
+            });
+          }
+          
+          const data = await response.json();
+          
+          // Check if the specified model exists
+          const modelExists = data.models?.some((m: any) => m.name.includes(model) || m.displayName?.includes(model));
+          
+          if (!modelExists) {
+            return res.status(400).json({
+              success: false,
+              error: `Model "${model}" not available with this API key`,
+              details: {
+                provider,
+                model,
+                status: 'model_not_found'
+              }
+            });
+          }
+          
+          testResult = {
+            success: true,
+            message: 'Connection test successful',
+            details: {
+              provider,
+              model,
+              status: 'connected',
+              modelsAvailable: data.models?.length || 0
+            }
+          };
+          
+        } catch (error: any) {
+          return res.status(400).json({
+            success: false,
+            error: 'Failed to connect to Google AI API',
+            details: {
+              provider,
+              model,
+              status: 'connection_failed',
+              message: error.message
+            }
+          });
+        }
+        
+      } else if (provider === 'Anthropic') {
+        // Test Anthropic API
+        try {
+          // Make a minimal test request to validate the API key
+          const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'x-api-key': apiKey,
+              'Content-Type': 'application/json',
+              'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+              model: model,
+              max_tokens: 1,
+              messages: [{ role: 'user', content: 'test' }]
+            })
+          });
+          
+          if (response.status === 401) {
+            return res.status(400).json({
+              success: false,
+              error: 'Invalid Anthropic API key',
+              details: {
+                provider,
+                model,
+                status: 'unauthorized'
+              }
+            });
+          } else if (response.status === 400) {
+            const errorData = await response.json();
+            if (errorData.error?.type === 'invalid_request_error' && errorData.error?.message?.includes('model')) {
+              return res.status(400).json({
+                success: false,
+                error: `Model "${model}" not available`,
+                details: {
+                  provider,
+                  model,
+                  status: 'model_not_found'
+                }
+              });
+            }
+          }
+          
+          // If we get here, the API key is valid (even if other errors occurred)
+          testResult = {
+            success: true,
+            message: 'Connection test successful',
+            details: {
+              provider,
+              model,
+              status: 'connected'
+            }
+          };
+          
+        } catch (error: any) {
+          return res.status(400).json({
+            success: false,
+            error: 'Failed to connect to Anthropic API',
+            details: {
+              provider,
+              model,
+              status: 'connection_failed',
+              message: error.message
+            }
+          });
+        }
+        
+      } else {
+        return res.status(400).json({
+          success: false,
+          error: `Unsupported provider: ${provider}`,
           details: {
             provider,
             model,
-            status: 'connected'
+            status: 'unsupported_provider'
           }
         });
-      }, 1000);
+      }
+      
+      return res.json(testResult);
+      
     } catch (error) {
       console.error('Error testing AI connection:', error);
       return res.status(500).json({ error: 'Failed to test AI connection' });
