@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,10 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { format } from "date-fns";
+import { Calendar as CalendarIcon } from "lucide-react";
 import { 
   AlertTriangle, 
   Shield, 
-  Calendar, 
   Clock,
   CheckCircle,
   XCircle,
@@ -17,14 +22,28 @@ import {
   Filter,
   Download,
   MapPin,
-  Building
+  Building,
+  FileText,
+  TrendingUp
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { usePDFExport } from "@/utils/pdf-export";
+
+const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1', '#d084d0'];
 
 export default function ComplianceOverviewReport() {
-  const [jurisdictionFilter, setJurisdictionFilter] = React.useState("all");
-  const [riskFilter, setRiskFilter] = React.useState("all");
-  const [timeFrame, setTimeFrame] = React.useState("30");
+  const [filters, setFilters] = useState({
+    jurisdiction: "all",
+    riskLevel: "all",
+    timeFrame: "30",
+    entityType: "all",
+    complianceType: "all",
+    status: "all",
+    dateFrom: null as Date | null,
+    dateTo: null as Date | null
+  });
+
+  const { exportToPDF } = usePDFExport();
 
   // Fetch data
   const { data: tasks = [] } = useQuery({ queryKey: ["/api/v1/tasks"] });
@@ -33,518 +52,639 @@ export default function ComplianceOverviewReport() {
   const { data: entities = [] } = useQuery({ queryKey: ["/api/v1/entities"] });
   const { data: countries = [] } = useQuery({ queryKey: ["/api/v1/setup/countries"] });
 
-  const currentDate = new Date();
-  const completedStatusId = taskStatuses?.find((s: any) => s.name.toLowerCase() === 'completed')?.id;
-  const pendingStatusId = taskStatuses?.find((s: any) => s.name.toLowerCase() === 'pending')?.id;
-  const inProgressStatusId = taskStatuses?.find((s: any) => s.name.toLowerCase() === 'in progress')?.id;
+  // Filter compliance tasks and apply filters
+  const filteredComplianceTasks = useMemo(() => {
+    if (!tasks?.length) return [];
 
-  // Compliance analysis
-  const complianceAnalysis = React.useMemo(() => {
-    // Identify compliance tasks based on complianceDeadline field and task titles
-    const complianceTasks = tasks?.filter((task: any) => 
+    // First identify compliance tasks
+    const complianceTasks = tasks.filter((task: any) => 
       task.complianceDeadline || 
       task.taskDetails?.toLowerCase().includes('tax') || 
       task.taskDetails?.toLowerCase().includes('compliance') ||
       task.taskDetails?.toLowerCase().includes('filing') ||
       task.taskDetails?.toLowerCase().includes('return') ||
       task.taskDetails?.toLowerCase().includes('audit') ||
-      task.taskDetails?.toLowerCase().includes('vat')
-    ) || [];
+      task.complianceFrequency ||
+      task.taskType === 'Compliance'
+    );
 
-    const totalComplianceTasks = complianceTasks.length;
-    const completedComplianceTasks = complianceTasks.filter((task: any) => task.statusId === completedStatusId).length;
-    const pendingComplianceTasks = complianceTasks.filter((task: any) => task.statusId === pendingStatusId).length;
-    const inProgressComplianceTasks = complianceTasks.filter((task: any) => task.statusId === inProgressStatusId).length;
+    return complianceTasks.filter((task: any) => {
+      // Time filtering
+      const taskDate = task.complianceDeadline ? new Date(task.complianceDeadline) : new Date(task.createdAt);
+      if (filters.dateFrom && filters.dateTo) {
+        if (taskDate < filters.dateFrom || taskDate > filters.dateTo) return false;
+      } else if (filters.timeFrame !== "all") {
+        const timeframeDays = parseInt(filters.timeFrame);
+        const timeframeStart = new Date();
+        timeframeStart.setDate(timeframeStart.getDate() - timeframeDays);
+        if (taskDate < timeframeStart) return false;
+      }
 
-    // Risk assessment based on deadlines
-    const overdueRegulatory = complianceTasks.filter((task: any) => {
-      if (!task.complianceDeadline) return false;
+      // Jurisdiction filtering (through entity)
+      if (filters.jurisdiction !== "all") {
+        const taskEntity = entities.find((e: any) => e.id === task.entityId);
+        if (!taskEntity || taskEntity.taxJurisdiction !== filters.jurisdiction) return false;
+      }
+
+      // Entity type filtering
+      if (filters.entityType !== "all") {
+        const taskEntity = entities.find((e: any) => e.id === task.entityId);
+        if (!taskEntity || taskEntity.entityType !== filters.entityType) return false;
+      }
+
+      // Status filtering
+      if (filters.status !== "all" && task.statusId !== parseInt(filters.status)) {
+        return false;
+      }
+
+      // Compliance type filtering
+      if (filters.complianceType !== "all") {
+        const taskDetails = task.taskDetails?.toLowerCase() || '';
+        switch (filters.complianceType) {
+          case 'tax':
+            if (!taskDetails.includes('tax') && !taskDetails.includes('return')) return false;
+            break;
+          case 'audit':
+            if (!taskDetails.includes('audit')) return false;
+            break;
+          case 'filing':
+            if (!taskDetails.includes('filing')) return false;
+            break;
+          case 'regulatory':
+            if (!taskDetails.includes('regulatory') && !taskDetails.includes('compliance')) return false;
+            break;
+        }
+      }
+
+      return true;
+    });
+  }, [tasks, entities, filters]);
+
+  // Calculate analytics
+  const analytics = useMemo(() => {
+    if (!filteredComplianceTasks.length) {
+      return {
+        totalCompliance: 0,
+        upcomingDeadlines: 0,
+        overdueItems: 0,
+        completedCompliance: 0,
+        complianceRate: 0,
+        riskDistribution: [],
+        jurisdictionBreakdown: [],
+        statusDistribution: [],
+        deadlineTrend: [],
+        entityCompliance: []
+      };
+    }
+
+    const completedStatusId = taskStatuses.find((s: any) => s.name.toLowerCase() === 'completed')?.id;
+    const currentDate = new Date();
+
+    // Basic metrics
+    const completedTasks = filteredComplianceTasks.filter((task: any) => task.statusId === completedStatusId);
+    const upcomingDeadlines = filteredComplianceTasks.filter((task: any) => {
+      if (!task.complianceDeadline || task.statusId === completedStatusId) return false;
       const deadline = new Date(task.complianceDeadline);
-      return deadline < currentDate && task.statusId !== completedStatusId;
+      const daysDiff = Math.ceil((deadline.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+      return daysDiff > 0 && daysDiff <= 30;
     });
 
-    const overdueInternal = complianceTasks.filter((task: any) => {
-      const dueDate = new Date(task.dueDate);
-      return dueDate < currentDate && task.statusId !== completedStatusId && !overdueRegulatory.some(t => t.id === task.id);
+    const overdueItems = filteredComplianceTasks.filter((task: any) => {
+      if (!task.complianceDeadline || task.statusId === completedStatusId) return false;
+      return new Date(task.complianceDeadline) < currentDate;
     });
 
-    const upcomingCritical = complianceTasks.filter((task: any) => {
-      if (task.statusId === completedStatusId) return false;
+    const complianceRate = filteredComplianceTasks.length > 0 ? 
+      Math.round((completedTasks.length / filteredComplianceTasks.length) * 100) : 0;
+
+    // Risk distribution based on deadlines
+    const riskDistribution = [
+      {
+        name: 'Low Risk',
+        value: filteredComplianceTasks.filter((task: any) => {
+          if (!task.complianceDeadline || task.statusId === completedStatusId) return false;
+          const deadline = new Date(task.complianceDeadline);
+          const daysDiff = Math.ceil((deadline.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+          return daysDiff > 30;
+        }).length,
+        color: '#82ca9d'
+      },
+      {
+        name: 'Medium Risk',
+        value: upcomingDeadlines.length,
+        color: '#ffc658'
+      },
+      {
+        name: 'High Risk',
+        value: overdueItems.length,
+        color: '#ff7300'
+      }
+    ].filter(item => item.value > 0);
+
+    // Jurisdiction breakdown
+    const jurisdictionMap = new Map();
+    filteredComplianceTasks.forEach((task: any) => {
+      const entity = entities.find((e: any) => e.id === task.entityId);
+      const jurisdiction = entity?.taxJurisdiction || 'Unknown';
+      jurisdictionMap.set(jurisdiction, (jurisdictionMap.get(jurisdiction) || 0) + 1);
+    });
+
+    const jurisdictionBreakdown = Array.from(jurisdictionMap.entries()).map(([name, value]) => ({
+      name,
+      value,
+      percentage: Math.round((value / filteredComplianceTasks.length) * 100)
+    }));
+
+    // Status distribution
+    const statusDistribution = taskStatuses.map((status: any) => {
+      const count = filteredComplianceTasks.filter((task: any) => task.statusId === status.id).length;
+      return {
+        name: status.name,
+        value: count,
+        percentage: filteredComplianceTasks.length > 0 ? Math.round((count / filteredComplianceTasks.length) * 100) : 0
+      };
+    }).filter(item => item.value > 0);
+
+    // Entity compliance summary
+    const entityMap = new Map();
+    filteredComplianceTasks.forEach((task: any) => {
+      const entity = entities.find((e: any) => e.id === task.entityId);
+      const entityName = entity?.name || 'Unknown Entity';
+      const entityId = task.entityId;
       
-      const dueDate = new Date(task.dueDate);
-      const daysUntilDue = Math.ceil((dueDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (task.complianceDeadline) {
-        const complianceDate = new Date(task.complianceDeadline);
-        const daysUntilCompliance = Math.ceil((complianceDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
-        return daysUntilCompliance >= 0 && daysUntilCompliance <= 7;
+      if (!entityMap.has(entityId)) {
+        entityMap.set(entityId, {
+          name: entityName,
+          total: 0,
+          completed: 0,
+          overdue: 0,
+          upcoming: 0
+        });
       }
       
-      return daysUntilDue >= 0 && daysUntilDue <= 3;
+      const entityData = entityMap.get(entityId);
+      entityData.total++;
+      
+      if (task.statusId === completedStatusId) {
+        entityData.completed++;
+      } else if (task.complianceDeadline) {
+        const deadline = new Date(task.complianceDeadline);
+        if (deadline < currentDate) {
+          entityData.overdue++;
+        } else {
+          const daysDiff = Math.ceil((deadline.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysDiff <= 30) {
+            entityData.upcoming++;
+          }
+        }
+      }
     });
 
-    // Calculate compliance rate
-    const complianceRate = totalComplianceTasks > 0 ? Math.round((completedComplianceTasks / totalComplianceTasks) * 100) : 0;
+    const entityCompliance = Array.from(entityMap.values()).map((entity: any) => ({
+      ...entity,
+      complianceRate: entity.total > 0 ? Math.round((entity.completed / entity.total) * 100) : 0
+    }));
 
-    // Risk scoring (0-100, higher = more risk)
-    let riskScore = 0;
-    if (overdueRegulatory.length > 0) riskScore += overdueRegulatory.length * 50;
-    if (overdueInternal.length > 0) riskScore += overdueInternal.length * 20;
-    if (upcomingCritical.length > 0) riskScore += upcomingCritical.length * 15;
-
-    riskScore = Math.min(100, riskScore);
+    // Deadline trend (next 30 days)
+    const deadlineTrend = [];
+    for (let i = 0; i < 30; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() + i);
+      const dayDeadlines = filteredComplianceTasks.filter((task: any) => {
+        if (!task.complianceDeadline) return false;
+        const taskDeadline = new Date(task.complianceDeadline);
+        return taskDeadline.toDateString() === date.toDateString();
+      });
+      
+      if (dayDeadlines.length > 0) {
+        deadlineTrend.push({
+          date: format(date, 'MMM dd'),
+          deadlines: dayDeadlines.length
+        });
+      }
+    }
 
     return {
-      totalComplianceTasks,
-      completedComplianceTasks,
-      pendingComplianceTasks,
-      inProgressComplianceTasks,
+      totalCompliance: filteredComplianceTasks.length,
+      upcomingDeadlines: upcomingDeadlines.length,
+      overdueItems: overdueItems.length,
+      completedCompliance: completedTasks.length,
       complianceRate,
-      riskScore,
-      overdueRegulatory,
-      overdueInternal,
-      upcomingCritical,
-      complianceTasks
+      riskDistribution,
+      jurisdictionBreakdown,
+      statusDistribution,
+      deadlineTrend,
+      entityCompliance
     };
-  }, [tasks, completedStatusId, pendingStatusId, inProgressStatusId, currentDate]);
+  }, [filteredComplianceTasks, taskStatuses, entities]);
 
-  // Entity-based compliance tracking
-  const entityCompliance = React.useMemo(() => {
-    if (!entities?.length || !complianceAnalysis.complianceTasks.length) return [];
-
-    return entities.map((entity: any) => {
-      const entityTasks = complianceAnalysis.complianceTasks.filter((task: any) => task.entityId === entity.id);
-      const completedTasks = entityTasks.filter((task: any) => task.statusId === completedStatusId);
-      const overdueTasks = entityTasks.filter((task: any) => {
-        const dueDate = new Date(task.dueDate);
-        return dueDate < currentDate && task.statusId !== completedStatusId;
-      });
-
-      const client = clients?.find((c: any) => c.id === entity.clientId);
-      const country = countries?.find((c: any) => c.id === entity.countryId);
-
-      let riskScore = 0;
-      entityTasks.forEach((task: any) => {
-        if (task.complianceDeadline) {
-          const complianceDate = new Date(task.complianceDeadline);
-          const daysUntilCompliance = Math.ceil((complianceDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
-          if (daysUntilCompliance < 0 && task.statusId !== completedStatusId) riskScore += 50;
-          else if (daysUntilCompliance <= 7 && task.statusId !== completedStatusId) riskScore += 25;
-        } else {
-          const dueDate = new Date(task.dueDate);
-          const daysUntilDue = Math.ceil((dueDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
-          if (daysUntilDue < 0 && task.statusId !== completedStatusId) riskScore += 20;
-          else if (daysUntilDue <= 3 && task.statusId !== completedStatusId) riskScore += 10;
+  const handleExportPDF = async () => {
+    try {
+      await exportToPDF('compliance-overview-report', {
+        title: 'Compliance Overview Report',
+        subtitle: `Generated for ${filters.timeFrame === 'all' ? 'All Time' : `Last ${filters.timeFrame} Days`}`,
+        reportType: 'ComplianceOverview',
+        filters: {
+          timeFrame: filters.timeFrame,
+          jurisdiction: filters.jurisdiction !== 'all' ? filters.jurisdiction : 'All',
+          entityType: filters.entityType,
+          complianceType: filters.complianceType,
+          status: filters.status !== 'all' ? taskStatuses.find(s => s.id === parseInt(filters.status))?.name : 'All',
+          dateRange: filters.dateFrom && filters.dateTo ? `${format(filters.dateFrom, 'MMM dd, yyyy')} - ${format(filters.dateTo, 'MMM dd, yyyy')}` : 'N/A'
         }
       });
-
-      return {
-        entityId: entity.id,
-        entityName: entity.name,
-        clientName: client?.displayName || 'Unknown Client',
-        country: country?.name || 'Unknown',
-        totalTasks: entityTasks.length,
-        completedTasks: completedTasks.length,
-        overdueTasks: overdueTasks.length,
-        riskScore: Math.min(100, riskScore),
-        complianceRate: entityTasks.length > 0 ? Math.round((completedTasks.length / entityTasks.length) * 100) : 0
-      };
-    }).filter((entity: any) => entity.totalTasks > 0)
-    .sort((a: any, b: any) => b.riskScore - a.riskScore);
-  }, [entities, complianceAnalysis.complianceTasks, completedStatusId, currentDate, clients, countries]);
-
-  // Jurisdiction-based analysis
-  const jurisdictionAnalysis = React.useMemo(() => {
-    return countries?.map((country: any) => {
-      const countryEntities = entities?.filter((e: any) => e.countryId === country.id) || [];
-      const countryTasks = complianceAnalysis.complianceTasks.filter((task: any) => 
-        countryEntities.some((entity: any) => entity.id === task.entityId)
-      );
-
-      const completedTasks = countryTasks.filter((task: any) => task.statusId === completedStatusId);
-      const overdueTasks = countryTasks.filter((task: any) => {
-        const dueDate = new Date(task.dueDate);
-        return dueDate < currentDate && task.statusId !== completedStatusId;
-      });
-
-      return {
-        country: country.name,
-        totalEntities: countryEntities.length,
-        totalTasks: countryTasks.length,
-        completedTasks: completedTasks.length,
-        overdueTasks: overdueTasks.length,
-        complianceRate: countryTasks.length > 0 ? Math.round((completedTasks.length / countryTasks.length) * 100) : 0
-      };
-    }).filter((j: any) => j.totalTasks > 0) || [];
-  }, [countries, entities, complianceAnalysis.complianceTasks, completedStatusId, currentDate]);
-
-  // Chart data preparation
-  const riskDistribution = [
-    { 
-      name: 'Critical Risk (80+)', 
-      value: entityCompliance.filter(e => e.riskScore >= 80).length, 
-      color: '#EF4444' 
-    },
-    { 
-      name: 'High Risk (60-79)', 
-      value: entityCompliance.filter(e => e.riskScore >= 60 && e.riskScore < 80).length, 
-      color: '#F97316' 
-    },
-    { 
-      name: 'Medium Risk (40-59)', 
-      value: entityCompliance.filter(e => e.riskScore >= 40 && e.riskScore < 60).length, 
-      color: '#EAB308' 
-    },
-    { 
-      name: 'Low Risk (<40)', 
-      value: entityCompliance.filter(e => e.riskScore < 40).length, 
-      color: '#22C55E' 
+    } catch (error) {
+      console.error('Export failed:', error);
     }
-  ];
-
-  const complianceStatusData = [
-    { name: 'Completed', value: complianceAnalysis.completedComplianceTasks, color: '#22C55E' },
-    { name: 'In Progress', value: complianceAnalysis.inProgressComplianceTasks, color: '#3B82F6' },
-    { name: 'Pending', value: complianceAnalysis.pendingComplianceTasks, color: '#EAB308' }
-  ];
-
-  const getRiskColor = (score: number) => {
-    if (score >= 80) return 'bg-red-100 text-red-800 border-red-200';
-    if (score >= 60) return 'bg-orange-100 text-orange-800 border-orange-200';
-    if (score >= 40) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    return 'bg-green-100 text-green-800 border-green-200';
-  };
-
-  const getRiskLevel = (score: number) => {
-    if (score >= 80) return 'Critical';
-    if (score >= 60) return 'High';
-    if (score >= 40) return 'Medium';
-    return 'Low';
   };
 
   return (
-    <AppLayout title="Compliance Overview">
-      <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-8 w-8 text-orange-600" />
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">Compliance Overview</h1>
-              <p className="text-slate-600">Monitor regulatory deadlines and compliance risk assessment</p>
-            </div>
+    <AppLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Compliance Overview</h1>
+            <p className="text-muted-foreground">Monitor compliance deadlines and regulatory requirements</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Export Report
-            </Button>
-            <Button variant="outline" size="sm">
-              <Filter className="h-4 w-4 mr-2" />
-              Advanced Filters
-            </Button>
-          </div>
+          <Button onClick={handleExportPDF} className="flex items-center gap-2">
+            <Download className="w-4 h-4" />
+            Export PDF
+          </Button>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-4 p-4 bg-slate-50 border border-slate-200 rounded-lg">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-slate-500" />
-            <Select value={jurisdictionFilter} onValueChange={setJurisdictionFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All jurisdictions" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All jurisdictions</SelectItem>
-                {countries.map((country: any) => (
-                  <SelectItem key={country.id} value={country.id.toString()}>
-                    {country.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Shield className="h-4 w-4 text-slate-500" />
-            <Select value={riskFilter} onValueChange={setRiskFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="All risk levels" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All risk levels</SelectItem>
-                <SelectItem value="critical">Critical</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-slate-500" />
-            <Select value={timeFrame} onValueChange={setTimeFrame}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7">Next 7 days</SelectItem>
-                <SelectItem value="30">Next 30 days</SelectItem>
-                <SelectItem value="90">Next 90 days</SelectItem>
-                <SelectItem value="365">Next year</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {/* Alert Section */}
-      {(complianceAnalysis.overdueRegulatory.length > 0 || complianceAnalysis.upcomingCritical.length > 0) && (
-        <div className="mb-8">
-          <Card className="border-red-200 bg-red-50">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-red-600" />
-                <CardTitle className="text-red-900">Compliance Alerts</CardTitle>
+        {/* Enhanced Filters */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="w-5 h-5" />
+              Filters
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Time Frame Filter */}
+              <div className="space-y-2">
+                <Label>Time Frame</Label>
+                <Select value={filters.timeFrame} onValueChange={(value) => setFilters(prev => ({ ...prev, timeFrame: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select timeframe" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="30">Next 30 days</SelectItem>
+                    <SelectItem value="60">Next 60 days</SelectItem>
+                    <SelectItem value="90">Next 90 days</SelectItem>
+                    <SelectItem value="365">Next year</SelectItem>
+                    <SelectItem value="all">All time</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+
+              {/* Jurisdiction Filter */}
+              <div className="space-y-2">
+                <Label>Tax Jurisdiction</Label>
+                <Select value={filters.jurisdiction} onValueChange={(value) => setFilters(prev => ({ ...prev, jurisdiction: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select jurisdiction" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Jurisdictions</SelectItem>
+                    {[...new Set(entities.map((e: any) => e.taxJurisdiction))].filter(Boolean).map((jurisdiction: string) => (
+                      <SelectItem key={jurisdiction} value={jurisdiction}>
+                        {jurisdiction}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Entity Type Filter */}
+              <div className="space-y-2">
+                <Label>Entity Type</Label>
+                <Select value={filters.entityType} onValueChange={(value) => setFilters(prev => ({ ...prev, entityType: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select entity type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    {[...new Set(entities.map((e: any) => e.entityType))].filter(Boolean).map((type: string) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Compliance Type Filter */}
+              <div className="space-y-2">
+                <Label>Compliance Type</Label>
+                <Select value={filters.complianceType} onValueChange={(value) => setFilters(prev => ({ ...prev, complianceType: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="tax">Tax Compliance</SelectItem>
+                    <SelectItem value="audit">Audit</SelectItem>
+                    <SelectItem value="filing">Filing Requirements</SelectItem>
+                    <SelectItem value="regulatory">Regulatory</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Status Filter */}
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {taskStatuses.map((status: any) => (
+                      <SelectItem key={status.id} value={status.id.toString()}>
+                        {status.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Date From */}
+              <div className="space-y-2">
+                <Label>From Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filters.dateFrom ? format(filters.dateFrom, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={filters.dateFrom || undefined}
+                      onSelect={(date) => setFilters(prev => ({ ...prev, dateFrom: date || null }))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Date To */}
+              <div className="space-y-2">
+                <Label>To Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filters.dateTo ? format(filters.dateTo, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={filters.dateTo || undefined}
+                      onSelect={(date) => setFilters(prev => ({ ...prev, dateTo: date || null }))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Clear Filters */}
+              <div className="flex items-end">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setFilters({
+                    jurisdiction: "all",
+                    riskLevel: "all",
+                    timeFrame: "30",
+                    entityType: "all",
+                    complianceType: "all",
+                    status: "all",
+                    dateFrom: null,
+                    dateTo: null
+                  })}
+                  className="w-full"
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Report Content */}
+        <div id="compliance-overview-report" className="space-y-6">
+          {/* Score Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Compliance Items</CardTitle>
+                <FileText className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.totalCompliance}</div>
+                <p className="text-xs text-muted-foreground">
+                  {analytics.completedCompliance} completed
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Compliance Rate</CardTitle>
+                <Shield className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.complianceRate}%</div>
+                <Progress value={analytics.complianceRate} className="mt-2" />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Upcoming Deadlines</CardTitle>
+                <Clock className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.upcomingDeadlines}</div>
+                <p className="text-xs text-muted-foreground">
+                  Next 30 days
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Overdue Items</CardTitle>
+                <AlertTriangle className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">{analytics.overdueItems}</div>
+                <p className="text-xs text-muted-foreground">
+                  Requires immediate attention
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Entity Compliance Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building className="w-5 h-5" />
+                Entity Compliance Summary
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {complianceAnalysis.overdueRegulatory.length > 0 && (
-                  <div className="flex items-center gap-2 text-red-800">
-                    <XCircle className="h-4 w-4" />
-                    <span className="font-medium">{complianceAnalysis.overdueRegulatory.length} regulatory deadline(s) overdue</span>
-                  </div>
-                )}
-                {complianceAnalysis.upcomingCritical.length > 0 && (
-                  <div className="flex items-center gap-2 text-orange-800">
-                    <Clock className="h-4 w-4" />
-                    <span className="font-medium">{complianceAnalysis.upcomingCritical.length} critical deadline(s) approaching</span>
-                  </div>
-                )}
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Entity Name</TableHead>
+                    <TableHead>Total Items</TableHead>
+                    <TableHead>Completed</TableHead>
+                    <TableHead>Overdue</TableHead>
+                    <TableHead>Upcoming</TableHead>
+                    <TableHead>Compliance Rate</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {analytics.entityCompliance.map((entity: any, index: number) => (
+                    <TableRow key={index}>
+                      <TableCell className="font-medium">{entity.name}</TableCell>
+                      <TableCell>{entity.total}</TableCell>
+                      <TableCell>
+                        <Badge variant="default" className="bg-green-100 text-green-800">
+                          {entity.completed}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {entity.overdue > 0 ? (
+                          <Badge variant="destructive">
+                            {entity.overdue}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">0</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {entity.upcoming > 0 ? (
+                          <Badge variant="secondary">
+                            {entity.upcoming}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">0</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Progress value={entity.complianceRate} className="w-16" />
+                          <span className="text-sm">{entity.complianceRate}%</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
-        </div>
-      )}
 
-      {/* Key Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-slate-600">Total Compliance Tasks</CardTitle>
-              <Building className="h-4 w-4 text-slate-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
-              {complianceAnalysis.totalComplianceTasks}
-            </div>
-            <p className="text-sm text-slate-500 mt-1">
-              {complianceAnalysis.completedComplianceTasks} completed
-            </p>
-          </CardContent>
-        </Card>
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Risk Distribution Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Risk Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={analytics.riskDistribution}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, value }) => `${name}: ${value}`}
+                    >
+                      {analytics.riskDistribution.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-slate-600">Compliance Rate</CardTitle>
-              <CheckCircle className="h-4 w-4 text-slate-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
-              {complianceAnalysis.complianceRate}%
-            </div>
-            <Progress value={complianceAnalysis.complianceRate} className="mt-2" />
-          </CardContent>
-        </Card>
+            {/* Jurisdiction Breakdown Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Compliance by Jurisdiction</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={analytics.jurisdictionBreakdown}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="#8884d8" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-slate-600">Risk Score</CardTitle>
-              <Shield className="h-4 w-4 text-slate-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
-              {complianceAnalysis.riskScore}
-            </div>
-            <div className="mt-2">
-              <Badge className={getRiskColor(complianceAnalysis.riskScore)}>
-                {getRiskLevel(complianceAnalysis.riskScore)} Risk
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
+            {/* Status Distribution Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Status Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={analytics.statusDistribution}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, percentage }) => `${name}: ${percentage}%`}
+                    >
+                      {analytics.statusDistribution.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-slate-600">Overdue Items</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-slate-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
-              {complianceAnalysis.overdueRegulatory.length + complianceAnalysis.overdueInternal.length}
-            </div>
-            <p className="text-sm text-slate-500 mt-1">
-              {complianceAnalysis.overdueRegulatory.length} regulatory, {complianceAnalysis.overdueInternal.length} internal
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Compliance Status Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Compliance Task Status</CardTitle>
-            <CardDescription>Distribution of compliance tasks by status</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={complianceStatusData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {complianceStatusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Risk Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Risk Distribution</CardTitle>
-            <CardDescription>Entities categorized by risk level</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={riskDistribution}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, value }) => `${name}: ${value}`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {riskDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Jurisdiction Analysis */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Jurisdiction Compliance Analysis</CardTitle>
-          <CardDescription>Compliance performance by jurisdiction</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={jurisdictionAnalysis}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="country" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="totalTasks" fill="#64748B" name="Total Tasks" />
-              <Bar dataKey="completedTasks" fill="#22C55E" name="Completed" />
-              <Bar dataKey="overdueTasks" fill="#EF4444" name="Overdue" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      {/* Entity Compliance Details */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Entity Compliance Details</CardTitle>
-          <CardDescription>Detailed compliance status for each entity</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left p-3 font-medium text-slate-600">Entity</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Client</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Jurisdiction</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Total Tasks</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Completed</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Overdue</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Compliance Rate</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Risk Level</th>
-                </tr>
-              </thead>
-              <tbody>
-                {entityCompliance.map((entity, index) => (
-                  <tr key={entity.entityId} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="p-3">
-                      <div className="font-medium text-slate-900">{entity.entityName}</div>
-                    </td>
-                    <td className="p-3 text-slate-600">{entity.clientName}</td>
-                    <td className="p-3 text-slate-600">{entity.country}</td>
-                    <td className="p-3 text-slate-600">{entity.totalTasks}</td>
-                    <td className="p-3 text-slate-600">{entity.completedTasks}</td>
-                    <td className="p-3">
-                      {entity.overdueTasks > 0 ? (
-                        <Badge className="bg-red-100 text-red-800">
-                          {entity.overdueTasks}
-                        </Badge>
-                      ) : (
-                        <span className="text-slate-500">0</span>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 bg-slate-200 rounded-full h-2">
-                          <div 
-                            className="bg-blue-600 h-2 rounded-full" 
-                            style={{ width: `${entity.complianceRate}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-sm text-slate-600">{entity.complianceRate}%</span>
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <Badge className={getRiskColor(entity.riskScore)}>
-                        {getRiskLevel(entity.riskScore)}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {/* Deadline Trend Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Upcoming Deadline Trend</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={analytics.deadlineTrend}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="deadlines" stroke="#8884d8" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+        </div>
       </div>
     </AppLayout>
   );

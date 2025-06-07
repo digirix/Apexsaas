@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,50 +6,125 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { format } from "date-fns";
+import { Calendar as CalendarIcon } from "lucide-react";
 import { 
   TrendingUp, 
   Users, 
   Clock, 
   Target,
-  Calendar,
   Filter,
   Download,
   BarChart3,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Activity,
+  Timer
 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { usePDFExport } from "@/utils/pdf-export";
+
+const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1', '#d084d0'];
 
 export default function TaskPerformanceReport() {
-  const [selectedPeriod, setSelectedPeriod] = React.useState("30");
-  const [selectedTeamMember, setSelectedTeamMember] = React.useState("all");
+  // Enhanced filtering states
+  const [filters, setFilters] = useState({
+    period: "30",
+    teamMember: "all",
+    taskType: "all", 
+    status: "all",
+    client: "all",
+    dateFrom: null as Date | null,
+    dateTo: null as Date | null,
+    priority: "all"
+  });
+
+  const { exportToPDF } = usePDFExport();
 
   // Fetch data
   const { data: tasks = [] } = useQuery({ queryKey: ["/api/v1/tasks"] });
   const { data: taskStatuses = [] } = useQuery({ queryKey: ["/api/v1/setup/task-statuses"] });
   const { data: users = [] } = useQuery({ queryKey: ["/api/v1/users"] });
+  const { data: clients = [] } = useQuery({ queryKey: ["/api/v1/clients"] });
+  const { data: taskTypes = [] } = useQuery({ queryKey: ["/api/v1/setup/task-types"] });
 
-  const completedStatusId = taskStatuses?.find((s: any) => s.name === 'Completed')?.id;
-  const currentDate = new Date();
+  // Apply comprehensive filtering
+  const filteredTasks = useMemo(() => {
+    if (!tasks?.length) return [];
 
-  // Task performance analysis
-  const taskPerformanceAnalytics = React.useMemo(() => {
-    if (!tasks?.length || !users?.length || !taskStatuses?.length) {
-      return { efficiencyMetrics: {}, teamPerformance: [] };
+    return tasks.filter((task: any) => {
+      // Period/Date filtering
+      const taskDate = new Date(task.createdAt);
+      if (filters.dateFrom && filters.dateTo) {
+        if (taskDate < filters.dateFrom || taskDate > filters.dateTo) return false;
+      } else if (filters.period !== "all") {
+        const periodDays = parseInt(filters.period);
+        const periodStart = new Date();
+        periodStart.setDate(periodStart.getDate() - periodDays);
+        if (taskDate < periodStart) return false;
+      }
+
+      // Team member filtering
+      if (filters.teamMember !== "all" && task.assigneeId !== parseInt(filters.teamMember)) {
+        return false;
+      }
+
+      // Task type filtering
+      if (filters.taskType !== "all" && task.taskType !== filters.taskType) {
+        return false;
+      }
+
+      // Status filtering
+      if (filters.status !== "all" && task.statusId !== parseInt(filters.status)) {
+        return false;
+      }
+
+      // Client filtering
+      if (filters.client !== "all" && task.clientId !== parseInt(filters.client)) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [tasks, filters]);
+
+  // Calculate analytics based on filtered data
+  const analytics = useMemo(() => {
+    if (!filteredTasks.length || !taskStatuses.length) {
+      return {
+        totalTasks: 0,
+        completedTasks: 0,
+        inProgressTasks: 0,
+        overdueCount: 0,
+        avgCompletionTime: 0,
+        onTimeDeliveryRate: 0,
+        efficiencyScore: 0,
+        teamPerformance: [],
+        statusDistribution: [],
+        completionTrend: [],
+        performanceByType: []
+      };
     }
 
-    const periodDays = parseInt(selectedPeriod);
-    const periodStart = new Date();
-    periodStart.setDate(periodStart.getDate() - periodDays);
-
-    const filteredTasks = tasks.filter((task: any) => {
-      const taskDate = new Date(task.createdAt);
-      return taskDate >= periodStart;
-    });
-
-    const completedTasks = filteredTasks.filter((task: any) => task.statusId === completedStatusId);
+    const completedStatusId = taskStatuses.find((s: any) => s.name === 'Completed')?.id;
+    const inProgressStatusId = taskStatuses.find((s: any) => s.name === 'In Progress')?.id;
     
-    // Calculate completion times for completed tasks
+    const completedTasks = filteredTasks.filter((task: any) => task.statusId === completedStatusId);
+    const inProgressTasks = filteredTasks.filter((task: any) => task.statusId === inProgressStatusId);
+    
+    // Calculate overdue tasks
+    const currentDate = new Date();
+    const overdueCount = filteredTasks.filter((task: any) => {
+      if (!task.dueDate || task.statusId === completedStatusId) return false;
+      return new Date(task.dueDate) < currentDate;
+    }).length;
+
+    // Calculate completion times
     const completionTimes = completedTasks
       .filter((task: any) => task.updatedAt)
       .map((task: any) => {
@@ -72,19 +147,10 @@ export default function TaskPerformanceReport() {
     const onTimeDeliveryRate = completedTasks.length > 0 ? 
       Math.round((onTimeDeliveries.length / completedTasks.length) * 100) : 0;
 
-    // Calculate efficiency score (combination of completion rate and on-time delivery)
+    // Calculate efficiency score
     const completionRate = filteredTasks.length > 0 ? 
       Math.round((completedTasks.length / filteredTasks.length) * 100) : 0;
-    
-    const avgEfficiencyScore = Math.round((completionRate * 0.6) + (onTimeDeliveryRate * 0.4));
-
-    const efficiencyMetrics = {
-      totalTasks: filteredTasks.length,
-      completedTasks: completedTasks.length,
-      avgCompletionTime,
-      avgEfficiencyScore,
-      onTimeDeliveryRate
-    };
+    const efficiencyScore = Math.round((completionRate * 0.6) + (onTimeDeliveryRate * 0.4));
 
     // Team performance analysis
     const teamPerformance = users.map((user: any) => {
@@ -99,328 +165,456 @@ export default function TaskPerformanceReport() {
           return Math.ceil((completed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
         });
 
-      const userAvgCompletionTime = userCompletionTimes.length > 0 ? 
+      const userAvgTime = userCompletionTimes.length > 0 ? 
         Math.round(userCompletionTimes.reduce((sum, time) => sum + time, 0) / userCompletionTimes.length) : 0;
-
-      const userOnTimeDeliveries = userCompleted.filter((task: any) => {
-        if (!task.updatedAt || !task.dueDate) return false;
-        const completed = new Date(task.updatedAt);
-        const due = new Date(task.dueDate);
-        return completed <= due;
-      });
-
-      const userOnTimeRate = userCompleted.length > 0 ? 
-        Math.round((userOnTimeDeliveries.length / userCompleted.length) * 100) : 0;
 
       const userCompletionRate = userTasks.length > 0 ? 
         Math.round((userCompleted.length / userTasks.length) * 100) : 0;
-
-      const userEfficiencyScore = Math.round((userCompletionRate * 0.6) + (userOnTimeRate * 0.4));
-
-      // Calculate overdue and regulatory violations
-      const overdueTasks = userTasks.filter((task: any) => {
-        const dueDate = new Date(task.dueDate);
-        return dueDate < currentDate && task.statusId !== completedStatusId;
-      });
-
-      const regulatoryViolations = userTasks.filter((task: any) => {
-        if (!task.complianceDeadline) return false;
-        const complianceDate = new Date(task.complianceDeadline);
-        return complianceDate < currentDate && task.statusId !== completedStatusId;
-      });
-
-      const performanceRating = userEfficiencyScore >= 85 ? 'Excellent' :
-                              userEfficiencyScore >= 70 ? 'Good' :
-                              userEfficiencyScore >= 50 ? 'Needs Improvement' : 'Critical';
 
       return {
         name: user.displayName || user.username,
         totalTasks: userTasks.length,
         completedTasks: userCompleted.length,
         completionRate: userCompletionRate,
-        avgCompletionTime: userAvgCompletionTime,
-        avgEfficiencyScore: userEfficiencyScore,
-        onTimeDeliveryRate: userOnTimeRate,
-        overdueTasks: overdueTasks.length,
-        regulatoryViolations: regulatoryViolations.length,
-        performanceRating
+        avgCompletionTime: userAvgTime,
+        efficiency: Math.round((userCompletionRate * 0.7) + (userAvgTime > 0 ? (10 / userAvgTime) * 30 : 0))
       };
-    }).filter(member => member.totalTasks > 0)
-    .sort((a, b) => b.avgEfficiencyScore - a.avgEfficiencyScore);
+    }).filter(member => member.totalTasks > 0);
 
-    return { efficiencyMetrics, teamPerformance };
-  }, [tasks, users, taskStatuses, selectedPeriod, completedStatusId, currentDate]);
+    // Status distribution for pie chart
+    const statusDistribution = taskStatuses.map((status: any) => {
+      const count = filteredTasks.filter((task: any) => task.statusId === status.id).length;
+      return {
+        name: status.name,
+        value: count,
+        percentage: filteredTasks.length > 0 ? Math.round((count / filteredTasks.length) * 100) : 0
+      };
+    }).filter(item => item.value > 0);
 
-  // Chart data preparation
-  const performanceChartData = taskPerformanceAnalytics.teamPerformance.map(member => ({
-    name: member.name,
-    completionRate: member.completionRate,
-    efficiency: member.avgEfficiencyScore,
-    onTimeRate: member.onTimeDeliveryRate
-  }));
+    // Performance by task type
+    const taskTypeGroups = [...new Set(filteredTasks.map((task: any) => task.taskType))];
+    const performanceByType = taskTypeGroups.map((type: string) => {
+      const typeTasks = filteredTasks.filter((task: any) => task.taskType === type);
+      const typeCompleted = typeTasks.filter((task: any) => task.statusId === completedStatusId);
+      return {
+        type,
+        total: typeTasks.length,
+        completed: typeCompleted.length,
+        completionRate: typeTasks.length > 0 ? Math.round((typeCompleted.length / typeTasks.length) * 100) : 0
+      };
+    });
 
-  const getPerformanceColor = (rating: string) => {
-    switch (rating) {
-      case 'Excellent': return 'bg-green-100 text-green-800 border-green-200';
-      case 'Good': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'Needs Improvement': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'Critical': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-slate-100 text-slate-800 border-slate-200';
+    // Completion trend (last 7 days)
+    const completionTrend = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dayTasks = completedTasks.filter((task: any) => {
+        if (!task.updatedAt) return false;
+        const taskDate = new Date(task.updatedAt);
+        return taskDate.toDateString() === date.toDateString();
+      });
+      
+      completionTrend.push({
+        date: format(date, 'MMM dd'),
+        completed: dayTasks.length
+      });
+    }
+
+    return {
+      totalTasks: filteredTasks.length,
+      completedTasks: completedTasks.length,
+      inProgressTasks: inProgressTasks.length,
+      overdueCount,
+      avgCompletionTime,
+      onTimeDeliveryRate,
+      efficiencyScore,
+      teamPerformance,
+      statusDistribution,
+      completionTrend,
+      performanceByType
+    };
+  }, [filteredTasks, taskStatuses, users]);
+
+  const handleExportPDF = async () => {
+    try {
+      await exportToPDF('task-performance-report', {
+        title: 'Task Performance Analytics Report',
+        subtitle: `Generated for ${filters.period === 'all' ? 'All Time' : `Last ${filters.period} Days`}`,
+        reportType: 'TaskPerformance',
+        filters: {
+          period: filters.period,
+          teamMember: filters.teamMember !== 'all' ? users.find(u => u.id === parseInt(filters.teamMember))?.displayName : 'All',
+          taskType: filters.taskType,
+          status: filters.status !== 'all' ? taskStatuses.find(s => s.id === parseInt(filters.status))?.name : 'All',
+          client: filters.client !== 'all' ? clients.find(c => c.id === parseInt(filters.client))?.name : 'All',
+          dateRange: filters.dateFrom && filters.dateTo ? `${format(filters.dateFrom, 'MMM dd, yyyy')} - ${format(filters.dateTo, 'MMM dd, yyyy')}` : 'N/A'
+        }
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
     }
   };
 
   return (
-    <AppLayout title="Task Performance Analytics">
-      <div className="p-6 max-w-7xl mx-auto">
+    <AppLayout>
+      <div className="space-y-6">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <TrendingUp className="h-8 w-8 text-blue-600" />
-              <div>
-                <h1 className="text-3xl font-bold text-slate-900">Task Performance Analytics</h1>
-                <p className="text-slate-600">Comprehensive analysis of task efficiency and team performance</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-              <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-2" />
-                Advanced Filters
-              </Button>
-            </div>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Task Performance Analytics</h1>
+            <p className="text-muted-foreground">Monitor team productivity and task completion metrics</p>
           </div>
-
-          {/* Filters */}
-          <div className="flex flex-wrap gap-4 p-4 bg-slate-50 border border-slate-200 rounded-lg">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-slate-500" />
-              <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="7">Last 7 days</SelectItem>
-                  <SelectItem value="30">Last 30 days</SelectItem>
-                  <SelectItem value="90">Last 90 days</SelectItem>
-                  <SelectItem value="365">Last year</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-slate-500" />
-              <Select value={selectedTeamMember} onValueChange={setSelectedTeamMember}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="All team members" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All team members</SelectItem>
-                  {users?.map((user: any) => (
-                    <SelectItem key={user.id} value={user.id.toString()}>
-                      {user.displayName || user.username}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          <Button onClick={handleExportPDF} className="flex items-center gap-2">
+            <Download className="w-4 h-4" />
+            Export PDF
+          </Button>
         </div>
 
-        {/* Key Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-slate-600">Total Tasks</CardTitle>
-                <BarChart3 className="h-4 w-4 text-slate-400" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-slate-900">
-                {taskPerformanceAnalytics.efficiencyMetrics.totalTasks || 0}
-              </div>
-              <p className="text-sm text-slate-500 mt-1">
-                {taskPerformanceAnalytics.efficiencyMetrics.completedTasks || 0} completed
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-slate-600">Avg Efficiency Score</CardTitle>
-                <Target className="h-4 w-4 text-slate-400" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-slate-900">
-                {taskPerformanceAnalytics.efficiencyMetrics.avgEfficiencyScore || 0}%
-              </div>
-              <Progress value={taskPerformanceAnalytics.efficiencyMetrics.avgEfficiencyScore || 0} className="mt-2" />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-slate-600">Avg Completion Time</CardTitle>
-                <Clock className="h-4 w-4 text-slate-400" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-slate-900">
-                {taskPerformanceAnalytics.efficiencyMetrics.avgCompletionTime || 0}
-              </div>
-              <p className="text-sm text-slate-500 mt-1">days average</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-slate-600">On-Time Delivery</CardTitle>
-                <CheckCircle className="h-4 w-4 text-slate-400" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-slate-900">
-                {taskPerformanceAnalytics.efficiencyMetrics.onTimeDeliveryRate || 0}%
-              </div>
-              <Progress value={taskPerformanceAnalytics.efficiencyMetrics.onTimeDeliveryRate || 0} className="mt-2" />
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Team Performance Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Team Performance Comparison</CardTitle>
-              <CardDescription>Efficiency scores and completion rates by team member</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={performanceChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="completionRate" fill="#3B82F6" name="Completion Rate %" />
-                  <Bar dataKey="efficiency" fill="#10B981" name="Efficiency Score %" />
-                  <Bar dataKey="onTimeRate" fill="#8B5CF6" name="On-Time Rate %" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Performance Trends */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Performance Trends</CardTitle>
-              <CardDescription>Task completion and efficiency trends over time</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={performanceChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="efficiency" stroke="#10B981" name="Efficiency Score %" />
-                  <Line type="monotone" dataKey="onTimeRate" stroke="#8B5CF6" name="On-Time Rate %" />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Detailed Team Performance Table */}
+        {/* Enhanced Filters */}
         <Card>
           <CardHeader>
-            <CardTitle>Detailed Team Performance Analysis</CardTitle>
-            <CardDescription>Comprehensive breakdown of individual team member performance</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="w-5 h-5" />
+              Filters
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-200">
-                    <th className="text-left p-3 font-medium text-slate-600">Team Member</th>
-                    <th className="text-left p-3 font-medium text-slate-600">Total Tasks</th>
-                    <th className="text-left p-3 font-medium text-slate-600">Completed</th>
-                    <th className="text-left p-3 font-medium text-slate-600">Completion Rate</th>
-                    <th className="text-left p-3 font-medium text-slate-600">Efficiency Score</th>
-                    <th className="text-left p-3 font-medium text-slate-600">Avg Completion Time</th>
-                    <th className="text-left p-3 font-medium text-slate-600">Performance Rating</th>
-                    <th className="text-left p-3 font-medium text-slate-600">Issues</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {taskPerformanceAnalytics.teamPerformance.map((member: any, index: number) => (
-                    <tr key={index} className="border-b border-slate-100 hover:bg-slate-50">
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-slate-400" />
-                          <span className="font-medium text-slate-900">{member.name}</span>
-                        </div>
-                      </td>
-                      <td className="p-3 text-slate-600">{member.totalTasks}</td>
-                      <td className="p-3 text-slate-600">{member.completedTasks}</td>
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-16 bg-slate-200 rounded-full h-2">
-                            <div 
-                              className="bg-blue-600 h-2 rounded-full" 
-                              style={{ width: `${member.completionRate}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-sm text-slate-600">{member.completionRate}%</span>
-                        </div>
-                      </td>
-                      <td className="p-3">
-                        <Badge className={`${member.avgEfficiencyScore >= 85 ? 'bg-green-100 text-green-800' : 
-                          member.avgEfficiencyScore >= 70 ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800'}`}>
-                          {member.avgEfficiencyScore}%
-                        </Badge>
-                      </td>
-                      <td className="p-3 text-slate-600">{member.avgCompletionTime} days</td>
-                      <td className="p-3">
-                        <Badge className={getPerformanceColor(member.performanceRating)}>
-                          {member.performanceRating}
-                        </Badge>
-                      </td>
-                      <td className="p-3">
-                        <div className="flex gap-1">
-                          {member.overdueTasks > 0 && (
-                            <Badge className="bg-orange-100 text-orange-800 text-xs">
-                              {member.overdueTasks} overdue
-                            </Badge>
-                          )}
-                          {member.regulatoryViolations > 0 && (
-                            <Badge className="bg-red-100 text-red-800 text-xs">
-                              {member.regulatoryViolations} violations
-                            </Badge>
-                          )}
-                          {member.overdueTasks === 0 && member.regulatoryViolations === 0 && (
-                            <Badge className="bg-green-100 text-green-800 text-xs">
-                              No issues
-                            </Badge>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Period Filter */}
+              <div className="space-y-2">
+                <Label>Time Period</Label>
+                <Select value={filters.period} onValueChange={(value) => setFilters(prev => ({ ...prev, period: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select period" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7">Last 7 days</SelectItem>
+                    <SelectItem value="30">Last 30 days</SelectItem>
+                    <SelectItem value="90">Last 90 days</SelectItem>
+                    <SelectItem value="365">Last year</SelectItem>
+                    <SelectItem value="all">All time</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Team Member Filter */}
+              <div className="space-y-2">
+                <Label>Team Member</Label>
+                <Select value={filters.teamMember} onValueChange={(value) => setFilters(prev => ({ ...prev, teamMember: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select member" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Members</SelectItem>
+                    {users.map((user: any) => (
+                      <SelectItem key={user.id} value={user.id.toString()}>
+                        {user.displayName || user.username}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Task Type Filter */}
+              <div className="space-y-2">
+                <Label>Task Type</Label>
+                <Select value={filters.taskType} onValueChange={(value) => setFilters(prev => ({ ...prev, taskType: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="Regular">Regular</SelectItem>
+                    <SelectItem value="Recurring">Recurring</SelectItem>
+                    <SelectItem value="Compliance">Compliance</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Status Filter */}
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {taskStatuses.map((status: any) => (
+                      <SelectItem key={status.id} value={status.id.toString()}>
+                        {status.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Client Filter */}
+              <div className="space-y-2">
+                <Label>Client</Label>
+                <Select value={filters.client} onValueChange={(value) => setFilters(prev => ({ ...prev, client: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select client" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Clients</SelectItem>
+                    {clients.map((client: any) => (
+                      <SelectItem key={client.id} value={client.id.toString()}>
+                        {client.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Date From */}
+              <div className="space-y-2">
+                <Label>From Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filters.dateFrom ? format(filters.dateFrom, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={filters.dateFrom || undefined}
+                      onSelect={(date) => setFilters(prev => ({ ...prev, dateFrom: date || null }))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Date To */}
+              <div className="space-y-2">
+                <Label>To Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filters.dateTo ? format(filters.dateTo, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={filters.dateTo || undefined}
+                      onSelect={(date) => setFilters(prev => ({ ...prev, dateTo: date || null }))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Clear Filters */}
+              <div className="flex items-end">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setFilters({
+                    period: "30",
+                    teamMember: "all",
+                    taskType: "all",
+                    status: "all",
+                    client: "all",
+                    dateFrom: null,
+                    dateTo: null,
+                    priority: "all"
+                  })}
+                  className="w-full"
+                >
+                  Clear Filters
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* Report Content */}
+        <div id="task-performance-report" className="space-y-6">
+          {/* Score Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
+                <Activity className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.totalTasks}</div>
+                <p className="text-xs text-muted-foreground">
+                  {analytics.completedTasks} completed
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Efficiency Score</CardTitle>
+                <Target className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.efficiencyScore}%</div>
+                <Progress value={analytics.efficiencyScore} className="mt-2" />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Avg Completion Time</CardTitle>
+                <Timer className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.avgCompletionTime}</div>
+                <p className="text-xs text-muted-foreground">days average</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">On-time Delivery</CardTitle>
+                <CheckCircle className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.onTimeDeliveryRate}%</div>
+                <Progress value={analytics.onTimeDeliveryRate} className="mt-2" />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Team Performance Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Team Performance Analysis
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Team Member</TableHead>
+                    <TableHead>Total Tasks</TableHead>
+                    <TableHead>Completed</TableHead>
+                    <TableHead>Completion Rate</TableHead>
+                    <TableHead>Avg Time (Days)</TableHead>
+                    <TableHead>Efficiency</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {analytics.teamPerformance.map((member: any, index: number) => (
+                    <TableRow key={index}>
+                      <TableCell className="font-medium">{member.name}</TableCell>
+                      <TableCell>{member.totalTasks}</TableCell>
+                      <TableCell>{member.completedTasks}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Progress value={member.completionRate} className="w-16" />
+                          <span className="text-sm">{member.completionRate}%</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{member.avgCompletionTime}</TableCell>
+                      <TableCell>
+                        <Badge variant={member.efficiency >= 80 ? "default" : member.efficiency >= 60 ? "secondary" : "destructive"}>
+                          {member.efficiency}%
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Completion Trend Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Completion Trend (Last 7 Days)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={analytics.completionTrend}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="completed" stroke="#8884d8" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Status Distribution Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Task Status Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={analytics.statusDistribution}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, percentage }) => `${name}: ${percentage}%`}
+                    >
+                      {analytics.statusDistribution.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Performance by Task Type */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Performance by Task Type</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={analytics.performanceByType}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="type" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="total" fill="#8884d8" name="Total Tasks" />
+                    <Bar dataKey="completed" fill="#82ca9d" name="Completed Tasks" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Team Efficiency Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Team Efficiency Comparison</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={analytics.teamPerformance}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="efficiency" fill="#8884d8" name="Efficiency %" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </AppLayout>
   );

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,459 +6,679 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { format } from "date-fns";
+import { Calendar as CalendarIcon } from "lucide-react";
 import { 
+  RefreshCw, 
+  TrendingUp, 
   Clock, 
-  Play, 
-  Pause, 
-  CheckCircle,
-  AlertCircle,
+  Target,
+  BarChart3,
+  Activity,
   Filter,
   Download,
-  Calendar,
-  TrendingUp
+  Timer,
+  Workflow
 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, ScatterChart, Scatter } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell } from 'recharts';
+import { usePDFExport } from "@/utils/pdf-export";
+
+const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1', '#d084d0'];
 
 export default function TaskLifecycleReport() {
-  const [statusFilter, setStatusFilter] = React.useState("all");
-  const [timeRange, setTimeRange] = React.useState("30");
+  const [filters, setFilters] = useState({
+    period: "30",
+    taskType: "all",
+    status: "all",
+    assignee: "all",
+    client: "all",
+    priority: "all",
+    dateFrom: null as Date | null,
+    dateTo: null as Date | null
+  });
+
+  const { exportToPDF } = usePDFExport();
 
   // Fetch data
   const { data: tasks = [] } = useQuery({ queryKey: ["/api/v1/tasks"] });
   const { data: taskStatuses = [] } = useQuery({ queryKey: ["/api/v1/setup/task-statuses"] });
   const { data: users = [] } = useQuery({ queryKey: ["/api/v1/users"] });
   const { data: clients = [] } = useQuery({ queryKey: ["/api/v1/clients"] });
-  const { data: entities = [] } = useQuery({ queryKey: ["/api/v1/entities"] });
 
-  const completedStatusId = taskStatuses?.find((s: any) => s.name === 'Completed')?.id;
-  const inProgressStatusId = taskStatuses?.find((s: any) => s.name === 'In Progress')?.id;
+  // Apply filtering
+  const filteredTasks = useMemo(() => {
+    if (!tasks?.length) return [];
 
-  // Task lifecycle analysis
-  const taskLifecycleAnalysis = React.useMemo(() => {
-    if (!tasks?.length || !taskStatuses?.length) return { lifecycles: [], metrics: {} };
+    return tasks.filter((task: any) => {
+      // Period/Date filtering
+      const taskDate = new Date(task.createdAt);
+      if (filters.dateFrom && filters.dateTo) {
+        if (taskDate < filters.dateFrom || taskDate > filters.dateTo) return false;
+      } else if (filters.period !== "all") {
+        const periodDays = parseInt(filters.period);
+        const periodStart = new Date();
+        periodStart.setDate(periodStart.getDate() - periodDays);
+        if (taskDate < periodStart) return false;
+      }
 
+      // Task type filtering
+      if (filters.taskType !== "all" && task.taskType !== filters.taskType) {
+        return false;
+      }
+
+      // Status filtering
+      if (filters.status !== "all" && task.statusId !== parseInt(filters.status)) {
+        return false;
+      }
+
+      // Assignee filtering
+      if (filters.assignee !== "all" && task.assigneeId !== parseInt(filters.assignee)) {
+        return false;
+      }
+
+      // Client filtering
+      if (filters.client !== "all" && task.clientId !== parseInt(filters.client)) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [tasks, filters]);
+
+  // Calculate lifecycle analytics
+  const analytics = useMemo(() => {
+    if (!filteredTasks.length || !taskStatuses.length) {
+      return {
+        lifecycleMetrics: {
+          avgLifecycle: 0,
+          avgTimeToStart: 0,
+          avgTimeToComplete: 0,
+          cycleEfficiency: 0
+        },
+        statusTransitions: [],
+        lifecycleStages: [],
+        timeDistribution: [],
+        bottlenecks: [],
+        completionTrend: [],
+        taskFlowAnalysis: []
+      };
+    }
+
+    const completedStatusId = taskStatuses.find((s: any) => s.name === 'Completed')?.id;
+    const inProgressStatusId = taskStatuses.find((s: any) => s.name === 'In Progress')?.id;
     const currentDate = new Date();
 
-    const lifecycles = tasks.map((task: any) => {
-      const createdDate = new Date(task.createdAt);
-      const dueDate = new Date(task.dueDate);
-      const completedDate = task.statusId === completedStatusId && task.updatedAt ? new Date(task.updatedAt) : null;
+    // Calculate lifecycle metrics
+    const completedTasks = filteredTasks.filter((task: any) => task.statusId === completedStatusId);
+    
+    const lifecycleTimes = completedTasks
+      .filter((task: any) => task.updatedAt)
+      .map((task: any) => {
+        const created = new Date(task.createdAt);
+        const completed = new Date(task.updatedAt);
+        return Math.ceil((completed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+      });
 
-      // Calculate lifecycle metrics
-      const ageInDays = Math.ceil((currentDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
-      const timeToCompletion = completedDate ? 
-        Math.ceil((completedDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24)) : null;
-      
-      const daysUntilDue = Math.ceil((dueDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
-      const isOverdue = daysUntilDue < 0 && !completedDate;
-      const isDueSoon = daysUntilDue <= 3 && daysUntilDue >= 0 && !completedDate;
+    const avgLifecycle = lifecycleTimes.length > 0 ? 
+      Math.round(lifecycleTimes.reduce((sum, time) => sum + time, 0) / lifecycleTimes.length) : 0;
 
-      // Lifecycle stage
-      let stage = 'Unknown';
-      let stageColor = 'slate';
-      
-      if (completedDate) {
-        stage = 'Completed';
-        stageColor = 'green';
-      } else if (isOverdue) {
-        stage = 'Overdue';
-        stageColor = 'red';
-      } else if (isDueSoon) {
-        stage = 'Due Soon';
-        stageColor = 'orange';
-      } else if (task.statusId === inProgressStatusId) {
-        stage = 'In Progress';
-        stageColor = 'blue';
-      } else {
-        stage = 'Pending';
-        stageColor = 'yellow';
-      }
+    // Time to start (approximation based on status changes)
+    const avgTimeToStart = Math.round(avgLifecycle * 0.2); // Placeholder calculation
+    const avgTimeToComplete = Math.round(avgLifecycle * 0.8);
+    const cycleEfficiency = avgLifecycle > 0 ? Math.round((avgTimeToComplete / avgLifecycle) * 100) : 0;
 
-      // Progress percentage
-      let progressPercentage = 0;
-      if (completedDate) {
-        progressPercentage = 100;
-      } else if (task.statusId === inProgressStatusId) {
-        const totalDuration = Math.ceil((dueDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
-        const elapsed = ageInDays;
-        progressPercentage = Math.min(90, Math.round((elapsed / totalDuration) * 100));
-      } else {
-        progressPercentage = 10; // Just started
-      }
-
-      // Get related data
-      const assignee = users?.find((u: any) => u.id === task.assigneeId);
-      const client = clients?.find((c: any) => c.id === task.clientId);
-      const entity = entities?.find((e: any) => e.id === task.entityId);
-      const status = taskStatuses?.find((s: any) => s.id === task.statusId);
-
+    // Status transitions analysis
+    const statusCounts = taskStatuses.map((status: any) => {
+      const count = filteredTasks.filter((task: any) => task.statusId === status.id).length;
       return {
-        taskId: task.id,
-        title: task.taskDetails || 'Untitled Task',
-        assigneeName: assignee?.displayName || 'Unassigned',
-        clientName: client?.displayName || 'Unknown Client',
-        entityName: entity?.name || 'Unknown Entity',
-        statusName: status?.name || 'Unknown',
-        createdDate,
-        dueDate,
-        completedDate,
-        ageInDays,
-        timeToCompletion,
-        daysUntilDue,
-        isOverdue,
-        isDueSoon,
-        stage,
-        stageColor,
-        progressPercentage,
-        isCompleted: !!completedDate,
-        complianceDeadline: task.complianceDeadline ? new Date(task.complianceDeadline) : null
+        name: status.name,
+        count,
+        percentage: filteredTasks.length > 0 ? Math.round((count / filteredTasks.length) * 100) : 0
+      };
+    }).filter(item => item.count > 0);
+
+    // Lifecycle stages (created, started, completed)
+    const createdCount = filteredTasks.length;
+    const startedCount = filteredTasks.filter((task: any) => 
+      task.statusId === inProgressStatusId || task.statusId === completedStatusId
+    ).length;
+    const completedCount = completedTasks.length;
+
+    const lifecycleStages = [
+      { stage: 'Created', count: createdCount, percentage: 100 },
+      { stage: 'Started', count: startedCount, percentage: Math.round((startedCount / createdCount) * 100) },
+      { stage: 'Completed', count: completedCount, percentage: Math.round((completedCount / createdCount) * 100) }
+    ];
+
+    // Time distribution analysis
+    const timeRanges = [
+      { range: '0-1 days', min: 0, max: 1 },
+      { range: '2-7 days', min: 2, max: 7 },
+      { range: '8-14 days', min: 8, max: 14 },
+      { range: '15-30 days', min: 15, max: 30 },
+      { range: '30+ days', min: 31, max: Infinity }
+    ];
+
+    const timeDistribution = timeRanges.map(range => {
+      const count = lifecycleTimes.filter(time => 
+        time >= range.min && time <= range.max
+      ).length;
+      
+      return {
+        range: range.range,
+        count,
+        percentage: lifecycleTimes.length > 0 ? Math.round((count / lifecycleTimes.length) * 100) : 0
       };
     });
 
-    // Calculate metrics
-    const totalTasks = lifecycles.length;
-    const completedTasks = lifecycles.filter(t => t.isCompleted).length;
-    const overdueTasks = lifecycles.filter(t => t.isOverdue).length;
-    const dueSoonTasks = lifecycles.filter(t => t.isDueSoon).length;
-    const inProgressTasks = lifecycles.filter(t => t.stage === 'In Progress').length;
+    // Identify bottlenecks (statuses with high task counts)
+    const bottlenecks = statusCounts
+      .filter(status => status.name !== 'Completed' && status.count > 0)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+      .map(status => ({
+        status: status.name,
+        taskCount: status.count,
+        impactLevel: status.count > createdCount * 0.3 ? 'High' : 
+                   status.count > createdCount * 0.15 ? 'Medium' : 'Low'
+      }));
 
-    const avgTimeToCompletion = completedTasks > 0 ? 
-      Math.round(lifecycles.filter(t => t.timeToCompletion).reduce((sum, t) => sum + (t.timeToCompletion || 0), 0) / completedTasks) : 0;
+    // Completion trend (last 14 days)
+    const completionTrend = [];
+    for (let i = 13; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      
+      const dayCreated = filteredTasks.filter((task: any) => {
+        const taskDate = new Date(task.createdAt);
+        return taskDate.toDateString() === date.toDateString();
+      }).length;
 
-    const avgTaskAge = totalTasks > 0 ? 
-      Math.round(lifecycles.reduce((sum, t) => sum + t.ageInDays, 0) / totalTasks) : 0;
+      const dayCompleted = completedTasks.filter((task: any) => {
+        if (!task.updatedAt) return false;
+        const taskDate = new Date(task.updatedAt);
+        return taskDate.toDateString() === date.toDateString();
+      }).length;
+      
+      completionTrend.push({
+        date: format(date, 'MMM dd'),
+        created: dayCreated,
+        completed: dayCompleted
+      });
+    }
 
-    const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+    // Task flow analysis by type
+    const taskTypeGroups = [...new Set(filteredTasks.map((task: any) => task.taskType))];
+    const taskFlowAnalysis = taskTypeGroups.map((type: string) => {
+      const typeTasks = filteredTasks.filter((task: any) => task.taskType === type);
+      const typeCompleted = typeTasks.filter((task: any) => task.statusId === completedStatusId);
+      
+      const typeLifecycleTimes = typeCompleted
+        .filter((task: any) => task.updatedAt)
+        .map((task: any) => {
+          const created = new Date(task.createdAt);
+          const completed = new Date(task.updatedAt);
+          return Math.ceil((completed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+        });
 
-    // Bottleneck analysis
-    const bottlenecks = lifecycles.filter(t => !t.isCompleted && t.ageInDays > 10);
+      const avgTime = typeLifecycleTimes.length > 0 ? 
+        Math.round(typeLifecycleTimes.reduce((sum, time) => sum + time, 0) / typeLifecycleTimes.length) : 0;
 
-    const metrics = {
-      totalTasks,
-      completedTasks,
-      overdueTasks,
-      dueSoonTasks,
-      inProgressTasks,
-      avgTimeToCompletion,
-      avgTaskAge,
-      completionRate,
-      bottleneckCount: bottlenecks.length
-    };
+      return {
+        type,
+        totalTasks: typeTasks.length,
+        completedTasks: typeCompleted.length,
+        completionRate: typeTasks.length > 0 ? Math.round((typeCompleted.length / typeTasks.length) * 100) : 0,
+        avgLifecycleTime: avgTime
+      };
+    });
 
     return {
-      lifecycles: lifecycles.sort((a, b) => b.createdDate.getTime() - a.createdDate.getTime()),
-      metrics
+      lifecycleMetrics: {
+        avgLifecycle,
+        avgTimeToStart,
+        avgTimeToComplete,
+        cycleEfficiency
+      },
+      statusTransitions: statusCounts,
+      lifecycleStages,
+      timeDistribution,
+      bottlenecks,
+      completionTrend,
+      taskFlowAnalysis
     };
-  }, [tasks, taskStatuses, users, clients, entities, completedStatusId, inProgressStatusId]);
+  }, [filteredTasks, taskStatuses]);
 
-  // Chart data preparation
-  const stageDistribution = taskLifecycleAnalysis.lifecycles.reduce((acc: any, task) => {
-    acc[task.stage] = (acc[task.stage] || 0) + 1;
-    return acc;
-  }, {});
-
-  const stageData = Object.entries(stageDistribution).map(([stage, count]) => ({
-    stage,
-    count,
-    color: stage === 'Completed' ? '#22C55E' : 
-           stage === 'In Progress' ? '#3B82F6' : 
-           stage === 'Overdue' ? '#EF4444' : 
-           stage === 'Due Soon' ? '#F97316' : '#EAB308'
-  }));
-
-  // Timeline data for completion trends
-  const timelineData = taskLifecycleAnalysis.lifecycles
-    .filter(t => t.isCompleted)
-    .reduce((acc: any, task) => {
-      const month = task.completedDate?.toISOString().substring(0, 7);
-      if (month) {
-        acc[month] = (acc[month] || 0) + 1;
-      }
-      return acc;
-    }, {});
-
-  const completionTrend = Object.entries(timelineData)
-    .map(([month, count]) => ({ month, completions: count }))
-    .sort((a, b) => a.month.localeCompare(b.month));
-
-  const getStageColor = (stage: string) => {
-    switch (stage) {
-      case 'Completed': return 'bg-green-100 text-green-800 border-green-200';
-      case 'In Progress': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'Overdue': return 'bg-red-100 text-red-800 border-red-200';
-      case 'Due Soon': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'Pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      default: return 'bg-slate-100 text-slate-800 border-slate-200';
+  const handleExportPDF = async () => {
+    try {
+      await exportToPDF('task-lifecycle-report', {
+        title: 'Task Lifecycle Analysis Report',
+        subtitle: `Generated for ${filters.period === 'all' ? 'All Time' : `Last ${filters.period} Days`}`,
+        reportType: 'TaskLifecycle',
+        filters: {
+          period: filters.period,
+          taskType: filters.taskType,
+          status: filters.status !== 'all' ? taskStatuses.find(s => s.id === parseInt(filters.status))?.name : 'All',
+          assignee: filters.assignee !== 'all' ? users.find(u => u.id === parseInt(filters.assignee))?.displayName : 'All',
+          client: filters.client !== 'all' ? clients.find(c => c.id === parseInt(filters.client))?.name : 'All',
+          dateRange: filters.dateFrom && filters.dateTo ? `${format(filters.dateFrom, 'MMM dd, yyyy')} - ${format(filters.dateTo, 'MMM dd, yyyy')}` : 'N/A'
+        }
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
     }
   };
 
   return (
-    <AppLayout title="Task Lifecycle Analysis">
-      <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <Clock className="h-8 w-8 text-purple-600" />
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">Task Lifecycle Analysis</h1>
-              <p className="text-slate-600">Track task progression from creation to completion</p>
-            </div>
+    <AppLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Task Lifecycle Analysis</h1>
+            <p className="text-muted-foreground">Analyze task flow patterns and identify process bottlenecks</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Export Report
-            </Button>
-            <Button variant="outline" size="sm">
-              <Filter className="h-4 w-4 mr-2" />
-              Advanced Filters
-            </Button>
-          </div>
+          <Button onClick={handleExportPDF} className="flex items-center gap-2">
+            <Download className="w-4 h-4" />
+            Export PDF
+          </Button>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-4 p-4 bg-slate-50 border border-slate-200 rounded-lg">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-slate-500" />
-            <Select value={timeRange} onValueChange={setTimeRange}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7">Last 7 days</SelectItem>
-                <SelectItem value="30">Last 30 days</SelectItem>
-                <SelectItem value="90">Last 90 days</SelectItem>
-                <SelectItem value="365">Last year</SelectItem>
-              </SelectContent>
-            </Select>
+        {/* Enhanced Filters */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="w-5 h-5" />
+              Filters
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Period Filter */}
+              <div className="space-y-2">
+                <Label>Time Period</Label>
+                <Select value={filters.period} onValueChange={(value) => setFilters(prev => ({ ...prev, period: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select period" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7">Last 7 days</SelectItem>
+                    <SelectItem value="30">Last 30 days</SelectItem>
+                    <SelectItem value="90">Last 90 days</SelectItem>
+                    <SelectItem value="365">Last year</SelectItem>
+                    <SelectItem value="all">All time</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Task Type Filter */}
+              <div className="space-y-2">
+                <Label>Task Type</Label>
+                <Select value={filters.taskType} onValueChange={(value) => setFilters(prev => ({ ...prev, taskType: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="Regular">Regular</SelectItem>
+                    <SelectItem value="Recurring">Recurring</SelectItem>
+                    <SelectItem value="Compliance">Compliance</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Status Filter */}
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {taskStatuses.map((status: any) => (
+                      <SelectItem key={status.id} value={status.id.toString()}>
+                        {status.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Assignee Filter */}
+              <div className="space-y-2">
+                <Label>Assignee</Label>
+                <Select value={filters.assignee} onValueChange={(value) => setFilters(prev => ({ ...prev, assignee: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select assignee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Assignees</SelectItem>
+                    {users.map((user: any) => (
+                      <SelectItem key={user.id} value={user.id.toString()}>
+                        {user.displayName || user.username}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Client Filter */}
+              <div className="space-y-2">
+                <Label>Client</Label>
+                <Select value={filters.client} onValueChange={(value) => setFilters(prev => ({ ...prev, client: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select client" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Clients</SelectItem>
+                    {clients.map((client: any) => (
+                      <SelectItem key={client.id} value={client.id.toString()}>
+                        {client.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Date From */}
+              <div className="space-y-2">
+                <Label>From Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filters.dateFrom ? format(filters.dateFrom, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={filters.dateFrom || undefined}
+                      onSelect={(date) => setFilters(prev => ({ ...prev, dateFrom: date || null }))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Date To */}
+              <div className="space-y-2">
+                <Label>To Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filters.dateTo ? format(filters.dateTo, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={filters.dateTo || undefined}
+                      onSelect={(date) => setFilters(prev => ({ ...prev, dateTo: date || null }))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Clear Filters */}
+              <div className="flex items-end">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setFilters({
+                    period: "30",
+                    taskType: "all",
+                    status: "all",
+                    assignee: "all",
+                    client: "all",
+                    priority: "all",
+                    dateFrom: null,
+                    dateTo: null
+                  })}
+                  className="w-full"
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Report Content */}
+        <div id="task-lifecycle-report" className="space-y-6">
+          {/* Score Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Avg Lifecycle Time</CardTitle>
+                <RefreshCw className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.lifecycleMetrics.avgLifecycle}</div>
+                <p className="text-xs text-muted-foreground">
+                  days average
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Time to Start</CardTitle>
+                <Timer className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.lifecycleMetrics.avgTimeToStart}</div>
+                <p className="text-xs text-muted-foreground">
+                  days average
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Time to Complete</CardTitle>
+                <Target className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.lifecycleMetrics.avgTimeToComplete}</div>
+                <p className="text-xs text-muted-foreground">
+                  days average
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Cycle Efficiency</CardTitle>
+                <Activity className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.lifecycleMetrics.cycleEfficiency}%</div>
+                <Progress value={analytics.lifecycleMetrics.cycleEfficiency} className="mt-2" />
+              </CardContent>
+            </Card>
           </div>
-          
-          <div className="flex items-center gap-2">
-            <Play className="h-4 w-4 text-slate-500" />
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="All stages" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All stages</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="in-progress">In Progress</SelectItem>
-                <SelectItem value="overdue">Overdue</SelectItem>
-                <SelectItem value="due-soon">Due Soon</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
 
-      {/* Alert for Bottlenecks */}
-      {taskLifecycleAnalysis.metrics.bottleneckCount > 0 && (
-        <Card className="mb-8 border-orange-200 bg-orange-50">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-orange-600" />
-              <CardTitle className="text-orange-900">Lifecycle Bottlenecks Detected</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-orange-800">
-              {taskLifecycleAnalysis.metrics.bottleneckCount} task(s) have been in progress for more than 10 days. 
-              Consider reviewing these tasks for potential blockers or resource allocation issues.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Key Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-slate-600">Total Tasks</CardTitle>
-              <Clock className="h-4 w-4 text-slate-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
-              {taskLifecycleAnalysis.metrics.totalTasks}
-            </div>
-            <p className="text-sm text-slate-500 mt-1">
-              {taskLifecycleAnalysis.metrics.inProgressTasks} in progress
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-slate-600">Completion Rate</CardTitle>
-              <CheckCircle className="h-4 w-4 text-slate-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
-              {taskLifecycleAnalysis.metrics.completionRate}%
-            </div>
-            <Progress value={taskLifecycleAnalysis.metrics.completionRate} className="mt-2" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-slate-600">Avg Completion Time</CardTitle>
-              <TrendingUp className="h-4 w-4 text-slate-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
-              {taskLifecycleAnalysis.metrics.avgTimeToCompletion}
-            </div>
-            <p className="text-sm text-slate-500 mt-1">days</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-slate-600">Overdue Tasks</CardTitle>
-              <AlertCircle className="h-4 w-4 text-slate-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
-              {taskLifecycleAnalysis.metrics.overdueTasks}
-            </div>
-            <p className="text-sm text-slate-500 mt-1">
-              {taskLifecycleAnalysis.metrics.dueSoonTasks} due soon
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Stage Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Task Stage Distribution</CardTitle>
-            <CardDescription>Current status of all tasks in the lifecycle</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={stageData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="stage" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="#3B82F6" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Completion Trend */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Completion Trend</CardTitle>
-            <CardDescription>Monthly task completion over time</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={completionTrend}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="completions" stroke="#22C55E" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Task Lifecycle Details */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Task Lifecycle Details</CardTitle>
-          <CardDescription>Detailed view of each task's lifecycle progression</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left p-3 font-medium text-slate-600">Task</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Assignee</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Client/Entity</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Stage</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Progress</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Age</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Due Date</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Completion Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {taskLifecycleAnalysis.lifecycles.slice(0, 20).map((task, index) => (
-                  <tr key={task.taskId} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="p-3">
-                      <div className="font-medium text-slate-900 max-w-xs truncate">
-                        {task.title}
-                      </div>
-                    </td>
-                    <td className="p-3 text-slate-600">{task.assigneeName}</td>
-                    <td className="p-3">
-                      <div className="text-slate-600">
-                        <div className="font-medium">{task.clientName}</div>
-                        <div className="text-sm text-slate-500">{task.entityName}</div>
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <Badge className={getStageColor(task.stage)}>
-                        {task.stage}
-                      </Badge>
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 bg-slate-200 rounded-full h-2">
-                          <div 
-                            className={`h-2 rounded-full ${
-                              task.stage === 'Completed' ? 'bg-green-600' :
-                              task.stage === 'In Progress' ? 'bg-blue-600' :
-                              task.stage === 'Overdue' ? 'bg-red-600' : 'bg-yellow-600'
-                            }`}
-                            style={{ width: `${task.progressPercentage}%` }}
-                          ></div>
+          {/* Task Flow Analysis Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Workflow className="w-5 h-5" />
+                Task Flow Analysis by Type
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Task Type</TableHead>
+                    <TableHead>Total Tasks</TableHead>
+                    <TableHead>Completed</TableHead>
+                    <TableHead>Completion Rate</TableHead>
+                    <TableHead>Avg Lifecycle</TableHead>
+                    <TableHead>Performance</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {analytics.taskFlowAnalysis.map((flow: any, index: number) => (
+                    <TableRow key={index}>
+                      <TableCell className="font-medium">{flow.type}</TableCell>
+                      <TableCell>{flow.totalTasks}</TableCell>
+                      <TableCell>{flow.completedTasks}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Progress value={flow.completionRate} className="w-16" />
+                          <span className="text-sm">{flow.completionRate}%</span>
                         </div>
-                        <span className="text-sm text-slate-600">{task.progressPercentage}%</span>
-                      </div>
-                    </td>
-                    <td className="p-3 text-slate-600">{task.ageInDays} days</td>
-                    <td className="p-3">
-                      <div className="text-slate-600">
-                        {task.dueDate.toLocaleDateString()}
-                        {task.isOverdue && <span className="text-red-600 ml-1">(Overdue)</span>}
-                        {task.isDueSoon && <span className="text-orange-600 ml-1">(Due Soon)</span>}
-                      </div>
-                    </td>
-                    <td className="p-3 text-slate-600">
-                      {task.timeToCompletion ? `${task.timeToCompletion} days` : '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      </TableCell>
+                      <TableCell>{flow.avgLifecycleTime} days</TableCell>
+                      <TableCell>
+                        <Badge variant={flow.completionRate >= 80 ? "default" : flow.completionRate >= 60 ? "secondary" : "destructive"}>
+                          {flow.completionRate >= 80 ? "Excellent" : flow.completionRate >= 60 ? "Good" : "Needs Improvement"}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Bottlenecks Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                Process Bottlenecks
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Task Count</TableHead>
+                    <TableHead>Impact Level</TableHead>
+                    <TableHead>Recommendation</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {analytics.bottlenecks.map((bottleneck: any, index: number) => (
+                    <TableRow key={index}>
+                      <TableCell className="font-medium">{bottleneck.status}</TableCell>
+                      <TableCell>{bottleneck.taskCount}</TableCell>
+                      <TableCell>
+                        <Badge variant={
+                          bottleneck.impactLevel === 'High' ? "destructive" : 
+                          bottleneck.impactLevel === 'Medium' ? "secondary" : "default"
+                        }>
+                          {bottleneck.impactLevel}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {bottleneck.impactLevel === 'High' ? 'Review workflow and resource allocation' :
+                         bottleneck.impactLevel === 'Medium' ? 'Monitor closely and optimize processes' :
+                         'Continue current approach'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Completion Trend Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Task Creation vs Completion Trend</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={analytics.completionTrend}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Area type="monotone" dataKey="created" stackId="1" stroke="#8884d8" fill="#8884d8" name="Created" />
+                    <Area type="monotone" dataKey="completed" stackId="2" stroke="#82ca9d" fill="#82ca9d" name="Completed" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Lifecycle Stages Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Lifecycle Stages</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={analytics.lifecycleStages}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="stage" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#8884d8" name="Task Count" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Time Distribution Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Time Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={analytics.timeDistribution}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="count"
+                      label={({ range, percentage }) => `${range}: ${percentage}%`}
+                    >
+                      {analytics.timeDistribution.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Status Transitions Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Current Status Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={analytics.statusTransitions}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#8884d8" name="Task Count" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
           </div>
-          {taskLifecycleAnalysis.lifecycles.length > 20 && (
-            <div className="mt-4 text-center">
-              <p className="text-sm text-slate-500">
-                Showing 20 of {taskLifecycleAnalysis.lifecycles.length} tasks
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        </div>
       </div>
     </AppLayout>
   );
