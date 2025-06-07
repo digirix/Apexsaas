@@ -2923,7 +2923,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const userId = (req.user as any).id;
       const isSuperAdmin = Boolean((req.user as any).isSuperAdmin);
-      console.log(`DEBUG TASKS: User ${userId} (${isSuperAdmin ? 'Super Admin' : 'Regular User'}) requesting tasks`);
       const clientId = req.query.clientId ? parseInt(req.query.clientId as string) : undefined;
       const entityId = req.query.entityId ? parseInt(req.query.entityId as string) : undefined;
       const isAdmin = req.query.isAdmin === "true" ? true : 
