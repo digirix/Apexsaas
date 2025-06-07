@@ -74,6 +74,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AddTaskModal } from "./add-task-modal";
 import { TaskDetails } from "./task-details";
 import { useModulePermissions } from "@/hooks/use-permissions";
+import { useAuth } from "@/hooks/use-auth";
 
 type ViewMode = 'table' | 'cards' | 'kanban';
 
