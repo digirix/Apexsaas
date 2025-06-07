@@ -38,6 +38,20 @@ export class AIReportInsightsService {
     }
   }
 
+  private async getTenantModel(tenantId: number): Promise<string> {
+    try {
+      const aiConfig = await db
+        .select()
+        .from(aiConfigurations)
+        .where(and(eq(aiConfigurations.tenantId, tenantId), eq(aiConfigurations.isActive, true)))
+        .limit(1);
+
+      return aiConfig[0]?.model || "deepseek/deepseek-r1-0528-qwen3-8b:free";
+    } catch (error) {
+      return "deepseek/deepseek-r1-0528-qwen3-8b:free";
+    }
+  }
+
   async generateTaskPerformanceInsights(tenantId: number, filters: any = {}): Promise<ReportInsight[]> {
     try {
       const openai = await this.getOpenAIClient(tenantId);
@@ -82,8 +96,10 @@ export class AIReportInsightsService {
         }
       `;
 
+      const model = await this.getTenantModel(tenantId);
+      
       const response = await openai.chat.completions.create({
-        model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
+        model,
         messages: [
           {
             role: "system",
@@ -108,6 +124,11 @@ export class AIReportInsightsService {
 
   async generateComplianceInsights(tenantId: number, filters: any = {}): Promise<ReportInsight[]> {
     try {
+      const openai = await this.getOpenAIClient(tenantId);
+      if (!openai) {
+        return this.getFallbackInsights('compliance');
+      }
+
       const complianceData = await this.getComplianceData(tenantId, filters);
       
       const prompt = `
@@ -131,8 +152,10 @@ export class AIReportInsightsService {
         Return insights as JSON array with the specified structure.
       `;
 
+      const model = await this.getTenantModel(tenantId);
+      
       const response = await openai.chat.completions.create({
-        model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
+        model,
         messages: [
           {
             role: "system",
@@ -157,6 +180,11 @@ export class AIReportInsightsService {
 
   async generateTeamEfficiencyInsights(tenantId: number, filters: any = {}): Promise<ReportInsight[]> {
     try {
+      const openai = await this.getOpenAIClient(tenantId);
+      if (!openai) {
+        return this.getFallbackInsights('team-efficiency');
+      }
+
       const teamData = await this.getTeamEfficiencyData(tenantId, filters);
       
       const prompt = `
