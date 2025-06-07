@@ -291,42 +291,34 @@ export default function JurisdictionAnalysisReport() {
           </div>
         </div>
 
-        {/* Enhanced Filters */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="w-5 h-5" />
-              Filters
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Ultra-Compact Single Row Filters */}
+        <Card className="bg-gray-50/50">
+          <CardContent className="p-2">
+            <div className="flex flex-wrap gap-1">
               {/* Time Frame Filter */}
-              <div className="space-y-2">
-                <Label>Time Frame</Label>
+              <div className="flex items-center gap-1">
                 <Select value={filters.timeFrame} onValueChange={(value) => setFilters(prev => ({ ...prev, timeFrame: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select timeframe" />
+                  <SelectTrigger className="h-6 w-20 text-xs">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="7">Last 7 days</SelectItem>
-                    <SelectItem value="30">Last 30 days</SelectItem>
-                    <SelectItem value="90">Last 90 days</SelectItem>
-                    <SelectItem value="365">Last year</SelectItem>
-                    <SelectItem value="all">All time</SelectItem>
+                    <SelectItem value="7">7d</SelectItem>
+                    <SelectItem value="30">30d</SelectItem>
+                    <SelectItem value="90">90d</SelectItem>
+                    <SelectItem value="365">1y</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {/* Jurisdiction Filter */}
-              <div className="space-y-2">
-                <Label>Jurisdiction</Label>
+              <div className="flex items-center gap-1">
                 <Select value={filters.jurisdiction} onValueChange={(value) => setFilters(prev => ({ ...prev, jurisdiction: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select jurisdiction" />
+                  <SelectTrigger className="h-6 w-20 text-xs">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Jurisdictions</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     {[...new Set(entities.map((e: any) => e.taxJurisdiction))].filter(Boolean).map((jurisdiction: string) => (
                       <SelectItem key={jurisdiction} value={jurisdiction}>
                         {jurisdiction}
@@ -337,14 +329,13 @@ export default function JurisdictionAnalysisReport() {
               </div>
 
               {/* Entity Type Filter */}
-              <div className="space-y-2">
-                <Label>Entity Type</Label>
+              <div className="flex items-center gap-1">
                 <Select value={filters.entityType} onValueChange={(value) => setFilters(prev => ({ ...prev, entityType: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select entity type" />
+                  <SelectTrigger className="h-6 w-20 text-xs">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     {[...new Set(entities.map((e: any) => e.entityType))].filter(Boolean).map((type: string) => (
                       <SelectItem key={type} value={type}>
                         {type}
@@ -355,28 +346,26 @@ export default function JurisdictionAnalysisReport() {
               </div>
 
               {/* Compliance Type Filter */}
-              <div className="space-y-2">
-                <Label>Compliance Type</Label>
+              <div className="flex items-center gap-1">
                 <Select value={filters.complianceType} onValueChange={(value) => setFilters(prev => ({ ...prev, complianceType: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
+                  <SelectTrigger className="h-6 w-20 text-xs">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="tax">Tax Compliance</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="tax">Tax</SelectItem>
                     <SelectItem value="audit">Audit</SelectItem>
-                    <SelectItem value="filing">Filing Requirements</SelectItem>
+                    <SelectItem value="filing">Filing</SelectItem>
                     <SelectItem value="regulatory">Regulatory</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {/* Risk Level Filter */}
-              <div className="space-y-2">
-                <Label>Risk Level</Label>
+              <div className="flex items-center gap-1">
                 <Select value={filters.riskLevel} onValueChange={(value) => setFilters(prev => ({ ...prev, riskLevel: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select risk level" />
+                  <SelectTrigger className="h-6 w-20 text-xs">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Levels</SelectItem>

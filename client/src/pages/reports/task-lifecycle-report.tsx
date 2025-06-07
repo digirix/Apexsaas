@@ -298,37 +298,31 @@ export default function TaskLifecycleReport() {
         {/* Ultra-Compact Single Row Filters */}
         <Card className="bg-gray-50/50">
           <CardContent className="p-2">
-            <div className="flex items-center gap-1 flex-wrap">
-              <div className="flex items-center gap-1 text-xs font-medium text-gray-600">
-                <Filter className="w-3 h-3" />
-                Filters:
-              </div>
+            <div className="flex flex-wrap gap-1">
               {/* Period Filter */}
-              <div className="space-y-2">
-                <Label>Time Period</Label>
+              <div className="flex items-center gap-1">
                 <Select value={filters.period} onValueChange={(value) => setFilters(prev => ({ ...prev, period: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select period" />
+                  <SelectTrigger className="h-6 w-20 text-xs">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="7">Last 7 days</SelectItem>
-                    <SelectItem value="30">Last 30 days</SelectItem>
-                    <SelectItem value="90">Last 90 days</SelectItem>
-                    <SelectItem value="365">Last year</SelectItem>
-                    <SelectItem value="all">All time</SelectItem>
+                    <SelectItem value="7">7d</SelectItem>
+                    <SelectItem value="30">30d</SelectItem>
+                    <SelectItem value="90">90d</SelectItem>
+                    <SelectItem value="365">1y</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {/* Task Type Filter */}
-              <div className="space-y-2">
-                <Label>Task Type</Label>
+              <div className="flex items-center gap-1">
                 <Select value={filters.taskType} onValueChange={(value) => setFilters(prev => ({ ...prev, taskType: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
+                  <SelectTrigger className="h-6 w-20 text-xs">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     <SelectItem value="Regular">Regular</SelectItem>
                     <SelectItem value="Recurring">Recurring</SelectItem>
                     <SelectItem value="Compliance">Compliance</SelectItem>
@@ -337,14 +331,13 @@ export default function TaskLifecycleReport() {
               </div>
 
               {/* Status Filter */}
-              <div className="space-y-2">
-                <Label>Status</Label>
+              <div className="flex items-center gap-1">
                 <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
+                  <SelectTrigger className="h-6 w-20 text-xs">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     {taskStatuses.map((status: any) => (
                       <SelectItem key={status.id} value={status.id.toString()}>
                         {status.name}
@@ -355,14 +348,13 @@ export default function TaskLifecycleReport() {
               </div>
 
               {/* Assignee Filter */}
-              <div className="space-y-2">
-                <Label>Assignee</Label>
+              <div className="flex items-center gap-1">
                 <Select value={filters.assignee} onValueChange={(value) => setFilters(prev => ({ ...prev, assignee: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select assignee" />
+                  <SelectTrigger className="h-6 w-20 text-xs">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Assignees</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     {users.map((user: any) => (
                       <SelectItem key={user.id} value={user.id.toString()}>
                         {user.displayName || user.username}
@@ -373,14 +365,13 @@ export default function TaskLifecycleReport() {
               </div>
 
               {/* Client Filter */}
-              <div className="space-y-2">
-                <Label>Client</Label>
+              <div className="flex items-center gap-1">
                 <Select value={filters.client} onValueChange={(value) => setFilters(prev => ({ ...prev, client: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select client" />
+                  <SelectTrigger className="h-6 w-20 text-xs">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Clients</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     {clients.map((client: any) => (
                       <SelectItem key={client.id} value={client.id.toString()}>
                         {client.name}
