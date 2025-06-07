@@ -6983,6 +6983,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // app.use("/api/v1/reports/analytics", isAuthenticated, createAnalyticsRoutes(databaseStorage));
   console.log("Financial Analytics routes registered");
 
+  // Register AI Report Insights routes
+  const aiReportInsightsRoutes = (await import("./api/ai-report-insights-routes.js")).default;
+  app.use("/api/v1/ai/report-insights", isAuthenticated, aiReportInsightsRoutes);
+  console.log("AI Report Insights routes registered");
+
   // Create an HTTP server
   const httpServer = createServer(app);
 
