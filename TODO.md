@@ -1,9 +1,10 @@
 # TODO - Next Development Priorities
 
-## Current Development Status - June 2025
-**✅ Analytics Dashboard Resolved**: Successfully removed problematic analytics dashboard to eliminate DecimalError issues  
-**✅ Reports Module Complete**: All core financial reports operational with 100% real data integrity  
-**🔄 Focus**: Implement remaining Full Scope requirements with priority on Setup Module enhancements  
+## Current Development Status - January 2025
+**✅ Admin Hierarchy System Complete**: Three-tier admin system with comprehensive frontend/backend security  
+**✅ User Management Module Complete**: Complete permission system with visual indicators and access control  
+**✅ Core Application Foundation**: 14 modules operational with real-time notifications and AI integration  
+**🔄 Focus**: Implement remaining Full Scope requirements starting with Setup Module core enhancements  
 
 ---
 
@@ -129,32 +130,132 @@
 ---
 
 ## Immediate Next Steps (Priority Order)
-1. **Setup Module VAT/Sales Tax Jurisdictions** - Create management interface
-2. **Entity Type + Country Definitions** - Implement combo validation system  
-3. **Task Status Ranking System** - Build status workflow with rank validation
-4. **AI Service Suggestions** - Implement entity analysis and recommendation engine
-5. **Enhanced Entity Configuration** - Multi-jurisdiction and service subscription flow
+1. **Setup Module VAT/Sales Tax Jurisdictions** - Create management interface for Country+State combinations
+2. **Entity Type + Country Definitions** - Implement entity type definitions with country validation system  
+3. **Service Type Country Integration** - Add country field to service types for location-specific offerings
+4. **Task Status Ranking System** - Build advanced status workflow with numerical ranking (1=New, 2.x=In Progress, 3=Completed)
+5. **AI Service Suggestions** - Implement intelligent entity analysis and compliance requirement recommendations
+6. **Enhanced Entity Configuration** - Multi-jurisdiction VAT setup and two-step service subscription flow
 
-## Technical Notes
-- ✅ Maintain 100% real data integrity (no synthetic data tolerance)
-- ✅ All LSP errors in database-storage.ts can be addressed during Setup Module enhancement
-- ✅ Focus on Full Scope compliance before adding new features
-- ✅ Implement proper country/state filtering throughout application
-- ✅ Ensure AI suggestions enhance rather than replace user decision-making
+## Detailed Development Roadmap
+
+### Phase 1: Core Setup Module Foundation (Weeks 1-2)
+**VAT/Sales Tax Jurisdictions System**:
+- Create tax_jurisdictions table with country+state combinations
+- Build CRUD interface for jurisdiction management
+- Implement dropdown filtering (states filtered by selected country)
+- Add validation preventing duplicate country+state combinations
+- Integration points: Entity configuration multi-jurisdiction selection
+
+**Entity Type + Country Definitions**:
+- Enhance entity_types table with country field
+- Create combo validation system (Entity Type + Country unique)
+- Build management interface for country-specific entity types
+- Examples: "LLC - USA", "Ltd - UK", "GmbH - Germany"
+- Integration points: Client entity creation with filtered dropdowns
+
+**Service Type Country Integration**:
+- Add country field to service_types table
+- Implement country-specific service offerings
+- Build filtered service dropdowns based on entity location
+- Enable same service names for different countries (e.g., "Monthly Bookkeeping - USA" vs "Monthly Bookkeeping - UK")
+
+### Phase 2: Advanced Task Management (Weeks 3-4)
+**Task Categories System**:
+- Implement Administrative vs Revenue task classification
+- Create task category management interface
+- Add category-based reporting and filtering
+- Integration with workflow automation for category-specific processes
+
+**Task Status Ranking System**:
+- Build advanced status workflow with numerical ranking
+- Fixed ranks: 1 (New), 3 (Completed)
+- Flexible ranks: 2, 2.1, 2.2, etc. for "In Progress" variations
+- Create status transition rules and validation
+- Visual workflow designer for status progression
+
+### Phase 3: AI-Powered Service Suggestions (Weeks 5-6)
+**Entity Analysis Engine**:
+- Develop AI service recommendation system
+- Analyze entity data: Country, State, Entity Type, VAT registration status
+- Generate compliance requirement suggestions
+- Implement user feedback collection for AI improvement
+- Create suggestion confidence scoring system
+
+**Learning Mechanism Implementation**:
+- Build user action tracking system
+- Implement suggestion quality feedback loops
+- Develop pattern recognition for workflow optimization
+- Create AI performance monitoring dashboard
+
+### Phase 4: Enhanced Entity Configuration (Weeks 7-8)
+**Multi-Jurisdiction VAT Setup**:
+- Build entity VAT/Sales Tax jurisdiction selection interface
+- Implement multi-select jurisdiction assignment
+- Create jurisdiction-specific configuration options
+- Validate VAT registration requirements per jurisdiction
+
+**Two-Step Service Subscription Flow**:
+- Implement "Required" vs "Subscribed" service classification
+- Build AI-suggested required services interface
+- Create service subscription management workflow
+- Add validation: only "Required" services can be marked "Subscribed"
+
+## Technical Implementation Notes
+- ✅ Maintain 100% real data integrity across all modules
+- ✅ Implement proper tenant isolation for all new features
+- ✅ Add comprehensive permission checks for all new endpoints
+- ✅ Ensure mobile responsiveness for all new UI components
+- ✅ Create proper error handling and user feedback systems
+- ✅ Implement proper database indexing for performance optimization
+
+## Critical Database Schema Updates Required
+```sql
+-- Add country field to service_types table
+ALTER TABLE service_types ADD COLUMN country_id INTEGER REFERENCES countries(id);
+
+-- Create tax_jurisdictions table
+CREATE TABLE tax_jurisdictions (
+  id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+  country_id INTEGER NOT NULL REFERENCES countries(id),
+  state_id INTEGER REFERENCES states(id),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Add country field to entity_types table  
+ALTER TABLE entity_types ADD COLUMN country_id INTEGER REFERENCES countries(id);
+
+-- Create task_categories table
+CREATE TABLE task_categories (
+  id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL REFERENCES tenants(id),
+  name VARCHAR(255) NOT NULL,
+  type VARCHAR(50) NOT NULL CHECK (type IN ('Administrative', 'Revenue')),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Add ranking system to task_statuses
+ALTER TABLE task_statuses ADD COLUMN rank DECIMAL(5,2) NOT NULL DEFAULT 1;
+```
 
 ## Files Requiring Updates
-**Setup Module Enhancement**:
-- `client/src/pages/setup-page.tsx` - Add new setup sections
-- `shared/schema.ts` - Add missing table definitions
+**Database Layer**:
+- `shared/schema.ts` - Add new table definitions and relationships
 - `server/storage.ts` - Implement new CRUD operations
-- `server/routes.ts` - Add new API endpoints
+- `server/database-storage.ts` - Add concrete implementations
+
+**API Layer**:
+- `server/routes.ts` - Add new endpoint definitions
+- `server/middleware/permissions.ts` - Add permission checks for new features
+
+**Frontend Components**:
+- `client/src/pages/setup-page.tsx` - Add new setup sections
+- `client/src/components/clients/entity-config-modal.tsx` - Enhanced configuration UI
+- `client/src/components/tasks/task-status-workflow.tsx` - New workflow management
+- `client/src/components/ai/service-suggestions.tsx` - AI recommendation interface
 
 **AI Integration**:
-- `server/services/ai-service.ts` - Service suggestion logic
-- `client/src/components/clients/entity-config-modal.tsx` - AI suggestions UI
-- `server/api/ai-customization-routes.ts` - Learning endpoints
-
-**Task Management**:
-- `client/src/pages/tasks-page.tsx` - Category and status enhancements
-- `client/src/components/tasks/` - Task workflow components
-- Database schema updates for task categories and status ranking
+- `server/services/ai-service.ts` - Service suggestion logic implementation
+- `server/services/ai-learning.ts` - Learning mechanism implementation
+- `client/src/hooks/use-ai-suggestions.ts` - Frontend AI integration hooks
