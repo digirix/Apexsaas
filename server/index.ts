@@ -5,6 +5,35 @@ import { storage } from "./storage";
 import { TaskScheduler } from "./task-scheduler";
 import { runDatabaseMigrations, seedDefaultData } from "./db-migration";
 
+function startTaskScheduler() {
+  // Initialize task scheduler
+  const taskScheduler = new TaskScheduler(storage);
+  
+  // Run task generation immediately on server start
+  taskScheduler.generateUpcomingRecurringTasks()
+    .then(() => {
+      console.log("Initial recurring task generation completed");
+    })
+    .catch(err => {
+      console.error("Error during initial recurring task generation:", err);
+    });
+  
+  // Schedule recurring task generation to run daily at midnight
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+  setInterval(() => {
+    const now = new Date();
+    console.log(`Running scheduled recurring task generation (${now.toISOString()})`);
+    
+    taskScheduler.generateUpcomingRecurringTasks()
+      .then(() => {
+        console.log("Scheduled recurring task generation completed");
+      })
+      .catch(err => {
+        console.error("Error during scheduled recurring task generation:", err);
+      });
+  }, ONE_DAY_MS);
+}
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -81,41 +110,41 @@ app.use((req, res, next) => {
     // ALWAYS serve the app on port 5000
     // this serves both the API and the client.
     // It is the only port that is not firewalled.
-    const port = 5000;
+    const port = process.env.PORT ? parseInt(process.env.PORT) : 5000;
     console.log(`Attempting to listen on port ${port}...`);
+    
+    server.on('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`Port ${port} is already in use. Trying to find an alternative port...`);
+        // Try ports 5001-5010
+        for (let altPort = 5001; altPort <= 5010; altPort++) {
+          try {
+            server.listen({
+              port: altPort,
+              host: "0.0.0.0",
+            }, () => {
+              log(`Server started successfully on alternative port ${altPort}`);
+              startTaskScheduler();
+            });
+            return;
+          } catch (e) {
+            continue;
+          }
+        }
+        console.error('Could not find an available port. Please check for running processes.');
+        process.exit(1);
+      } else {
+        console.error('Server error:', err);
+        process.exit(1);
+      }
+    });
+    
     server.listen({
       port,
       host: "0.0.0.0",
-      reusePort: true,
     }, () => {
       log(`Server started successfully on port ${port}`);
-      
-      // Initialize task scheduler
-      const taskScheduler = new TaskScheduler(storage);
-      
-      // Run task generation immediately on server start
-      taskScheduler.generateUpcomingRecurringTasks()
-        .then(() => {
-          console.log("Initial recurring task generation completed");
-        })
-        .catch(err => {
-          console.error("Error during initial recurring task generation:", err);
-        });
-      
-      // Schedule recurring task generation to run daily at midnight
-      const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-      setInterval(() => {
-        const now = new Date();
-        console.log(`Running scheduled recurring task generation (${now.toISOString()})`);
-        
-        taskScheduler.generateUpcomingRecurringTasks()
-          .then(() => {
-            console.log("Scheduled recurring task generation completed");
-          })
-          .catch(err => {
-            console.error("Error during scheduled recurring task generation:", err);
-          });
-      }, ONE_DAY_MS);
+      startTaskScheduler();
     });
   } catch (error) {
     console.error("Error starting server:", error);

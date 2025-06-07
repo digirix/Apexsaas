@@ -282,7 +282,6 @@ export interface IStorage {
   
   // Journal Entry Line operations
   getJournalEntryLines(tenantId: number, journalEntryId?: number, accountId?: number): Promise<JournalEntryLine[]>;
-  getJournalEntryLines(journalEntryId: number): Promise<JournalEntryLine[]>;
   getClientJournalEntries(tenantId: number, clientId: number, startDate: Date, endDate: Date): Promise<JournalEntry[]>;
   getJournalEntryLine(id: number, tenantId: number): Promise<JournalEntryLine | undefined>;
   createJournalEntryLine(line: InsertJournalEntryLine): Promise<JournalEntryLine>;
