@@ -9,6 +9,6 @@ async function hashPassword(password) {
   return `${buf.toString("hex")}.${salt}`;
 }
 
-hashPassword('123456').then(hash => {
+hashPassword('123456789').then(hash => {
   console.log('UPDATE users SET password = \'', hash, '\' WHERE email = \'NewFirm3@gmail.com\';');
 }).catch(console.error);
