@@ -65,12 +65,12 @@ export function setupAuth(app: Express) {
   const sessionSettings: session.SessionOptions = {
     secret: SESSION_SECRET,
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true, // Changed to true to ensure sessions are created
     store: storage.sessionStore,
     name: 'connect.sid',
     cookie: {
       secure: false, // Set to false for development to allow HTTP cookies
-      httpOnly: true,
+      httpOnly: false, // Changed to false for development
       maxAge: 1000 * 60 * 60 * 24, // 24 hours
       sameSite: 'lax', // Allow cookies for same-site requests
       path: '/' // Ensure cookie is available for all paths
