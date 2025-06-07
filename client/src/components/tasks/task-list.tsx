@@ -1145,52 +1145,158 @@ export function TaskList({ highlightTaskId }: TaskListProps) {
       const client = clients.find(c => c.id === task.clientId);
       const entity = Array.isArray(entities) ? entities.find((e: any) => e.id === task.entityId) : null;
       const assignee = users.find(u => u.id === task.assigneeId);
-      
-      // Create detailed task context for AI
-      const taskContext = `
-Task Details:
-- Task: ${task.taskDetails || 'Untitled Task'}
-- Client: ${client?.displayName || 'Unknown Client'}
-- Entity: ${entity?.displayName || 'Unknown Entity'}
-- Assignee: ${assignee?.displayName || 'Unassigned'}
-- Due Date: ${formatDueDate(task.dueDate)}
-- Service Rate: ${task.currency} ${task.serviceRate || 'Not specified'}
-- Task Type: ${task.taskType || 'Regular'}
-- Next To Do: ${task.nextToDo || 'Not specified'}
-- Compliance Frequency: ${task.complianceFrequency || 'Not specified'}
-- Is Recurring: ${task.isRecurring ? 'Yes' : 'No'}
-`;
+      const category = Array.isArray(taskCategories) ? taskCategories.find((c: any) => c.id === task.taskCategoryId) : null;
+      const status = taskStatuses.find(s => s.id === task.statusId);
 
-      const promptMessage = `You are an AI assistant helping an accounting firm complete tasks efficiently. Based on the following task information, provide specific completion suggestions:
+      // Fetch comprehensive task details including service subscriptions and entity types
+      let entityDetails = '';
+      let serviceDetails = '';
+      let entityTypeDetails = '';
+      let countryStateDetails = '';
+
+      if (entity) {
+        try {
+          // Fetch entity types, countries, and states for comprehensive context
+          const [entityTypesResponse, countriesResponse, statesResponse, serviceSubscriptionsResponse] = await Promise.all([
+            apiRequest('GET', '/api/v1/entity-types'),
+            apiRequest('GET', '/api/v1/countries'),
+            apiRequest('GET', '/api/v1/states'),
+            apiRequest('GET', `/api/v1/entities/${entity.id}/service-subscriptions`)
+          ]);
+
+          const entityType = entityTypesResponse.find((et: any) => et.id === entity.entityTypeId);
+          const country = countriesResponse.find((c: any) => c.id === entity.countryId);
+          const state = statesResponse.find((s: any) => s.id === entity.stateId);
+
+          entityTypeDetails = entityType ? `\n- Legal Structure: ${entityType.name} (${entityType.description || 'N/A'})` : '';
+          countryStateDetails = `\n- Tax Jurisdiction: ${country?.name || 'Unknown'}, ${state?.name || 'Unknown'}`;
+          
+          entityDetails = `
+Entity Information:
+- Name: ${entity.name}
+- Address: ${entity.address}${entityTypeDetails}${countryStateDetails}
+- Business Tax ID: ${entity.businessTaxId || 'Not provided'}
+- VAT Registered: ${entity.isVatRegistered ? 'Yes' : 'No'}
+- VAT ID: ${entity.vatId || 'Not applicable'}`;
+
+          // Process service subscriptions
+          if (serviceSubscriptionsResponse && serviceSubscriptionsResponse.length > 0) {
+            const subscribedServices = serviceSubscriptionsResponse
+              .filter((sub: any) => sub.isSubscribed)
+              .map((sub: any) => `  • ${sub.serviceType?.name || 'Unknown Service'}${sub.isRequired ? ' (Required)' : ' (Optional)'}`)
+              .join('\n');
+
+            serviceDetails = subscribedServices ? `
+Services Being Provided:
+${subscribedServices}` : '';
+          }
+        } catch (entityError) {
+          console.warn('Error fetching entity details:', entityError);
+          entityDetails = `
+Entity Information:
+- Name: ${entity.name}
+- Address: ${entity.address}
+- Business Tax ID: ${entity.businessTaxId || 'Not provided'}`;
+        }
+      }
+      
+      // Create comprehensive task context for AI
+      const taskContext = `
+TASK ANALYSIS REQUEST
+
+Task Details:
+- Task Description: ${task.taskDetails || 'Untitled Task'}
+- Task Category: ${category?.name || 'Uncategorized'}
+- Status: ${status?.name || 'Unknown Status'}
+- Priority: ${task.taskType || 'Regular'}
+- Due Date: ${formatDueDate(task.dueDate)} (${new Date(task.dueDate).toLocaleDateString()})
+- Service Rate: ${task.currency} ${task.serviceRate || 'Not specified'}
+- Next Action Required: ${task.nextToDo || 'Not specified'}
+- Compliance Frequency: ${task.complianceFrequency || 'One-time'}
+- Recurring Task: ${task.isRecurring ? 'Yes' : 'No'}
+
+Client Information:
+- Client Name: ${client?.displayName || 'Unknown Client'}
+- Contact Email: ${client?.email || 'Not provided'}
+
+${entityDetails}
+
+${serviceDetails}
+
+Assignment:
+- Assigned To: ${assignee?.displayName || 'Unassigned'}
+- Assigned Email: ${assignee?.email || 'Not provided'}`;
+
+      const promptMessage = `You are an expert AI assistant for an accounting firm specializing in comprehensive task completion guidance. Analyze the following task and provide detailed, actionable recommendations.
 
 ${taskContext}
 
-Please provide:
-1. What information should be requested from the client to complete this task
-2. Step-by-step action plan to complete the task on time
-3. Key considerations and potential challenges
-4. Recommended timeline and milestones
+REQUIRED ANALYSIS:
 
-Be practical and specific to accounting/compliance work. Focus on actionable advice.`;
+1. CLIENT INFORMATION REQUIREMENTS
+   - What specific documents should be requested from the client?
+   - What financial data is needed?
+   - Are there any jurisdiction-specific requirements based on the entity's location?
+
+2. STEP-BY-STEP COMPLETION PLAN
+   - Detailed action items in chronological order
+   - Estimated time for each step
+   - Dependencies between tasks
+
+3. COMPLIANCE & REGULATORY CONSIDERATIONS
+   - Tax jurisdiction requirements (based on entity location)
+   - Industry-specific compliance needs
+   - Filing deadlines and regulatory obligations
+
+4. RISK ASSESSMENT & CHALLENGES
+   - Potential roadblocks and mitigation strategies
+   - Common issues for this type of task
+   - Quality control checkpoints
+
+5. TIMELINE & MILESTONES
+   - Recommended start date (working backwards from due date)
+   - Key milestone dates
+   - Buffer time for revisions
+
+Please provide specific, actionable guidance tailored to the entity's legal structure, tax jurisdiction, and service requirements. Focus on practical steps an accounting professional can immediately implement.`;
 
       const response = await apiRequest('POST', '/api/v1/ai/chat', {
         messages: [
           { role: 'user', content: promptMessage }
         ],
-        conversationId: `task-assistant-${task.id}`
+        conversationId: `task-assistant-${task.id}-${Date.now()}`
       });
 
-      if (response.message?.content) {
+      if (response?.message?.content) {
         setAiSuggestion(response.message.content);
       } else {
-        throw new Error('No AI response received');
+        throw new Error(`AI Response Error: ${response?.error || 'No content received from AI service'}`);
       }
     } catch (error) {
-      console.error('Error generating AI suggestion:', error);
-      setAiSuggestion('Sorry, I encountered an error while generating task completion suggestions. Please try again later.');
+      console.error('AI Task Assistant Error Details:', error);
+      
+      let errorMessage = 'Unable to generate task completion suggestions.';
+      let errorDescription = 'Please try again later.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('401')) {
+          errorMessage = 'AI service authentication failed.';
+          errorDescription = 'Please check AI configuration in Setup Module.';
+        } else if (error.message.includes('429')) {
+          errorMessage = 'AI service rate limit exceeded.';
+          errorDescription = 'Please wait a moment before trying again.';
+        } else if (error.message.includes('timeout') || error.message.includes('network')) {
+          errorMessage = 'Network connectivity issue.';
+          errorDescription = 'Check your internet connection and try again.';
+        } else {
+          errorDescription = `Error: ${error.message}`;
+        }
+      }
+      
+      setAiSuggestion(`${errorMessage}\n\n${errorDescription}`);
       toast({
         title: "AI Assistant Error",
-        description: "Failed to generate task suggestions. Please try again.",
+        description: errorDescription,
         variant: "destructive",
       });
     } finally {
