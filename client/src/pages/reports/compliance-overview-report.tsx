@@ -308,10 +308,16 @@ export default function ComplianceOverviewReport() {
             <h1 className="text-3xl font-bold">Compliance Overview</h1>
             <p className="text-muted-foreground">Monitor compliance deadlines and regulatory requirements</p>
           </div>
-          <Button onClick={handleExportPDF} className="flex items-center gap-2">
-            <Download className="w-4 h-4" />
-            Export PDF
-          </Button>
+          <div className="flex items-center gap-2">
+            <AIInsightsPanel 
+              reportType="compliance-overview" 
+              filters={filters}
+            />
+            <Button onClick={handleExportPDF} className="flex items-center gap-2">
+              <Download className="w-4 h-4" />
+              Export PDF
+            </Button>
+          </div>
         </div>
 
         {/* Enhanced Filters */}

@@ -283,10 +283,16 @@ export default function TaskLifecycleReport() {
             <h1 className="text-3xl font-bold">Task Lifecycle Analysis</h1>
             <p className="text-muted-foreground">Analyze task flow patterns and identify process bottlenecks</p>
           </div>
-          <Button onClick={handleExportPDF} className="flex items-center gap-2">
-            <Download className="w-4 h-4" />
-            Export PDF
-          </Button>
+          <div className="flex items-center gap-2">
+            <AIInsightsPanel 
+              reportType="task-lifecycle" 
+              filters={filters}
+            />
+            <Button onClick={handleExportPDF} className="flex items-center gap-2">
+              <Download className="w-4 h-4" />
+              Export PDF
+            </Button>
+          </div>
         </div>
 
         {/* Enhanced Filters */}

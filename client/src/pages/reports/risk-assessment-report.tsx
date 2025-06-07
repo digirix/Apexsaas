@@ -305,10 +305,16 @@ export default function RiskAssessmentReport() {
             <h1 className="text-3xl font-bold">Risk Assessment Report</h1>
             <p className="text-muted-foreground">Identify and analyze potential compliance and operational risks</p>
           </div>
-          <Button onClick={handleExportPDF} className="flex items-center gap-2">
-            <Download className="w-4 h-4" />
-            Export PDF
-          </Button>
+          <div className="flex items-center gap-2">
+            <AIInsightsPanel 
+              reportType="risk-assessment" 
+              filters={filters}
+            />
+            <Button onClick={handleExportPDF} className="flex items-center gap-2">
+              <Download className="w-4 h-4" />
+              Export PDF
+            </Button>
+          </div>
         </div>
 
         {/* Enhanced Filters */}

@@ -278,10 +278,16 @@ export default function JurisdictionAnalysisReport() {
             <h1 className="text-3xl font-bold">Jurisdiction Analysis</h1>
             <p className="text-muted-foreground">Analyze compliance and performance across tax jurisdictions</p>
           </div>
-          <Button onClick={handleExportPDF} className="flex items-center gap-2">
-            <Download className="w-4 h-4" />
-            Export PDF
-          </Button>
+          <div className="flex items-center gap-2">
+            <AIInsightsPanel 
+              reportType="jurisdiction-analysis" 
+              filters={filters}
+            />
+            <Button onClick={handleExportPDF} className="flex items-center gap-2">
+              <Download className="w-4 h-4" />
+              Export PDF
+            </Button>
+          </div>
         </div>
 
         {/* Enhanced Filters */}

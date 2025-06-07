@@ -294,10 +294,16 @@ export default function TeamEfficiencyReport() {
             <h1 className="text-3xl font-bold">Team Efficiency Analysis</h1>
             <p className="text-muted-foreground">Monitor team performance and productivity metrics</p>
           </div>
-          <Button onClick={handleExportPDF} className="flex items-center gap-2">
-            <Download className="w-4 h-4" />
-            Export PDF
-          </Button>
+          <div className="flex items-center gap-2">
+            <AIInsightsPanel 
+              reportType="team-efficiency" 
+              filters={filters}
+            />
+            <Button onClick={handleExportPDF} className="flex items-center gap-2">
+              <Download className="w-4 h-4" />
+              Export PDF
+            </Button>
+          </div>
         </div>
 
         {/* Enhanced Filters */}
