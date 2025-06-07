@@ -442,8 +442,8 @@ export default function TaskPerformanceReport() {
 
         {/* Report Content */}
         <div id="task-performance-report" className="space-y-6">
-          {/* Score Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Compact Score Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
@@ -491,11 +491,7 @@ export default function TaskPerformanceReport() {
             </Card>
           </div>
 
-          {/* AI-Powered Insights */}
-          <AIInsightsPanel 
-            reportType="task-performance" 
-            filters={filters}
-          />
+
 
           {/* Team Performance Table */}
           <Card>

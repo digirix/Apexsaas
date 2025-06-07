@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle, Info, AlertCircle, Brain, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useState } from "react";
 
 interface ReportInsight {
@@ -48,22 +49,11 @@ const getPriorityColor = (priority: string) => {
 
 export function AIInsightsPanel({ reportType, filters = {} }: AIInsightsPanelProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showInsights, setShowInsights] = useState(false);
+  const [open, setOpen] = useState(false);
 
   const { data: insights = [], isLoading, error, refetch } = useQuery({
     queryKey: [`/api/v1/ai/report-insights/${reportType}`, filters],
-    enabled: showInsights,
-    queryFn: async () => {
-      const params = new URLSearchParams(filters as Record<string, string>);
-      const response = await fetch(`/api/v1/ai/report-insights/${reportType}?${params}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch insights');
-      }
-      const data = await response.json();
-      return data.insights || [];
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: 1
+    enabled: open, // Only fetch when dialog is opened
   });
 
   const handleRefresh = async () => {
@@ -75,146 +65,104 @@ export function AIInsightsPanel({ reportType, filters = {} }: AIInsightsPanelPro
     }
   };
 
-  const handleGenerateInsights = () => {
-    setShowInsights(true);
-  };
-
-  // Return just the button if insights haven't been requested
-  if (!showInsights) {
-    return (
-      <Button 
-        onClick={handleGenerateInsights} 
-        className="flex items-center gap-2"
-        variant="outline"
-      >
-        <Brain className="w-4 h-4" />
-        AI Insights
-      </Button>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Brain className="h-5 w-5 text-purple-600" />
-            AI-Powered Insights
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <div className="flex flex-col items-center gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
-              <p className="text-sm text-muted-foreground">Analyzing report data...</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (error || insights.length === 0) {
-    return (
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Brain className="h-5 w-5 text-purple-600" />
-              AI-Powered Insights
-            </CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-            >
-              {isRefreshing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <div className="text-center space-y-2">
-              <Info className="h-8 w-8 text-muted-foreground mx-auto" />
-              <p className="text-sm text-muted-foreground">
-                {error ? 'Unable to generate insights at this time' : 'No insights available for current data'}
-              </p>
-              <Button variant="outline" size="sm" onClick={handleRefresh}>
-                Try Again
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button 
+          className="flex items-center gap-2"
+          variant="outline"
+        >
+          <Brain className="w-4 h-4" />
+          AI Insights
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
             <Brain className="h-5 w-5 text-purple-600" />
-            AI-Powered Insights
-          </CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-          >
-            {isRefreshing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {insights.map((insight: ReportInsight, index: number) => (
-            <div
-              key={index}
-              className="p-4 border rounded-lg space-y-3 hover:bg-muted/50 transition-colors"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-2 flex-1">
-                  {getInsightIcon(insight.type)}
-                  <h4 className="font-medium text-sm">{insight.title}</h4>
-                </div>
-                <Badge 
-                  variant="outline" 
-                  className={`text-xs ${getPriorityColor(insight.priority)}`}
-                >
-                  {insight.priority} priority
-                </Badge>
+            AI-Powered Report Insights
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="mt-4">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+                <p className="text-sm text-muted-foreground">Analyzing report data...</p>
               </div>
-              
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {insight.description}
-              </p>
-              
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                <p className="text-sm font-medium text-blue-900 mb-1">Recommendation:</p>
-                <p className="text-sm text-blue-800">{insight.recommendation}</p>
-              </div>
-              
-              {insight.metric && insight.value && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="font-medium">{insight.metric}:</span>
-                  <span>{insight.value}</span>
-                </div>
-              )}
             </div>
-          ))}
+          ) : error || insights.length === 0 ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center space-y-2">
+                <Info className="h-8 w-8 text-muted-foreground mx-auto" />
+                <p className="text-sm text-muted-foreground">
+                  {error ? 'Unable to generate insights at this time' : 'No insights available for current data'}
+                </p>
+                <Button variant="outline" size="sm" onClick={handleRefresh}>
+                  Try Again
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  {insights.length} insights generated from current filters
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                >
+                  {isRefreshing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              
+              <div className="grid gap-4">
+                {insights.map((insight: ReportInsight, index: number) => (
+                  <Card key={index} className="border-l-4 border-l-purple-400">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        {getInsightIcon(insight.type)}
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium text-sm">{insight.title}</h4>
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs ${getPriorityColor(insight.priority)}`}
+                            >
+                              {insight.priority} priority
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{insight.description}</p>
+                          {insight.recommendation && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                              <p className="text-sm font-medium text-blue-900 mb-1">Recommendation:</p>
+                              <p className="text-sm text-blue-800">{insight.recommendation}</p>
+                            </div>
+                          )}
+                          {insight.metric && insight.value && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="text-muted-foreground">{insight.metric}:</span>
+                              <span className="font-medium">{insight.value}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      </DialogContent>
+    </Dialog>
   );
 }
