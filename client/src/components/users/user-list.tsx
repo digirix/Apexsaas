@@ -59,6 +59,11 @@ export function UserList({ onUserSelect }: UserListProps) {
     queryKey: ['/api/v1/users'],
   });
 
+  // Fetch current user to check super admin status
+  const { data: currentUser } = useQuery<User>({
+    queryKey: ['/api/v1/auth/me'],
+  });
+
   // Delete user mutation with smart deletion logic
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: number) => {
@@ -155,6 +160,14 @@ export function UserList({ onUserSelect }: UserListProps) {
     deactivateUserMutation.mutate(user.id);
   };
 
+  // Handle admin status toggle
+  const handleToggleAdminStatus = (user: User) => {
+    updateAdminStatusMutation.mutate({
+      userId: user.id,
+      isAdmin: !user.isAdmin
+    });
+  };
+
   // Confirm delete user
   const confirmDeleteUser = () => {
     if (userToDelete) {
@@ -238,14 +251,22 @@ export function UserList({ onUserSelect }: UserListProps) {
             <TableBody>
               {users.map((user) => (
                 <TableRow key={user.id} className="hover:bg-slate-50">
-                  <TableCell className="font-medium flex items-center gap-2">
-                    {user.displayName}
-                    {user.isSuperAdmin && (
-                      <Badge variant="default" className="bg-blue-600 hover:bg-blue-700 ml-1">
-                        <ShieldCheck className="h-3 w-3 mr-1" />
-                        Admin
-                      </Badge>
-                    )}
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      {user.displayName}
+                      {user.isSuperAdmin && (
+                        <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">
+                          <ShieldCheck className="h-3 w-3 mr-1" />
+                          Super Admin
+                        </Badge>
+                      )}
+                      {user.isAdmin && !user.isSuperAdmin && (
+                        <Badge variant="default" className="bg-purple-600 hover:bg-purple-700">
+                          <ShieldCheck className="h-3 w-3 mr-1" />
+                          Admin
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
@@ -283,6 +304,24 @@ export function UserList({ onUserSelect }: UserListProps) {
                           <Edit className="h-4 w-4 mr-2" />
                           Edit Details
                         </DropdownMenuItem>
+                        {currentUser?.isSuperAdmin && !user.isSuperAdmin && user.id !== currentUser.id && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              className={user.isAdmin ? "text-orange-600" : "text-green-600"}
+                              onClick={() => handleToggleAdminStatus(user)}
+                              disabled={updateAdminStatusMutation.isPending}
+                            >
+                              <ShieldCheck className="h-4 w-4 mr-2" />
+                              {updateAdminStatusMutation.isPending 
+                                ? "Updating..." 
+                                : user.isAdmin 
+                                  ? "Remove Admin" 
+                                  : "Make Admin"
+                              }
+                            </DropdownMenuItem>
+                          </>
+                        )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem 
                           className="text-orange-600"
