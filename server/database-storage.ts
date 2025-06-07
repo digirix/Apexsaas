@@ -2737,6 +2737,53 @@ export class DatabaseStorage implements IStorage {
     return !!deletedEntry;
   }
 
+  async getClientJournalEntries(tenantId: number, clientId: number, startDate: Date, endDate: Date): Promise<JournalEntry[]> {
+    // Get journal entries related to a specific client within a date range
+    const entries = await db.select().from(journalEntries)
+      .where(and(
+        eq(journalEntries.tenantId, tenantId),
+        eq(journalEntries.isDeleted, false),
+        gte(journalEntries.entryDate, startDate),
+        lte(journalEntries.entryDate, endDate),
+        // Filter by source document that might be related to the client
+        or(
+          and(
+            eq(journalEntries.sourceDocument, "invoice"),
+            exists(
+              db.select().from(invoices)
+                .where(and(
+                  eq(invoices.id, journalEntries.sourceDocumentId),
+                  eq(invoices.clientId, clientId)
+                ))
+            )
+          ),
+          and(
+            eq(journalEntries.sourceDocument, "payment"),
+            exists(
+              db.select().from(payments)
+                .innerJoin(invoices, eq(payments.invoiceId, invoices.id))
+                .where(and(
+                  eq(payments.id, journalEntries.sourceDocumentId),
+                  eq(invoices.clientId, clientId)
+                ))
+            )
+          )
+        )
+      ))
+      .orderBy(desc(journalEntries.entryDate));
+
+    // For each entry, get the lines with account details
+    const entriesWithLines = await Promise.all(entries.map(async (entry) => {
+      const lines = await this.getJournalEntryLines(entry.id, tenantId);
+      return {
+        ...entry,
+        lines
+      };
+    }));
+
+    return entriesWithLines;
+  }
+
   // Journal Entry Line operations
   async getJournalEntryLines(journalEntryId: number, tenantId: number, accountId?: number): Promise<JournalEntryLine[]> {
     // Create base query
