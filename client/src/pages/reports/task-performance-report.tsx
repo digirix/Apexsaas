@@ -288,7 +288,6 @@ export default function TaskPerformanceReport() {
               </div>
               {/* Period Filter */}
               <div className="flex items-center gap-1">
-                <span className="text-xs text-gray-500">Period:</span>
                 <Select value={filters.period} onValueChange={(value) => setFilters(prev => ({ ...prev, period: value }))}>
                   <SelectTrigger className="h-6 w-20 text-xs">
                     <SelectValue />
@@ -305,7 +304,6 @@ export default function TaskPerformanceReport() {
 
               {/* Team Member Filter */}
               <div className="flex items-center gap-1">
-                <span className="text-xs text-gray-500">Team:</span>
                 <Select value={filters.teamMember} onValueChange={(value) => setFilters(prev => ({ ...prev, teamMember: value }))}>
                   <SelectTrigger className="h-6 w-20 text-xs">
                     <SelectValue />
@@ -323,7 +321,6 @@ export default function TaskPerformanceReport() {
 
               {/* Task Category Filter */}
               <div className="flex items-center gap-1">
-                <span className="text-xs text-gray-500">Type:</span>
                 <Select value={filters.taskType} onValueChange={(value) => setFilters(prev => ({ ...prev, taskType: value }))}>
                   <SelectTrigger className="h-6 w-20 text-xs">
                     <SelectValue />
@@ -341,7 +338,6 @@ export default function TaskPerformanceReport() {
 
               {/* Status Filter */}
               <div className="flex items-center gap-1">
-                <span className="text-xs text-gray-500">Status:</span>
                 <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
                   <SelectTrigger className="h-6 w-20 text-xs">
                     <SelectValue />
@@ -359,7 +355,6 @@ export default function TaskPerformanceReport() {
 
               {/* Client Filter */}
               <div className="flex items-center gap-1">
-                <span className="text-xs text-gray-500">Client:</span>
                 <Select value={filters.client} onValueChange={(value) => setFilters(prev => ({ ...prev, client: value }))}>
                   <SelectTrigger className="h-6 w-20 text-xs">
                     <SelectValue />
