@@ -5,7 +5,7 @@ import { WebSocketServer, WebSocket } from "ws";
 // WebSocket connections map: tenantId -> userId -> Set<WebSocket>
 const wsConnections = new Map<number, Map<number, Set<WebSocket>>>();
 
-function broadcastToUser(tenantId: number, userId: number, message: any) {
+export function broadcastToUser(tenantId: number, userId: number, message: any) {
   const tenantConnections = wsConnections.get(tenantId);
   if (tenantConnections) {
     const userConnections = tenantConnections.get(userId);
@@ -3206,7 +3206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Handle assignment changes
           if (existingTask.assigneeId !== updatedTask.assigneeId && updatedTask.assigneeId && updatedTask.assigneeId !== currentUserId) {
             // Use comprehensive triggers that respect user preferences
-            await ComprehensiveNotificationTriggers.triggerTaskAssignment(tenantId, id, currentUserId);
+            await ComprehensiveNotificationTriggers.triggerTaskAssignment(tenantId, id, updatedTask.assigneeId, currentUserId);
             
             console.log(`Task assignment notification sent to user ${updatedTask.assigneeId}`);
           }

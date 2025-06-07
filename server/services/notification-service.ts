@@ -539,9 +539,34 @@ export class NotificationService {
    * Emit WebSocket event for real-time notification
    */
   private static emitNotificationEvent(notification: Notification): void {
-    // This will be implemented when WebSocket is set up
-    // For now, we'll just log it
-    console.log(`New notification for user ${notification.userId}:`, notification.title);
+    // Import broadcastToUser function from routes to send real-time notifications
+    try {
+      // Dynamic import to avoid circular dependency
+      const { broadcastToUser } = require('../routes');
+      
+      // Send real-time notification via WebSocket
+      if (broadcastToUser && typeof broadcastToUser === 'function') {
+        broadcastToUser(notification.tenantId, notification.userId, {
+          type: 'notification',
+          notification: {
+            id: notification.id,
+            title: notification.title,
+            messageBody: notification.messageBody,
+            type: notification.type,
+            severity: notification.severity,
+            linkUrl: notification.linkUrl,
+            isRead: notification.isRead,
+            createdAt: notification.createdAt
+          }
+        });
+        console.log(`Real-time notification sent to user ${notification.userId}: ${notification.title}`);
+      } else {
+        console.log(`WebSocket broadcast function not available. Notification logged: ${notification.title}`);
+      }
+    } catch (error) {
+      console.error('Error sending real-time notification:', error);
+      console.log(`Fallback: New notification for user ${notification.userId}: ${notification.title}`);
+    }
   }
 
   /**
