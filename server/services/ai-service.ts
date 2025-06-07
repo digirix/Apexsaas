@@ -98,7 +98,7 @@ export const queryOpenRouter = async (
       model: formattedModel || "google/gemini-flash-1.5-8b-exp",
       messages: modifiedMessages,
       temperature: 0.7,
-      max_tokens: 2000
+      max_tokens: 1000
     };
 
     console.log("OpenRouter request body:", JSON.stringify(requestBody, null, 2));
