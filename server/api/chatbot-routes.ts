@@ -241,25 +241,36 @@ This is an accounting firm management platform with features including:
         console.log("AI response structure:", JSON.stringify({
           model: aiResponse.model,
           choicesCount: aiResponse.choices?.length || 0,
-          hasContent: aiResponse.choices?.[0]?.message?.content ? true : false
+          hasContent: aiResponse.choices?.[0]?.message?.content ? true : false,
+          contentLength: aiResponse.choices?.[0]?.message?.content?.length || 0,
+          contentPreview: aiResponse.choices?.[0]?.message?.content?.substring(0, 100) || 'No content'
         }));
+        
+        // Log the full response for debugging
+        console.log("Full AI response:", JSON.stringify(aiResponse, null, 2));
         
         // Validate the response structure
         if (!aiResponse.choices || !Array.isArray(aiResponse.choices) || aiResponse.choices.length === 0) {
-          console.error("Invalid AI response structure:", aiResponse);
-          throw new Error("Received invalid response from AI provider");
+          console.error("Invalid AI response structure - no choices:", aiResponse);
+          throw new Error("Received invalid response from AI provider - no choices array");
         }
         
         // Safely extract the first choice
         const choice = aiResponse.choices[0];
+        console.log("First choice:", JSON.stringify(choice, null, 2));
         
         // Ensure message and content exist
-        if (!choice.message || typeof choice.message.content !== 'string') {
-          console.error("Invalid message structure in choice:", choice);
-          throw new Error("AI response missing message content");
+        if (!choice.message) {
+          console.error("Choice missing message:", choice);
+          throw new Error("AI response choice missing message object");
         }
         
-        const responseContent = choice.message.content;
+        if (!choice.message.content || typeof choice.message.content !== 'string' || choice.message.content.trim() === '') {
+          console.error("Invalid or empty message content:", choice.message);
+          throw new Error("AI response missing or empty message content");
+        }
+        
+        const responseContent = choice.message.content.trim();
         
         // Log conversation with expanded analytics (if table exists)
         try {

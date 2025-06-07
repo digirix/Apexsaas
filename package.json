@@ -73,7 +73,7 @@
     "lucide-react": "^0.453.0",
     "memorystore": "^1.6.7",
     "nodemailer": "^7.0.3",
-    "openai": "^4.97.0",
+    "openai": "^4.104.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",

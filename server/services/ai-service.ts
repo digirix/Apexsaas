@@ -292,6 +292,16 @@ export const queryAI = async (
   // Normalize provider name to handle case variations
   const normalizedProvider = provider.toLowerCase();
   
+  // Check if the API key suggests OpenRouter usage (based on the prefix)
+  const isOpenRouterKey = apiKey.startsWith('sk-or-');
+  
+  // If API key is OpenRouter format or model contains a slash (provider/model format),
+  // use OpenRouter regardless of the provider setting
+  if (isOpenRouterKey || modelId.includes('/')) {
+    console.log(`Detected OpenRouter usage: key=${isOpenRouterKey}, model=${modelId}`);
+    return queryOpenRouter(apiKey, modelId, messages, systemPrompt);
+  }
+  
   switch (normalizedProvider) {
     case "openai":
     case "openrouter":
