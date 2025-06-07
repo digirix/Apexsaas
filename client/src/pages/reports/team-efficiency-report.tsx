@@ -306,16 +306,10 @@ export default function TeamEfficiencyReport() {
           </div>
         </div>
 
-        {/* Enhanced Filters */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="w-5 h-5" />
-              Filters
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Ultra-Compact Single Row Filters */}
+        <Card className="bg-gray-50/50">
+          <CardContent className="p-2">
+            <div className="flex items-center gap-1 flex-wrap">
               {/* Period Filter */}
               <div className="space-y-2">
                 <Label>Time Period</Label>
