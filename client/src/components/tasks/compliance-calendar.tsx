@@ -11,6 +11,8 @@ import { TaskStatusWorkflow } from './task-status-workflow';
 import { TaskDetails } from './task-details';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
+
+
 export function ComplianceCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
@@ -198,16 +200,22 @@ export function ComplianceCalendar() {
                       <div className="space-y-1 mt-1 overflow-y-auto max-h-[72px]">
                         {tasksForDay.map((task) => {
                           const status = getTaskStatus(task);
+                          const isCompleted = isTaskCompleted(task);
+                          const isOverdue = new Date(task.dueDate) < new Date() && !isCompleted;
                           
                           let statusColor = "bg-slate-100 text-slate-800";
-                          if (status?.rank === 3) {
+                          
+                          if (isCompleted) {
                             statusColor = "bg-green-100 text-green-800";
-                          } else if (new Date(task.dueDate) < new Date()) {
+                          } else if (isOverdue) {
                             statusColor = "bg-red-100 text-red-800";
-                          } else if (status?.rank === 1) {
-                            statusColor = "bg-blue-100 text-blue-800";
-                          } else if (status?.rank && Math.floor(status.rank) === 2) {
-                            statusColor = "bg-yellow-100 text-yellow-800";
+                          } else if (status) {
+                            // Use status rank to determine color
+                            if (status.rank === 1) {
+                              statusColor = "bg-blue-100 text-blue-800";
+                            } else if (Math.floor(status.rank) === 2) {
+                              statusColor = "bg-yellow-100 text-yellow-800";
+                            }
                           }
                           
                           return (
@@ -319,14 +327,14 @@ export function ComplianceCalendar() {
                           <div className="text-2xl font-bold">
                             {complianceTasks.filter(t => 
                               new Date(t.dueDate) < new Date() && 
-                              getTaskStatus(t)?.rank !== 3
+                              !isTaskCompleted(t)
                             ).length}
                           </div>
                         </div>
                         <div className="bg-green-50 rounded-md p-3">
                           <div className="text-xs text-green-500 font-medium mb-1">Completed</div>
                           <div className="text-2xl font-bold">
-                            {complianceTasks.filter(t => getTaskStatus(t)?.rank === 3).length}
+                            {complianceTasks.filter(t => isTaskCompleted(t)).length}
                           </div>
                         </div>
                       </div>
