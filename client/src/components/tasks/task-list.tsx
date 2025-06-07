@@ -1284,10 +1284,24 @@ Focus on providing specific, actionable guidance tailored to the entity type (${
 
       console.log('AI analysis response received:', response);
 
-      if (response?.message?.content && response.message.content.trim()) {
-        setAiSuggestion(response.message.content.trim());
+      // Handle different response structures
+      let aiContent = '';
+      
+      if (response?.message?.content) {
+        aiContent = response.message.content.trim();
+      } else if (response?.content) {
+        aiContent = response.content.trim();
+      } else if (response?.choices?.[0]?.message?.content) {
+        aiContent = response.choices[0].message.content.trim();
+      } else if (typeof response === 'string') {
+        aiContent = response.trim();
+      }
+
+      if (aiContent && aiContent.length > 0) {
+        setAiSuggestion(aiContent);
       } else {
         console.error('AI response structure:', JSON.stringify(response, null, 2));
+        console.error('No valid content found in response');
         throw new Error('No content received from AI service');
       }
     } catch (error) {
