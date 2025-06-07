@@ -128,20 +128,59 @@ export function UserList({ onUserSelect }: UserListProps) {
       return response.json();
     },
     onSuccess: (updatedUser, variables) => {
+      // Invalidate both users list and user permissions
       queryClient.invalidateQueries({ queryKey: ['/api/v1/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/users', variables.userId, 'permissions'] });
+      
       toast({
         title: variables.isAdmin ? "Admin privileges granted" : "Admin privileges removed",
-        description: `${variables.isAdmin ? 'User has been promoted to admin' : 'User is no longer an admin'}.`,
+        description: `${variables.isAdmin ? 'User has been promoted to admin with full system access' : 'User is now a regular member'}.`,
       });
+
+      // If user was made admin, create full permissions for all modules
+      if (variables.isAdmin) {
+        grantFullPermissions(variables.userId);
+      }
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
+        title: "Error", 
         description: error.message || "Failed to update admin status. Please try again.",
         variant: "destructive",
       });
     },
   });
+
+  // Grant full permissions to admin
+  const grantFullPermissions = async (userId: number) => {
+    try {
+      const allModules = [
+        "users", "clients", "tasks", "finance", "setup", "auto-generated-tasks",
+        "compliance-calendar", "ai-features", "ai-reporting", "settings", "reports",
+        "workflow-automation", "client-portal", "dashboard"
+      ];
+
+      const fullPermissions = allModules.map(module => ({
+        userId,
+        module,
+        accessLevel: "full" as const,
+        canRead: true,
+        canCreate: true,
+        canUpdate: true,
+        canDelete: true
+      }));
+
+      // Create permissions one by one using the existing API
+      for (const permission of fullPermissions) {
+        await apiRequest('POST', '/api/v1/user-permissions', permission);
+      }
+      
+      // Invalidate permissions cache
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/users', userId, 'permissions'] });
+    } catch (error) {
+      console.error('Failed to grant full permissions:', error);
+    }
+  };
 
   // Handle opening edit modal
   const handleEdit = (user: User) => {

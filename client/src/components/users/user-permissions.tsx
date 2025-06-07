@@ -195,6 +195,52 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
     }
   });
 
+  // Check if user should be demoted from admin status
+  const checkAdminDemotion = async (updatedPermissions: UserPermission[]) => {
+    try {
+      // Get current user data
+      const userResponse = await apiRequest('GET', `/api/v1/users/${userId}`);
+      const userData = await userResponse.json();
+      
+      // Only check for non-super admins who are currently admins
+      if (userData.isSuperAdmin || !userData.isAdmin) return;
+      
+      // Define all required modules for admin status
+      const requiredModules = [
+        "users", "clients", "tasks", "finance", "setup", "auto-generated-tasks",
+        "compliance-calendar", "ai-features", "ai-reporting", "settings", "reports",
+        "workflow-automation", "client-portal", "dashboard"
+      ];
+      
+      // Check if user has full access to all modules
+      const hasFullAccess = requiredModules.every(module => {
+        const permission = updatedPermissions.find(p => p.module === module);
+        return permission && 
+               permission.accessLevel === 'full' &&
+               permission.canRead && 
+               permission.canCreate && 
+               permission.canUpdate && 
+               permission.canDelete;
+      });
+      
+      // If user doesn't have full access, demote from admin
+      if (!hasFullAccess) {
+        await apiRequest('PUT', `/api/v1/users/${userId}/admin-status`, { isAdmin: false });
+        
+        // Invalidate user list to update UI
+        queryClient.invalidateQueries({ queryKey: ['/api/v1/users'] });
+        
+        toast({
+          title: "Admin status removed",
+          description: "User has been demoted to regular member due to reduced permissions.",
+          variant: "default",
+        });
+      }
+    } catch (error) {
+      console.error('Failed to check admin demotion:', error);
+    }
+  };
+
   // Create or update permission mutation
   const permissionMutation = useMutation({
     mutationFn: async (data: InsertUserPermission) => {
@@ -265,10 +311,16 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
         });
         
         // Step 4: Fetch canonical state from server after short delay
-        setTimeout(() => {
+        setTimeout(async () => {
           console.log('Invalidating cache to fetch canonical state...');
-          queryClient.invalidateQueries({ queryKey: [`/api/v1/users/${userId}/permissions`] });
-        }, 200);
+          await queryClient.invalidateQueries({ queryKey: [`/api/v1/users/${userId}/permissions`] });
+          
+          // Step 5: Check if user should be demoted from admin after permission update
+          const updatedPermissions = queryClient.getQueryData([`/api/v1/users/${userId}/permissions`]) as UserPermission[] | undefined;
+          if (updatedPermissions) {
+            await checkAdminDemotion(updatedPermissions);
+          }
+        }, 300);
       }
       
       console.log('=== END FRONTEND SAVE SUCCESS DEBUG ===');
