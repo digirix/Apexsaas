@@ -552,19 +552,33 @@ export function TaskList({ highlightTaskId }: TaskListProps) {
     select: (data) => data || { id: 0 }
   });
 
-  const { data: tasks = [], isLoading: isLoadingTasks, refetch: refetchTasks } = useQuery<Task[]>({
+  const { data: tasks = [], isLoading: isLoadingTasks, refetch: refetchTasks, error: tasksError } = useQuery<Task[]>({
     queryKey: ["/api/v1/tasks", currentUser?.id],
     enabled: !!currentUser?.id,
     staleTime: 0, // Always fetch fresh data
+    retry: 1, // Only retry once on failure
   });
 
-  // Debug React Query state
+  // Debug React Query state and force execution
   useEffect(() => {
-    console.log(`TaskList Debug - currentUser:`, currentUser);
-    console.log(`TaskList Debug - tasks:`, tasks);
-    console.log(`TaskList Debug - isLoading:`, isLoadingTasks);
-    console.log(`TaskList Debug - query enabled:`, !!currentUser?.id);
-  }, [currentUser, tasks, isLoadingTasks]);
+    console.log(`TaskList COMPONENT MOUNTED - currentUser:`, currentUser);
+    console.log(`TaskList COMPONENT MOUNTED - tasks:`, tasks);
+    console.log(`TaskList COMPONENT MOUNTED - isLoading:`, isLoadingTasks);
+    console.log(`TaskList COMPONENT MOUNTED - query enabled:`, !!currentUser?.id);
+    console.log(`TaskList COMPONENT MOUNTED - error:`, tasksError);
+    
+    // Force immediate refetch if user exists but no tasks loaded
+    if (currentUser?.id && !isLoadingTasks) {
+      console.log(`TaskList FORCE REFETCH - Forcing tasks refetch for user ${currentUser.id}`);
+      refetchTasks();
+    }
+  }, [currentUser?.id]);
+
+  // Separate effect for monitoring task changes
+  useEffect(() => {
+    console.log(`TaskList TASKS CHANGED - tasks count:`, tasks.length);
+    console.log(`TaskList TASKS CHANGED - tasks:`, tasks);
+  }, [tasks]);
 
   // Force refresh when currentUser changes
   useEffect(() => {
