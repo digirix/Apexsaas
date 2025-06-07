@@ -52,7 +52,7 @@ export default function TaskPerformanceReport() {
   const { data: taskStatuses = [] } = useQuery({ queryKey: ["/api/v1/setup/task-statuses"] });
   const { data: users = [] } = useQuery({ queryKey: ["/api/v1/users"] });
   const { data: clients = [] } = useQuery({ queryKey: ["/api/v1/clients"] });
-  const { data: taskTypes = [] } = useQuery({ queryKey: ["/api/v1/setup/task-types"] });
+  const { data: taskCategories = [] } = useQuery({ queryKey: ["/api/v1/setup/task-categories"] });
 
   // Apply comprehensive filtering
   const filteredTasks = useMemo(() => {
@@ -278,22 +278,20 @@ export default function TaskPerformanceReport() {
           </div>
         </div>
 
-        {/* Enhanced Filters */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="w-5 h-5" />
-              Filters
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Compact Filters */}
+        <Card className="bg-gray-50/50">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                <Filter className="w-4 h-4" />
+                Filters:
+              </div>
               {/* Period Filter */}
-              <div className="space-y-2">
-                <Label>Time Period</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 whitespace-nowrap">Period:</span>
                 <Select value={filters.period} onValueChange={(value) => setFilters(prev => ({ ...prev, period: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select period" />
+                  <SelectTrigger className="h-8 w-32">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="7">Last 7 days</SelectItem>
@@ -306,11 +304,11 @@ export default function TaskPerformanceReport() {
               </div>
 
               {/* Team Member Filter */}
-              <div className="space-y-2">
-                <Label>Team Member</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 whitespace-nowrap">Member:</span>
                 <Select value={filters.teamMember} onValueChange={(value) => setFilters(prev => ({ ...prev, teamMember: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select member" />
+                  <SelectTrigger className="h-8 w-32">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Members</SelectItem>
@@ -323,28 +321,30 @@ export default function TaskPerformanceReport() {
                 </Select>
               </div>
 
-              {/* Task Type Filter */}
-              <div className="space-y-2">
-                <Label>Task Type</Label>
+              {/* Task Category Filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 whitespace-nowrap">Category:</span>
                 <Select value={filters.taskType} onValueChange={(value) => setFilters(prev => ({ ...prev, taskType: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
+                  <SelectTrigger className="h-8 w-32">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="Regular">Regular</SelectItem>
-                    <SelectItem value="Recurring">Recurring</SelectItem>
-                    <SelectItem value="Compliance">Compliance</SelectItem>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {taskCategories.map((category: any) => (
+                      <SelectItem key={category.id} value={category.id.toString()}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
               {/* Status Filter */}
-              <div className="space-y-2">
-                <Label>Status</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 whitespace-nowrap">Status:</span>
                 <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
+                  <SelectTrigger className="h-8 w-32">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
@@ -358,11 +358,11 @@ export default function TaskPerformanceReport() {
               </div>
 
               {/* Client Filter */}
-              <div className="space-y-2">
-                <Label>Client</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 whitespace-nowrap">Client:</span>
                 <Select value={filters.client} onValueChange={(value) => setFilters(prev => ({ ...prev, client: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select client" />
+                  <SelectTrigger className="h-8 w-32">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Clients</SelectItem>
