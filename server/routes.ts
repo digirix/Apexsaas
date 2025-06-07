@@ -2945,11 +2945,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         (task.isCanceled === false || task.isCanceled === null || task.isCanceled === undefined)
       );
       
+      // Debug logging for task filtering
+      console.log(`DEBUG: ========== TASK FILTERING DEBUG ==========`);
+      console.log(`DEBUG: User ID: ${userId}`);
+      console.log(`DEBUG: User object:`, JSON.stringify(req.user, null, 2));
+      console.log(`DEBUG: isSuperAdmin from req.user:`, (req.user as any).isSuperAdmin);
+      console.log(`DEBUG: isSuperAdmin variable:`, isSuperAdmin);
+      console.log(`DEBUG: User ${userId} (${isSuperAdmin ? 'Super Admin' : 'Regular User'}) fetching tasks`);
+      console.log(`DEBUG: Found ${tasks.length} tasks before user filtering`);
+      if (tasks.length > 0) {
+        console.log(`DEBUG: Task details before filtering:`, tasks.map(t => `ID:${t.id} AssigneeID:${t.assigneeId} Details:${t.taskDetails}`));
+      }
+      
       // Role-based filtering: Regular members can only see tasks assigned to them
       // Super admins can see all tasks
       if (!isSuperAdmin) {
+        const beforeFilter = tasks.length;
         tasks = tasks.filter(task => task.assigneeId === userId);
+        console.log(`DEBUG: Filtered from ${beforeFilter} to ${tasks.length} tasks for user ${userId}`);
+        console.log(`DEBUG: Task assignee IDs after filtering: ${tasks.map(t => t.assigneeId).join(', ')}`);
+        if (tasks.length > 0) {
+          console.log(`DEBUG: Remaining tasks:`, tasks.map(t => `ID:${t.id} AssigneeID:${t.assigneeId} Details:${t.taskDetails}`));
+        }
+      } else {
+        console.log(`DEBUG: Super admin - no filtering applied, returning all ${tasks.length} tasks`);
       }
+      console.log(`DEBUG: ========================================`);
       
       res.json(tasks);
     } catch (error) {
