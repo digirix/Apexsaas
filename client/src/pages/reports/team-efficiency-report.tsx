@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, LineChart, Line } from 'recharts';
 import { usePDFExport } from "@/utils/pdf-export";
+import { AIInsightsPanel } from "@/components/reports/ai-insights-panel";
 
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1', '#d084d0'];
 
@@ -510,6 +511,12 @@ export default function TeamEfficiencyReport() {
               </CardContent>
             </Card>
           </div>
+
+          {/* AI-Powered Insights */}
+          <AIInsightsPanel 
+            reportType="team-efficiency" 
+            filters={filters}
+          />
 
           {/* Individual Performance Table */}
           <Card>

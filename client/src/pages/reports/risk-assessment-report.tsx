@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { usePDFExport } from "@/utils/pdf-export";
+import { AIInsightsPanel } from "@/components/reports/ai-insights-panel";
 
 const COLORS = ['#ff4444', '#ff8800', '#ffaa00', '#88dd88', '#4488ff'];
 
