@@ -280,38 +280,38 @@ export default function TaskPerformanceReport() {
 
         {/* Compact Filters */}
         <Card className="bg-gray-50/50">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
-                <Filter className="w-4 h-4" />
+          <CardContent className="p-2">
+            <div className="flex items-center gap-1 flex-wrap">
+              <div className="flex items-center gap-1 text-xs font-medium text-gray-600">
+                <Filter className="w-3 h-3" />
                 Filters:
               </div>
               {/* Period Filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 whitespace-nowrap">Period:</span>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-gray-500">Period:</span>
                 <Select value={filters.period} onValueChange={(value) => setFilters(prev => ({ ...prev, period: value }))}>
-                  <SelectTrigger className="h-8 w-32">
+                  <SelectTrigger className="h-6 w-20 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="7">Last 7 days</SelectItem>
-                    <SelectItem value="30">Last 30 days</SelectItem>
-                    <SelectItem value="90">Last 90 days</SelectItem>
-                    <SelectItem value="365">Last year</SelectItem>
-                    <SelectItem value="all">All time</SelectItem>
+                    <SelectItem value="7">7d</SelectItem>
+                    <SelectItem value="30">30d</SelectItem>
+                    <SelectItem value="90">90d</SelectItem>
+                    <SelectItem value="365">1y</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {/* Team Member Filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 whitespace-nowrap">Member:</span>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-gray-500">Team:</span>
                 <Select value={filters.teamMember} onValueChange={(value) => setFilters(prev => ({ ...prev, teamMember: value }))}>
-                  <SelectTrigger className="h-8 w-32">
+                  <SelectTrigger className="h-6 w-20 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Members</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     {users.map((user: any) => (
                       <SelectItem key={user.id} value={user.id.toString()}>
                         {user.displayName || user.username}
@@ -322,14 +322,14 @@ export default function TaskPerformanceReport() {
               </div>
 
               {/* Task Category Filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 whitespace-nowrap">Category:</span>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-gray-500">Type:</span>
                 <Select value={filters.taskType} onValueChange={(value) => setFilters(prev => ({ ...prev, taskType: value }))}>
-                  <SelectTrigger className="h-8 w-32">
+                  <SelectTrigger className="h-6 w-20 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     {taskCategories.map((category: any) => (
                       <SelectItem key={category.id} value={category.id.toString()}>
                         {category.name}
@@ -340,14 +340,14 @@ export default function TaskPerformanceReport() {
               </div>
 
               {/* Status Filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 whitespace-nowrap">Status:</span>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-gray-500">Status:</span>
                 <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
-                  <SelectTrigger className="h-8 w-32">
+                  <SelectTrigger className="h-6 w-20 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     {taskStatuses.map((status: any) => (
                       <SelectItem key={status.id} value={status.id.toString()}>
                         {status.name}
@@ -358,14 +358,14 @@ export default function TaskPerformanceReport() {
               </div>
 
               {/* Client Filter */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 whitespace-nowrap">Client:</span>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-gray-500">Client:</span>
                 <Select value={filters.client} onValueChange={(value) => setFilters(prev => ({ ...prev, client: value }))}>
-                  <SelectTrigger className="h-8 w-32">
+                  <SelectTrigger className="h-6 w-20 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Clients</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     {clients.map((client: any) => (
                       <SelectItem key={client.id} value={client.id.toString()}>
                         {client.name}

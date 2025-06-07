@@ -51,10 +51,12 @@ export function AIInsightsPanel({ reportType, filters = {} }: AIInsightsPanelPro
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [open, setOpen] = useState(false);
 
-  const { data: insights = [], isLoading, error, refetch } = useQuery({
+  const { data: response, isLoading, error, refetch } = useQuery({
     queryKey: [`/api/v1/ai/report-insights/${reportType}`, filters],
     enabled: open, // Only fetch when dialog is opened
   });
+
+  const insights = response?.insights || [];
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
