@@ -337,10 +337,13 @@ export function UserList({ onUserSelect }: UserListProps) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onUserSelect(user.id)}>
-                          <UserCog className="h-4 w-4 mr-2" />
-                          Permissions
-                        </DropdownMenuItem>
+                        {/* Hide permissions option for super admins when current user is not a super admin */}
+                        {!(user.isSuperAdmin && !currentUser?.isSuperAdmin) && (
+                          <DropdownMenuItem onClick={() => onUserSelect(user.id)}>
+                            <UserCog className="h-4 w-4 mr-2" />
+                            Permissions
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => handleEdit(user)}>
                           <Edit className="h-4 w-4 mr-2" />
                           Edit Details
