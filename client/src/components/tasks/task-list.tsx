@@ -24,7 +24,9 @@ import {
   Filter,
   Grip,
   Columns,
-  Columns3
+  Columns3,
+  Brain,
+  Lightbulb
 } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import {
@@ -62,6 +64,13 @@ import {
   PopoverContent, 
   PopoverTrigger 
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
   DropdownMenu,
@@ -490,6 +499,12 @@ export function TaskList({ highlightTaskId }: TaskListProps) {
   const [isTaskDetailsOpen, setIsTaskDetailsOpen] = useState(false);
   const [taskType, setTaskType] = useState<"admin" | "revenue">("admin");
   const [showColumnManager, setShowColumnManager] = useState(false);
+  
+  // AI Task Assistant state
+  const [aiSuggestionTaskId, setAiSuggestionTaskId] = useState<number | null>(null);
+  const [aiSuggestion, setAiSuggestion] = useState<string>("");
+  const [isAiSuggestionOpen, setIsAiSuggestionOpen] = useState(false);
+  const [isLoadingAiSuggestion, setIsLoadingAiSuggestion] = useState(false);
   
   // Column management state with localStorage persistence
   const getDefaultColumns = (): TaskColumn[] => [
@@ -1078,6 +1093,70 @@ export function TaskList({ highlightTaskId }: TaskListProps) {
     setIsTaskDetailsOpen(true);
   };
 
+  // AI Task Assistant handler
+  const handleAiTaskSuggestion = async (task: Task) => {
+    setIsLoadingAiSuggestion(true);
+    setAiSuggestionTaskId(task.id);
+    setIsAiSuggestionOpen(true);
+    
+    try {
+      // Get client and entity information
+      const client = clients.find(c => c.id === task.clientId);
+      const entity = Array.isArray(entities) ? entities.find((e: any) => e.id === task.entityId) : null;
+      const assignee = users.find(u => u.id === task.assigneeId);
+      
+      // Create detailed task context for AI
+      const taskContext = `
+Task Details:
+- Task: ${task.taskDetails || 'Untitled Task'}
+- Client: ${client?.displayName || 'Unknown Client'}
+- Entity: ${entity?.displayName || 'Unknown Entity'}
+- Assignee: ${assignee?.displayName || 'Unassigned'}
+- Due Date: ${formatDueDate(task.dueDate)}
+- Service Rate: ${task.currency} ${task.serviceRate || 'Not specified'}
+- Task Type: ${task.taskType || 'Regular'}
+- Next To Do: ${task.nextToDo || 'Not specified'}
+- Compliance Frequency: ${task.complianceFrequency || 'Not specified'}
+- Is Recurring: ${task.isRecurring ? 'Yes' : 'No'}
+`;
+
+      const promptMessage = `You are an AI assistant helping an accounting firm complete tasks efficiently. Based on the following task information, provide specific completion suggestions:
+
+${taskContext}
+
+Please provide:
+1. What information should be requested from the client to complete this task
+2. Step-by-step action plan to complete the task on time
+3. Key considerations and potential challenges
+4. Recommended timeline and milestones
+
+Be practical and specific to accounting/compliance work. Focus on actionable advice.`;
+
+      const response = await apiRequest('POST', '/api/v1/ai/chat', {
+        messages: [
+          { role: 'user', content: promptMessage }
+        ],
+        conversationId: `task-assistant-${task.id}`
+      });
+
+      if (response.message?.content) {
+        setAiSuggestion(response.message.content);
+      } else {
+        throw new Error('No AI response received');
+      }
+    } catch (error) {
+      console.error('Error generating AI suggestion:', error);
+      setAiSuggestion('Sorry, I encountered an error while generating task completion suggestions. Please try again later.');
+      toast({
+        title: "AI Assistant Error",
+        description: "Failed to generate task suggestions. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingAiSuggestion(false);
+    }
+  };
+
   const handleBulkStatusChange = async (statusId: number) => {
     try {
       const promises = selectedTaskIds.map(taskId =>
@@ -1505,6 +1584,25 @@ export function TaskList({ highlightTaskId }: TaskListProps) {
                                     </Button>
                                   ) : null;
                                 })()}
+                                
+                                {/* AI Task Assistant */}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 px-0 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAiTaskSuggestion(task);
+                                  }}
+                                  title="Get AI Task Completion Suggestions"
+                                  disabled={isLoadingAiSuggestion}
+                                >
+                                  {isLoadingAiSuggestion && aiSuggestionTaskId === task.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Brain className="h-4 w-4" />
+                                  )}
+                                </Button>
                                 
                                 {/* Actions Menu */}
                                 <DropdownMenu>
