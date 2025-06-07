@@ -57,11 +57,13 @@ export function setupAuth(app: Express) {
     resave: false,
     saveUninitialized: false,
     store: storage.sessionStore,
+    name: 'connect.sid',
     cookie: {
       secure: false, // Set to false for development to allow HTTP cookies
       httpOnly: true,
       maxAge: 1000 * 60 * 60 * 24, // 24 hours
-      sameSite: 'lax' // Allow cookies for same-site requests
+      sameSite: 'lax', // Allow cookies for same-site requests
+      path: '/' // Ensure cookie is available for all paths
     }
   };
 
