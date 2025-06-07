@@ -1141,77 +1141,139 @@ export function TaskList({ highlightTaskId }: TaskListProps) {
     setIsAiSuggestionOpen(true);
     
     try {
+      console.log('Starting AI Task Assistant for task:', task.id);
+      
       // Get basic client and entity information
       const client = clients.find(c => c.id === task.clientId);
       const entity = Array.isArray(entities) ? entities.find((e: any) => e.id === task.entityId) : null;
       const assignee = users.find(u => u.id === task.assigneeId);
       const category = Array.isArray(taskCategories) ? taskCategories.find((c: any) => c.id === task.taskCategoryId) : null;
       const status = taskStatuses.find(s => s.id === task.statusId);
-      
-      // Create detailed task context for AI
-      const taskContext = `
-TASK ANALYSIS REQUEST
 
-Task Details:
-- Task Description: ${task.taskDetails || 'Untitled Task'}
-- Task Category: ${category?.name || 'Uncategorized'}
-- Status: ${status?.name || 'Unknown Status'}
-- Priority: ${task.taskType || 'Regular'}
-- Due Date: ${formatDueDate(task.dueDate)} (${new Date(task.dueDate).toLocaleDateString()})
+      // Fetch comprehensive entity and tax jurisdiction details
+      let entityTypeInfo = '';
+      let taxJurisdictionInfo = '';
+      let serviceTypeInfo = '';
+      
+      if (entity) {
+        try {
+          console.log('Fetching entity details for entity ID:', entity.id);
+          
+          // Fetch entity type, country, and state information
+          const [entityTypesResponse, countriesResponse, statesResponse] = await Promise.all([
+            apiRequest('GET', '/api/v1/entity-types'),
+            apiRequest('GET', '/api/v1/countries'),
+            apiRequest('GET', '/api/v1/states')
+          ]);
+
+          const entityType = entityTypesResponse.find((et: any) => et.id === entity.entityTypeId);
+          const country = countriesResponse.find((c: any) => c.id === entity.countryId);
+          const state = statesResponse.find((s: any) => s.id === entity.stateId);
+
+          entityTypeInfo = entityType ? `${entityType.name} (${entityType.description || 'Standard business entity'})` : 'Unknown Entity Type';
+          taxJurisdictionInfo = `${country?.name || 'Unknown Country'}, ${state?.name || 'Unknown State/Province'}`;
+          
+          console.log('Entity Type:', entityTypeInfo);
+          console.log('Tax Jurisdiction:', taxJurisdictionInfo);
+        } catch (entityError) {
+          console.warn('Error fetching entity reference data:', entityError);
+          entityTypeInfo = 'Unable to determine entity type';
+          taxJurisdictionInfo = 'Unable to determine tax jurisdiction';
+        }
+      }
+
+      // Get service type information if available
+      if (category) {
+        serviceTypeInfo = category.name;
+      }
+      
+      // Create comprehensive task context for AI analysis
+      const taskContext = `
+COMPREHENSIVE TASK ANALYSIS REQUEST
+
+TASK DETAILS:
+- Service Being Provided: ${task.taskDetails || 'Not specified'}
+- Service Category: ${serviceTypeInfo || 'Uncategorized'}
+- Task Status: ${status?.name || 'Unknown'}
+- Task Priority: ${task.taskType || 'Regular'}
+
+COMPLIANCE INFORMATION:
+- Compliance Deadline: ${new Date(task.dueDate).toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  })}
+- Compliance Start Date: ${task.complianceStartDate ? new Date(task.complianceStartDate).toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  }) : 'Not specified'}
+- Compliance End Date: ${task.complianceEndDate ? new Date(task.complianceEndDate).toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  }) : 'Not specified'}
+- Compliance Frequency: ${task.complianceFrequency || 'One-time'}
 - Service Rate: ${task.currency} ${task.serviceRate || 'Not specified'}
 - Next Action Required: ${task.nextToDo || 'Not specified'}
-- Compliance Frequency: ${task.complianceFrequency || 'One-time'}
-- Recurring Task: ${task.isRecurring ? 'Yes' : 'No'}
 
-Client Information:
+CLIENT & ENTITY INFORMATION:
 - Client Name: ${client?.displayName || 'Unknown Client'}
-- Contact Email: ${client?.email || 'Not provided'}
-
-Entity Information:
+- Client Contact: ${client?.email || 'Not provided'}
 - Entity Name: ${entity?.name || 'No entity specified'}
+- Entity Type: ${entityTypeInfo}
 - Entity Address: ${entity?.address || 'Not provided'}
+- Tax Jurisdictions: ${taxJurisdictionInfo}
 - Business Tax ID: ${entity?.businessTaxId || 'Not provided'}
-- VAT Registered: ${entity?.isVatRegistered ? 'Yes' : 'No'}
+- VAT Registration Status: ${entity?.isVatRegistered ? 'VAT Registered' : 'Not VAT Registered'}
 - VAT ID: ${entity?.vatId || 'Not applicable'}
 
-Assignment:
+ASSIGNMENT:
 - Assigned To: ${assignee?.displayName || 'Unassigned'}
-- Assigned Email: ${assignee?.email || 'Not provided'}`;
+- Assigned Staff Email: ${assignee?.email || 'Not provided'}`;
 
-      const promptMessage = `You are an expert AI assistant for an accounting firm specializing in task completion guidance. Analyze the following task and provide detailed, actionable recommendations.
+      const promptMessage = `You are an expert AI assistant for an accounting firm specializing in compliance task completion. Based on the comprehensive task and entity information provided, please analyze and provide detailed guidance.
 
 ${taskContext}
 
-REQUIRED ANALYSIS:
+REQUIRED DETAILED ANALYSIS:
 
-1. CLIENT INFORMATION REQUIREMENTS
-   - What specific documents should be requested from the client?
-   - What financial data is needed?
-   - Any jurisdiction-specific requirements
+1. REQUIRED DOCUMENTS & INFORMATION
+   - List all specific documents that must be requested from the client
+   - Financial records and data requirements
+   - Entity-specific documentation based on the entity type
+   - Jurisdiction-specific requirements for the tax locations identified
 
-2. STEP-BY-STEP COMPLETION PLAN
-   - Detailed action items in chronological order
-   - Estimated time for each step
-   - Dependencies between tasks
+2. STEP-BY-STEP EXECUTION PLAN
+   - Detailed chronological action items for task completion
+   - Estimated time allocation for each step
+   - Dependencies and prerequisites between steps
+   - Critical path items that cannot be delayed
 
 3. COMPLIANCE & REGULATORY CONSIDERATIONS
-   - Tax jurisdiction requirements
-   - Industry-specific compliance needs
+   - Specific requirements for the identified tax jurisdictions (${taxJurisdictionInfo})
+   - Industry-specific compliance needs for ${entityTypeInfo}
    - Filing deadlines and regulatory obligations
+   - Potential penalties for non-compliance
 
-4. RISK ASSESSMENT & CHALLENGES
-   - Potential roadblocks and mitigation strategies
-   - Common issues for this type of task
-   - Quality control checkpoints
+4. RISK ASSESSMENT & QUALITY CONTROL
+   - Common issues and potential roadblocks for this service type
+   - Quality control checkpoints and validation steps
+   - Risk mitigation strategies
+   - Red flags to watch for during execution
 
-5. TIMELINE & MILESTONES
-   - Recommended start date (working backwards from due date)
-   - Key milestone dates
-   - Buffer time for revisions
+5. OPTIMIZED TIMELINE & MILESTONES
+   - Recommended project start date based on compliance deadline
+   - Key milestone dates and deliverable checkpoints
+   - Buffer time for client responses and revisions
+   - Final review and submission timeline
 
-Please provide specific, actionable guidance that an accounting professional can immediately implement.`;
+Focus on providing specific, actionable guidance tailored to the entity type (${entityTypeInfo}), tax jurisdictions (${taxJurisdictionInfo}), and compliance requirements. Include jurisdiction-specific forms, filing requirements, and procedural considerations that an accounting professional needs to execute this task successfully.`;
 
-      console.log('Sending AI chat request with prompt length:', promptMessage.length);
+      console.log('Sending comprehensive AI analysis request...');
 
       const response = await apiRequest('POST', '/api/v1/ai/chat', {
         messages: [
@@ -1220,7 +1282,7 @@ Please provide specific, actionable guidance that an accounting professional can
         conversationId: `task-assistant-${task.id}-${Date.now()}`
       });
 
-      console.log('AI chat response received:', response);
+      console.log('AI analysis response received:', response);
 
       if (response?.message?.content && response.message.content.trim()) {
         setAiSuggestion(response.message.content.trim());
@@ -1231,7 +1293,7 @@ Please provide specific, actionable guidance that an accounting professional can
     } catch (error) {
       console.error('AI Task Assistant Error Details:', error);
       
-      let errorMessage = 'Unable to generate task completion suggestions.';
+      let errorMessage = 'Unable to generate task completion analysis.';
       let errorDescription = 'Please try again later.';
       
       if (error instanceof Error) {
@@ -1254,7 +1316,7 @@ Please provide specific, actionable guidance that an accounting professional can
       
       setAiSuggestion(`${errorMessage}\n\n${errorDescription}`);
       toast({
-        title: "AI Assistant Error",
+        title: "AI Task Analysis Error",
         description: errorDescription,
         variant: "destructive",
       });

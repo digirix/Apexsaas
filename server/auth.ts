@@ -25,21 +25,30 @@ async function hashPassword(password: string) {
 }
 
 async function comparePasswords(supplied: string, stored: string) {
-  if (!stored || !stored.includes('.')) {
-    console.error('Invalid password format in the database. Expected format: "hash.salt"');
-    return false;
-  }
-  
-  const [hashed, salt] = stored.split(".");
-  if (!hashed || !salt) {
-    console.error('Invalid password format. Missing hash or salt component.');
-    return false;
-  }
-  
   try {
-    const hashedBuf = Buffer.from(hashed, "hex");
-    const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-    return timingSafeEqual(hashedBuf, suppliedBuf);
+    // Check if password is bcrypt format (starts with $2b$)
+    if (stored.startsWith('$2b$') || stored.startsWith('$2a$') || stored.startsWith('$2y$')) {
+      console.log('Using bcrypt verification for password');
+      return await bcrypt.compare(supplied, stored);
+    }
+    
+    // Legacy scrypt format (contains a dot separator)
+    if (stored.includes('.')) {
+      console.log('Using legacy scrypt verification for password');
+      const [hashed, salt] = stored.split('.');
+      
+      if (!hashed || !salt) {
+        console.error('Invalid password format. Missing hash or salt component.');
+        return false;
+      }
+      
+      const hashedBuf = Buffer.from(hashed, "hex");
+      const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+      return timingSafeEqual(hashedBuf, suppliedBuf);
+    }
+    
+    console.error('Unknown password format:', stored.substring(0, 10) + '...');
+    return false;
   } catch (error) {
     console.error('Error comparing passwords:', error);
     return false;
