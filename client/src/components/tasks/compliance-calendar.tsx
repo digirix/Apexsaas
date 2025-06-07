@@ -6,12 +6,10 @@ import { Calendar, Clock, ChevronLeft, ChevronRight, AlertCircle, Clock4, CheckC
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetClose } from '@/components/ui/sheet';
-import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TaskStatusWorkflow } from './task-status-workflow';
+import { TaskDetails } from './task-details';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button as ShadButton } from '@/components/ui/button';
 
 export function ComplianceCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -19,6 +17,8 @@ export function ComplianceCalendar() {
   const [isTaskDetailsOpen, setIsTaskDetailsOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [view, setView] = useState<'month' | 'list'>('month');
+  
+  const queryClient = useQueryClient();
   
   // Calculate the first and last day of the current month
   const monthStart = startOfMonth(currentMonth);
@@ -49,6 +49,12 @@ export function ComplianceCalendar() {
   const getTaskStatus = (task: Task) => {
     const status = taskStatuses.find(s => s.id === task.statusId);
     return status;
+  };
+
+  // Check if a task is completed based on user-defined status ranking
+  const isTaskCompleted = (task: Task) => {
+    const status = getTaskStatus(task);
+    return status && status.rank === 3; // Rank 3 = Completed in user-defined statuses
   };
   
   // Format a date to show the day of month
@@ -349,86 +355,12 @@ export function ComplianceCalendar() {
         </CardContent>
       </Card>
       
-      {/* Task details sheet */}
-      <Sheet open={isTaskDetailsOpen} onOpenChange={setIsTaskDetailsOpen}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Compliance Task Details</SheetTitle>
-            <SheetDescription>
-              View and manage compliance task information
-            </SheetDescription>
-          </SheetHeader>
-          
-          {selectedTask ? (
-            <div className="mt-6 space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-2">{selectedTask.taskDetails}</h3>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {selectedTask.statusId && (
-                    <TaskStatusWorkflow 
-                      taskId={selectedTask.id} 
-                      currentStatusId={selectedTask.statusId} 
-                      variant="icon"
-                    />
-                  )}
-                  <Badge variant="outline">{selectedTask.taskType}</Badge>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-y-4 gap-x-6 mt-4">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Due Date</p>
-                    <p>{format(new Date(selectedTask.dueDate), 'PPP')}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Frequency</p>
-                    <p>{selectedTask.complianceFrequency}</p>
-                  </div>
-                  {selectedTask.complianceStartDate && (
-                    <div>
-                      <p className="text-sm font-medium text-slate-500">Start Date</p>
-                      <p>{format(new Date(selectedTask.complianceStartDate), 'PPP')}</p>
-                    </div>
-                  )}
-                  {selectedTask.complianceEndDate && (
-                    <div>
-                      <p className="text-sm font-medium text-slate-500">End Date</p>
-                      <p>{format(new Date(selectedTask.complianceEndDate), 'PPP')}</p>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Recurring</p>
-                    <p>{selectedTask.isRecurring ? 'Yes' : 'No'}</p>
-                  </div>
-                </div>
-              </div>
-              
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-500">Task Status</p>
-                  <div className="mt-2">
-                    {selectedTask.statusId && (
-                      <TaskStatusWorkflow 
-                        taskId={selectedTask.id} 
-                        currentStatusId={selectedTask.statusId} 
-                      />
-                    )}
-                  </div>
-                </div>
-                
-                <SheetClose asChild>
-                  <ShadButton variant="outline">Close</ShadButton>
-                </SheetClose>
-              </div>
-            </div>
-          ) : (
-            <div className="py-8 text-center text-slate-500">
-              <p>Select a task to view details</p>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
+      {/* Task Details Modal */}
+      <TaskDetails
+        taskId={selectedTaskId}
+        isOpen={isTaskDetailsOpen}
+        onClose={() => setIsTaskDetailsOpen(false)}
+      />
     </div>
   );
 }
