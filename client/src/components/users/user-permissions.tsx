@@ -121,38 +121,28 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
 
   // Update permission form when selected module changes - with priority-based loading
   useEffect(() => {
-    if (selectedModule) {
+    if (selectedModule && permissions) {
       setIsLoadingPermission(true); // Prevent auto-sync during loading
       
       let newFormState: Partial<InsertUserPermission>;
       
-      // Priority 1: Check for unsaved changes first
-      if (unsavedModulePermissions[selectedModule]) {
+      // Priority 1: Check for existing saved permission from database
+      const existingPermission = permissions.find(p => p.module === selectedModule);
+      if (existingPermission) {
+        newFormState = {
+          accessLevel: existingPermission.accessLevel,
+          canRead: existingPermission.canRead,
+          canCreate: existingPermission.canCreate,
+          canUpdate: existingPermission.canUpdate,
+          canDelete: existingPermission.canDelete
+        };
+      } 
+      // Priority 2: Check for unsaved changes (only if no saved permission exists)
+      else if (unsavedModulePermissions[selectedModule]) {
         newFormState = { ...unsavedModulePermissions[selectedModule] };
       } 
-      // Priority 2: Check for existing saved permission
-      else if (permissions) {
-        const existingPermission = permissions.find(p => p.module === selectedModule);
-        if (existingPermission) {
-          newFormState = {
-            accessLevel: existingPermission.accessLevel,
-            canRead: existingPermission.canRead,
-            canCreate: existingPermission.canCreate,
-            canUpdate: existingPermission.canUpdate,
-            canDelete: existingPermission.canDelete
-          };
-        } else {
-          // Priority 3: Default restricted state
-          newFormState = {
-            accessLevel: "restricted",
-            canRead: false,
-            canCreate: false,
-            canUpdate: false,
-            canDelete: false
-          };
-        }
-      } else {
-        // Default state when permissions haven't loaded yet
+      // Priority 3: Default restricted state
+      else {
         newFormState = {
           accessLevel: "restricted",
           canRead: false,
@@ -163,22 +153,23 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
       }
       
       setPermissionForm(newFormState);
+      setIsFormDirty(false); // Reset dirty state when loading saved data
       
       // Reset loading state after data is set
-      setTimeout(() => setIsLoadingPermission(false), 100);
+      setTimeout(() => setIsLoadingPermission(false), 50);
     }
-  }, [selectedModule, permissions, unsavedModulePermissions]);
+  }, [selectedModule, permissions]);
 
   // Store changes to unsavedModulePermissions when permissionForm changes
   useEffect(() => {
-    if (selectedModule && !isLoadingPermission) {
-      // Update unsaved changes for current module
+    if (selectedModule && !isLoadingPermission && isFormDirty) {
+      // Only track unsaved changes if form has been modified by user
       setUnsavedModulePermissions(prev => ({
         ...prev,
         [selectedModule]: { ...permissionForm }
       }));
     }
-  }, [permissionForm, selectedModule, isLoadingPermission]);
+  }, [permissionForm, selectedModule, isLoadingPermission, isFormDirty]);
 
   // Delete permission mutation
   const deletePermissionMutation = useMutation({
@@ -236,6 +227,7 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
         
         console.log('Setting form state to ACTUAL saved data:', actualSavedState);
         setPermissionForm(actualSavedState);
+        setIsFormDirty(false); // Clear dirty state after successful save
         
         // Step 2: Update React Query cache with the COMPLETE saved permission object
         console.log('Updating cache with complete saved permission...');
@@ -324,6 +316,9 @@ export function UserPermissions({ userId }: UserPermissionsProps) {
 
   // Handle permission change
   const handlePermissionChange = (field: keyof InsertUserPermission, value: any) => {
+    // Mark form as dirty when user makes changes
+    setIsFormDirty(true);
+    
     if (field === 'accessLevel') {
       // Ensure accessLevel is one of the allowed values
       const accessLevel = value as 'full' | 'partial' | 'restricted';
