@@ -110,6 +110,7 @@ export const users = pgTable("users", {
   designationId: integer("designation_id"),
   departmentId: integer("department_id"),
   isSuperAdmin: boolean("is_super_admin").default(false).notNull(),
+  isAdmin: boolean("is_admin").default(false).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => {
@@ -127,6 +128,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   designationId: true,
   departmentId: true,
   isSuperAdmin: true,
+  isAdmin: true,
   isActive: true,
 });
 

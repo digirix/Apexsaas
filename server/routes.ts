@@ -2458,6 +2458,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update user admin status endpoint
+  app.put("/api/v1/users/:id/admin-status", isAuthenticated, requirePermission(storage, "users", "update"), async (req, res) => {
+    try {
+      const currentUser = req.user as any;
+      const tenantId = currentUser.tenantId;
+      const userId = parseInt(req.params.id);
+      const { isAdmin } = req.body;
+      
+      // Only super admins can change admin status
+      if (!currentUser.isSuperAdmin) {
+        return res.status(403).json({ message: "Only super admins can change admin status" });
+      }
+      
+      // Check if user belongs to tenant
+      const user = await storage.getUser(userId);
+      if (!user || user.tenantId !== tenantId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Prevent changing super admin status
+      if (user.isSuperAdmin) {
+        return res.status(403).json({ message: "Cannot change admin status of super admin" });
+      }
+      
+      // Prevent self-modification
+      if (userId === currentUser.id) {
+        return res.status(403).json({ message: "Cannot change your own admin status" });
+      }
+      
+      // Update admin status
+      const updatedUser = await storage.updateUser(userId, { isAdmin });
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating admin status:", error);
+      res.status(500).json({ message: "Failed to update admin status" });
+    }
+  });
+
   // Bulk permissions update endpoint
   app.put("/api/v1/users/:id/permissions", isAuthenticated, requirePermission(storage, "users", "update"), async (req, res) => {
     try {

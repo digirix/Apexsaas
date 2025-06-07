@@ -116,6 +116,28 @@ export function UserList({ onUserSelect }: UserListProps) {
     },
   });
 
+  // Update admin status mutation
+  const updateAdminStatusMutation = useMutation({
+    mutationFn: async ({ userId, isAdmin }: { userId: number; isAdmin: boolean }) => {
+      const response = await apiRequest('PUT', `/api/v1/users/${userId}/admin-status`, { isAdmin });
+      return response.json();
+    },
+    onSuccess: (updatedUser, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/users'] });
+      toast({
+        title: variables.isAdmin ? "Admin privileges granted" : "Admin privileges removed",
+        description: `${variables.isAdmin ? 'User has been promoted to admin' : 'User is no longer an admin'}.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update admin status. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Handle opening edit modal
   const handleEdit = (user: User) => {
     setEditingUser(user);

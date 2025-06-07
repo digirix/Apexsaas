@@ -21,9 +21,9 @@ export function checkPermission(module: string, action: PermissionAction) {
         return res.status(401).json({ message: "Authentication required" });
       }
       
-      // Super Admins have access to everything
-      if (user.isSuperAdmin) {
-        console.log("Permission granted: Super admin access");
+      // Super Admins and Admins have access to everything
+      if (user.isSuperAdmin || user.isAdmin) {
+        console.log(`Permission granted: ${user.isSuperAdmin ? 'Super admin' : 'Admin'} access`);
         return next();
       }
 
