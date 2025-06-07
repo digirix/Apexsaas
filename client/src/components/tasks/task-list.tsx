@@ -547,32 +547,32 @@ export function TaskList({ highlightTaskId }: TaskListProps) {
   // Get permissions and data
   const permissions = useModulePermissions("tasks");
   
-  const { data: currentUser } = useQuery<{ id: number }>({
-    queryKey: ["/api/v1/auth/me"],
-    select: (data) => data || { id: 0 }
-  });
+  const { user: currentUser } = useAuth();
 
   const { data: tasks = [], isLoading: isLoadingTasks, refetch: refetchTasks, error: tasksError } = useQuery<Task[]>({
     queryKey: ["/api/v1/tasks", currentUser?.id],
-    enabled: !!currentUser?.id,
+    enabled: !!currentUser?.id && currentUser.id > 0,
     staleTime: 0, // Always fetch fresh data
     retry: 1, // Only retry once on failure
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
   });
 
   // Debug React Query state and force execution
   useEffect(() => {
     console.log(`TaskList COMPONENT MOUNTED - currentUser:`, currentUser);
+    console.log(`TaskList COMPONENT MOUNTED - currentUser.id:`, currentUser?.id);
     console.log(`TaskList COMPONENT MOUNTED - tasks:`, tasks);
     console.log(`TaskList COMPONENT MOUNTED - isLoading:`, isLoadingTasks);
     console.log(`TaskList COMPONENT MOUNTED - query enabled:`, !!currentUser?.id);
     console.log(`TaskList COMPONENT MOUNTED - error:`, tasksError);
     
     // Force immediate refetch if user exists but no tasks loaded
-    if (currentUser?.id && !isLoadingTasks) {
+    if (currentUser?.id && currentUser.id > 0 && !isLoadingTasks) {
       console.log(`TaskList FORCE REFETCH - Forcing tasks refetch for user ${currentUser.id}`);
       refetchTasks();
     }
-  }, [currentUser?.id]);
+  }, [currentUser?.id, isLoadingTasks, refetchTasks]);
 
   // Separate effect for monitoring task changes
   useEffect(() => {
