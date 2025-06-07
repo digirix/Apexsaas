@@ -28,6 +28,7 @@ import {
   Brain,
   Lightbulb
 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { SiWhatsapp } from "react-icons/si";
 import {
   DndContext,
@@ -239,6 +240,46 @@ function DraggableTaskCard({
               </div>
             )}
 
+            <div className="flex items-center justify-center space-x-2 mt-2">
+              {/* WhatsApp Button */}
+              {task.entityId && (() => {
+                const entityData = entities.find(e => e.id === task.entityId);
+                return entityData?.whatsappGroupLink ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 px-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(entityData.whatsappGroupLink, '_blank');
+                    }}
+                    title="Open WhatsApp Group"
+                  >
+                    <SiWhatsapp className="h-3 w-3" />
+                  </Button>
+                ) : null;
+              })()}
+              
+              {/* AI Task Assistant Button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 px-0 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAiTaskSuggestion(task);
+                }}
+                title="Get AI Task Completion Suggestions"
+                disabled={isLoadingAiSuggestion}
+              >
+                {isLoadingAiSuggestion && aiSuggestionTaskId === task.id ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Brain className="h-3 w-3" />
+                )}
+              </Button>
+            </div>
+            
             <div className="text-xs text-slate-400 mt-1">
               Click to view details
             </div>
@@ -1839,6 +1880,70 @@ Be practical and specific to accounting/compliance work. Focus on actionable adv
           taskId={selectedTaskId}
         />
       )}
+
+      {/* AI Task Assistant Dialog */}
+      <Dialog open={isAiSuggestionOpen} onOpenChange={setIsAiSuggestionOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Brain className="h-5 w-5 text-purple-600" />
+              <span>AI Task Assistant - Completion Suggestions</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <ScrollArea className="max-h-[60vh] pr-4">
+            {isLoadingAiSuggestion ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="flex items-center space-x-3">
+                  <Loader2 className="h-6 w-6 animate-spin text-purple-600" />
+                  <span className="text-lg text-slate-600">Generating task completion suggestions...</span>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {aiSuggestion && (
+                  <div className="prose prose-sm max-w-none">
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                      <div className="whitespace-pre-wrap text-slate-700 leading-relaxed">
+                        {aiSuggestion}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {!aiSuggestion && !isLoadingAiSuggestion && (
+                  <div className="text-center py-8 text-slate-500">
+                    <Brain className="h-12 w-12 mx-auto mb-3 text-slate-400" />
+                    <p>No suggestions generated yet.</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </ScrollArea>
+          
+          <div className="flex justify-end space-x-2 pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={() => setIsAiSuggestionOpen(false)}
+            >
+              Close
+            </Button>
+            {aiSuggestion && !isLoadingAiSuggestion && (
+              <Button
+                onClick={() => {
+                  navigator.clipboard.writeText(aiSuggestion);
+                  toast({
+                    title: "Copied to clipboard",
+                    description: "AI suggestions have been copied to your clipboard.",
+                  });
+                }}
+              >
+                Copy to Clipboard
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </DndContext>
   );
 }
