@@ -48,9 +48,11 @@ const getPriorityColor = (priority: string) => {
 
 export function AIInsightsPanel({ reportType, filters = {} }: AIInsightsPanelProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showInsights, setShowInsights] = useState(false);
 
   const { data: insights = [], isLoading, error, refetch } = useQuery({
     queryKey: [`/api/v1/ai/report-insights/${reportType}`, filters],
+    enabled: showInsights,
     queryFn: async () => {
       const params = new URLSearchParams(filters as Record<string, string>);
       const response = await fetch(`/api/v1/ai/report-insights/${reportType}?${params}`);
@@ -72,6 +74,24 @@ export function AIInsightsPanel({ reportType, filters = {} }: AIInsightsPanelPro
       setIsRefreshing(false);
     }
   };
+
+  const handleGenerateInsights = () => {
+    setShowInsights(true);
+  };
+
+  // Return just the button if insights haven't been requested
+  if (!showInsights) {
+    return (
+      <Button 
+        onClick={handleGenerateInsights} 
+        className="flex items-center gap-2"
+        variant="outline"
+      >
+        <Brain className="w-4 h-4" />
+        AI Insights
+      </Button>
+    );
+  }
 
   if (isLoading) {
     return (

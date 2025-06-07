@@ -266,10 +266,16 @@ export default function TaskPerformanceReport() {
             <h1 className="text-3xl font-bold">Task Performance Analytics</h1>
             <p className="text-muted-foreground">Monitor team productivity and task completion metrics</p>
           </div>
-          <Button onClick={handleExportPDF} className="flex items-center gap-2">
-            <Download className="w-4 h-4" />
-            Export PDF
-          </Button>
+          <div className="flex items-center gap-2">
+            <AIInsightsPanel 
+              reportType="task-performance" 
+              filters={filters}
+            />
+            <Button onClick={handleExportPDF} className="flex items-center gap-2">
+              <Download className="w-4 h-4" />
+              Export PDF
+            </Button>
+          </div>
         </div>
 
         {/* Enhanced Filters */}
