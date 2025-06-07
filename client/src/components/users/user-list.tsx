@@ -64,6 +64,8 @@ export function UserList({ onUserSelect }: UserListProps) {
     queryKey: ['/api/v1/auth/me'],
   });
 
+
+
   // Delete user mutation with smart deletion logic
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: number) => {
@@ -343,7 +345,7 @@ export function UserList({ onUserSelect }: UserListProps) {
                           <Edit className="h-4 w-4 mr-2" />
                           Edit Details
                         </DropdownMenuItem>
-                        {currentUser?.isSuperAdmin && !user.isSuperAdmin && user.id !== currentUser.id && (
+                        {!user.isSuperAdmin && (
                           <>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 
