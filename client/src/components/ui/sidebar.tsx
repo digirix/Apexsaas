@@ -80,13 +80,13 @@ const allModules: NavItem[] = [
     title: "Auto Generated Tasks",
     href: "/auto-generated-tasks",
     icon: <RefreshCw className="h-5 w-5 mr-3 text-slate-500" />,
-    module: "auto_generated_tasks",
+    module: "auto-generated-tasks",
   },
   {
     title: "Compliance Calendar",
     href: "/compliance-calendar",
     icon: <Calendar className="h-5 w-5 mr-3 text-slate-500" />,
-    module: "compliance_calendar",
+    module: "compliance-calendar",
   },
   {
     title: "Finance",
@@ -98,7 +98,7 @@ const allModules: NavItem[] = [
     title: "AI Reporting",
     href: "/ai-reporting",
     icon: <BarChart2 className="h-5 w-5 mr-3 text-slate-500" />,
-    module: "ai_reporting",
+    module: "ai-reporting",
   },
   {
     title: "Reports",
@@ -142,19 +142,19 @@ const allModules: NavItem[] = [
     title: "Users",
     href: "/users",
     icon: <Users className="h-5 w-5 mr-3 text-slate-500" />,
-    module: "user_management",
+    module: "users",
   },
   {
     title: "Workflow",
     href: "/workflow",
     icon: <Zap className="h-5 w-5 mr-3 text-slate-500" />,
-    module: "workflow_automation",
+    module: "workflow-automation",
   },
   {
     title: "Settings",
     href: "/settings",
     icon: <Cog className="h-5 w-5 mr-3 text-slate-500" />,
-    module: "Settings",
+    module: "settings",
   },
 ];
 
