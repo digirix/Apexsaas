@@ -1647,7 +1647,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/v1/entities/:entityId/tax-jurisdictions", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/entities/:entityId/tax-jurisdictions", isAuthenticated, requirePermission(storage, "entities", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const entityId = parseInt(req.params.entityId);
@@ -1691,7 +1691,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete("/api/v1/entities/:entityId/tax-jurisdictions/:taxJurisdictionId", isAuthenticated, async (req, res) => {
+  app.delete("/api/v1/entities/:entityId/tax-jurisdictions/:taxJurisdictionId", isAuthenticated, requirePermission(storage, "entities", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const entityId = parseInt(req.params.entityId);
@@ -1750,7 +1750,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/v1/entities/:entityId/services", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/entities/:entityId/services", isAuthenticated, requirePermission(storage, "entities", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const entityId = parseInt(req.params.entityId);
@@ -1801,7 +1801,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.put("/api/v1/entities/:entityId/services/:serviceTypeId", isAuthenticated, async (req, res) => {
+  app.put("/api/v1/entities/:entityId/services/:serviceTypeId", isAuthenticated, requirePermission(storage, "entities", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const entityId = parseInt(req.params.entityId);
@@ -1863,7 +1863,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.delete("/api/v1/entities/:entityId/services/:serviceTypeId", isAuthenticated, async (req, res) => {
+  app.delete("/api/v1/entities/:entityId/services/:serviceTypeId", isAuthenticated, requirePermission(storage, "entities", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const entityId = parseInt(req.params.entityId);
@@ -3370,7 +3370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/v1/tasks/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/v1/tasks/:id", isAuthenticated, requirePermission(storage, "tasks", "delete"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = (req.user as any).id;
