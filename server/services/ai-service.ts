@@ -94,27 +94,24 @@ export const queryOpenRouter = async (
     const formattedModel = modelId.includes('/') ? modelId : `google/${modelId}`;
     console.log(`Using OpenRouter with model: ${formattedModel}`);
     
+    const requestBody = {
+      model: formattedModel || "google/gemini-flash-1.5-8b-exp",
+      messages: modifiedMessages,
+      temperature: 0.7,
+      max_tokens: 2000
+    };
+
+    console.log("OpenRouter request body:", JSON.stringify(requestBody, null, 2));
+
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${apiKey}`,
-        "HTTP-Referer": "https://accountant.io",
-        "X-Title": "Accountant.io"
+        "HTTP-Referer": "http://localhost:5000",
+        "X-Title": "AccFirm"
       },
-      body: JSON.stringify({
-        model: formattedModel || "google/gemini-flash-1.5-8b-exp",
-        messages: modifiedMessages,
-        temperature: 0.7,
-        // Add Google-specific safety settings required for Gemini models
-        // These are required as the API returns error about safety settings
-        safety_settings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" }
-        ]
-      })
+      body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {

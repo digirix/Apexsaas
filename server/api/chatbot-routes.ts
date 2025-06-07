@@ -313,6 +313,12 @@ This is an accounting firm management platform with features including:
       }
     } catch (error: any) {
       console.error('Error in chat API:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+        cause: error.cause
+      });
       return res.status(500).json({ 
         error: error.message || 'Failed to get AI response',
         message: {
