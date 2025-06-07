@@ -2380,7 +2380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/v1/users/:id/permissions", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/users/:id/permissions", isAuthenticated, requirePermission(storage, "users", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = parseInt(req.params.id);
@@ -2407,7 +2407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/v1/users/:userId/permissions/:permissionId", isAuthenticated, async (req, res) => {
+  app.put("/api/v1/users/:userId/permissions/:permissionId", isAuthenticated, requirePermission(storage, "users", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = parseInt(req.params.userId);
@@ -2434,7 +2434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/v1/users/:userId/permissions/:permissionId", isAuthenticated, async (req, res) => {
+  app.delete("/api/v1/users/:userId/permissions/:permissionId", isAuthenticated, requirePermission(storage, "users", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = parseInt(req.params.userId);
@@ -2459,7 +2459,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Bulk permissions update endpoint
-  app.put("/api/v1/users/:id/permissions", isAuthenticated, async (req, res) => {
+  app.put("/api/v1/users/:id/permissions", isAuthenticated, requirePermission(storage, "users", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = parseInt(req.params.id);
@@ -3901,7 +3901,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Test payment gateway connection
-  app.post("/api/v1/finance/payment-gateways/:type/test", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/finance/payment-gateways/:type/test", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const gatewayType = req.params.type;
@@ -4077,7 +4077,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // POST update invoice status
-  app.post("/api/v1/finance/invoices/:id/status", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/finance/invoices/:id/status", isAuthenticated, requirePermission(storage, "finance", "update"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = (req.user as any).id;
@@ -5213,7 +5213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // 2. Invoice Line Items
-  app.post("/api/v1/finance/invoice-line-items", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/finance/invoice-line-items", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const data = { ...req.body, tenantId };
@@ -5257,7 +5257,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/v1/finance/payments", isAuthenticated, async (req, res) => {
+  app.post("/api/v1/finance/payments", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       const userId = (req.user as any).id;
