@@ -552,9 +552,29 @@ export function TaskList({ highlightTaskId }: TaskListProps) {
     select: (data) => data || { id: 0 }
   });
 
-  const { data: tasks = [], isLoading: isLoadingTasks } = useQuery<Task[]>({
-    queryKey: ["/api/v1/tasks"],
+  const { data: tasks = [], isLoading: isLoadingTasks, refetch: refetchTasks } = useQuery<Task[]>({
+    queryKey: ["/api/v1/tasks", currentUser?.id],
+    enabled: !!currentUser?.id,
+    staleTime: 0, // Always fetch fresh data
   });
+
+  // Debug React Query state
+  useEffect(() => {
+    console.log(`TaskList Debug - currentUser:`, currentUser);
+    console.log(`TaskList Debug - tasks:`, tasks);
+    console.log(`TaskList Debug - isLoading:`, isLoadingTasks);
+    console.log(`TaskList Debug - query enabled:`, !!currentUser?.id);
+  }, [currentUser, tasks, isLoadingTasks]);
+
+  // Force refresh when currentUser changes
+  useEffect(() => {
+    if (currentUser?.id) {
+      console.log(`TaskList: User ${currentUser.id} changed, clearing cache and refetching`);
+      // Clear all task-related cache and refetch
+      queryClient.invalidateQueries({ queryKey: ["/api/v1/tasks"] });
+      refetchTasks();
+    }
+  }, [currentUser?.id, refetchTasks]);
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/v1/users"],
