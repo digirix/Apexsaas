@@ -21,7 +21,6 @@ import {
   Activity,
   Filter,
   Download,
-  ExclamationTriangle,
   Eye
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
@@ -297,7 +296,7 @@ export default function RiskAssessmentReport() {
   };
 
   return (
-    <AppLayout>
+    <AppLayout title="Risk Assessment Report">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -519,7 +518,7 @@ export default function RiskAssessmentReport() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <ExclamationTriangle className="w-5 h-5 text-red-500" />
+                <AlertTriangle className="w-5 h-5 text-red-500" />
                 Critical Compliance Risks
               </CardTitle>
             </CardHeader>

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,516 +6,690 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { format } from "date-fns";
+import { Calendar as CalendarIcon } from "lucide-react";
 import { 
-  PieChart as PieChartIcon, 
   MapPin, 
-  Building, 
+  Globe, 
+  Building,
+  DollarSign,
   TrendingUp,
-  Globe,
-  CheckCircle,
   AlertTriangle,
   Filter,
   Download,
-  BarChart3
+  BarChart3,
+  PieChart
 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
+import { usePDFExport } from "@/utils/pdf-export";
+
+const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1', '#d084d0', '#ff6b6b', '#4ecdc4'];
 
 export default function JurisdictionAnalysisReport() {
-  const [selectedJurisdiction, setSelectedJurisdiction] = React.useState("all");
-  const [complianceFilter, setComplianceFilter] = React.useState("all");
+  const [filters, setFilters] = useState({
+    jurisdiction: "all",
+    entityType: "all",
+    complianceType: "all",
+    timeFrame: "30",
+    riskLevel: "all",
+    dateFrom: null as Date | null,
+    dateTo: null as Date | null
+  });
+
+  const { exportToPDF } = usePDFExport();
 
   // Fetch data
   const { data: tasks = [] } = useQuery({ queryKey: ["/api/v1/tasks"] });
-  const { data: taskStatuses = [] } = useQuery({ queryKey: ["/api/v1/setup/task-statuses"] });
-  const { data: clients = [] } = useQuery({ queryKey: ["/api/v1/clients"] });
   const { data: entities = [] } = useQuery({ queryKey: ["/api/v1/entities"] });
+  const { data: clients = [] } = useQuery({ queryKey: ["/api/v1/clients"] });
+  const { data: taskStatuses = [] } = useQuery({ queryKey: ["/api/v1/setup/task-statuses"] });
   const { data: countries = [] } = useQuery({ queryKey: ["/api/v1/setup/countries"] });
 
-  const completedStatusId = taskStatuses?.find((s: any) => s.name === 'Completed')?.id;
-  const currentDate = new Date();
+  // Calculate jurisdiction analytics
+  const jurisdictionAnalytics = useMemo(() => {
+    if (!tasks?.length || !entities?.length) {
+      return {
+        totalJurisdictions: 0,
+        totalEntities: 0,
+        totalTasks: 0,
+        totalRevenue: 0,
+        jurisdictionBreakdown: [],
+        complianceByJurisdiction: [],
+        revenueByJurisdiction: [],
+        taskDistribution: [],
+        riskAnalysis: [],
+        entityDistribution: []
+      };
+    }
 
-  // Jurisdiction analysis
-  const jurisdictionAnalysis = React.useMemo(() => {
-    if (!countries?.length || !entities?.length) return { jurisdictions: [], summary: {} };
+    const currentDate = new Date();
+    const completedStatusId = taskStatuses.find((s: any) => s.name === 'Completed')?.id;
 
-    // Identify compliance tasks
-    const complianceTasks = tasks?.filter((task: any) => 
-      task.complianceDeadline || 
-      task.taskDetails?.toLowerCase().includes('tax') || 
-      task.taskDetails?.toLowerCase().includes('compliance') ||
-      task.taskDetails?.toLowerCase().includes('filing') ||
-      task.taskDetails?.toLowerCase().includes('return') ||
-      task.taskDetails?.toLowerCase().includes('audit') ||
-      task.taskDetails?.toLowerCase().includes('vat')
-    ) || [];
+    // Filter tasks based on criteria
+    const filteredTasks = tasks.filter((task: any) => {
+      // Date filtering
+      const taskDate = new Date(task.createdAt);
+      if (filters.dateFrom && filters.dateTo) {
+        if (taskDate < filters.dateFrom || taskDate > filters.dateTo) return false;
+      } else if (filters.timeFrame !== "all") {
+        const days = parseInt(filters.timeFrame);
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - days);
+        if (taskDate < cutoffDate) return false;
+      }
 
-    const jurisdictions = countries.map((country: any) => {
-      const countryEntities = entities.filter((e: any) => e.countryId === country.id);
-      const countryTasks = complianceTasks.filter((task: any) => 
-        countryEntities.some((entity: any) => entity.id === task.entityId)
+      // Jurisdiction filtering
+      if (filters.jurisdiction !== "all") {
+        const entity = entities.find((e: any) => e.id === task.entityId);
+        if (!entity || entity.taxJurisdiction !== filters.jurisdiction) return false;
+      }
+
+      // Entity type filtering
+      if (filters.entityType !== "all") {
+        const entity = entities.find((e: any) => e.id === task.entityId);
+        if (!entity || entity.entityType !== filters.entityType) return false;
+      }
+
+      // Compliance type filtering
+      if (filters.complianceType !== "all") {
+        const taskDetails = task.taskDetails?.toLowerCase() || '';
+        switch (filters.complianceType) {
+          case 'tax':
+            if (!taskDetails.includes('tax') && !taskDetails.includes('return')) return false;
+            break;
+          case 'audit':
+            if (!taskDetails.includes('audit')) return false;
+            break;
+          case 'filing':
+            if (!taskDetails.includes('filing')) return false;
+            break;
+          case 'regulatory':
+            if (!taskDetails.includes('regulatory') && !taskDetails.includes('compliance')) return false;
+            break;
+        }
+      }
+
+      return true;
+    });
+
+    // Get unique jurisdictions from entities
+    const jurisdictions = [...new Set(entities.map((e: any) => e.taxJurisdiction))].filter(Boolean);
+    
+    // Jurisdiction breakdown analysis
+    const jurisdictionMap = new Map();
+    
+    jurisdictions.forEach(jurisdiction => {
+      const jurisdictionEntities = entities.filter((e: any) => e.taxJurisdiction === jurisdiction);
+      const jurisdictionTasks = filteredTasks.filter((task: any) => {
+        const entity = entities.find((e: any) => e.id === task.entityId);
+        return entity?.taxJurisdiction === jurisdiction;
+      });
+
+      const completedTasks = jurisdictionTasks.filter((task: any) => task.statusId === completedStatusId);
+      const overdueTasks = jurisdictionTasks.filter((task: any) => {
+        if (task.statusId === completedStatusId || !task.dueDate) return false;
+        return new Date(task.dueDate) < currentDate;
+      });
+
+      const totalRevenue = jurisdictionTasks.reduce((sum, task) => {
+        return sum + (task.serviceRate || 0);
+      }, 0);
+
+      const complianceTasks = jurisdictionTasks.filter((task: any) => 
+        task.complianceDeadline || 
+        task.taskDetails?.toLowerCase().includes('compliance') ||
+        task.taskType === 'Compliance'
       );
 
-      const completedTasks = countryTasks.filter((task: any) => task.statusId === completedStatusId);
-      const pendingTasks = countryTasks.filter((task: any) => task.statusId !== completedStatusId);
+      jurisdictionMap.set(jurisdiction, {
+        name: jurisdiction,
+        entityCount: jurisdictionEntities.length,
+        taskCount: jurisdictionTasks.length,
+        completedTasks: completedTasks.length,
+        overdueTasks: overdueTasks.length,
+        complianceTasks: complianceTasks.length,
+        totalRevenue,
+        completionRate: jurisdictionTasks.length > 0 ? Math.round((completedTasks.length / jurisdictionTasks.length) * 100) : 0,
+        complianceRate: complianceTasks.length > 0 ? Math.round((complianceTasks.filter(t => t.statusId === completedStatusId).length / complianceTasks.length) * 100) : 100,
+        avgRevenue: jurisdictionTasks.length > 0 ? Math.round(totalRevenue / jurisdictionTasks.length) : 0
+      });
+    });
+
+    const jurisdictionBreakdown = Array.from(jurisdictionMap.values()).sort((a, b) => b.taskCount - a.taskCount);
+
+    // Compliance analysis by jurisdiction
+    const complianceByJurisdiction = jurisdictionBreakdown.map(jurisdiction => ({
+      name: jurisdiction.name,
+      totalCompliance: jurisdiction.complianceTasks,
+      completedCompliance: filteredTasks.filter((task: any) => {
+        const entity = entities.find((e: any) => e.id === task.entityId);
+        const isCompliance = task.complianceDeadline || task.taskDetails?.toLowerCase().includes('compliance');
+        return entity?.taxJurisdiction === jurisdiction.name && 
+               isCompliance && 
+               task.statusId === completedStatusId;
+      }).length,
+      complianceRate: jurisdiction.complianceRate
+    }));
+
+    // Revenue analysis by jurisdiction
+    const revenueByJurisdiction = jurisdictionBreakdown
+      .filter(j => j.totalRevenue > 0)
+      .map(jurisdiction => ({
+        name: jurisdiction.name,
+        revenue: jurisdiction.totalRevenue,
+        avgRevenue: jurisdiction.avgRevenue,
+        percentage: Math.round((jurisdiction.totalRevenue / jurisdictionBreakdown.reduce((sum, j) => sum + j.totalRevenue, 0)) * 100)
+      }));
+
+    // Task distribution by type across jurisdictions
+    const taskTypes = [...new Set(filteredTasks.map((task: any) => task.taskType))];
+    const taskDistribution = taskTypes.map(type => {
+      const typeData = { type };
+      jurisdictions.forEach(jurisdiction => {
+        const count = filteredTasks.filter((task: any) => {
+          const entity = entities.find((e: any) => e.id === task.entityId);
+          return entity?.taxJurisdiction === jurisdiction && task.taskType === type;
+        }).length;
+        typeData[jurisdiction] = count;
+      });
+      return typeData;
+    });
+
+    // Risk analysis by jurisdiction
+    const riskAnalysis = jurisdictionBreakdown.map(jurisdiction => {
+      const riskScore = jurisdiction.overdueTasks * 10 + 
+                      (100 - jurisdiction.complianceRate) + 
+                      (100 - jurisdiction.completionRate);
       
-      // Calculate overdue tasks
-      const overdueTasks = pendingTasks.filter((task: any) => {
-        const dueDate = new Date(task.dueDate);
-        return dueDate < currentDate;
-      });
-
-      // Calculate regulatory overdue tasks
-      const regulatoryOverdue = pendingTasks.filter((task: any) => {
-        if (!task.complianceDeadline) return false;
-        const complianceDate = new Date(task.complianceDeadline);
-        return complianceDate < currentDate;
-      });
-
-      // Calculate upcoming deadlines
-      const upcomingDeadlines = pendingTasks.filter((task: any) => {
-        const dueDate = new Date(task.dueDate);
-        const daysUntilDue = Math.ceil((dueDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
-        
-        if (task.complianceDeadline) {
-          const complianceDate = new Date(task.complianceDeadline);
-          const daysUntilCompliance = Math.ceil((complianceDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
-          return daysUntilCompliance >= 0 && daysUntilCompliance <= 30;
-        }
-        
-        return daysUntilDue >= 0 && daysUntilDue <= 30;
-      });
-
-      // Calculate compliance rate
-      const complianceRate = countryTasks.length > 0 ? 
-        Math.round((completedTasks.length / countryTasks.length) * 100) : 0;
-
-      // Risk assessment
-      let riskScore = 0;
-      if (regulatoryOverdue.length > 0) riskScore += regulatoryOverdue.length * 30;
-      if (overdueTasks.length > 0) riskScore += overdueTasks.length * 15;
-      if (upcomingDeadlines.length > 0) riskScore += upcomingDeadlines.length * 5;
-      
-      riskScore = Math.min(100, riskScore);
-
-      const riskLevel = riskScore >= 80 ? 'Critical' : 
-                      riskScore >= 60 ? 'High' : 
-                      riskScore >= 40 ? 'Medium' : 'Low';
-
-      // Calculate average completion time for this jurisdiction
-      const completedTasksWithTime = completedTasks.filter((task: any) => task.updatedAt);
-      const avgCompletionTime = completedTasksWithTime.length > 0 ? 
-        Math.round(completedTasksWithTime.reduce((sum: number, task: any) => {
-          const created = new Date(task.createdAt);
-          const completed = new Date(task.updatedAt);
-          return sum + Math.ceil((completed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
-        }, 0) / completedTasksWithTime.length) : 0;
+      let riskLevel = 'Low';
+      if (riskScore >= 50) riskLevel = 'High';
+      else if (riskScore >= 25) riskLevel = 'Medium';
 
       return {
-        countryId: country.id,
-        countryName: country.name,
-        totalEntities: countryEntities.length,
-        totalTasks: countryTasks.length,
-        completedTasks: completedTasks.length,
-        pendingTasks: pendingTasks.length,
-        overdueTasks: overdueTasks.length,
-        regulatoryOverdue: regulatoryOverdue.length,
-        upcomingDeadlines: upcomingDeadlines.length,
-        complianceRate,
-        riskScore,
+        name: jurisdiction.name,
+        riskScore: Math.min(riskScore, 100),
         riskLevel,
-        avgCompletionTime,
-        entities: countryEntities.map((entity: any) => {
-          const entityTasks = countryTasks.filter((task: any) => task.entityId === entity.id);
-          const entityCompleted = entityTasks.filter((task: any) => task.statusId === completedStatusId);
-          const client = clients?.find((c: any) => c.id === entity.clientId);
-          
-          return {
-            entityId: entity.id,
-            entityName: entity.name,
-            clientName: client?.displayName || 'Unknown Client',
-            totalTasks: entityTasks.length,
-            completedTasks: entityCompleted.length,
-            complianceRate: entityTasks.length > 0 ? 
-              Math.round((entityCompleted.length / entityTasks.length) * 100) : 0
-          };
-        }).filter(e => e.totalTasks > 0)
+        overdueTasks: jurisdiction.overdueTasks,
+        complianceGaps: 100 - jurisdiction.complianceRate
       };
-    }).filter(j => j.totalTasks > 0)
-    .sort((a, b) => b.riskScore - a.riskScore);
+    });
 
-    // Overall summary
-    const totalJurisdictions = jurisdictions.length;
-    const totalEntities = jurisdictions.reduce((sum, j) => sum + j.totalEntities, 0);
-    const totalTasks = jurisdictions.reduce((sum, j) => sum + j.totalTasks, 0);
-    const totalCompleted = jurisdictions.reduce((sum, j) => sum + j.completedTasks, 0);
-    const totalOverdue = jurisdictions.reduce((sum, j) => sum + j.overdueTasks, 0);
-    const totalRegulatoryOverdue = jurisdictions.reduce((sum, j) => sum + j.regulatoryOverdue, 0);
+    // Entity distribution by type and jurisdiction
+    const entityTypes = [...new Set(entities.map((e: any) => e.entityType))].filter(Boolean);
+    const entityDistribution = entityTypes.map(type => {
+      const typeEntities = entities.filter((e: any) => e.entityType === type);
+      const jurisdictionCounts = {};
+      
+      jurisdictions.forEach(jurisdiction => {
+        jurisdictionCounts[jurisdiction] = typeEntities.filter((e: any) => e.taxJurisdiction === jurisdiction).length;
+      });
 
-    const overallComplianceRate = totalTasks > 0 ? Math.round((totalCompleted / totalTasks) * 100) : 0;
-    const avgRiskScore = totalJurisdictions > 0 ? 
-      Math.round(jurisdictions.reduce((sum, j) => sum + j.riskScore, 0) / totalJurisdictions) : 0;
+      return {
+        entityType: type,
+        total: typeEntities.length,
+        ...jurisdictionCounts
+      };
+    });
 
-    const summary = {
-      totalJurisdictions,
-      totalEntities,
-      totalTasks,
-      totalCompleted,
-      totalOverdue,
-      totalRegulatoryOverdue,
-      overallComplianceRate,
-      avgRiskScore
+    return {
+      totalJurisdictions: jurisdictions.length,
+      totalEntities: entities.length,
+      totalTasks: filteredTasks.length,
+      totalRevenue: jurisdictionBreakdown.reduce((sum, j) => sum + j.totalRevenue, 0),
+      jurisdictionBreakdown,
+      complianceByJurisdiction,
+      revenueByJurisdiction,
+      taskDistribution,
+      riskAnalysis,
+      entityDistribution
     };
+  }, [tasks, entities, taskStatuses, filters]);
 
-    return { jurisdictions, summary };
-  }, [countries, entities, tasks, completedStatusId, currentDate, clients]);
-
-  // Chart data preparation
-  const jurisdictionChartData = jurisdictionAnalysis.jurisdictions.map(j => ({
-    name: j.countryName,
-    totalTasks: j.totalTasks,
-    completed: j.completedTasks,
-    overdue: j.overdueTasks,
-    complianceRate: j.complianceRate,
-    riskScore: j.riskScore
-  }));
-
-  const complianceDistribution = jurisdictionAnalysis.jurisdictions.map(j => ({
-    name: j.countryName,
-    value: j.complianceRate,
-    color: j.complianceRate >= 90 ? '#22C55E' : 
-           j.complianceRate >= 70 ? '#3B82F6' : 
-           j.complianceRate >= 50 ? '#EAB308' : '#EF4444'
-  }));
-
-  const riskDistribution = [
-    { 
-      name: 'Critical Risk', 
-      value: jurisdictionAnalysis.jurisdictions.filter(j => j.riskLevel === 'Critical').length, 
-      color: '#EF4444' 
-    },
-    { 
-      name: 'High Risk', 
-      value: jurisdictionAnalysis.jurisdictions.filter(j => j.riskLevel === 'High').length, 
-      color: '#F97316' 
-    },
-    { 
-      name: 'Medium Risk', 
-      value: jurisdictionAnalysis.jurisdictions.filter(j => j.riskLevel === 'Medium').length, 
-      color: '#EAB308' 
-    },
-    { 
-      name: 'Low Risk', 
-      value: jurisdictionAnalysis.jurisdictions.filter(j => j.riskLevel === 'Low').length, 
-      color: '#22C55E' 
-    }
-  ];
-
-  const getRiskColor = (level: string) => {
-    switch (level) {
-      case 'Critical': return 'bg-red-100 text-red-800 border-red-200';
-      case 'High': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'Medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'Low': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-slate-100 text-slate-800 border-slate-200';
+  const handleExportPDF = async () => {
+    try {
+      await exportToPDF('jurisdiction-analysis-report', {
+        title: 'Jurisdiction Analysis Report',
+        subtitle: `Generated for ${filters.timeFrame === 'all' ? 'All Time' : `Last ${filters.timeFrame} Days`}`,
+        reportType: 'JurisdictionAnalysis',
+        filters: {
+          timeFrame: filters.timeFrame,
+          jurisdiction: filters.jurisdiction,
+          entityType: filters.entityType,
+          complianceType: filters.complianceType,
+          riskLevel: filters.riskLevel,
+          dateRange: filters.dateFrom && filters.dateTo ? `${format(filters.dateFrom, 'MMM dd, yyyy')} - ${format(filters.dateTo, 'MMM dd, yyyy')}` : 'N/A'
+        }
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
     }
   };
 
   return (
-    <AppLayout title="Jurisdiction Analysis Report">
-      <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <PieChartIcon className="h-8 w-8 text-indigo-600" />
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">Jurisdiction Analysis</h1>
-              <p className="text-slate-600">Multi-jurisdiction compliance tracking and regional insights</p>
-            </div>
+    <AppLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Jurisdiction Analysis</h1>
+            <p className="text-muted-foreground">Analyze compliance and performance across tax jurisdictions</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Export Report
-            </Button>
-            <Button variant="outline" size="sm">
-              <Filter className="h-4 w-4 mr-2" />
-              Advanced Filters
-            </Button>
-          </div>
+          <Button onClick={handleExportPDF} className="flex items-center gap-2">
+            <Download className="w-4 h-4" />
+            Export PDF
+          </Button>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-4 p-4 bg-slate-50 border border-slate-200 rounded-lg">
-          <div className="flex items-center gap-2">
-            <Globe className="h-4 w-4 text-slate-500" />
-            <Select value={selectedJurisdiction} onValueChange={setSelectedJurisdiction}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All jurisdictions" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All jurisdictions</SelectItem>
-                {countries?.map((country: any) => (
-                  <SelectItem key={country.id} value={country.id.toString()}>
-                    {country.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-slate-500" />
-            <Select value={complianceFilter} onValueChange={setComplianceFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="All compliance" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All compliance</SelectItem>
-                <SelectItem value="high">High compliance (90%+)</SelectItem>
-                <SelectItem value="medium">Medium compliance (70-89%)</SelectItem>
-                <SelectItem value="low">Low compliance (&lt;70%)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {/* Alert for High Risk Jurisdictions */}
-      {jurisdictionAnalysis.jurisdictions.filter(j => j.riskLevel === 'Critical' || j.regulatoryOverdue > 0).length > 0 && (
-        <Card className="mb-8 border-red-200 bg-red-50">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
-              <CardTitle className="text-red-900">High Risk Jurisdictions</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {jurisdictionAnalysis.jurisdictions
-                .filter(j => j.riskLevel === 'Critical' || j.regulatoryOverdue > 0)
-                .map(j => (
-                  <div key={j.countryId} className="flex items-center gap-2 text-red-800">
-                    <MapPin className="h-4 w-4" />
-                    <span className="font-medium">
-                      {j.countryName}: {j.regulatoryOverdue > 0 ? `${j.regulatoryOverdue} regulatory violations` : 'Critical risk level'}
-                    </span>
-                  </div>
-                ))
-              }
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Key Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-slate-600">Active Jurisdictions</CardTitle>
-              <Globe className="h-4 w-4 text-slate-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
-              {jurisdictionAnalysis.summary.totalJurisdictions}
-            </div>
-            <p className="text-sm text-slate-500 mt-1">
-              {jurisdictionAnalysis.summary.totalEntities} entities
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-slate-600">Overall Compliance</CardTitle>
-              <CheckCircle className="h-4 w-4 text-slate-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
-              {jurisdictionAnalysis.summary.overallComplianceRate}%
-            </div>
-            <Progress value={jurisdictionAnalysis.summary.overallComplianceRate} className="mt-2" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-slate-600">Average Risk Score</CardTitle>
-              <BarChart3 className="h-4 w-4 text-slate-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
-              {jurisdictionAnalysis.summary.avgRiskScore}
-            </div>
-            <div className="mt-2">
-              <Badge className={getRiskColor(
-                jurisdictionAnalysis.summary.avgRiskScore >= 80 ? 'Critical' :
-                jurisdictionAnalysis.summary.avgRiskScore >= 60 ? 'High' :
-                jurisdictionAnalysis.summary.avgRiskScore >= 40 ? 'Medium' : 'Low'
-              )}>
-                {jurisdictionAnalysis.summary.avgRiskScore >= 80 ? 'Critical' :
-                 jurisdictionAnalysis.summary.avgRiskScore >= 60 ? 'High' :
-                 jurisdictionAnalysis.summary.avgRiskScore >= 40 ? 'Medium' : 'Low'} Risk
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-slate-600">Regulatory Violations</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-slate-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-slate-900">
-              {jurisdictionAnalysis.summary.totalRegulatoryOverdue}
-            </div>
-            <p className="text-sm text-slate-500 mt-1">
-              {jurisdictionAnalysis.summary.totalOverdue} total overdue
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Jurisdiction Performance Comparison */}
+        {/* Enhanced Filters */}
         <Card>
           <CardHeader>
-            <CardTitle>Jurisdiction Performance</CardTitle>
-            <CardDescription>Compliance rates and task completion by jurisdiction</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="w-5 h-5" />
+              Filters
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={jurisdictionChartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="totalTasks" fill="#64748B" name="Total Tasks" />
-                <Bar dataKey="completed" fill="#22C55E" name="Completed" />
-                <Bar dataKey="overdue" fill="#EF4444" name="Overdue" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Time Frame Filter */}
+              <div className="space-y-2">
+                <Label>Time Frame</Label>
+                <Select value={filters.timeFrame} onValueChange={(value) => setFilters(prev => ({ ...prev, timeFrame: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select timeframe" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7">Last 7 days</SelectItem>
+                    <SelectItem value="30">Last 30 days</SelectItem>
+                    <SelectItem value="90">Last 90 days</SelectItem>
+                    <SelectItem value="365">Last year</SelectItem>
+                    <SelectItem value="all">All time</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-        {/* Risk Level Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Risk Distribution</CardTitle>
-            <CardDescription>Jurisdictions categorized by risk level</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={riskDistribution}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, value }) => `${name}: ${value}`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
+              {/* Jurisdiction Filter */}
+              <div className="space-y-2">
+                <Label>Jurisdiction</Label>
+                <Select value={filters.jurisdiction} onValueChange={(value) => setFilters(prev => ({ ...prev, jurisdiction: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select jurisdiction" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Jurisdictions</SelectItem>
+                    {[...new Set(entities.map((e: any) => e.taxJurisdiction))].filter(Boolean).map((jurisdiction: string) => (
+                      <SelectItem key={jurisdiction} value={jurisdiction}>
+                        {jurisdiction}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Entity Type Filter */}
+              <div className="space-y-2">
+                <Label>Entity Type</Label>
+                <Select value={filters.entityType} onValueChange={(value) => setFilters(prev => ({ ...prev, entityType: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select entity type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    {[...new Set(entities.map((e: any) => e.entityType))].filter(Boolean).map((type: string) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Compliance Type Filter */}
+              <div className="space-y-2">
+                <Label>Compliance Type</Label>
+                <Select value={filters.complianceType} onValueChange={(value) => setFilters(prev => ({ ...prev, complianceType: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="tax">Tax Compliance</SelectItem>
+                    <SelectItem value="audit">Audit</SelectItem>
+                    <SelectItem value="filing">Filing Requirements</SelectItem>
+                    <SelectItem value="regulatory">Regulatory</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Risk Level Filter */}
+              <div className="space-y-2">
+                <Label>Risk Level</Label>
+                <Select value={filters.riskLevel} onValueChange={(value) => setFilters(prev => ({ ...prev, riskLevel: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select risk level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Levels</SelectItem>
+                    <SelectItem value="high">High Risk</SelectItem>
+                    <SelectItem value="medium">Medium Risk</SelectItem>
+                    <SelectItem value="low">Low Risk</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Date From */}
+              <div className="space-y-2">
+                <Label>From Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filters.dateFrom ? format(filters.dateFrom, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={filters.dateFrom || undefined}
+                      onSelect={(date) => setFilters(prev => ({ ...prev, dateFrom: date || null }))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Date To */}
+              <div className="space-y-2">
+                <Label>To Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filters.dateTo ? format(filters.dateTo, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={filters.dateTo || undefined}
+                      onSelect={(date) => setFilters(prev => ({ ...prev, dateTo: date || null }))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Clear Filters */}
+              <div className="flex items-end">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setFilters({
+                    jurisdiction: "all",
+                    entityType: "all",
+                    complianceType: "all",
+                    timeFrame: "30",
+                    riskLevel: "all",
+                    dateFrom: null,
+                    dateTo: null
+                  })}
+                  className="w-full"
                 >
-                  {riskDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+                  Clear Filters
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Detailed Jurisdiction Analysis */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Detailed Jurisdiction Analysis</CardTitle>
-          <CardDescription>Comprehensive breakdown of compliance performance by jurisdiction</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left p-3 font-medium text-slate-600">Jurisdiction</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Entities</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Total Tasks</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Completed</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Overdue</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Regulatory Violations</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Compliance Rate</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Risk Level</th>
-                  <th className="text-left p-3 font-medium text-slate-600">Avg Completion Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {jurisdictionAnalysis.jurisdictions.map((jurisdiction, index) => (
-                  <tr key={jurisdiction.countryId} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-slate-400" />
-                        <span className="font-medium text-slate-900">{jurisdiction.countryName}</span>
-                      </div>
-                    </td>
-                    <td className="p-3 text-slate-600">{jurisdiction.totalEntities}</td>
-                    <td className="p-3 text-slate-600">{jurisdiction.totalTasks}</td>
-                    <td className="p-3 text-slate-600">{jurisdiction.completedTasks}</td>
-                    <td className="p-3">
-                      {jurisdiction.overdueTasks > 0 ? (
-                        <Badge className="bg-orange-100 text-orange-800">
-                          {jurisdiction.overdueTasks}
-                        </Badge>
-                      ) : (
-                        <span className="text-slate-500">0</span>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      {jurisdiction.regulatoryOverdue > 0 ? (
-                        <Badge className="bg-red-100 text-red-800">
-                          {jurisdiction.regulatoryOverdue}
-                        </Badge>
-                      ) : (
-                        <span className="text-slate-500">0</span>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 bg-slate-200 rounded-full h-2">
-                          <div 
-                            className="bg-blue-600 h-2 rounded-full" 
-                            style={{ width: `${jurisdiction.complianceRate}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-sm text-slate-600">{jurisdiction.complianceRate}%</span>
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <Badge className={getRiskColor(jurisdiction.riskLevel)}>
-                        {jurisdiction.riskLevel}
-                      </Badge>
-                    </td>
-                    <td className="p-3 text-slate-600">
-                      {jurisdiction.avgCompletionTime > 0 ? `${jurisdiction.avgCompletionTime} days` : '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* Report Content */}
+        <div id="jurisdiction-analysis-report" className="space-y-6">
+          {/* Score Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Jurisdictions</CardTitle>
+                <Globe className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{jurisdictionAnalytics.totalJurisdictions}</div>
+                <p className="text-xs text-muted-foreground">
+                  Active tax jurisdictions
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Entities</CardTitle>
+                <Building className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{jurisdictionAnalytics.totalEntities}</div>
+                <p className="text-xs text-muted-foreground">
+                  Across all jurisdictions
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
+                <BarChart3 className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{jurisdictionAnalytics.totalTasks}</div>
+                <p className="text-xs text-muted-foreground">
+                  Compliance & operational
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                <DollarSign className="w-4 h-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">${jurisdictionAnalytics.totalRevenue.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">
+                  Service revenue generated
+                </p>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Jurisdiction Overview Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="w-5 h-5" />
+                Jurisdiction Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Jurisdiction</TableHead>
+                    <TableHead>Entities</TableHead>
+                    <TableHead>Total Tasks</TableHead>
+                    <TableHead>Completed</TableHead>
+                    <TableHead>Overdue</TableHead>
+                    <TableHead>Completion Rate</TableHead>
+                    <TableHead>Revenue</TableHead>
+                    <TableHead>Avg Revenue</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {jurisdictionAnalytics.jurisdictionBreakdown.map((jurisdiction: any, index: number) => (
+                    <TableRow key={index}>
+                      <TableCell className="font-medium">{jurisdiction.name}</TableCell>
+                      <TableCell>{jurisdiction.entityCount}</TableCell>
+                      <TableCell>{jurisdiction.taskCount}</TableCell>
+                      <TableCell>
+                        <Badge variant="default" className="bg-green-100 text-green-800">
+                          {jurisdiction.completedTasks}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {jurisdiction.overdueTasks > 0 ? (
+                          <Badge variant="destructive">
+                            {jurisdiction.overdueTasks}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">0</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Progress value={jurisdiction.completionRate} className="w-16" />
+                          <span className="text-sm">{jurisdiction.completionRate}%</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>${jurisdiction.totalRevenue.toLocaleString()}</TableCell>
+                      <TableCell>${jurisdiction.avgRevenue.toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Risk Analysis Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5" />
+                Risk Analysis by Jurisdiction
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Jurisdiction</TableHead>
+                    <TableHead>Risk Score</TableHead>
+                    <TableHead>Risk Level</TableHead>
+                    <TableHead>Overdue Tasks</TableHead>
+                    <TableHead>Compliance Gaps</TableHead>
+                    <TableHead>Action Required</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {jurisdictionAnalytics.riskAnalysis.map((risk: any, index: number) => (
+                    <TableRow key={index}>
+                      <TableCell className="font-medium">{risk.name}</TableCell>
+                      <TableCell>{risk.riskScore}</TableCell>
+                      <TableCell>
+                        <Badge variant={
+                          risk.riskLevel === 'High' ? 'destructive' : 
+                          risk.riskLevel === 'Medium' ? 'secondary' : 'default'
+                        }>
+                          {risk.riskLevel}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{risk.overdueTasks}</TableCell>
+                      <TableCell>{risk.complianceGaps}%</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {risk.riskLevel === 'High' ? 'Immediate attention required' :
+                         risk.riskLevel === 'Medium' ? 'Monitor and improve' :
+                         'Continue current approach'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Task Distribution by Jurisdiction */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Task Distribution by Jurisdiction</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={jurisdictionAnalytics.jurisdictionBreakdown}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="taskCount" fill="#8884d8" name="Total Tasks" />
+                    <Bar dataKey="completedTasks" fill="#82ca9d" name="Completed" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Revenue Distribution */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Revenue by Jurisdiction</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <RechartsPieChart>
+                    <Pie
+                      data={jurisdictionAnalytics.revenueByJurisdiction}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="revenue"
+                      label={({ name, percentage }) => `${name}: ${percentage}%`}
+                    >
+                      {jurisdictionAnalytics.revenueByJurisdiction.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => `$${value.toLocaleString()}`} />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Compliance Rate by Jurisdiction */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Compliance Performance</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={jurisdictionAnalytics.complianceByJurisdiction}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="complianceRate" fill="#82ca9d" name="Compliance Rate %" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Risk Score Distribution */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Risk Score by Jurisdiction</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={jurisdictionAnalytics.riskAnalysis}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="riskScore" fill="#ff7300" name="Risk Score" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </AppLayout>
   );
