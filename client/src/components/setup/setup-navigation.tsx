@@ -70,11 +70,6 @@ export function SetupNavigation({ activeSection, onSectionChange }: SetupNavigat
       icon: <Receipt className="h-5 w-5" />
     },
     {
-      id: 'payment-gateways',
-      label: 'Payment Gateways',
-      icon: <CreditCard className="h-5 w-5" />
-    },
-    {
       id: 'task-statuses',
       label: 'Task Statuses',
       icon: <List className="h-5 w-5" />
