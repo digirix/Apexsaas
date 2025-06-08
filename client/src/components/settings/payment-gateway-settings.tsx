@@ -128,6 +128,7 @@ export function PaymentGatewaySettings() {
   const form = useForm({
     resolver: zodResolver(gateway.configSchema),
     defaultValues: currentConfig,
+    mode: 'onChange',
   });
 
   // Reset form when tab changes
@@ -266,9 +267,24 @@ export function PaymentGatewaySettings() {
   });
 
   const onSubmit = (data: any) => {
+    console.log("=== FORM SUBMISSION STARTED ===");
     console.log("Form submitted with data:", data);
     console.log("Form errors:", form.formState.errors);
     console.log("Form validation state:", form.formState.isValid);
+    console.log("Active tab:", activeTab);
+    console.log("Current gateway:", currentGateway);
+    console.log("User:", user);
+    
+    if (!user?.tenantId) {
+      console.error("No tenant ID found for user");
+      toast({
+        title: "Authentication Error",
+        description: "Please log in again to save payment gateway settings.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     saveGatewayMutation.mutate(data);
   };
 
@@ -406,13 +422,7 @@ export function PaymentGatewaySettings() {
                         {testingGateway === gateway.key ? "Testing..." : "Test Connection"}
                       </Button>
                       <Button 
-                        type="button"
-                        onClick={() => {
-                          console.log("Save button clicked");
-                          console.log("Form values:", form.getValues());
-                          console.log("Form errors:", form.formState.errors);
-                          form.handleSubmit(onSubmit)();
-                        }}
+                        type="submit"
                         disabled={saveGatewayMutation.isPending}
                       >
                         {saveGatewayMutation.isPending ? "Saving..." : "Save Configuration"}
@@ -493,11 +503,12 @@ function StripeConfigForm({ form }: { form: any }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div className="space-y-2">
-        <Label htmlFor="stripe-public-key">Publishable Key</Label>
+        <Label htmlFor="stripe-public-key">Publishable Key *</Label>
         <Input
           id="stripe-public-key"
           placeholder="pk_test_..."
-          {...form.register("publicKey")}
+          value={form.watch("publicKey") || ""}
+          onChange={(e) => form.setValue("publicKey", e.target.value, { shouldValidate: true })}
         />
         {form.formState.errors.publicKey && (
           <p className="text-sm text-red-600">{form.formState.errors.publicKey.message}</p>
@@ -505,12 +516,13 @@ function StripeConfigForm({ form }: { form: any }) {
       </div>
       
       <div className="space-y-2">
-        <Label htmlFor="stripe-secret-key">Secret Key</Label>
+        <Label htmlFor="stripe-secret-key">Secret Key *</Label>
         <Input
           id="stripe-secret-key"
           type="password"
           placeholder="sk_test_..."
-          {...form.register("secretKey")}
+          value={form.watch("secretKey") || ""}
+          onChange={(e) => form.setValue("secretKey", e.target.value, { shouldValidate: true })}
         />
         {form.formState.errors.secretKey && (
           <p className="text-sm text-red-600">{form.formState.errors.secretKey.message}</p>
@@ -523,13 +535,14 @@ function StripeConfigForm({ form }: { form: any }) {
           id="stripe-webhook-secret"
           type="password"
           placeholder="whsec_..."
-          {...form.register("webhookSecret")}
+          value={form.watch("webhookSecret") || ""}
+          onChange={(e) => form.setValue("webhookSecret", e.target.value, { shouldValidate: true })}
         />
       </div>
       
       <div className="space-y-2">
         <Label htmlFor="stripe-currency">Default Currency</Label>
-        <Select value={form.watch("currency")} onValueChange={(value) => form.setValue("currency", value)}>
+        <Select value={form.watch("currency") || "PKR"} onValueChange={(value) => form.setValue("currency", value, { shouldValidate: true })}>
           <SelectTrigger>
             <SelectValue placeholder="Select currency" />
           </SelectTrigger>
