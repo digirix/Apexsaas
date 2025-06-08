@@ -108,8 +108,53 @@ export default function TaskLifecycleReport() {
     });
   }, [tasks, filters]);
 
-  // For now, we'll show basic lifecycle information
-  // TODO: Implement full status progression tracking
+  // Fetch task status history for detailed progression
+  const { data: taskStatusHistory = [] } = useQuery({ 
+    queryKey: ["/api/v1/tasks/status-history"],
+    enabled: filteredTasks.length > 0
+  });
+
+  // Function to calculate status progression for a task
+  const calculateStatusProgression = (taskId: number) => {
+    const taskHistory = taskStatusHistory.filter((h: any) => h.taskId === taskId);
+    const progressions: { [key: string]: number } = {};
+
+    // If no history, calculate from creation date to now in current status
+    if (taskHistory.length === 0) {
+      const task = filteredTasks.find((t: any) => t.id === taskId);
+      if (task) {
+        const currentStatus = taskStatuses.find((s: any) => s.id === task.statusId);
+        const created = new Date(task.createdAt);
+        const now = new Date();
+        const days = Math.ceil((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+        if (currentStatus) {
+          progressions[currentStatus.name] = days;
+        }
+      }
+      return progressions;
+    }
+
+    // Sort history by timestamp
+    taskHistory.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    // Calculate time spent in each status
+    for (let i = 0; i < taskHistory.length; i++) {
+      const current = taskHistory[i];
+      const next = taskHistory[i + 1];
+      const statusName = taskStatuses.find((s: any) => s.id === current.fromStatusId)?.name || 
+                        taskStatuses.find((s: any) => s.id === current.toStatusId)?.name;
+      
+      if (statusName) {
+        const startTime = new Date(current.createdAt);
+        const endTime = next ? new Date(next.createdAt) : new Date();
+        const days = Math.ceil((endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60 * 24));
+        
+        progressions[statusName] = (progressions[statusName] || 0) + days;
+      }
+    }
+
+    return progressions;
+  };
 
   // Calculate lifecycle analytics
   const analytics = useMemo(() => {
@@ -525,20 +570,27 @@ export default function TaskLifecycleReport() {
                         const status = taskStatuses.find((s: any) => s.id === task.statusId);
                         const category = taskCategories.find((c: any) => c.id === task.taskCategoryId);
                         
-                        // Calculate basic lifecycle information
-                        const created = new Date(task.createdAt);
-                        const now = new Date();
-                        const daysInCycle = Math.ceil((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+                        // Calculate detailed status progression
+                        const progressions = calculateStatusProgression(task.id);
+                        const totalDays = Object.values(progressions).reduce((sum: number, days: number) => sum + days, 0);
                         
-                        // Show basic status information
-                        const statusInfo = status?.name === "Completed" ? 
-                          `Completed (${daysInCycle}d total)` : 
-                          `In progress for ${daysInCycle} days`;
+                        // Create beautiful status progression display
+                        const statusProgressionText = Object.entries(progressions)
+                          .filter(([_, days]) => days > 0)
+                          .map(([statusName, days]) => `${statusName} ${days}d`)
+                          .join(' → ');
+                        
+                        const currentStatusDays = progressions[status?.name || ''] || 0;
                         
                         return (
                           <TableRow key={task.id}>
-                            <TableCell className="font-medium max-w-48 truncate">
-                              {task.taskDetails || 'No details'}
+                            <TableCell className="font-medium max-w-48">
+                              <div className="space-y-1">
+                                <div className="truncate">{task.taskDetails || 'No details'}</div>
+                                <div className="text-xs text-muted-foreground leading-tight">
+                                  {statusProgressionText || `${status?.name || 'Unknown'} ${currentStatusDays}d`}
+                                </div>
+                              </div>
                             </TableCell>
                             <TableCell>{client?.displayName || 'Unknown'}</TableCell>
                             <TableCell>
@@ -551,9 +603,9 @@ export default function TaskLifecycleReport() {
                             </TableCell>
                             <TableCell>
                               <div className="space-y-1">
-                                <div className="font-medium">{daysInCycle} days</div>
+                                <div className="font-medium">{totalDays} days</div>
                                 <div className="text-xs text-muted-foreground">
-                                  {statusInfo}
+                                  {status?.name === "Completed" ? "Total cycle time" : `Current: ${currentStatusDays}d`}
                                 </div>
                               </div>
                             </TableCell>
