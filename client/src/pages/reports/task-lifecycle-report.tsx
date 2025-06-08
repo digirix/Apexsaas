@@ -33,13 +33,13 @@ const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1', '#d084d0'
 export default function TaskLifecycleReport() {
   const [filters, setFilters] = useState({
     period: "30",
-    taskType: "all",
+    country: "all",
+    taskCategory: "all",
     status: "all",
     assignee: "all",
     client: "all",
-    priority: "all",
-    dateFrom: null as Date | null,
-    dateTo: null as Date | null
+    entity: "all",
+    priority: "all"
   });
 
   const { exportToPDF } = usePDFExport();
@@ -49,25 +49,39 @@ export default function TaskLifecycleReport() {
   const { data: taskStatuses = [] } = useQuery({ queryKey: ["/api/v1/setup/task-statuses"] });
   const { data: users = [] } = useQuery({ queryKey: ["/api/v1/users"] });
   const { data: clients = [] } = useQuery({ queryKey: ["/api/v1/clients"] });
+  const { data: entities = [] } = useQuery({ queryKey: ["/api/v1/entities"] });
+  const { data: countries = [] } = useQuery({ queryKey: ["/api/v1/setup/countries"] });
+  const { data: taskCategories = [] } = useQuery({ queryKey: ["/api/v1/setup/task-categories"] });
 
-  // Apply filtering
+  // Apply filtering with entity dependency
+  const filteredEntities = useMemo(() => {
+    if (!entities?.length) return [];
+    
+    if (filters.client === "all") return entities;
+    
+    return entities.filter((entity: any) => entity.clientId === parseInt(filters.client));
+  }, [entities, filters.client]);
+
   const filteredTasks = useMemo(() => {
     if (!tasks?.length) return [];
 
     return tasks.filter((task: any) => {
-      // Period/Date filtering
-      const taskDate = new Date(task.createdAt);
-      if (filters.dateFrom && filters.dateTo) {
-        if (taskDate < filters.dateFrom || taskDate > filters.dateTo) return false;
-      } else if (filters.period !== "all") {
+      // Period filtering
+      if (filters.period !== "all") {
+        const taskDate = new Date(task.createdAt);
         const periodDays = parseInt(filters.period);
         const periodStart = new Date();
         periodStart.setDate(periodStart.getDate() - periodDays);
         if (taskDate < periodStart) return false;
       }
 
-      // Task type filtering
-      if (filters.taskType !== "all" && task.taskType !== filters.taskType) {
+      // Country filtering
+      if (filters.country !== "all" && task.countryId !== parseInt(filters.country)) {
+        return false;
+      }
+
+      // Task category filtering
+      if (filters.taskCategory !== "all" && task.taskCategoryId !== parseInt(filters.taskCategory)) {
         return false;
       }
 
@@ -83,6 +97,16 @@ export default function TaskLifecycleReport() {
 
       // Client filtering
       if (filters.client !== "all" && task.clientId !== parseInt(filters.client)) {
+        return false;
+      }
+
+      // Entity filtering
+      if (filters.entity !== "all" && task.entityId !== parseInt(filters.entity)) {
+        return false;
+      }
+
+      // Priority filtering
+      if (filters.priority !== "all" && task.priority !== filters.priority) {
         return false;
       }
 
@@ -284,10 +308,6 @@ export default function TaskLifecycleReport() {
             <p className="text-muted-foreground">Analyze task flow patterns and identify process bottlenecks</p>
           </div>
           <div className="flex items-center gap-2">
-            <AIInsightsPanel 
-              reportType="task-lifecycle" 
-              filters={filters}
-            />
             <Button onClick={handleExportPDF} className="flex items-center gap-2">
               <Download className="w-4 h-4" />
               Export PDF
