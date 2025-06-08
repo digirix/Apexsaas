@@ -26,14 +26,14 @@ const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1', '#d084d0'
 
 export default function TaskLifecycleReport() {
   const [filters, setFilters] = useState({
-    period: "30",
-    country: "all",
-    taskCategory: "all",
-    status: "all",
-    assignee: "all",
-    client: "all",
-    entity: "all",
-    priority: "all"
+    period: "",
+    country: "",
+    taskCategory: "",
+    status: "",
+    assignee: "",
+    client: "",
+    entity: "",
+    priority: ""
   });
 
   const { exportToPDF } = usePDFExport();
@@ -51,7 +51,7 @@ export default function TaskLifecycleReport() {
   const filteredEntities = useMemo(() => {
     if (!entities?.length) return [];
     
-    if (filters.client === "all") return entities;
+    if (!filters.client || filters.client === "") return entities;
     
     return entities.filter((entity: any) => entity.clientId === parseInt(filters.client));
   }, [entities, filters.client]);
@@ -61,7 +61,7 @@ export default function TaskLifecycleReport() {
 
     return tasks.filter((task: any) => {
       // Period filtering
-      if (filters.period !== "all") {
+      if (filters.period && filters.period !== "") {
         const taskDate = new Date(task.createdAt);
         const periodDays = parseInt(filters.period);
         const periodStart = new Date();
@@ -70,37 +70,37 @@ export default function TaskLifecycleReport() {
       }
 
       // Country filtering
-      if (filters.country !== "all" && task.countryId !== parseInt(filters.country)) {
+      if (filters.country && filters.country !== "" && task.countryId !== parseInt(filters.country)) {
         return false;
       }
 
       // Task category filtering
-      if (filters.taskCategory !== "all" && task.taskCategoryId !== parseInt(filters.taskCategory)) {
+      if (filters.taskCategory && filters.taskCategory !== "" && task.taskCategoryId !== parseInt(filters.taskCategory)) {
         return false;
       }
 
       // Status filtering
-      if (filters.status !== "all" && task.statusId !== parseInt(filters.status)) {
+      if (filters.status && filters.status !== "" && task.statusId !== parseInt(filters.status)) {
         return false;
       }
 
       // Assignee filtering
-      if (filters.assignee !== "all" && task.assigneeId !== parseInt(filters.assignee)) {
+      if (filters.assignee && filters.assignee !== "" && task.assigneeId !== parseInt(filters.assignee)) {
         return false;
       }
 
       // Client filtering
-      if (filters.client !== "all" && task.clientId !== parseInt(filters.client)) {
+      if (filters.client && filters.client !== "" && task.clientId !== parseInt(filters.client)) {
         return false;
       }
 
       // Entity filtering
-      if (filters.entity !== "all" && task.entityId !== parseInt(filters.entity)) {
+      if (filters.entity && filters.entity !== "" && task.entityId !== parseInt(filters.entity)) {
         return false;
       }
 
       // Priority filtering
-      if (filters.priority !== "all" && task.priority !== filters.priority) {
+      if (filters.priority && filters.priority !== "" && task.priority !== filters.priority) {
         return false;
       }
 
@@ -426,14 +426,14 @@ export default function TaskLifecycleReport() {
                 variant="outline" 
                 size="sm"
                 onClick={() => setFilters({
-                  period: "30",
-                  country: "all",
-                  taskCategory: "all",
-                  status: "all",
-                  assignee: "all",
-                  client: "all",
-                  entity: "all",
-                  priority: "all"
+                  period: "",
+                  country: "",
+                  taskCategory: "",
+                  status: "",
+                  assignee: "",
+                  client: "",
+                  entity: "",
+                  priority: ""
                 })}
                 className="h-6 text-xs px-2"
               >
@@ -449,52 +449,52 @@ export default function TaskLifecycleReport() {
           {/* Score Cards - Reduced Height */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="h-20">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
-                <CardTitle className="text-xs font-medium">Avg Lifecycle Time</CardTitle>
-                <RefreshCw className="w-3 h-3 text-muted-foreground" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 p-2">
+                <CardTitle className="text-xs font-medium leading-tight">Avg Lifecycle Time</CardTitle>
+                <RefreshCw className="w-3 h-3 text-muted-foreground flex-shrink-0" />
               </CardHeader>
-              <CardContent className="py-0 px-3 pb-2">
-                <div className="text-lg font-bold">{analytics.lifecycleMetrics.avgLifecycle}</div>
-                <p className="text-xs text-muted-foreground">days average</p>
+              <CardContent className="p-2 pt-0">
+                <div className="text-base font-bold leading-tight">{analytics.lifecycleMetrics.avgLifecycle}</div>
+                <p className="text-xs text-muted-foreground leading-tight">days average</p>
               </CardContent>
             </Card>
 
             <Card className="h-20">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
-                <CardTitle className="text-xs font-medium">Time to Start</CardTitle>
-                <Timer className="w-3 h-3 text-muted-foreground" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 p-2">
+                <CardTitle className="text-xs font-medium leading-tight">Time to Start</CardTitle>
+                <Timer className="w-3 h-3 text-muted-foreground flex-shrink-0" />
               </CardHeader>
-              <CardContent className="py-0 px-3 pb-2">
-                <div className="text-lg font-bold">{analytics.lifecycleMetrics.avgTimeToStart}</div>
-                <p className="text-xs text-muted-foreground">days to begin</p>
+              <CardContent className="p-2 pt-0">
+                <div className="text-base font-bold leading-tight">{analytics.lifecycleMetrics.avgTimeToStart}</div>
+                <p className="text-xs text-muted-foreground leading-tight">days to begin</p>
               </CardContent>
             </Card>
 
             <Card className="h-20">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
-                <CardTitle className="text-xs font-medium">Time to Complete</CardTitle>
-                <Target className="w-3 h-3 text-muted-foreground" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 p-2">
+                <CardTitle className="text-xs font-medium leading-tight">Time to Complete</CardTitle>
+                <Target className="w-3 h-3 text-muted-foreground flex-shrink-0" />
               </CardHeader>
-              <CardContent className="py-0 px-3 pb-2">
-                <div className="text-lg font-bold">{Math.round(analytics.lifecycleMetrics.avgTimeToComplete)}</div>
-                <p className="text-xs text-muted-foreground">days to finish</p>
+              <CardContent className="p-2 pt-0">
+                <div className="text-base font-bold leading-tight">{Math.round(analytics.lifecycleMetrics.avgTimeToComplete)}</div>
+                <p className="text-xs text-muted-foreground leading-tight">days to finish</p>
               </CardContent>
             </Card>
 
             <Card className="h-20">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
-                <CardTitle className="text-xs font-medium">Cycle Efficiency</CardTitle>
-                <Workflow className="w-3 h-3 text-muted-foreground" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 p-2">
+                <CardTitle className="text-xs font-medium leading-tight">Cycle Efficiency</CardTitle>
+                <Workflow className="w-3 h-3 text-muted-foreground flex-shrink-0" />
               </CardHeader>
-              <CardContent className="py-0 px-3 pb-2">
-                <div className="text-lg font-bold">{analytics.lifecycleMetrics.cycleEfficiency}%</div>
-                <p className="text-xs text-muted-foreground">completion rate</p>
+              <CardContent className="p-2 pt-0">
+                <div className="text-base font-bold leading-tight">{analytics.lifecycleMetrics.cycleEfficiency}%</div>
+                <p className="text-xs text-muted-foreground leading-tight">completion rate</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Tables Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Tables Section - Stacked Vertically */}
+          <div className="space-y-6">
             {/* Task Lifecycle Details Table */}
             <Card>
               <CardHeader>
