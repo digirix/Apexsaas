@@ -133,7 +133,18 @@ export function PaymentGatewaySettings() {
   // Reset form when tab changes
   useEffect(() => {
     const newConfig = gatewaySettings.find(g => g.gatewayType === activeTab);
-    const configData = newConfig ? JSON.parse(newConfig.configData || '{}') : {};
+    let configData = newConfig ? JSON.parse(newConfig.configData || '{}') : {};
+    
+    // Transform backend data to form format
+    if (activeTab === 'stripe' && configData.secret_key) {
+      configData = {
+        secretKey: configData.secret_key,
+        publicKey: configData.public_key,
+        webhookSecret: configData.webhook_secret,
+        currency: configData.currency || 'USD'
+      };
+    }
+    
     form.reset(configData);
   }, [activeTab, gatewaySettings, form]);
 
@@ -141,6 +152,18 @@ export function PaymentGatewaySettings() {
   const saveGatewayMutation = useMutation({
     mutationFn: async (data: any) => {
       console.log("Saving gateway configuration:", { data, activeTab, currentGateway });
+      
+      // Transform data for backend compatibility
+      let transformedData = { ...data };
+      if (activeTab === 'stripe') {
+        transformedData = {
+          secret_key: data.secretKey,
+          public_key: data.publicKey,
+          webhook_secret: data.webhookSecret,
+          currency: data.currency || 'USD'
+        };
+      }
+      
       const payload = {
         gatewayType: activeTab,
         tenantId: user?.tenantId,
@@ -148,7 +171,7 @@ export function PaymentGatewaySettings() {
         isTestMode: currentGateway?.isTestMode ?? true,
         displayName: gateway.name,
         description: gateway.description,
-        configData: JSON.stringify(data),
+        configData: JSON.stringify(transformedData),
         supportedCurrencies: gateway.currencies.join(','),
         transactionFeePercentage: '0',
         transactionFeeFixed: '0',
