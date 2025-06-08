@@ -47,6 +47,21 @@ export default function TaskLifecycleReport() {
   const { data: countries = [] } = useQuery({ queryKey: ["/api/v1/setup/countries"] });
   const { data: taskCategories = [] } = useQuery({ queryKey: ["/api/v1/setup/task-categories"] });
 
+  // Fetch status progression data for filtered tasks
+  const taskIds = filteredTasks.slice(0, 15).map((task: any) => task.id);
+  const { data: statusProgressions = [] } = useQuery({ 
+    queryKey: ["/api/v1/tasks/status-progression", taskIds],
+    enabled: taskIds.length > 0,
+    queryFn: async () => {
+      const response = await fetch("/api/v1/tasks/status-progression", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskIds })
+      });
+      return response.json();
+    }
+  });
+
   // Apply filtering with entity dependency
   const filteredEntities = useMemo(() => {
     if (!entities?.length) return [];

@@ -1897,6 +1897,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Member Management Routes
   
+  // Task Status History
+  app.get("/api/v1/tasks/:taskId/status-history", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const taskId = parseInt(req.params.taskId);
+      
+      const history = await db.execute(sql`
+        SELECT 
+          tsh.*,
+          ts.name as status_name,
+          u.display_name as changed_by_name
+        FROM task_status_history tsh
+        LEFT JOIN task_statuses ts ON tsh.to_status_id = ts.id
+        LEFT JOIN users u ON tsh.changed_by_user_id = u.id
+        WHERE tsh.task_id = ${taskId} AND tsh.tenant_id = ${tenantId}
+        ORDER BY tsh.changed_at ASC
+      `);
+      
+      res.json(history.rows);
+    } catch (error) {
+      console.error("Error fetching task status history:", error);
+      res.status(500).json({ message: "Failed to fetch task status history" });
+    }
+  });
+
+  // Get task status progression for multiple tasks
+  app.post("/api/v1/tasks/status-progression", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const { taskIds } = req.body;
+      
+      if (!Array.isArray(taskIds) || taskIds.length === 0) {
+        return res.status(400).json({ message: "Task IDs array is required" });
+      }
+      
+      const taskIdsStr = taskIds.join(',');
+      
+      const progressions = await db.execute(sql.raw(`
+        WITH status_periods AS (
+          SELECT 
+            tsh.task_id,
+            tsh.to_status_id,
+            ts.name as status_name,
+            tsh.changed_at,
+            LEAD(tsh.changed_at) OVER (
+              PARTITION BY tsh.task_id 
+              ORDER BY tsh.changed_at
+            ) as next_changed_at
+          FROM task_status_history tsh
+          LEFT JOIN task_statuses ts ON tsh.to_status_id = ts.id
+          WHERE tsh.task_id IN (${taskIdsStr}) 
+            AND tsh.tenant_id = ${tenantId}
+        )
+        SELECT 
+          task_id,
+          to_status_id,
+          status_name,
+          CASE 
+            WHEN next_changed_at IS NULL THEN 
+              EXTRACT(EPOCH FROM (NOW() - changed_at)) / 86400
+            ELSE 
+              EXTRACT(EPOCH FROM (next_changed_at - changed_at)) / 86400
+          END as days_in_status
+        FROM status_periods
+        ORDER BY task_id, changed_at
+      `));
+      
+      res.json(progressions.rows);
+    } catch (error) {
+      console.error("Error fetching task status progressions:", error);
+      res.status(500).json({ message: "Failed to fetch task status progressions" });
+    }
+  });
+
   // 1. Designations
   app.get("/api/v1/designations", isAuthenticated, async (req, res) => {
     try {

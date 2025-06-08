@@ -251,6 +251,28 @@ export const insertTaskStatusWorkflowRuleSchema = createInsertSchema(taskStatusW
   isAllowed: true,
 });
 
+// Task status history table for tracking status changes over time
+export const taskStatusHistory = pgTable("task_status_history", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  taskId: integer("task_id").notNull(),
+  fromStatusId: integer("from_status_id"),
+  toStatusId: integer("to_status_id").notNull(),
+  changedByUserId: integer("changed_by_user_id"),
+  changedAt: timestamp("changed_at").defaultNow().notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertTaskStatusHistorySchema = createInsertSchema(taskStatusHistory).pick({
+  tenantId: true,
+  taskId: true,
+  fromStatusId: true,
+  toStatusId: true,
+  changedByUserId: true,
+  notes: true,
+});
+
 // Tax jurisdictions setup table (for VAT/Sales Tax)
 export const taxJurisdictions = pgTable("tax_jurisdictions", {
   id: serial("id").primaryKey(),
