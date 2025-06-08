@@ -4135,6 +4135,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create Stripe payment intent for invoice
+  app.post("/api/v1/invoices/:invoiceId/payment/stripe", async (req, res) => {
+    try {
+      console.log("=== CREATE STRIPE PAYMENT INTENT ===");
+      console.log("Invoice ID:", req.params.invoiceId);
+      
+      const invoiceId = parseInt(req.params.invoiceId);
+      if (isNaN(invoiceId)) {
+        return res.status(400).json({ message: "Invalid invoice ID" });
+      }
+
+      // Get invoice details
+      const invoice = await storage.getInvoiceById(invoiceId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+
+      console.log("Invoice found:", {
+        id: invoice.id,
+        amount: invoice.amountDue,
+        currency: invoice.currencyCode
+      });
+
+      // Get Stripe configuration for the tenant
+      const stripeConfig = await storage.getStripeConfiguration(invoice.tenantId);
+      if (!stripeConfig || !stripeConfig.isEnabled) {
+        return res.status(400).json({ message: "Stripe not configured or not enabled" });
+      }
+
+      // Create Stripe client
+      const stripeClient = new Stripe(stripeConfig.secretKey, {
+        apiVersion: '2023-10-16'
+      });
+
+      // Convert amount to cents (Stripe requires amount in smallest currency unit)
+      const amountInCents = Math.round(parseFloat(invoice.amountDue) * 100);
+
+      console.log("Creating payment intent:", {
+        amount: amountInCents,
+        currency: invoice.currencyCode?.toLowerCase() || 'usd'
+      });
+
+      // Create payment intent
+      const paymentIntent = await stripeClient.paymentIntents.create({
+        amount: amountInCents,
+        currency: invoice.currencyCode?.toLowerCase() || 'usd',
+        metadata: {
+          invoiceId: invoice.id.toString(),
+          tenantId: invoice.tenantId.toString(),
+          clientId: invoice.clientId?.toString() || '',
+        },
+        description: `Payment for Invoice #${invoice.invoiceNumber}`,
+      });
+
+      console.log("Payment intent created:", paymentIntent.id);
+
+      res.json({
+        success: true,
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+        amount: amountInCents,
+        currency: invoice.currencyCode?.toLowerCase() || 'usd',
+      });
+
+    } catch (error: any) {
+      console.error("Error creating Stripe payment intent:", error);
+      res.status(500).json({ 
+        message: "Failed to create payment intent", 
+        error: error.message 
+      });
+    }
+  });
+
+  // Get invoice payment link
+  app.get("/api/v1/invoices/:invoiceId/payment-link", async (req, res) => {
+    try {
+      const invoiceId = parseInt(req.params.invoiceId);
+      if (isNaN(invoiceId)) {
+        return res.status(400).json({ message: "Invalid invoice ID" });
+      }
+
+      // Get invoice details
+      const invoice = await storage.getInvoiceById(invoiceId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+
+      // Generate payment link
+      const baseUrl = process.env.NODE_ENV === 'production' 
+        ? `https://${req.get('host')}` 
+        : `http://${req.get('host')}`;
+      
+      const paymentLink = `${baseUrl}/pay/${invoice.id}`;
+
+      res.json({
+        success: true,
+        paymentLink,
+        invoice: {
+          id: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          amountDue: invoice.amountDue,
+          currencyCode: invoice.currencyCode,
+          status: invoice.status,
+        }
+      });
+
+    } catch (error: any) {
+      console.error("Error generating payment link:", error);
+      res.status(500).json({ 
+        message: "Failed to generate payment link", 
+        error: error.message 
+      });
+    }
+  });
+
   // Test Meezan Bank connection
   app.post("/api/v1/finance/payment-gateways/meezan_bank/test", isAuthenticated, async (req, res) => {
     try {

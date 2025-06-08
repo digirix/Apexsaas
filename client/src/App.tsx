@@ -54,6 +54,7 @@ import TeamEfficiencyReport from "@/pages/reports/team-efficiency-report";
 import TaskLifecycleReport from "@/pages/reports/task-lifecycle-report";
 import RiskAssessmentReport from "@/pages/reports/risk-assessment-report";
 import JurisdictionAnalysisReport from "@/pages/reports/jurisdiction-analysis-report";
+import PaymentPage from "@/pages/payment-page";
 
 function Router() {
   return (
@@ -89,6 +90,9 @@ function Router() {
       <Route path="/client-portal/dashboard" component={ClientPortalDashboardPage} />
       <Route path="/client-portal/entities/:id" component={ClientPortalEntityDetailPage} />
       <Route path="/client-portal/reset-password" component={ResetPasswordPage} />
+      
+      {/* Public payment route */}
+      <Route path="/pay/:invoiceId" component={PaymentPage} />
       {/* Direct invoice creation disabled - invoices are now created only through tasks */}
       {/* <ProtectedRoute path="/finance/invoices/create" component={CreateInvoicePage} /> */}
       <ProtectedRoute path="/finance/invoices/from-task" component={CreateInvoiceFromTaskPage} />
