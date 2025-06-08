@@ -32,7 +32,9 @@ import {
   Plus, 
   Users, 
   CreditCard,
-  Trash2
+  Trash2,
+  Link,
+  Copy
 } from 'lucide-react';
 import {
   Form,
@@ -293,6 +295,31 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
     window.location.href = '/finance/chart-of-accounts';
   };
 
+  // Handle copy payment link
+  const handleCopyPaymentLink = async () => {
+    try {
+      const paymentLink = `${window.location.origin}/pay/${invoice.id}`;
+      await navigator.clipboard.writeText(paymentLink);
+      toast({
+        title: 'Payment link copied',
+        description: 'The payment link has been copied to your clipboard.',
+      });
+    } catch (error) {
+      // Fallback for browsers that don't support clipboard API
+      const textArea = document.createElement('textarea');
+      textArea.value = `${window.location.origin}/pay/${invoice.id}`;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      toast({
+        title: 'Payment link copied',
+        description: 'The payment link has been copied to your clipboard.',
+      });
+    }
+  };
+
   return (
     <>
       <DropdownMenu>
@@ -313,6 +340,12 @@ export function InvoiceActions({ invoice }: InvoiceActionsProps) {
           >
             <FileText className="mr-2 h-4 w-4" />
             <span>Download PDF</span>
+          </DropdownMenuItem>
+
+          {/* Copy Payment Link */}
+          <DropdownMenuItem onClick={handleCopyPaymentLink}>
+            <Link className="mr-2 h-4 w-4" />
+            <span>Copy Payment Link</span>
           </DropdownMenuItem>
 
           <DropdownMenuSeparator />

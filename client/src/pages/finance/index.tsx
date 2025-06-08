@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { AppLayout } from "@/components/layout/app-layout";
 import JournalEntriesList from "@/components/finance/journal-entries-list";
 import { InvoiceActions } from "@/components/finance/invoice-actions";
+import { TenantSetting } from "@shared/schema";
 import { 
   DollarSign, 
   FileText, 
@@ -90,6 +91,21 @@ function FinancePage() {
   const { data: payments = [], isLoading: paymentsLoading } = useQuery({
     queryKey: ["/api/v1/finance/payments"],
   });
+
+  // Fetch tenant settings for branding
+  const { data: tenantSettings = [] } = useQuery<TenantSetting[]>({
+    queryKey: ["/api/v1/tenant/settings"],
+  });
+
+  // Extract firm branding from tenant settings
+  const getFirmBranding = () => {
+    const firmName = tenantSettings.find(s => s.key === 'firm_name')?.value || 'Your Firm';
+    const firmTagline = tenantSettings.find(s => s.key === 'firm_tagline')?.value || '';
+    const firmLogo = tenantSettings.find(s => s.key === 'firm_logo')?.value || '';
+    return { firmName, firmTagline, firmLogo };
+  };
+
+  const firmBranding = getFirmBranding();
   
   // Calculate financial metrics
   const financialMetrics = {
