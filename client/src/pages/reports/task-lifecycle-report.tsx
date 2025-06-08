@@ -135,9 +135,16 @@ export default function TaskLifecycleReport() {
 
     const avgLifecycleTimes = completedTasks.map((task: any) => {
       const created = new Date(task.createdAt);
-      const completed = new Date(task.updatedAt);
-      return Math.ceil((completed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
-    });
+      const completed = new Date(task.updatedAt || task.createdAt);
+      
+      // Validate dates
+      if (isNaN(created.getTime()) || isNaN(completed.getTime())) {
+        return 1; // Default to 1 day if invalid dates
+      }
+      
+      const diffTime = completed.getTime() - created.getTime();
+      return Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    }).filter(time => time > 0);
 
     const avgLifecycle = avgLifecycleTimes.length > 0 
       ? Math.round(avgLifecycleTimes.reduce((sum: number, time: number) => sum + time, 0) / avgLifecycleTimes.length)
@@ -193,7 +200,10 @@ export default function TaskLifecycleReport() {
       const dateStr = date.toISOString().split('T')[0];
       
       const completed = completedTasks.filter((task: any) => {
-        const completedDate = new Date(task.updatedAt).toISOString().split('T')[0];
+        if (!task.updatedAt) return false;
+        const updatedDate = new Date(task.updatedAt);
+        if (isNaN(updatedDate.getTime())) return false;
+        const completedDate = updatedDate.toISOString().split('T')[0];
         return completedDate === dateStr;
       }).length;
 
@@ -214,8 +224,15 @@ export default function TaskLifecycleReport() {
       const avgTime = categoryCompleted.length > 0 
         ? Math.round(categoryCompleted.reduce((sum: number, task: any) => {
             const created = new Date(task.createdAt);
-            const completed = new Date(task.updatedAt);
-            return sum + Math.ceil((completed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+            const completed = new Date(task.updatedAt || task.createdAt);
+            
+            // Validate dates
+            if (isNaN(created.getTime()) || isNaN(completed.getTime())) {
+              return sum + 1; // Default to 1 day if invalid dates
+            }
+            
+            const diffTime = completed.getTime() - created.getTime();
+            return sum + Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
           }, 0) / categoryCompleted.length)
         : 0;
 
