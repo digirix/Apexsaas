@@ -114,23 +114,9 @@ export default function ComplianceOverviewReport() {
         return false;
       }
 
-      // Compliance type filtering
-      if (filters.complianceType !== "all") {
-        const taskDetails = task.taskDetails?.toLowerCase() || '';
-        switch (filters.complianceType) {
-          case 'tax':
-            if (!taskDetails.includes('tax') && !taskDetails.includes('return')) return false;
-            break;
-          case 'audit':
-            if (!taskDetails.includes('audit')) return false;
-            break;
-          case 'filing':
-            if (!taskDetails.includes('filing')) return false;
-            break;
-          case 'regulatory':
-            if (!taskDetails.includes('regulatory') && !taskDetails.includes('compliance')) return false;
-            break;
-        }
+      // Task category filtering
+      if (filters.taskCategory !== "all" && task.categoryId !== parseInt(filters.taskCategory)) {
+        return false;
       }
 
       return true;
@@ -303,10 +289,11 @@ export default function ComplianceOverviewReport() {
         reportType: 'ComplianceOverview',
         filters: {
           timeFrame: filters.timeFrame,
-          jurisdiction: filters.jurisdiction !== 'all' ? filters.jurisdiction : 'All',
-          entityType: filters.entityType,
-          complianceType: filters.complianceType,
-          status: filters.status !== 'all' ? taskStatuses.find(s => s.id === parseInt(filters.status))?.name : 'All',
+          country: filters.country !== 'all' ? (countries as any[]).find(c => c.id === parseInt(filters.country))?.name : 'All',
+          jurisdiction: filters.jurisdiction !== 'all' ? (filteredTaxJurisdictions as any[]).find(j => j.id === parseInt(filters.jurisdiction))?.name : 'All',
+          entityType: filters.entityType !== 'all' ? (filteredEntityTypes as any[]).find(t => t.id === parseInt(filters.entityType))?.name : 'All',
+          taskCategory: filters.taskCategory !== 'all' ? (taskCategories as any[]).find(c => c.id === parseInt(filters.taskCategory))?.name : 'All',
+          status: filters.status !== 'all' ? (taskStatuses as any[]).find(s => s.id === parseInt(filters.status))?.name : 'All',
           dateRange: filters.dateFrom && filters.dateTo ? `${format(filters.dateFrom, 'MMM dd, yyyy')} - ${format(filters.dateTo, 'MMM dd, yyyy')}` : 'N/A'
         }
       });
