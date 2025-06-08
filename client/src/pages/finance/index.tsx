@@ -160,31 +160,6 @@ function FinancePage() {
     
     return (
       <div>
-        {/* Firm Branding Header */}
-        <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              {firmBranding.firmLogo && (
-                <img 
-                  src={firmBranding.firmLogo} 
-                  alt={`${firmBranding.firmName} Logo`}
-                  className="h-10 w-10 rounded-full object-cover"
-                />
-              )}
-              <div>
-                <h3 className="text-lg font-semibold text-blue-900">{firmBranding.firmName}</h3>
-                {firmBranding.firmTagline && (
-                  <p className="text-sm text-blue-700">{firmBranding.firmTagline}</p>
-                )}
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-blue-700">Professional Invoice Management</p>
-              <p className="text-xs text-blue-600">Powered by AccFirm</p>
-            </div>
-          </div>
-        </div>
-
         <div className="rounded-md border">
           <table className="w-full text-sm">
             <thead>

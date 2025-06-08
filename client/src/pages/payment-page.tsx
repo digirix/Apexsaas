@@ -4,8 +4,9 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, CreditCard, CheckCircle } from "lucide-react";
+import { Loader2, CreditCard, CheckCircle, Calendar, User, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 
 interface Invoice {
   id: number;
@@ -14,7 +15,18 @@ interface Invoice {
   currencyCode: string;
   status: string;
   clientId?: number;
+  clientName?: string;
+  issueDate?: string;
+  dueDate?: string;
+  description?: string;
   tenantId: number;
+}
+
+interface TenantSetting {
+  id: number;
+  tenantId: number;
+  key: string;
+  value: string;
 }
 
 interface PaymentConfig {
@@ -152,6 +164,21 @@ export default function PaymentPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Fetch tenant settings for branding
+  const { data: tenantSettings } = useQuery<TenantSetting[]>({
+    queryKey: [`/api/v1/tenant-settings/${invoice?.tenantId}`],
+    enabled: !!invoice?.tenantId,
+  });
+
+  // Extract firm branding from tenant settings
+  const firmBranding = {
+    firmName: tenantSettings?.find(s => s.key === 'general-settings.firmName')?.value || 'AccFirm',
+    firmTagline: tenantSettings?.find(s => s.key === 'general-settings.firmTagline')?.value || '',
+    firmLogo: tenantSettings?.find(s => s.key === 'general-settings.firmLogo')?.value || '',
+    invoiceFooter: tenantSettings?.find(s => s.key === 'invoice-settings.footerText')?.value || '',
+    paymentTerms: tenantSettings?.find(s => s.key === 'invoice-settings.paymentTerms')?.value || ''
+  };
+
   useEffect(() => {
     if (!invoiceId) {
       setError("No invoice ID provided");
@@ -254,16 +281,117 @@ export default function PaymentPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Invoice Payment</h1>
-          <p className="text-gray-600">Secure payment processing</p>
+        {/* Firm Branding Header */}
+        <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              {firmBranding.firmLogo && (
+                <img 
+                  src={firmBranding.firmLogo} 
+                  alt={`${firmBranding.firmName} Logo`}
+                  className="h-12 w-12 rounded-full object-cover"
+                />
+              )}
+              <div>
+                <h1 className="text-2xl font-bold text-blue-900">{firmBranding.firmName}</h1>
+                {firmBranding.firmTagline && (
+                  <p className="text-blue-700">{firmBranding.firmTagline}</p>
+                )}
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-blue-700 font-medium">Secure Payment Portal</p>
+              <p className="text-sm text-blue-600">Powered by AccFirm</p>
+            </div>
+          </div>
         </div>
-        
-        <Elements stripe={stripePromise} options={stripeOptions}>
-          <CheckoutForm invoice={invoice} />
-        </Elements>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Invoice Details Card */}
+          <Card className="h-fit">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Invoice Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium text-gray-500">Invoice Number:</span>
+                  <p className="font-semibold">{invoice.invoiceNumber}</p>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-500">Amount Due:</span>
+                  <p className="font-semibold text-lg text-green-600">
+                    {invoice.currencyCode} {invoice.amountDue}
+                  </p>
+                </div>
+                {invoice.clientName && (
+                  <div>
+                    <span className="font-medium text-gray-500 flex items-center gap-1">
+                      <User className="h-4 w-4" />
+                      Client:
+                    </span>
+                    <p className="font-semibold">{invoice.clientName}</p>
+                  </div>
+                )}
+                <div>
+                  <span className="font-medium text-gray-500">Status:</span>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                    {invoice.status}
+                  </span>
+                </div>
+                {invoice.issueDate && (
+                  <div>
+                    <span className="font-medium text-gray-500 flex items-center gap-1">
+                      <Calendar className="h-4 w-4" />
+                      Issue Date:
+                    </span>
+                    <p>{new Date(invoice.issueDate).toLocaleDateString()}</p>
+                  </div>
+                )}
+                {invoice.dueDate && (
+                  <div>
+                    <span className="font-medium text-gray-500 flex items-center gap-1">
+                      <Calendar className="h-4 w-4" />
+                      Due Date:
+                    </span>
+                    <p>{new Date(invoice.dueDate).toLocaleDateString()}</p>
+                  </div>
+                )}
+              </div>
+              {invoice.description && (
+                <div>
+                  <span className="font-medium text-gray-500">Description:</span>
+                  <p className="text-gray-700 mt-1">{invoice.description}</p>
+                </div>
+              )}
+              {firmBranding.paymentTerms && (
+                <div className="pt-4 border-t">
+                  <span className="font-medium text-gray-500">Payment Terms:</span>
+                  <p className="text-sm text-gray-600 mt-1">{firmBranding.paymentTerms}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Payment Form Card */}
+          <div>
+            <Elements stripe={stripePromise} options={stripeOptions}>
+              <CheckoutForm invoice={invoice} />
+            </Elements>
+          </div>
+        </div>
+
+        {/* Footer Information */}
+        {firmBranding.invoiceFooter && (
+          <div className="mt-8 p-4 bg-white rounded-lg border border-gray-200">
+            <p className="text-sm text-gray-600 text-center">{firmBranding.invoiceFooter}</p>
+          </div>
+        )}
       </div>
     </div>
   );
