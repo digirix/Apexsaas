@@ -44,7 +44,10 @@ import {
   insertTaskStatusWorkflowRuleSchema,
   // Basic finance module schemas from schema.ts
   insertInvoiceSchema, insertInvoiceLineItemSchema, insertPaymentSchema, 
-  insertPaymentGatewaySettingSchema, insertChartOfAccountSchema,
+  insertStripeConfigurationSchema,
+  insertPaypalConfigurationSchema,
+  insertMeezanBankConfigurationSchema,
+  insertBankAlfalahConfigurationSchema, insertChartOfAccountSchema,
   insertJournalEntryTypeSchema,
   // AI module schemas
   insertAiConfigurationSchema

@@ -1465,57 +1465,156 @@ export class DatabaseStorage implements IStorage {
     return !!deletedPayment;
   }
 
-  // Payment Gateway Settings operations
-  async getPaymentGatewaySettings(tenantId: number): Promise<PaymentGatewaySetting[]> {
-    return await db.select().from(paymentGatewaySettings)
-      .where(eq(paymentGatewaySettings.tenantId, tenantId));
+  // Payment Gateway Configuration operations
+  
+  // Stripe configuration methods
+  async getStripeConfiguration(tenantId: number): Promise<StripeConfiguration | undefined> {
+    const [config] = await db.select().from(stripeConfigurations)
+      .where(eq(stripeConfigurations.tenantId, tenantId));
+    return config;
   }
 
-  async getPaymentGatewaySetting(tenantId: number, gatewayType: string): Promise<PaymentGatewaySetting | undefined> {
-    const [setting] = await db.select().from(paymentGatewaySettings)
-      .where(and(
-        eq(paymentGatewaySettings.tenantId, tenantId),
-        eq(paymentGatewaySettings.gatewayType, gatewayType)
-      ));
-    return setting;
+  async createStripeConfiguration(config: InsertStripeConfiguration): Promise<StripeConfiguration> {
+    const [newConfig] = await db.insert(stripeConfigurations).values(config).returning();
+    return newConfig;
   }
 
-  async getPaymentGatewaySettingById(id: number, tenantId: number): Promise<PaymentGatewaySetting | undefined> {
-    const [setting] = await db.select().from(paymentGatewaySettings)
-      .where(and(
-        eq(paymentGatewaySettings.id, id),
-        eq(paymentGatewaySettings.tenantId, tenantId)
-      ));
-    return setting;
-  }
-
-  async createPaymentGatewaySetting(setting: InsertPaymentGatewaySetting): Promise<PaymentGatewaySetting> {
-    const [newSetting] = await db.insert(paymentGatewaySettings).values(setting).returning();
-    return newSetting;
-  }
-
-  async updatePaymentGatewaySetting(id: number, setting: Partial<InsertPaymentGatewaySetting>): Promise<PaymentGatewaySetting | undefined> {
-    // Add updatedAt timestamp
+  async updateStripeConfiguration(tenantId: number, config: Partial<InsertStripeConfiguration>): Promise<StripeConfiguration | undefined> {
     const updateData = {
-      ...setting,
+      ...config,
       updatedAt: new Date()
     };
     
-    const [updatedSetting] = await db.update(paymentGatewaySettings)
+    const [updatedConfig] = await db.update(stripeConfigurations)
       .set(updateData)
-      .where(eq(paymentGatewaySettings.id, id))
+      .where(eq(stripeConfigurations.tenantId, tenantId))
       .returning();
-    return updatedSetting;
+    return updatedConfig;
   }
 
-  async deletePaymentGatewaySetting(id: number, tenantId: number): Promise<boolean> {
-    const [deletedSetting] = await db.delete(paymentGatewaySettings)
-      .where(and(
-        eq(paymentGatewaySettings.id, id),
-        eq(paymentGatewaySettings.tenantId, tenantId)
-      ))
-      .returning({ id: paymentGatewaySettings.id });
-    return !!deletedSetting;
+  async deleteStripeConfiguration(tenantId: number): Promise<boolean> {
+    const [deletedConfig] = await db.delete(stripeConfigurations)
+      .where(eq(stripeConfigurations.tenantId, tenantId))
+      .returning({ id: stripeConfigurations.id });
+    return !!deletedConfig;
+  }
+
+  // PayPal configuration methods
+  async getPaypalConfiguration(tenantId: number): Promise<PaypalConfiguration | undefined> {
+    const [config] = await db.select().from(paypalConfigurations)
+      .where(eq(paypalConfigurations.tenantId, tenantId));
+    return config;
+  }
+
+  async createPaypalConfiguration(config: InsertPaypalConfiguration): Promise<PaypalConfiguration> {
+    const [newConfig] = await db.insert(paypalConfigurations).values(config).returning();
+    return newConfig;
+  }
+
+  async updatePaypalConfiguration(tenantId: number, config: Partial<InsertPaypalConfiguration>): Promise<PaypalConfiguration | undefined> {
+    const updateData = {
+      ...config,
+      updatedAt: new Date()
+    };
+    
+    const [updatedConfig] = await db.update(paypalConfigurations)
+      .set(updateData)
+      .where(eq(paypalConfigurations.tenantId, tenantId))
+      .returning();
+    return updatedConfig;
+  }
+
+  async deletePaypalConfiguration(tenantId: number): Promise<boolean> {
+    const [deletedConfig] = await db.delete(paypalConfigurations)
+      .where(eq(paypalConfigurations.tenantId, tenantId))
+      .returning({ id: paypalConfigurations.id });
+    return !!deletedConfig;
+  }
+
+  // Meezan Bank configuration methods
+  async getMeezanBankConfiguration(tenantId: number): Promise<MeezanBankConfiguration | undefined> {
+    const [config] = await db.select().from(meezanBankConfigurations)
+      .where(eq(meezanBankConfigurations.tenantId, tenantId));
+    return config;
+  }
+
+  async createMeezanBankConfiguration(config: InsertMeezanBankConfiguration): Promise<MeezanBankConfiguration> {
+    const [newConfig] = await db.insert(meezanBankConfigurations).values(config).returning();
+    return newConfig;
+  }
+
+  async updateMeezanBankConfiguration(tenantId: number, config: Partial<InsertMeezanBankConfiguration>): Promise<MeezanBankConfiguration | undefined> {
+    const updateData = {
+      ...config,
+      updatedAt: new Date()
+    };
+    
+    const [updatedConfig] = await db.update(meezanBankConfigurations)
+      .set(updateData)
+      .where(eq(meezanBankConfigurations.tenantId, tenantId))
+      .returning();
+    return updatedConfig;
+  }
+
+  async deleteMeezanBankConfiguration(tenantId: number): Promise<boolean> {
+    const [deletedConfig] = await db.delete(meezanBankConfigurations)
+      .where(eq(meezanBankConfigurations.tenantId, tenantId))
+      .returning({ id: meezanBankConfigurations.id });
+    return !!deletedConfig;
+  }
+
+  // Bank Alfalah configuration methods
+  async getBankAlfalahConfiguration(tenantId: number): Promise<BankAlfalahConfiguration | undefined> {
+    const [config] = await db.select().from(bankAlfalahConfigurations)
+      .where(eq(bankAlfalahConfigurations.tenantId, tenantId));
+    return config;
+  }
+
+  async createBankAlfalahConfiguration(config: InsertBankAlfalahConfiguration): Promise<BankAlfalahConfiguration> {
+    const [newConfig] = await db.insert(bankAlfalahConfigurations).values(config).returning();
+    return newConfig;
+  }
+
+  async updateBankAlfalahConfiguration(tenantId: number, config: Partial<InsertBankAlfalahConfiguration>): Promise<BankAlfalahConfiguration | undefined> {
+    const updateData = {
+      ...config,
+      updatedAt: new Date()
+    };
+    
+    const [updatedConfig] = await db.update(bankAlfalahConfigurations)
+      .set(updateData)
+      .where(eq(bankAlfalahConfigurations.tenantId, tenantId))
+      .returning();
+    return updatedConfig;
+  }
+
+  async deleteBankAlfalahConfiguration(tenantId: number): Promise<boolean> {
+    const [deletedConfig] = await db.delete(bankAlfalahConfigurations)
+      .where(eq(bankAlfalahConfigurations.tenantId, tenantId))
+      .returning({ id: bankAlfalahConfigurations.id });
+    return !!deletedConfig;
+  }
+
+  // Gateway summary method
+  async getAllPaymentGatewayConfigurations(tenantId: number): Promise<{
+    stripe?: StripeConfiguration;
+    paypal?: PaypalConfiguration;
+    meezanBank?: MeezanBankConfiguration;
+    bankAlfalah?: BankAlfalahConfiguration;
+  }> {
+    const [stripe, paypal, meezanBank, bankAlfalah] = await Promise.all([
+      this.getStripeConfiguration(tenantId),
+      this.getPaypalConfiguration(tenantId),
+      this.getMeezanBankConfiguration(tenantId),
+      this.getBankAlfalahConfiguration(tenantId)
+    ]);
+
+    return {
+      ...(stripe && { stripe }),
+      ...(paypal && { paypal }),
+      ...(meezanBank && { meezanBank }),
+      ...(bankAlfalah && { bankAlfalah })
+    };
   }
 
   // Analytics-specific methods

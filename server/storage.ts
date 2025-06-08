@@ -2,9 +2,11 @@ import {
   tenants, tenantSettings, users, designations, departments, countries, currencies, states, 
   entityTypes, taskStatuses, taskStatusWorkflowRules, taxJurisdictions, serviceTypes, 
   clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions, 
-  userPermissions, invoices, invoiceLineItems, payments, paymentGatewaySettings, chartOfAccounts,
+  userPermissions, invoices, invoiceLineItems, payments, chartOfAccounts,
   journalEntries, journalEntryLines, journalEntryTypes, aiConfigurations, aiInteractions, aiAssistantCustomizations,
-  notificationPreferences
+  notificationPreferences,
+  // Payment gateway configurations
+  stripeConfigurations, paypalConfigurations, meezanBankConfigurations, bankAlfalahConfigurations
 } from "@shared/schema";
 import type { 
   Tenant, User, InsertUser, InsertTenant, 
@@ -18,8 +20,12 @@ import type {
   UserPermission, InsertUserPermission, TenantSetting, InsertTenantSetting,
   // Finance module types
   Invoice, InsertInvoice, InvoiceLineItem, InsertInvoiceLineItem, 
-  Payment, InsertPayment, PaymentGatewaySetting, InsertPaymentGatewaySetting,
-  ChartOfAccount, InsertChartOfAccount,
+  Payment, InsertPayment, ChartOfAccount, InsertChartOfAccount,
+  // Payment gateway configuration types
+  StripeConfiguration, InsertStripeConfiguration,
+  PaypalConfiguration, InsertPaypalConfiguration,
+  MeezanBankConfiguration, InsertMeezanBankConfiguration,
+  BankAlfalahConfiguration, InsertBankAlfalahConfiguration,
   // Journal entry types
   JournalEntry, InsertJournalEntry, JournalEntryLine, InsertJournalEntryLine,
   JournalEntryType, InsertJournalEntryType,
@@ -218,12 +224,38 @@ export interface IStorage {
   getInvoicesByDateRange(tenantId: number, startDate: Date, endDate: Date): Promise<Invoice[]>;
   getAccountBalance(tenantId: number, accountId: number, startDate?: Date, endDate?: Date): Promise<number>;
   
-  // Payment Gateway Settings operations
-  getPaymentGatewaySettings(tenantId: number): Promise<PaymentGatewaySetting[]>;
-  getPaymentGatewaySetting(tenantId: number, gatewayType: string): Promise<PaymentGatewaySetting | undefined>;
-  createPaymentGatewaySetting(setting: InsertPaymentGatewaySetting): Promise<PaymentGatewaySetting>;
-  updatePaymentGatewaySetting(id: number, setting: Partial<InsertPaymentGatewaySetting>): Promise<PaymentGatewaySetting | undefined>;
-  deletePaymentGatewaySetting(id: number, tenantId: number): Promise<boolean>;
+  // Payment Gateway Configuration operations
+  // Stripe
+  getStripeConfiguration(tenantId: number): Promise<StripeConfiguration | undefined>;
+  createStripeConfiguration(config: InsertStripeConfiguration): Promise<StripeConfiguration>;
+  updateStripeConfiguration(tenantId: number, config: Partial<InsertStripeConfiguration>): Promise<StripeConfiguration | undefined>;
+  deleteStripeConfiguration(tenantId: number): Promise<boolean>;
+  
+  // PayPal  
+  getPaypalConfiguration(tenantId: number): Promise<PaypalConfiguration | undefined>;
+  createPaypalConfiguration(config: InsertPaypalConfiguration): Promise<PaypalConfiguration>;
+  updatePaypalConfiguration(tenantId: number, config: Partial<InsertPaypalConfiguration>): Promise<PaypalConfiguration | undefined>;
+  deletePaypalConfiguration(tenantId: number): Promise<boolean>;
+  
+  // Meezan Bank
+  getMeezanBankConfiguration(tenantId: number): Promise<MeezanBankConfiguration | undefined>;
+  createMeezanBankConfiguration(config: InsertMeezanBankConfiguration): Promise<MeezanBankConfiguration>;
+  updateMeezanBankConfiguration(tenantId: number, config: Partial<InsertMeezanBankConfiguration>): Promise<MeezanBankConfiguration | undefined>;
+  deleteMeezanBankConfiguration(tenantId: number): Promise<boolean>;
+  
+  // Bank Alfalah
+  getBankAlfalahConfiguration(tenantId: number): Promise<BankAlfalahConfiguration | undefined>;
+  createBankAlfalahConfiguration(config: InsertBankAlfalahConfiguration): Promise<BankAlfalahConfiguration>;
+  updateBankAlfalahConfiguration(tenantId: number, config: Partial<InsertBankAlfalahConfiguration>): Promise<BankAlfalahConfiguration | undefined>;
+  deleteBankAlfalahConfiguration(tenantId: number): Promise<boolean>;
+  
+  // Gateway summary
+  getAllPaymentGatewayConfigurations(tenantId: number): Promise<{
+    stripe?: StripeConfiguration;
+    paypal?: PaypalConfiguration;
+    meezanBank?: MeezanBankConfiguration;
+    bankAlfalah?: BankAlfalahConfiguration;
+  }>;
   
   // Chart of Accounts hierarchy operations
   // Main Groups
