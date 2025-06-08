@@ -9,6 +9,7 @@ import { NotificationSettings } from "@/components/settings/notification-setting
 import { BackupSettings } from "@/components/settings/backup-settings";
 import { TaskSettings } from "@/components/settings/task-settings";
 import { InvoiceSettings } from "@/components/settings/invoice-settings";
+import { PaymentGatewaySettings } from "@/components/settings/payment-gateway-settings";
 
 export default function SettingsPage() {
   const [location] = useLocation();
@@ -39,6 +40,8 @@ export default function SettingsPage() {
         return <TaskSettings />;
       case "invoices":
         return <InvoiceSettings />;
+      case "payments":
+        return <PaymentGatewaySettings />;
       default:
         return <GeneralSettings />;
     }
