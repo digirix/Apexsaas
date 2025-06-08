@@ -4140,31 +4140,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("=== CREATE STRIPE PAYMENT INTENT ===");
       console.log("Invoice ID:", req.params.invoiceId);
+      console.log("Request user:", req.user ? 'authenticated' : 'not authenticated');
       
       const invoiceId = parseInt(req.params.invoiceId);
       if (isNaN(invoiceId)) {
+        console.log("Invalid invoice ID");
         return res.status(400).json({ message: "Invalid invoice ID" });
       }
 
       // Get invoice details
+      console.log("Fetching invoice...");
       const invoice = await storage.getInvoiceById(invoiceId);
       if (!invoice) {
+        console.log("Invoice not found");
         return res.status(404).json({ message: "Invoice not found" });
       }
 
       console.log("Invoice found:", {
         id: invoice.id,
         amount: invoice.amountDue,
-        currency: invoice.currencyCode
+        currency: invoice.currencyCode,
+        tenantId: invoice.tenantId
       });
 
       // Get Stripe configuration for the tenant
+      console.log("Fetching Stripe configuration for tenant:", invoice.tenantId);
       const stripeConfig = await storage.getStripeConfiguration(invoice.tenantId);
+      console.log("Stripe config:", stripeConfig ? {
+        id: stripeConfig.id,
+        isEnabled: stripeConfig.isEnabled,
+        hasSecretKey: !!stripeConfig.secretKey
+      } : 'not found');
+      
       if (!stripeConfig || !stripeConfig.isEnabled) {
+        console.log("Stripe not configured or not enabled");
         return res.status(400).json({ message: "Stripe not configured or not enabled" });
       }
 
       // Create Stripe client
+      console.log("Creating Stripe client...");
       const stripeClient = new Stripe(stripeConfig.secretKey, {
         apiVersion: '2023-10-16'
       });
@@ -4201,6 +4215,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error: any) {
       console.error("Error creating Stripe payment intent:", error);
+      console.error("Error stack:", error.stack);
       res.status(500).json({ 
         message: "Failed to create payment intent", 
         error: error.message 
