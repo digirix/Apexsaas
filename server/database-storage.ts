@@ -1158,6 +1158,15 @@ export class DatabaseStorage implements IStorage {
     return await query.orderBy(desc(invoices.createdAt));
   }
 
+  async getInvoiceById(id: number): Promise<Invoice | undefined> {
+    const [invoice] = await db.select().from(invoices)
+      .where(and(
+        eq(invoices.id, id),
+        eq(invoices.isDeleted, false)
+      ));
+    return invoice;
+  }
+
   async getInvoice(id: number, tenantId: number): Promise<Invoice | undefined> {
     const [invoice] = await db.select().from(invoices)
       .where(and(
