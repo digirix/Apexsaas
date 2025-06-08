@@ -303,11 +303,6 @@ export default function TaskLifecycleReport() {
         <Card className="bg-gray-50/50">
           <CardContent className="p-2">
             <div className="flex items-center gap-1 flex-wrap">
-              <div className="flex items-center gap-1 text-xs font-medium text-gray-600">
-                <Filter className="w-3 h-3" />
-                Filters:
-              </div>
-              
               {/* Period Filter */}
               <Select value={filters.period} onValueChange={(value) => setFilters(prev => ({ ...prev, period: value }))}>
                 <SelectTrigger className="h-6 w-20 text-xs">
@@ -451,129 +446,175 @@ export default function TaskLifecycleReport() {
 
         {/* Report Content */}
         <div id="task-lifecycle-report" className="space-y-6">
-          {/* Score Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-                <CardTitle className="text-sm font-medium">Avg Lifecycle Time</CardTitle>
-                <RefreshCw className="w-4 h-4 text-muted-foreground" />
+          {/* Score Cards - Reduced Height */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="h-20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
+                <CardTitle className="text-xs font-medium">Avg Lifecycle Time</CardTitle>
+                <RefreshCw className="w-3 h-3 text-muted-foreground" />
               </CardHeader>
-              <CardContent className="py-2">
-                <div className="text-xl font-bold">{analytics.lifecycleMetrics.avgLifecycle}</div>
-                <p className="text-xs text-muted-foreground">
-                  days average
-                </p>
+              <CardContent className="py-0 px-3 pb-2">
+                <div className="text-lg font-bold">{analytics.lifecycleMetrics.avgLifecycle}</div>
+                <p className="text-xs text-muted-foreground">days average</p>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-                <CardTitle className="text-sm font-medium">Time to Start</CardTitle>
-                <Timer className="w-4 h-4 text-muted-foreground" />
+            <Card className="h-20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
+                <CardTitle className="text-xs font-medium">Time to Start</CardTitle>
+                <Timer className="w-3 h-3 text-muted-foreground" />
               </CardHeader>
-              <CardContent className="py-2">
-                <div className="text-xl font-bold">{analytics.lifecycleMetrics.avgTimeToStart}</div>
-                <p className="text-xs text-muted-foreground">
-                  days to begin
-                </p>
+              <CardContent className="py-0 px-3 pb-2">
+                <div className="text-lg font-bold">{analytics.lifecycleMetrics.avgTimeToStart}</div>
+                <p className="text-xs text-muted-foreground">days to begin</p>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-                <CardTitle className="text-sm font-medium">Time to Complete</CardTitle>
-                <Target className="w-4 h-4 text-muted-foreground" />
+            <Card className="h-20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
+                <CardTitle className="text-xs font-medium">Time to Complete</CardTitle>
+                <Target className="w-3 h-3 text-muted-foreground" />
               </CardHeader>
-              <CardContent className="py-2">
-                <div className="text-xl font-bold">{analytics.lifecycleMetrics.avgTimeToComplete}</div>
-                <p className="text-xs text-muted-foreground">
-                  days to finish
-                </p>
+              <CardContent className="py-0 px-3 pb-2">
+                <div className="text-lg font-bold">{Math.round(analytics.lifecycleMetrics.avgTimeToComplete)}</div>
+                <p className="text-xs text-muted-foreground">days to finish</p>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-                <CardTitle className="text-sm font-medium">Cycle Efficiency</CardTitle>
-                <Workflow className="w-4 h-4 text-muted-foreground" />
+            <Card className="h-20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
+                <CardTitle className="text-xs font-medium">Cycle Efficiency</CardTitle>
+                <Workflow className="w-3 h-3 text-muted-foreground" />
               </CardHeader>
-              <CardContent className="py-2">
-                <div className="text-xl font-bold">{analytics.lifecycleMetrics.cycleEfficiency}%</div>
-                <p className="text-xs text-muted-foreground">
-                  completion rate
-                </p>
+              <CardContent className="py-0 px-3 pb-2">
+                <div className="text-lg font-bold">{analytics.lifecycleMetrics.cycleEfficiency}%</div>
+                <p className="text-xs text-muted-foreground">completion rate</p>
               </CardContent>
             </Card>
           </div>
 
           {/* Tables Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Lifecycle Stages Table */}
+            {/* Task Lifecycle Details Table */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Activity className="w-5 h-5" />
-                  Lifecycle Stages
+                  Task Lifecycle Details
                 </CardTitle>
-                <CardDescription>Task distribution across lifecycle stages</CardDescription>
+                <CardDescription>Individual task lifecycle times and status progression</CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Stage</TableHead>
-                      <TableHead>Tasks</TableHead>
-                      <TableHead>Avg Time</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {analytics.lifecycleStages.map((stage: any, index: number) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium">{stage.stage}</TableCell>
-                        <TableCell>{stage.tasks}</TableCell>
-                        <TableCell>{stage.avgTime} days</TableCell>
+                <div className="max-h-80 overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Task Details</TableHead>
+                        <TableHead>Client</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Days in Cycle</TableHead>
+                        <TableHead>Category</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredTasks.slice(0, 15).map((task: any) => {
+                        const client = clients.find((c: any) => c.id === task.clientId);
+                        const status = taskStatuses.find((s: any) => s.id === task.statusId);
+                        const category = taskCategories.find((c: any) => c.id === task.taskCategoryId);
+                        const created = new Date(task.createdAt);
+                        const now = new Date();
+                        const daysInCycle = Math.ceil((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+                        
+                        return (
+                          <TableRow key={task.id}>
+                            <TableCell className="font-medium max-w-48 truncate">
+                              {task.taskDetails || 'No details'}
+                            </TableCell>
+                            <TableCell>{client?.displayName || 'Unknown'}</TableCell>
+                            <TableCell>
+                              <Badge variant={
+                                status?.name === "Completed" ? "default" :
+                                status?.name === "In Progress" ? "secondary" : "outline"
+                              }>
+                                {status?.name || 'Unknown'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{daysInCycle}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {category?.name || 'Unknown'}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
 
-            {/* Bottlenecks Table */}
+            {/* Task Status Analysis Table */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="w-5 h-5" />
-                  Process Bottlenecks
+                  Task Status Analysis
                 </CardTitle>
-                <CardDescription>Stages causing delays in task completion</CardDescription>
+                <CardDescription>Current status distribution and potential bottlenecks</CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Stage</TableHead>
-                      <TableHead>Tasks</TableHead>
-                      <TableHead>Impact</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {analytics.bottlenecks.map((bottleneck: any, index: number) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium">{bottleneck.stage}</TableCell>
-                        <TableCell>{bottleneck.taskCount}</TableCell>
-                        <TableCell>
-                          <Badge variant={
-                            bottleneck.impact === "High" ? "destructive" :
-                            bottleneck.impact === "Medium" ? "default" : "secondary"
-                          }>
-                            {bottleneck.impact}
-                          </Badge>
-                        </TableCell>
+                <div className="max-h-80 overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Task Count</TableHead>
+                        <TableHead>Avg Days</TableHead>
+                        <TableHead>Oldest Task</TableHead>
+                        <TableHead>Risk Level</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {taskStatuses.map((status: any) => {
+                        const statusTasks = filteredTasks.filter((task: any) => task.statusId === status.id);
+                        const avgDays = statusTasks.length > 0 
+                          ? Math.round(statusTasks.reduce((sum: number, task: any) => {
+                              const created = new Date(task.createdAt);
+                              const now = new Date();
+                              return sum + Math.ceil((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+                            }, 0) / statusTasks.length)
+                          : 0;
+                        
+                        const oldestTask = statusTasks.reduce((oldest: any, task: any) => {
+                          if (!oldest) return task;
+                          return new Date(task.createdAt) < new Date(oldest.createdAt) ? task : oldest;
+                        }, null);
+                        
+                        const oldestDays = oldestTask 
+                          ? Math.ceil((new Date().getTime() - new Date(oldestTask.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+                          : 0;
+                        
+                        const riskLevel = avgDays > 30 ? "High" : avgDays > 14 ? "Medium" : "Low";
+                        
+                        return (
+                          <TableRow key={status.id}>
+                            <TableCell className="font-medium">{status.name}</TableCell>
+                            <TableCell>{statusTasks.length}</TableCell>
+                            <TableCell>{avgDays} days</TableCell>
+                            <TableCell>{oldestDays} days</TableCell>
+                            <TableCell>
+                              <Badge variant={
+                                riskLevel === "High" ? "destructive" :
+                                riskLevel === "Medium" ? "default" : "secondary"
+                              }>
+                                {riskLevel}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </div>
