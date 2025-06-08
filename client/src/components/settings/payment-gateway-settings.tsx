@@ -266,6 +266,7 @@ export function PaymentGatewaySettings() {
   });
 
   const onSubmit = (data: any) => {
+    console.log("Form submitted with data:", data);
     saveGatewayMutation.mutate(data);
   };
 
