@@ -1928,11 +1928,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const { taskIds } = req.body;
       
+      console.log("Status progression request:", { taskIds, tenantId });
+      
       if (!Array.isArray(taskIds) || taskIds.length === 0) {
         return res.status(400).json({ message: "Task IDs array is required" });
       }
       
-      const taskIdsStr = taskIds.join(',');
+      // Use parameterized query instead of string interpolation
+      const placeholders = taskIds.map(() => '?').join(',');
       
       const progressions = await db.execute(sql.raw(`
         WITH status_periods AS (
@@ -1947,8 +1950,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ) as next_changed_at
           FROM task_status_history tsh
           LEFT JOIN task_statuses ts ON tsh.to_status_id = ts.id
-          WHERE tsh.task_id IN (${taskIdsStr}) 
-            AND tsh.tenant_id = ${tenantId}
+          WHERE tsh.task_id IN (${placeholders}) 
+            AND tsh.tenant_id = ?
         )
         SELECT 
           task_id,
@@ -1962,9 +1965,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           END as days_in_status
         FROM status_periods
         ORDER BY task_id, changed_at
-      `));
+      `, [...taskIds, tenantId]));
       
-      res.json(progressions.rows);
+      console.log("Status progression result:", progressions);
+      res.json(progressions);
     } catch (error) {
       console.error("Error fetching task status progressions:", error);
       res.status(500).json({ message: "Failed to fetch task status progressions" });

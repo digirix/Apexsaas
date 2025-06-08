@@ -108,20 +108,8 @@ export default function TaskLifecycleReport() {
     });
   }, [tasks, filters]);
 
-  // Fetch status progression data for filtered tasks
-  const taskIds = filteredTasks.slice(0, 15).map((task: any) => task.id);
-  const { data: statusProgressions = [] } = useQuery({ 
-    queryKey: ["/api/v1/tasks/status-progression", taskIds],
-    enabled: taskIds.length > 0,
-    queryFn: async () => {
-      const response = await fetch("/api/v1/tasks/status-progression", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskIds })
-      });
-      return response.json();
-    }
-  });
+  // For now, we'll show basic lifecycle information
+  // TODO: Implement full status progression tracking
 
   // Calculate lifecycle analytics
   const analytics = useMemo(() => {
@@ -537,15 +525,15 @@ export default function TaskLifecycleReport() {
                         const status = taskStatuses.find((s: any) => s.id === task.statusId);
                         const category = taskCategories.find((c: any) => c.id === task.taskCategoryId);
                         
-                        // Get status progression for this task
-                        const taskProgressions = statusProgressions.filter((sp: any) => sp.task_id === task.id);
-                        const statusBreakdown = taskProgressions.map((sp: any) => 
-                          `${sp.status_name}: ${Math.ceil(sp.days_in_status)}d`
-                        ).join(' → ');
+                        // Calculate basic lifecycle information
+                        const created = new Date(task.createdAt);
+                        const now = new Date();
+                        const daysInCycle = Math.ceil((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
                         
-                        const totalDays = taskProgressions.reduce((sum: number, sp: any) => 
-                          sum + Math.ceil(sp.days_in_status), 0
-                        );
+                        // Show basic status information
+                        const statusInfo = status?.name === "Completed" ? 
+                          `Completed (${daysInCycle}d total)` : 
+                          `In progress for ${daysInCycle} days`;
                         
                         return (
                           <TableRow key={task.id}>
@@ -563,9 +551,9 @@ export default function TaskLifecycleReport() {
                             </TableCell>
                             <TableCell>
                               <div className="space-y-1">
-                                <div className="font-medium">{totalDays} days total</div>
+                                <div className="font-medium">{daysInCycle} days</div>
                                 <div className="text-xs text-muted-foreground">
-                                  {statusBreakdown || 'No progression data'}
+                                  {statusInfo}
                                 </div>
                               </div>
                             </TableCell>
