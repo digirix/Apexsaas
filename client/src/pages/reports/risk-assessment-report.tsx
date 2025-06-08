@@ -43,9 +43,9 @@ export default function RiskAssessmentReport() {
   const { data: taskStatuses = [] } = useQuery({ queryKey: ["/api/v1/setup/task-statuses"] });
   const { data: entities = [] } = useQuery({ queryKey: ["/api/v1/entities"] });
   const { data: clients = [] } = useQuery({ queryKey: ["/api/v1/clients"] });
-  const { data: countries = [] } = useQuery({ queryKey: ["/api/v1/countries"] });
-  const { data: taxJurisdictions = [] } = useQuery({ queryKey: ["/api/v1/tax-jurisdictions"] });
-  const { data: entityTypes = [] } = useQuery({ queryKey: ["/api/v1/entity-types"] });
+  const { data: countries = [] } = useQuery({ queryKey: ["/api/v1/setup/countries"] });
+  const { data: taxJurisdictions = [] } = useQuery({ queryKey: ["/api/v1/setup/tax-jurisdictions"] });
+  const { data: entityTypes = [] } = useQuery({ queryKey: ["/api/v1/setup/entity-types"] });
 
   // Filter dependencies
   const filteredTaxJurisdictions = useMemo(() => {
@@ -213,7 +213,10 @@ export default function RiskAssessmentReport() {
   }, [tasks, entities, clients, taskStatuses, taxJurisdictions, filters]);
 
   const handleExportPDF = () => {
-    exportToPDF('risk-assessment-report', 'Risk Assessment Report');
+    exportToPDF({
+      elementId: 'risk-assessment-report',
+      filename: 'Risk Assessment Report'
+    });
   };
 
   return (
@@ -222,14 +225,16 @@ export default function RiskAssessmentReport() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Risk Assessment Report</h1>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              Risk Assessment Report
+              <AIInsightsPanel 
+                reportType="risk-assessment" 
+                filters={filters}
+              />
+            </h1>
             <p className="text-muted-foreground">Identify and analyze potential compliance and operational risks</p>
           </div>
           <div className="flex items-center gap-2">
-            <AIInsightsPanel 
-              reportType="risk-assessment" 
-              filters={filters}
-            />
             <Button onClick={handleExportPDF} className="flex items-center gap-2">
               <Download className="w-4 h-4" />
               Export PDF
