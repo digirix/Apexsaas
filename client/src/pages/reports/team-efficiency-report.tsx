@@ -259,7 +259,13 @@ export default function TeamEfficiencyReport() {
               {/* Period Filter */}
               <Select value={filters.period} onValueChange={(value) => setFilters(prev => ({ ...prev, period: value }))}>
                 <SelectTrigger className="h-6 w-20">
-                  <SelectValue placeholder="Period" />
+                  <SelectValue>
+                    {filters.period === "7" ? "7d" : 
+                     filters.period === "30" ? "30d" : 
+                     filters.period === "90" ? "90d" : 
+                     filters.period === "365" ? "1y" : 
+                     filters.period === "all" ? "All" : "Period"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="7">7d</SelectItem>
@@ -273,11 +279,14 @@ export default function TeamEfficiencyReport() {
               {/* Country Filter */}
               <Select value={filters.country} onValueChange={(value) => setFilters(prev => ({ ...prev, country: value }))}>
                 <SelectTrigger className="h-6 w-20">
-                  <SelectValue placeholder="Country" />
+                  <SelectValue>
+                    {filters.country === "all" ? "Country" : 
+                     (countries as any[]).find(c => c.id.toString() === filters.country)?.name || "Country"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  {(countries as any[]).map((country: any) => (
+                  {Array.isArray(countries) && countries.map((country: any) => (
                     <SelectItem key={country.id} value={country.id.toString()}>
                       {country.name}
                     </SelectItem>
@@ -288,11 +297,14 @@ export default function TeamEfficiencyReport() {
               {/* Department Filter */}
               <Select value={filters.department} onValueChange={(value) => setFilters(prev => ({ ...prev, department: value }))}>
                 <SelectTrigger className="h-6 w-20">
-                  <SelectValue placeholder="Dept" />
+                  <SelectValue>
+                    {filters.department === "all" ? "Dept" : 
+                     (departments as any[]).find(d => d.id.toString() === filters.department)?.name || "Dept"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  {(departments as any[]).map((dept: any) => (
+                  {Array.isArray(departments) && departments.map((dept: any) => (
                     <SelectItem key={dept.id} value={dept.id.toString()}>
                       {dept.name}
                     </SelectItem>
@@ -303,11 +315,15 @@ export default function TeamEfficiencyReport() {
               {/* Team Member Filter */}
               <Select value={filters.teamMember} onValueChange={(value) => setFilters(prev => ({ ...prev, teamMember: value }))}>
                 <SelectTrigger className="h-6 w-20">
-                  <SelectValue placeholder="Member" />
+                  <SelectValue>
+                    {filters.teamMember === "all" ? "Member" : 
+                     (users as any[]).find(u => u.id.toString() === filters.teamMember)?.displayName || 
+                     (users as any[]).find(u => u.id.toString() === filters.teamMember)?.username || "Member"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  {(users as any[]).map((user: any) => (
+                  {Array.isArray(users) && users.map((user: any) => (
                     <SelectItem key={user.id} value={user.id.toString()}>
                       {user.displayName || user.username}
                     </SelectItem>
@@ -318,11 +334,14 @@ export default function TeamEfficiencyReport() {
               {/* Task Category Filter */}
               <Select value={filters.taskCategory} onValueChange={(value) => setFilters(prev => ({ ...prev, taskCategory: value }))}>
                 <SelectTrigger className="h-6 w-20">
-                  <SelectValue placeholder="Category" />
+                  <SelectValue>
+                    {filters.taskCategory === "all" ? "Category" : 
+                     (taskCategories as any[]).find(c => c.id.toString() === filters.taskCategory)?.name || "Category"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  {(taskCategories as any[]).map((category: any) => (
+                  {Array.isArray(taskCategories) && taskCategories.map((category: any) => (
                     <SelectItem key={category.id} value={category.id.toString()}>
                       {category.name}
                     </SelectItem>
@@ -333,11 +352,14 @@ export default function TeamEfficiencyReport() {
               {/* Status Filter */}
               <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
                 <SelectTrigger className="h-6 w-20">
-                  <SelectValue placeholder="Status" />
+                  <SelectValue>
+                    {filters.status === "all" ? "Status" : 
+                     (taskStatuses as any[]).find(s => s.id.toString() === filters.status)?.name || "Status"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  {(taskStatuses as any[]).map((status: any) => (
+                  {Array.isArray(taskStatuses) && taskStatuses.map((status: any) => (
                     <SelectItem key={status.id} value={status.id.toString()}>
                       {status.name}
                     </SelectItem>
@@ -432,6 +454,52 @@ export default function TeamEfficiencyReport() {
           </Card>
         </div>
 
+        {/* Team Member Performance Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Individual Performance
+            </CardTitle>
+            <CardDescription>Detailed performance metrics for each team member</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Team Member</TableHead>
+                  <TableHead>Total Tasks</TableHead>
+                  <TableHead>Completed</TableHead>
+                  <TableHead>Efficiency</TableHead>
+                  <TableHead>Avg Time (days)</TableHead>
+                  <TableHead>Performance</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {analytics.memberPerformance.map((member: any) => (
+                  <TableRow key={member.id}>
+                    <TableCell className="font-medium">{member.name}</TableCell>
+                    <TableCell>{member.totalTasks}</TableCell>
+                    <TableCell>{member.completedTasks}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Progress value={member.efficiency} className="w-20" />
+                        <span className="text-sm">{member.efficiency.toFixed(1)}%</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{member.avgCompletionTime.toFixed(1)}</TableCell>
+                    <TableCell>
+                      <Badge variant={member.efficiency >= 80 ? "default" : member.efficiency >= 60 ? "secondary" : "destructive"}>
+                        {member.efficiency >= 80 ? "Excellent" : member.efficiency >= 60 ? "Good" : "Needs Improvement"}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Department Performance Chart */}
@@ -478,52 +546,6 @@ export default function TeamEfficiencyReport() {
             </CardContent>
           </Card>
         </div>
-
-        {/* Team Member Performance Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Individual Performance
-            </CardTitle>
-            <CardDescription>Detailed performance metrics for each team member</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Team Member</TableHead>
-                  <TableHead>Total Tasks</TableHead>
-                  <TableHead>Completed</TableHead>
-                  <TableHead>Efficiency</TableHead>
-                  <TableHead>Avg Time (days)</TableHead>
-                  <TableHead>Performance</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {analytics.memberPerformance.map((member: any) => (
-                  <TableRow key={member.id}>
-                    <TableCell className="font-medium">{member.name}</TableCell>
-                    <TableCell>{member.totalTasks}</TableCell>
-                    <TableCell>{member.completedTasks}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Progress value={member.efficiency} className="w-20" />
-                        <span className="text-sm">{member.efficiency.toFixed(1)}%</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{member.avgCompletionTime.toFixed(1)}</TableCell>
-                    <TableCell>
-                      <Badge variant={member.efficiency >= 80 ? "default" : member.efficiency >= 60 ? "secondary" : "destructive"}>
-                        {member.efficiency >= 80 ? "Excellent" : member.efficiency >= 60 ? "Good" : "Needs Improvement"}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
       </div>
     </AppLayout>
   );
