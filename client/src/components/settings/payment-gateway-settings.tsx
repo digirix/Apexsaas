@@ -303,7 +303,23 @@ export function PaymentGatewaySettings() {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid grid-cols-4 w-full">
               {paymentGateways.map((gateway) => {
-                const config = getCurrentConfig();
+                // Get config for this specific gateway
+                const getGatewayConfig = () => {
+                  switch (gateway.key) {
+                    case 'stripe':
+                      return gatewayConfigurations.stripe || {};
+                    case 'paypal':
+                      return gatewayConfigurations.paypal || {};
+                    case 'meezan_bank':
+                      return gatewayConfigurations.meezanBank || {};
+                    case 'bank_alfalah':
+                      return gatewayConfigurations.bankAlfalah || {};
+                    default:
+                      return {};
+                  }
+                };
+                
+                const config = getGatewayConfig();
                 const isConfigured = Object.keys(config).length > 0;
                 const isEnabled = config.isEnabled;
                 

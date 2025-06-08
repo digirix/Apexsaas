@@ -6980,9 +6980,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const tenantId = (req.user as any).tenantId;
       
-      const configurations = await storage.getAllPaymentGatewayConfigurations(tenantId);
+      const configurations: any = {};
+      
+      // Fetch each gateway configuration
+      try {
+        configurations.stripe = await storage.getStripeConfiguration(tenantId);
+      } catch (error) {
+        console.log("No Stripe configuration found for tenant", tenantId);
+      }
+      
+      try {
+        configurations.paypal = await storage.getPaypalConfiguration(tenantId);
+      } catch (error) {
+        console.log("No PayPal configuration found for tenant", tenantId);
+      }
+      
+      try {
+        configurations.meezanBank = await storage.getMeezanBankConfiguration(tenantId);
+      } catch (error) {
+        console.log("No Meezan Bank configuration found for tenant", tenantId);
+      }
+      
+      try {
+        configurations.bankAlfalah = await storage.getBankAlfalahConfiguration(tenantId);
+      } catch (error) {
+        console.log("No Bank Alfalah configuration found for tenant", tenantId);
+      }
+      
       res.json(configurations);
     } catch (error) {
+      console.error("Error fetching payment gateway configurations:", error);
       res.status(500).json({ message: "Failed to fetch payment gateway configurations" });
     }
   });
