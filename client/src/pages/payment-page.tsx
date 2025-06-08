@@ -164,16 +164,17 @@ export default function PaymentPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch tenant branding for payment page (public endpoint)
+  // Fetch tenant branding for payment page (public endpoint) - only after invoice is loaded
   const { data: tenantSettings } = useQuery<TenantSetting[]>({
     queryKey: [`/api/v1/tenant/${invoice?.tenantId}/branding`],
     enabled: !!invoice?.tenantId,
+    retry: 1,
+    refetchOnWindowFocus: false
   });
 
   // Extract firm branding from tenant settings using correct keys
   const firmBranding = {
-    firmName: tenantSettings?.find(s => s.key === 'header_logo_text')?.value || 
-             tenantSettings?.find(s => s.key === 'general-settings.firmName')?.value || 'Accounting Firm',
+    firmName: tenantSettings?.find(s => s.key === 'header_logo_text')?.value || 'Accounting Firm',
     firmTagline: tenantSettings?.find(s => s.key === 'header_subtitle')?.value || '',
     firmLogo: tenantSettings?.find(s => s.key === 'general-settings.firmLogo')?.value || '',
     footerCopyright: tenantSettings?.find(s => s.key === 'footer_copyright')?.value || '',
@@ -219,6 +220,7 @@ export default function PaymentPage() {
         const invoiceResponse = await fetch(`/api/v1/invoices/${invoiceId}/payment-link`);
         if (invoiceResponse.ok) {
           const invoiceData = await invoiceResponse.json();
+          console.log("Setting invoice data:", invoiceData.invoice);
           setInvoice(invoiceData.invoice);
         }
         
