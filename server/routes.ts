@@ -4211,6 +4211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         paymentIntentId: paymentIntent.id,
         amount: amountInCents,
         currency: invoice.currencyCode?.toLowerCase() || 'usd',
+        publicKey: stripeConfig.publicKey,
       });
 
     } catch (error: any) {

@@ -7,9 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Loader2, CreditCard, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-// Load Stripe - this will be configured based on tenant settings
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || "pk_test_");
-
 interface Invoice {
   id: number;
   invoiceNumber: string;
@@ -18,6 +15,14 @@ interface Invoice {
   status: string;
   clientId?: number;
   tenantId: number;
+}
+
+interface PaymentConfig {
+  clientSecret: string;
+  paymentIntentId: string;
+  amount: number;
+  currency: string;
+  publicKey: string;
 }
 
 function CheckoutForm({ invoice }: { invoice: Invoice }) {
@@ -143,6 +148,7 @@ export default function PaymentPage() {
   const { invoiceId } = useParams<{ invoiceId: string }>();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [stripePromise, setStripePromise] = useState<Promise<any> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -174,6 +180,12 @@ export default function PaymentPage() {
         console.log("Payment intent created:", data);
         
         setClientSecret(data.clientSecret);
+        
+        // Load Stripe with tenant-specific public key
+        if (data.publicKey) {
+          const stripe = loadStripe(data.publicKey);
+          setStripePromise(stripe);
+        }
         
         // Get invoice details
         const invoiceResponse = await fetch(`/api/v1/invoices/${invoiceId}/payment-link`);
