@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { 
   Bell, 
+  CreditCard,
   Database, 
   FileText, 
   Layers,
@@ -64,6 +65,12 @@ const settingCategories: SettingCategory[] = [
     name: "Invoice Settings",
     description: "Invoice templates and payment options",
     icon: <FileText className="h-5 w-5" />,
+  },
+  {
+    id: "payments",
+    name: "Payment Gateways",
+    description: "Configure payment processing options",
+    icon: <CreditCard className="h-5 w-5" />,
   },
 ];
 

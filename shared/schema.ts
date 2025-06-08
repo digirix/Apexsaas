@@ -567,7 +567,17 @@ export const invoiceStatusEnum = pgEnum('invoice_status', [
 
 // Payment method enum
 export const paymentMethodEnum = pgEnum('payment_method', [
-  'credit_card', 'bank_transfer', 'direct_debit', 'cash', 'check', 'paypal', 'stripe', 'other'
+  'credit_card', 'debit_card', 'bank_transfer', 'direct_debit', 'cash', 'check', 'paypal', 'stripe', 'apple_pay', 'google_pay', 'meezan_bank', 'bank_alfalah', 'other'
+]);
+
+// Payment gateway provider enum
+export const paymentGatewayEnum = pgEnum('payment_gateway', [
+  'stripe', 'paypal', 'apple_pay', 'google_pay', 'meezan_bank', 'bank_alfalah'
+]);
+
+// Payment transaction status enum
+export const paymentStatusEnum = pgEnum('payment_status', [
+  'pending', 'processing', 'completed', 'failed', 'canceled', 'refunded', 'partial_refunded'
 ]);
 
 // Invoices table
@@ -700,9 +710,17 @@ export const insertPaymentSchema = createInsertSchema(payments)
 export const paymentGatewaySettings = pgTable("payment_gateway_settings", {
   id: serial("id").primaryKey(),
   tenantId: integer("tenant_id").notNull(),
-  gatewayType: text("gateway_type").notNull(), // stripe, paypal, etc.
+  gatewayType: paymentGatewayEnum("gateway_type").notNull(),
   isEnabled: boolean("is_enabled").default(false).notNull(),
-  configData: text("config_data").notNull(), // JSON stringified config data
+  isTestMode: boolean("is_test_mode").default(true).notNull(),
+  displayName: text("display_name").notNull(),
+  description: text("description"),
+  configData: text("config_data").notNull(), // JSON stringified config data (API keys, etc.)
+  webhookUrl: text("webhook_url"),
+  webhookSecret: text("webhook_secret"),
+  supportedCurrencies: text("supported_currencies").default('PKR,USD,EUR').notNull(),
+  transactionFeePercentage: decimal("transaction_fee_percentage", { precision: 5, scale: 2 }).default('0').notNull(),
+  transactionFeeFixed: decimal("transaction_fee_fixed", { precision: 10, scale: 2 }).default('0').notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at"),
 }, (table) => {
@@ -716,9 +734,68 @@ export const insertPaymentGatewaySettingSchema = createInsertSchema(paymentGatew
     tenantId: true,
     gatewayType: true,
     isEnabled: true,
+    isTestMode: true,
+    displayName: true,
+    description: true,
     configData: true,
+    webhookUrl: true,
+    webhookSecret: true,
+    supportedCurrencies: true,
+    transactionFeePercentage: true,
+    transactionFeeFixed: true,
   })
   .extend({
+    updatedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
+  });
+
+// Payment transactions table - tracks all payment attempts
+export const paymentTransactions = pgTable("payment_transactions", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull(),
+  invoiceId: integer("invoice_id").notNull(),
+  paymentId: integer("payment_id"), // Links to payments table after successful payment
+  gatewayType: paymentGatewayEnum("gateway_type").notNull(),
+  gatewayTransactionId: text("gateway_transaction_id"), // External payment ID from gateway
+  gatewayPaymentIntentId: text("gateway_payment_intent_id"), // For Stripe payment intents
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: text("currency").default('PKR').notNull(),
+  status: paymentStatusEnum("status").default('pending').notNull(),
+  paymentMethod: paymentMethodEnum("payment_method").notNull(),
+  gatewayResponse: text("gateway_response"), // JSON stringified response from gateway
+  failureReason: text("failure_reason"),
+  clientSecret: text("client_secret"), // For client-side payment confirmation
+  returnUrl: text("return_url"),
+  cancelUrl: text("cancel_url"),
+  webhookProcessed: boolean("webhook_processed").default(false).notNull(),
+  createdBy: integer("created_by"),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertPaymentTransactionSchema = createInsertSchema(paymentTransactions)
+  .pick({
+    tenantId: true,
+    invoiceId: true,
+    paymentId: true,
+    gatewayType: true,
+    gatewayTransactionId: true,
+    gatewayPaymentIntentId: true,
+    amount: true,
+    currency: true,
+    status: true,
+    paymentMethod: true,
+    gatewayResponse: true,
+    failureReason: true,
+    clientSecret: true,
+    returnUrl: true,
+    cancelUrl: true,
+    webhookProcessed: true,
+    createdBy: true,
+    processedAt: true,
+  })
+  .extend({
+    processedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
     updatedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
   });
 
@@ -1112,6 +1189,9 @@ export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 
 export type PaymentGatewaySetting = typeof paymentGatewaySettings.$inferSelect;
 export type InsertPaymentGatewaySetting = z.infer<typeof insertPaymentGatewaySettingSchema>;
+
+export type PaymentTransaction = typeof paymentTransactions.$inferSelect;
+export type InsertPaymentTransaction = z.infer<typeof insertPaymentTransactionSchema>;
 
 export type JournalEntryType = typeof journalEntryTypes.$inferSelect;
 export type InsertJournalEntryType = z.infer<typeof insertJournalEntryTypeSchema>;

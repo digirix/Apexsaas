@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createInsertSchema } from "drizzle-zod";
-import { invoices, invoiceLineItems, payments, paymentGatewaySettings, chartOfAccounts, journalEntries, journalEntryLines } from "./schema";
+import { invoices, invoiceLineItems, payments, paymentGatewaySettings, paymentTransactions, chartOfAccounts, journalEntries, journalEntryLines } from "./schema";
 
 // Enhanced invoice schema with proper type handling
 export const enhancedInvoiceSchema = createInsertSchema(invoices)
@@ -157,11 +157,68 @@ export const enhancedJournalEntryLineSchema = createInsertSchema(journalEntryLin
     creditAmount: z.union([z.string(), z.number().transform(n => n.toString())]).default("0"),
   });
 
+// Enhanced payment transaction schema
+export const enhancedPaymentTransactionSchema = createInsertSchema(paymentTransactions)
+  .pick({
+    tenantId: true,
+    invoiceId: true,
+    paymentId: true,
+    gatewayType: true,
+    gatewayTransactionId: true,
+    gatewayPaymentIntentId: true,
+    amount: true,
+    currency: true,
+    status: true,
+    paymentMethod: true,
+    gatewayResponse: true,
+    failureReason: true,
+    clientSecret: true,
+    returnUrl: true,
+    cancelUrl: true,
+    webhookProcessed: true,
+    createdBy: true,
+    processedAt: true,
+  })
+  .extend({
+    amount: z.union([z.string(), z.number().transform(n => n.toString())]),
+    processedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
+  });
+
+// Enhanced payment gateway configuration schema
+export const paymentGatewayConfigSchema = z.object({
+  stripe: z.object({
+    publicKey: z.string().optional(),
+    secretKey: z.string().optional(),
+    webhookSecret: z.string().optional(),
+    currency: z.string().default('PKR'),
+  }).optional(),
+  paypal: z.object({
+    clientId: z.string().optional(),
+    clientSecret: z.string().optional(),
+    mode: z.enum(['sandbox', 'production']).default('sandbox'),
+    currency: z.string().default('USD'),
+  }).optional(),
+  meezan_bank: z.object({
+    merchantId: z.string().optional(),
+    merchantKey: z.string().optional(),
+    apiUrl: z.string().optional(),
+    currency: z.string().default('PKR'),
+  }).optional(),
+  bank_alfalah: z.object({
+    merchantId: z.string().optional(),
+    merchantKey: z.string().optional(),
+    apiUrl: z.string().optional(),
+    currency: z.string().default('PKR'),
+  }).optional(),
+});
+
 // Export enhanced types
 export type EnhancedInvoice = z.infer<typeof enhancedInvoiceSchema>;
 export type EnhancedInvoiceLineItem = z.infer<typeof enhancedInvoiceLineItemSchema>;
 export type EnhancedPayment = z.infer<typeof enhancedPaymentSchema>;
 export type EnhancedPaymentGatewaySetting = z.infer<typeof enhancedPaymentGatewaySettingSchema>;
+export type EnhancedPaymentTransaction = z.infer<typeof enhancedPaymentTransactionSchema>;
+export type PaymentGatewayConfig = z.infer<typeof paymentGatewayConfigSchema>;
 export type EnhancedChartOfAccount = z.infer<typeof enhancedChartOfAccountSchema>;
 export type EnhancedJournalEntry = z.infer<typeof enhancedJournalEntrySchema>;
 export type EnhancedJournalEntryLine = z.infer<typeof enhancedJournalEntryLineSchema>;
