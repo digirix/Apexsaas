@@ -164,9 +164,9 @@ export default function PaymentPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch tenant settings for branding
+  // Fetch tenant branding for payment page (public endpoint)
   const { data: tenantSettings } = useQuery<TenantSetting[]>({
-    queryKey: [`/api/v1/tenant-settings/${invoice?.tenantId}`],
+    queryKey: [`/api/v1/tenant/${invoice?.tenantId}/branding`],
     enabled: !!invoice?.tenantId,
   });
 

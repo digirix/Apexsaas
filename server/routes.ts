@@ -3925,6 +3925,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public endpoint for payment page branding (no authentication required)
+  app.get("/api/v1/tenant/:tenantId/branding", async (req, res) => {
+    try {
+      const tenantId = parseInt(req.params.tenantId);
+      
+      if (!tenantId || isNaN(tenantId)) {
+        return res.status(400).json({ message: "Invalid tenant ID" });
+      }
+
+      // Get only the branding-related settings
+      const brandingKeys = [
+        'header_logo_text',
+        'header_subtitle', 
+        'footer_copyright',
+        'footer_support_email',
+        'general-settings.firmLogo'
+      ];
+      
+      const brandingSettings = [];
+      for (const key of brandingKeys) {
+        const setting = await storage.getTenantSetting(tenantId, key);
+        if (setting) {
+          brandingSettings.push(setting);
+        }
+      }
+      
+      res.json(brandingSettings);
+    } catch (error) {
+      console.error("Error fetching tenant branding:", error);
+      res.status(500).json({ message: "Failed to fetch tenant branding" });
+    }
+  });
+
   // Finance Module API Routes
   
   // Payment Gateway Settings
