@@ -4287,6 +4287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           amountDue: invoice.amountDue,
           currencyCode: invoice.currencyCode,
           status: invoice.status,
+          tenantId: invoice.tenantId,
         }
       });
 
