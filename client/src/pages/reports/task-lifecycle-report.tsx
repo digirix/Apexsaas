@@ -47,21 +47,6 @@ export default function TaskLifecycleReport() {
   const { data: countries = [] } = useQuery({ queryKey: ["/api/v1/setup/countries"] });
   const { data: taskCategories = [] } = useQuery({ queryKey: ["/api/v1/setup/task-categories"] });
 
-  // Fetch status progression data for filtered tasks
-  const taskIds = filteredTasks.slice(0, 15).map((task: any) => task.id);
-  const { data: statusProgressions = [] } = useQuery({ 
-    queryKey: ["/api/v1/tasks/status-progression", taskIds],
-    enabled: taskIds.length > 0,
-    queryFn: async () => {
-      const response = await fetch("/api/v1/tasks/status-progression", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskIds })
-      });
-      return response.json();
-    }
-  });
-
   // Apply filtering with entity dependency
   const filteredEntities = useMemo(() => {
     if (!entities?.length) return [];
@@ -122,6 +107,21 @@ export default function TaskLifecycleReport() {
       return true;
     });
   }, [tasks, filters]);
+
+  // Fetch status progression data for filtered tasks
+  const taskIds = filteredTasks.slice(0, 15).map((task: any) => task.id);
+  const { data: statusProgressions = [] } = useQuery({ 
+    queryKey: ["/api/v1/tasks/status-progression", taskIds],
+    enabled: taskIds.length > 0,
+    queryFn: async () => {
+      const response = await fetch("/api/v1/tasks/status-progression", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskIds })
+      });
+      return response.json();
+    }
+  });
 
   // Calculate lifecycle analytics
   const analytics = useMemo(() => {
@@ -536,9 +536,16 @@ export default function TaskLifecycleReport() {
                         const client = clients.find((c: any) => c.id === task.clientId);
                         const status = taskStatuses.find((s: any) => s.id === task.statusId);
                         const category = taskCategories.find((c: any) => c.id === task.taskCategoryId);
-                        const created = new Date(task.createdAt);
-                        const now = new Date();
-                        const daysInCycle = Math.ceil((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+                        
+                        // Get status progression for this task
+                        const taskProgressions = statusProgressions.filter((sp: any) => sp.task_id === task.id);
+                        const statusBreakdown = taskProgressions.map((sp: any) => 
+                          `${sp.status_name}: ${Math.ceil(sp.days_in_status)}d`
+                        ).join(' → ');
+                        
+                        const totalDays = taskProgressions.reduce((sum: number, sp: any) => 
+                          sum + Math.ceil(sp.days_in_status), 0
+                        );
                         
                         return (
                           <TableRow key={task.id}>
@@ -554,7 +561,14 @@ export default function TaskLifecycleReport() {
                                 {status?.name || 'Unknown'}
                               </Badge>
                             </TableCell>
-                            <TableCell>{daysInCycle}</TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <div className="font-medium">{totalDays} days total</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {statusBreakdown || 'No progression data'}
+                                </div>
+                              </div>
+                            </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {category?.name || 'Unknown'}
                             </TableCell>
