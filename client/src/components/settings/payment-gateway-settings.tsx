@@ -507,8 +507,7 @@ function StripeConfigForm({ form }: { form: any }) {
         <Input
           id="stripe-public-key"
           placeholder="pk_test_..."
-          value={form.watch("publicKey") || ""}
-          onChange={(e) => form.setValue("publicKey", e.target.value, { shouldValidate: true })}
+          {...form.register("publicKey")}
         />
         {form.formState.errors.publicKey && (
           <p className="text-sm text-red-600">{form.formState.errors.publicKey.message}</p>
@@ -521,8 +520,7 @@ function StripeConfigForm({ form }: { form: any }) {
           id="stripe-secret-key"
           type="password"
           placeholder="sk_test_..."
-          value={form.watch("secretKey") || ""}
-          onChange={(e) => form.setValue("secretKey", e.target.value, { shouldValidate: true })}
+          {...form.register("secretKey")}
         />
         {form.formState.errors.secretKey && (
           <p className="text-sm text-red-600">{form.formState.errors.secretKey.message}</p>
@@ -535,8 +533,7 @@ function StripeConfigForm({ form }: { form: any }) {
           id="stripe-webhook-secret"
           type="password"
           placeholder="whsec_..."
-          value={form.watch("webhookSecret") || ""}
-          onChange={(e) => form.setValue("webhookSecret", e.target.value, { shouldValidate: true })}
+          {...form.register("webhookSecret")}
         />
       </div>
       
