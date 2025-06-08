@@ -375,7 +375,7 @@ export function PaymentGatewaySettings() {
                         type="button"
                         variant="outline"
                         onClick={handleTest}
-                        disabled={!currentGateway || !currentGateway.isEnabled || testingGateway === gateway.key}
+                        disabled={!currentGateway || testingGateway === gateway.key}
                       >
                         {testingGateway === gateway.key ? "Testing..." : "Test Connection"}
                       </Button>

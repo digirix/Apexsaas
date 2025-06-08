@@ -4049,9 +4049,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: `No ${gatewayType} gateway found` });
       }
       
-      if (!gatewaySetting.isEnabled) {
-        return res.status(400).json({ message: `The ${gatewayType} gateway is not enabled` });
-      }
+      // Allow testing even if disabled for configuration validation
+      console.log("Testing gateway:", gatewayType, "enabled:", gatewaySetting.isEnabled);
       
       let configData;
       try {
