@@ -50,21 +50,31 @@ export default function JurisdictionAnalysisReport() {
   const { data: taskCategories = [] } = useQuery({ queryKey: ["/api/v1/setup/task-categories"] });
   const { data: taskStatuses = [] } = useQuery({ queryKey: ["/api/v1/setup/task-statuses"] });
 
-  // Filter dependent data
+  // Filter dependent data - Updated to work with actual database schema
   const filteredTaxJurisdictions = useMemo(() => {
-    if (filters.country === "all") return taxJurisdictions;
-    return (taxJurisdictions as any[]).filter((tj: any) => tj.countryId?.toString() === filters.country);
-  }, [taxJurisdictions, filters.country]);
+    if (filters.country === "all") return countries; // Use countries as jurisdictions
+    return (countries as any[]).filter((c: any) => c.id?.toString() === filters.country);
+  }, [countries, filters.country]);
 
   const filteredEntityTypes = useMemo(() => {
     if (filters.country === "all") return entityTypes;
-    return (entityTypes as any[]).filter((et: any) => et.countryId?.toString() === filters.country);
-  }, [entityTypes, filters.country]);
+    // Filter entity types based on entities that belong to the selected country
+    const countryEntities = (entities as any[]).filter((e: any) => 
+      e.countryId?.toString() === filters.country
+    );
+    const countryEntityTypeIds = [...new Set(countryEntities.map(e => e.entityTypeId))];
+    return (entityTypes as any[]).filter((et: any) => countryEntityTypeIds.includes(et.id));
+  }, [entities, entityTypes, filters.country]);
 
   const filteredClients = useMemo(() => {
     if (filters.country === "all") return clients;
-    return (clients as any[]).filter((c: any) => c.countryId?.toString() === filters.country);
-  }, [clients, filters.country]);
+    // Filter clients based on entities that belong to the selected country
+    const countryEntities = (entities as any[]).filter((e: any) => 
+      e.countryId?.toString() === filters.country
+    );
+    const countryClientIds = [...new Set(countryEntities.map(e => e.clientId))];
+    return (clients as any[]).filter((c: any) => countryClientIds.includes(c.id));
+  }, [clients, entities, filters.country]);
 
   const filteredEntities = useMemo(() => {
     if (filters.client === "all") return entities;
@@ -147,8 +157,8 @@ export default function JurisdictionAnalysisReport() {
       const complianceTasks = jurisdictionTasks.filter((task: any) => task.complianceDeadline);
 
       return {
-        id: jurisdictionId,
-        name: jurisdiction?.name || 'Unknown',
+        id: countryId,
+        name: country?.name || 'Unknown',
         entityCount: jurisdictionEntities.length,
         taskCount: jurisdictionTasks.length,
         completedTasks: completedTasks.length,
@@ -167,7 +177,7 @@ export default function JurisdictionAnalysisReport() {
       totalCompliance: jurisdiction.complianceTasks,
       completedCompliance: filteredTasks.filter((task: any) => {
         const entity = (entities as any[]).find((e: any) => e.id === task.entityId);
-        return entity?.taxJurisdictionId === jurisdiction.id && 
+        return entity?.countryId === jurisdiction.id && 
                task.complianceDeadline && 
                task.statusId === completedStatusId;
       }).length,
@@ -184,16 +194,16 @@ export default function JurisdictionAnalysisReport() {
         percentage: Math.round((jurisdiction.totalRevenue / jurisdictionBreakdown.reduce((sum, j) => sum + j.totalRevenue, 0)) * 100)
       }));
 
-    // Task distribution by category across jurisdictions
+    // Task distribution by category across jurisdictions (using countries)
     const taskCategoryDistribution = (taskCategories as any[]).map(category => {
       const categoryData = { category: category.name };
-      uniqueJurisdictionIds.forEach(jurisdictionId => {
-        const jurisdiction = (taxJurisdictions as any[]).find((tj: any) => tj.id === jurisdictionId);
+      uniqueCountryIds.forEach(countryId => {
+        const country = (countries as any[]).find((c: any) => c.id === countryId);
         const count = filteredTasks.filter((task: any) => {
           const entity = (entities as any[]).find((e: any) => e.id === task.entityId);
-          return entity?.taxJurisdictionId === jurisdictionId && task.taskCategoryId === category.id;
+          return entity?.countryId === countryId && task.taskCategoryId === category.id;
         }).length;
-        categoryData[jurisdiction?.name || 'Unknown'] = count;
+        categoryData[country?.name || 'Unknown'] = count;
       });
       return categoryData;
     });
@@ -217,14 +227,14 @@ export default function JurisdictionAnalysisReport() {
       };
     });
 
-    // Entity distribution by type and jurisdiction
+    // Entity distribution by type and jurisdiction (using countries)
     const entityDistribution = (entityTypes as any[]).map(type => {
       const typeEntities = (entities as any[]).filter((e: any) => e.entityTypeId === type.id);
       const jurisdictionCounts = {};
       
-      uniqueJurisdictionIds.forEach(jurisdictionId => {
-        const jurisdiction = (taxJurisdictions as any[]).find((tj: any) => tj.id === jurisdictionId);
-        jurisdictionCounts[jurisdiction?.name || 'Unknown'] = typeEntities.filter((e: any) => e.taxJurisdictionId === jurisdictionId).length;
+      uniqueCountryIds.forEach(countryId => {
+        const country = (countries as any[]).find((c: any) => c.id === countryId);
+        jurisdictionCounts[country?.name || 'Unknown'] = typeEntities.filter((e: any) => e.countryId === countryId).length;
       });
 
       return {
@@ -235,7 +245,7 @@ export default function JurisdictionAnalysisReport() {
     });
 
     return {
-      totalJurisdictions: uniqueJurisdictionIds.length,
+      totalJurisdictions: uniqueCountryIds.length,
       totalEntities: filteredTasks.map(t => (entities as any[]).find(e => e.id === t.entityId)).filter(Boolean).length,
       totalTasks: filteredTasks.length,
       completedTasks: filteredTasks.filter(t => t.statusId === completedStatusId).length,
