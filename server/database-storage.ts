@@ -2,8 +2,10 @@ import {
   tenants, tenantSettings, users, designations, departments, countries, currencies, states, 
   entityTypes, taskStatuses, taskStatusWorkflowRules, taxJurisdictions, serviceTypes, 
   clients, entities, tasks, taskCategories, entityTaxJurisdictions, entityServiceSubscriptions, 
-  userPermissions, invoices, invoiceLineItems, payments, paymentGatewaySettings, chartOfAccounts,
+  userPermissions, invoices, invoiceLineItems, payments, chartOfAccounts,
   journalEntries, journalEntryLines, journalEntryTypes,
+  // Payment gateway configurations
+  stripeConfigurations, paypalConfigurations, meezanBankConfigurations, bankAlfalahConfigurations,
   // Chart of Accounts hierarchical structure
   chartOfAccountsMainGroups, chartOfAccountsElementGroups, chartOfAccountsSubElementGroups, chartOfAccountsDetailedGroups,
   // AI module
@@ -27,8 +29,12 @@ import type {
   UserPermission, InsertUserPermission, TenantSetting, InsertTenantSetting,
   // Finance module types
   Invoice, InsertInvoice, InvoiceLineItem, InsertInvoiceLineItem, 
-  Payment, InsertPayment, PaymentGatewaySetting, InsertPaymentGatewaySetting,
-  ChartOfAccount, InsertChartOfAccount,
+  Payment, InsertPayment, ChartOfAccount, InsertChartOfAccount,
+  // Payment gateway configuration types
+  StripeConfiguration, InsertStripeConfiguration,
+  PaypalConfiguration, InsertPaypalConfiguration,
+  MeezanBankConfiguration, InsertMeezanBankConfiguration,
+  BankAlfalahConfiguration, InsertBankAlfalahConfiguration,
   // Chart of Accounts hierarchy types
   ChartOfAccountsMainGroup, InsertChartOfAccountsMainGroup, 
   ChartOfAccountsElementGroup, InsertChartOfAccountsElementGroup,

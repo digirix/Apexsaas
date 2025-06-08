@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createInsertSchema } from "drizzle-zod";
-import { invoices, invoiceLineItems, payments, paymentGatewaySettings, paymentTransactions, chartOfAccounts, journalEntries, journalEntryLines } from "./schema";
+import { invoices, invoiceLineItems, payments, paymentTransactions, chartOfAccounts, journalEntries, journalEntryLines, stripeConfigurations, paypalConfigurations, meezanBankConfigurations, bankAlfalahConfigurations } from "./schema";
 
 // Enhanced invoice schema with proper type handling
 export const enhancedInvoiceSchema = createInsertSchema(invoices)

@@ -706,45 +706,152 @@ export const insertPaymentSchema = createInsertSchema(payments)
     paymentDate: z.union([z.date(), z.string().transform(str => new Date(str))]),
   });
 
-// Payment gateway settings table
-export const paymentGatewaySettings = pgTable("payment_gateway_settings", {
+// Stripe payment gateway configuration
+export const stripeConfigurations = pgTable("stripe_configurations", {
   id: serial("id").primaryKey(),
-  tenantId: integer("tenant_id").notNull(),
-  gatewayType: paymentGatewayEnum("gateway_type").notNull(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
   isEnabled: boolean("is_enabled").default(false).notNull(),
   isTestMode: boolean("is_test_mode").default(true).notNull(),
-  displayName: text("display_name").notNull(),
-  description: text("description"),
-  configData: text("config_data").notNull(), // JSON stringified config data (API keys, etc.)
-  webhookUrl: text("webhook_url"),
+  publicKey: text("public_key").notNull(),
+  secretKey: text("secret_key").notNull(),
   webhookSecret: text("webhook_secret"),
-  supportedCurrencies: text("supported_currencies").default('PKR,USD,EUR').notNull(),
-  transactionFeePercentage: decimal("transaction_fee_percentage", { precision: 5, scale: 2 }).default('0').notNull(),
-  transactionFeeFixed: decimal("transaction_fee_fixed", { precision: 10, scale: 2 }).default('0').notNull(),
+  currency: text("currency").default('PKR').notNull(),
+  displayName: text("display_name").default('Stripe').notNull(),
+  description: text("description"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at"),
 }, (table) => {
   return {
-    tenantGatewayUnique: unique().on(table.tenantId, table.gatewayType),
+    tenantUnique: unique().on(table.tenantId),
   };
 });
 
-export const insertPaymentGatewaySettingSchema = createInsertSchema(paymentGatewaySettings)
+export const insertStripeConfigurationSchema = createInsertSchema(stripeConfigurations)
   .pick({
     tenantId: true,
-    gatewayType: true,
     isEnabled: true,
     isTestMode: true,
+    publicKey: true,
+    secretKey: true,
+    webhookSecret: true,
+    currency: true,
     displayName: true,
     description: true,
-    configData: true,
-    webhookUrl: true,
-    webhookSecret: true,
-    supportedCurrencies: true,
-    transactionFeePercentage: true,
-    transactionFeeFixed: true,
   })
   .extend({
+    webhookSecret: z.string().optional().nullable(),
+    description: z.string().optional().nullable(),
+    updatedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
+  });
+
+// PayPal payment gateway configuration
+export const paypalConfigurations = pgTable("paypal_configurations", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  isEnabled: boolean("is_enabled").default(false).notNull(),
+  isTestMode: boolean("is_test_mode").default(true).notNull(),
+  clientId: text("client_id").notNull(),
+  clientSecret: text("client_secret").notNull(),
+  mode: text("mode").default('sandbox').notNull(), // sandbox or production
+  currency: text("currency").default('USD').notNull(),
+  displayName: text("display_name").default('PayPal').notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+}, (table) => {
+  return {
+    tenantUnique: unique().on(table.tenantId),
+  };
+});
+
+export const insertPaypalConfigurationSchema = createInsertSchema(paypalConfigurations)
+  .pick({
+    tenantId: true,
+    isEnabled: true,
+    isTestMode: true,
+    clientId: true,
+    clientSecret: true,
+    mode: true,
+    currency: true,
+    displayName: true,
+    description: true,
+  })
+  .extend({
+    description: z.string().optional().nullable(),
+    updatedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
+  });
+
+// Meezan Bank payment gateway configuration
+export const meezanBankConfigurations = pgTable("meezan_bank_configurations", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  isEnabled: boolean("is_enabled").default(false).notNull(),
+  isTestMode: boolean("is_test_mode").default(true).notNull(),
+  merchantId: text("merchant_id").notNull(),
+  merchantKey: text("merchant_key").notNull(),
+  apiUrl: text("api_url").notNull(),
+  currency: text("currency").default('PKR').notNull(),
+  displayName: text("display_name").default('Meezan Bank').notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+}, (table) => {
+  return {
+    tenantUnique: unique().on(table.tenantId),
+  };
+});
+
+export const insertMeezanBankConfigurationSchema = createInsertSchema(meezanBankConfigurations)
+  .pick({
+    tenantId: true,
+    isEnabled: true,
+    isTestMode: true,
+    merchantId: true,
+    merchantKey: true,
+    apiUrl: true,
+    currency: true,
+    displayName: true,
+    description: true,
+  })
+  .extend({
+    description: z.string().optional().nullable(),
+    updatedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
+  });
+
+// Bank Alfalah payment gateway configuration
+export const bankAlfalahConfigurations = pgTable("bank_alfalah_configurations", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: 'cascade' }),
+  isEnabled: boolean("is_enabled").default(false).notNull(),
+  isTestMode: boolean("is_test_mode").default(true).notNull(),
+  merchantId: text("merchant_id").notNull(),
+  merchantKey: text("merchant_key").notNull(),
+  apiUrl: text("api_url").notNull(),
+  currency: text("currency").default('PKR').notNull(),
+  displayName: text("display_name").default('Bank Alfalah').notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+}, (table) => {
+  return {
+    tenantUnique: unique().on(table.tenantId),
+  };
+});
+
+export const insertBankAlfalahConfigurationSchema = createInsertSchema(bankAlfalahConfigurations)
+  .pick({
+    tenantId: true,
+    isEnabled: true,
+    isTestMode: true,
+    merchantId: true,
+    merchantKey: true,
+    apiUrl: true,
+    currency: true,
+    displayName: true,
+    description: true,
+  })
+  .extend({
+    description: z.string().optional().nullable(),
     updatedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
   });
 
@@ -1187,8 +1294,18 @@ export type InsertInvoiceLineItem = z.infer<typeof insertInvoiceLineItemSchema>;
 export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 
-export type PaymentGatewaySetting = typeof paymentGatewaySettings.$inferSelect;
-export type InsertPaymentGatewaySetting = z.infer<typeof insertPaymentGatewaySettingSchema>;
+// Payment Gateway Configuration Types
+export type StripeConfiguration = typeof stripeConfigurations.$inferSelect;
+export type InsertStripeConfiguration = z.infer<typeof insertStripeConfigurationSchema>;
+
+export type PaypalConfiguration = typeof paypalConfigurations.$inferSelect;
+export type InsertPaypalConfiguration = z.infer<typeof insertPaypalConfigurationSchema>;
+
+export type MeezanBankConfiguration = typeof meezanBankConfigurations.$inferSelect;
+export type InsertMeezanBankConfiguration = z.infer<typeof insertMeezanBankConfigurationSchema>;
+
+export type BankAlfalahConfiguration = typeof bankAlfalahConfigurations.$inferSelect;
+export type InsertBankAlfalahConfiguration = z.infer<typeof insertBankAlfalahConfigurationSchema>;
 
 export type PaymentTransaction = typeof paymentTransactions.$inferSelect;
 export type InsertPaymentTransaction = z.infer<typeof insertPaymentTransactionSchema>;
