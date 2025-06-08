@@ -303,7 +303,7 @@ export default function PaymentPage() {
             </div>
             <div className="text-right">
               <p className="text-blue-700 font-medium">Secure Payment Portal</p>
-              <p className="text-sm text-blue-600">Powered by AccFirm</p>
+              <p className="text-sm text-blue-600">Professional Invoice Management</p>
             </div>
           </div>
         </div>

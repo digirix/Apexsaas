@@ -2158,22 +2158,42 @@ export default function ClientPortalDashboardPage() {
                                     </div>
                                   )}
                                 </div>
-                                <motion.div
-                                  whileHover={{ scale: 1.05 }}
-                                  whileTap={{ scale: 0.95 }}
-                                >
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedInvoiceId(invoice.id);
-                                      setShowInvoiceDetails(true);
-                                    }}
-                                    className="text-xs h-8 px-3"
+                                <div className="flex items-center space-x-2">
+                                  {/* Pay Button - only show for unpaid invoices with amount due */}
+                                  {invoice.amountDue && parseFloat(invoice.amountDue) > 0 && invoice.status?.toLowerCase() !== 'paid' && (
+                                    <motion.div
+                                      whileHover={{ scale: 1.05 }}
+                                      whileTap={{ scale: 0.95 }}
+                                    >
+                                      <Button 
+                                        variant="default" 
+                                        size="sm"
+                                        onClick={() => {
+                                          window.open(`/payment?invoiceId=${invoice.id}`, '_blank');
+                                        }}
+                                        className="text-xs h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white"
+                                      >
+                                        Pay
+                                      </Button>
+                                    </motion.div>
+                                  )}
+                                  <motion.div
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
                                   >
-                                    View Details
-                                  </Button>
-                                </motion.div>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedInvoiceId(invoice.id);
+                                        setShowInvoiceDetails(true);
+                                      }}
+                                      className="text-xs h-8 px-3"
+                                    >
+                                      View Details
+                                    </Button>
+                                  </motion.div>
+                                </div>
                               </div>
                             </motion.div>
                           );
