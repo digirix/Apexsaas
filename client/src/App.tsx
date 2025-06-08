@@ -113,6 +113,7 @@ function Router() {
       <ProtectedRoute path="/notifications" component={NotificationsPage} />
 
       <Route path="/auth" component={AuthPage} />
+      <Route path="/login" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>
   );
