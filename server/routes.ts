@@ -3981,9 +3981,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       
       // Check if setting exists and belongs to tenant
-      const existingSetting = await storage.getPaymentGatewaySetting(id, tenantId);
+      const existingSetting = await storage.getPaymentGatewaySettingById(id, tenantId);
       if (!existingSetting) {
-        return res.status(404).json({ message: "Payment gateway setting not found" });
+        return res.status(404).json({ message: "Gateway configuration not found" });
       }
       
       // Update the setting

@@ -1911,6 +1911,14 @@ export class MemStorage implements IStorage {
       setting => setting.tenantId === tenantId && setting.gatewayType === gatewayType
     );
   }
+
+  async getPaymentGatewaySettingById(id: number, tenantId: number): Promise<PaymentGatewaySetting | undefined> {
+    const setting = this.paymentGatewaySettings.get(id);
+    if (setting && setting.tenantId === tenantId) {
+      return setting;
+    }
+    return undefined;
+  }
   
   async createPaymentGatewaySetting(setting: InsertPaymentGatewaySetting): Promise<PaymentGatewaySetting> {
     const id = this.paymentGatewaySettingId++;

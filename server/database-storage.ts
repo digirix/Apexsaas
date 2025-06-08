@@ -1474,6 +1474,15 @@ export class DatabaseStorage implements IStorage {
     return setting;
   }
 
+  async getPaymentGatewaySettingById(id: number, tenantId: number): Promise<PaymentGatewaySetting | undefined> {
+    const [setting] = await db.select().from(paymentGatewaySettings)
+      .where(and(
+        eq(paymentGatewaySettings.id, id),
+        eq(paymentGatewaySettings.tenantId, tenantId)
+      ));
+    return setting;
+  }
+
   async createPaymentGatewaySetting(setting: InsertPaymentGatewaySetting): Promise<PaymentGatewaySetting> {
     const [newSetting] = await db.insert(paymentGatewaySettings).values(setting).returning();
     return newSetting;
