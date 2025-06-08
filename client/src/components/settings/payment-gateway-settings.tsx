@@ -240,7 +240,7 @@ export function PaymentGatewaySettings() {
     console.log("Form errors:", form.formState.errors);
     console.log("Form validation state:", form.formState.isValid);
     console.log("Active tab:", activeTab);
-    console.log("Current gateway:", currentGateway);
+    console.log("Current config:", currentConfig);
     console.log("User:", user);
     
     if (!user?.tenantId) {
@@ -346,7 +346,7 @@ export function PaymentGatewaySettings() {
                       <div className="flex items-center gap-2">
                         <gateway.icon className="h-5 w-5" />
                         <h3 className="font-semibold">{gateway.name}</h3>
-                        {currentGateway?.isTestMode && (
+                        {currentConfig.isTestMode && (
                           <Badge variant="outline">Test Mode</Badge>
                         )}
                       </div>

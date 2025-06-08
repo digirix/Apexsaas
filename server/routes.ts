@@ -3927,16 +3927,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Finance Module API Routes
   
   // Payment Gateway Settings
-  app.get("/api/v1/finance/payment-gateways", isAuthenticated, async (req, res) => {
-    try {
-      const tenantId = (req.user as any).tenantId;
-      const settings = await storage.getPaymentGatewaySettings(tenantId);
-      res.json(settings);
-    } catch (error) {
-      console.error("Error fetching payment gateways:", error);
-      res.status(500).json({ message: "Failed to fetch payment gateway settings" });
-    }
-  });
+  // This route is replaced by the new dedicated payment gateway configuration system below
+  // See line 6979 for the new implementation
   
   app.get("/api/v1/finance/payment-gateways/:id", isAuthenticated, async (req, res) => {
     try {
