@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { TenantSetting } from "@shared/schema";
+import { useAuth } from "@/hooks/use-auth";
 
 interface TenantInfo {
   companyName: string;
@@ -32,6 +33,7 @@ interface TenantProviderProps {
 }
 
 export function TenantProvider({ children }: TenantProviderProps) {
+  const { user } = useAuth();
   const [tenantInfo, setTenantInfo] = useState<TenantInfo>({
     companyName: "",
     businessType: "",
@@ -48,10 +50,11 @@ export function TenantProvider({ children }: TenantProviderProps) {
     invoicesLabel: "Invoices",
   });
 
-  // Fetch tenant settings
+  // Fetch tenant settings only when user is authenticated
   const { data: settings = [], isLoading } = useQuery<TenantSetting[]>({
     queryKey: ["/api/v1/tenant/settings"],
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    enabled: !!user // Only fetch when user is authenticated
   });
 
   useEffect(() => {
