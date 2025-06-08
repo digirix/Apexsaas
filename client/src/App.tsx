@@ -91,8 +91,9 @@ function Router() {
       <Route path="/client-portal/entities/:id" component={ClientPortalEntityDetailPage} />
       <Route path="/client-portal/reset-password" component={ResetPasswordPage} />
       
-      {/* Public payment route */}
+      {/* Public payment routes */}
       <Route path="/pay/:invoiceId" component={PaymentPage} />
+      <Route path="/payment/:invoiceId" component={PaymentPage} />
       {/* Direct invoice creation disabled - invoices are now created only through tasks */}
       {/* <ProtectedRoute path="/finance/invoices/create" component={CreateInvoicePage} /> */}
       <ProtectedRoute path="/finance/invoices/from-task" component={CreateInvoiceFromTaskPage} />
