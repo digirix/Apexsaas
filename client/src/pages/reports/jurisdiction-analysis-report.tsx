@@ -110,12 +110,11 @@ export default function JurisdictionAnalysisReport() {
       if (filters.client !== "all" && entity.clientId?.toString() !== filters.client) return false;
       if (filters.entityType !== "all" && entity.entityTypeId?.toString() !== filters.entityType) return false;
       
-      // Country filtering through entity
-      const client = (clients as any[]).find((c: any) => c.id === entity.clientId);
-      if (filters.country !== "all" && client?.countryId?.toString() !== filters.country) return false;
+      // Country filtering through entity - use entity's country_id since clients don't have country_id
+      if (filters.country !== "all" && entity.countryId?.toString() !== filters.country) return false;
 
-      // Tax jurisdiction filtering
-      if (filters.taxJurisdiction !== "all" && entity.taxJurisdictionId?.toString() !== filters.taxJurisdiction) return false;
+      // Tax jurisdiction filtering - since there's no tax jurisdiction relationship, use country as jurisdiction
+      if (filters.taxJurisdiction !== "all" && entity.countryId?.toString() !== filters.taxJurisdiction) return false;
 
       // Task category filtering
       if (filters.taskCategory !== "all" && task.taskCategoryId?.toString() !== filters.taskCategory) return false;
@@ -123,21 +122,21 @@ export default function JurisdictionAnalysisReport() {
       return true;
     });
 
-    // Get unique jurisdictions from filtered data
-    const uniqueJurisdictionIds = [...new Set(filteredTasks.map((task: any) => {
+    // Get unique countries from filtered data (using country as jurisdiction since no tax jurisdiction relationship exists)
+    const uniqueCountryIds = [...new Set(filteredTasks.map((task: any) => {
       const entity = (entities as any[]).find((e: any) => e.id === task.entityId);
-      return entity?.taxJurisdictionId;
+      return entity?.countryId;
     }))].filter(Boolean);
 
-    // Jurisdiction breakdown analysis
-    const jurisdictionBreakdown = uniqueJurisdictionIds.map(jurisdictionId => {
-      const jurisdiction = (taxJurisdictions as any[]).find((tj: any) => tj.id === jurisdictionId);
+    // Jurisdiction breakdown analysis (using countries as jurisdictions)
+    const jurisdictionBreakdown = uniqueCountryIds.map(countryId => {
+      const country = (countries as any[]).find((c: any) => c.id === countryId);
       const jurisdictionTasks = filteredTasks.filter((task: any) => {
         const entity = (entities as any[]).find((e: any) => e.id === task.entityId);
-        return entity?.taxJurisdictionId === jurisdictionId;
+        return entity?.countryId === countryId;
       });
 
-      const jurisdictionEntities = (entities as any[]).filter((e: any) => e.taxJurisdictionId === jurisdictionId);
+      const jurisdictionEntities = (entities as any[]).filter((e: any) => e.countryId === countryId);
       const completedTasks = jurisdictionTasks.filter((task: any) => task.statusId === completedStatusId);
       const overdueTasks = jurisdictionTasks.filter((task: any) => {
         if (task.statusId === completedStatusId || !task.dueDate) return false;
