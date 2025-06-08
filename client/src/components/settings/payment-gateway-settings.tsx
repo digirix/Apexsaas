@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, CreditCard, Smartphone, Building2, Shield, CheckCircle, XCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import type { PaymentGatewaySetting, TenantSetting } from "@shared/schema";
+import type { StripeConfiguration, PaypalConfiguration, MeezanBankConfiguration, BankAlfalahConfiguration, TenantSetting } from "@shared/schema";
 
 // Payment gateway configuration schemas for each provider
 const stripeConfigSchema = z.object({
@@ -113,15 +113,34 @@ export function PaymentGatewaySettings() {
   const [activeTab, setActiveTab] = useState('stripe');
   const [testingGateway, setTestingGateway] = useState<string | null>(null);
 
-  // Fetch payment gateway settings
-  const { data: gatewaySettings = [], isLoading } = useQuery<PaymentGatewaySetting[]>({
+  // Fetch payment gateway configurations
+  const { data: gatewayConfigurations = {}, isLoading } = useQuery<{
+    stripe?: StripeConfiguration;
+    paypal?: PaypalConfiguration;
+    meezanBank?: MeezanBankConfiguration;
+    bankAlfalah?: BankAlfalahConfiguration;
+  }>({
     queryKey: ["/api/v1/finance/payment-gateways"],
     refetchOnWindowFocus: false
   });
 
-  // Get current gateway setting
-  const currentGateway = gatewaySettings.find(g => g.gatewayType === activeTab);
-  const currentConfig = currentGateway ? JSON.parse(currentGateway.configData || '{}') : {};
+  // Get current gateway configuration
+  const getCurrentConfig = () => {
+    switch (activeTab) {
+      case 'stripe':
+        return gatewayConfigurations.stripe || {};
+      case 'paypal':
+        return gatewayConfigurations.paypal || {};
+      case 'meezan_bank':
+        return gatewayConfigurations.meezanBank || {};
+      case 'bank_alfalah':
+        return gatewayConfigurations.bankAlfalah || {};
+      default:
+        return {};
+    }
+  };
+
+  const currentConfig = getCurrentConfig();
 
   // Form setup
   const gateway = paymentGateways.find(g => g.key === activeTab)!;
@@ -133,63 +152,19 @@ export function PaymentGatewaySettings() {
 
   // Reset form when tab changes
   useEffect(() => {
-    const newConfig = gatewaySettings.find(g => g.gatewayType === activeTab);
-    let configData = newConfig ? JSON.parse(newConfig.configData || '{}') : {};
-    
-    // Transform backend data to form format
-    if (activeTab === 'stripe' && configData.secret_key) {
-      configData = {
-        secretKey: configData.secret_key,
-        publicKey: configData.public_key,
-        webhookSecret: configData.webhook_secret,
-        currency: configData.currency || 'USD'
-      };
-    }
-    
-    form.reset(configData);
-  }, [activeTab, gatewaySettings, form]);
+    form.reset(currentConfig);
+  }, [activeTab, gatewayConfigurations, form]);
 
   // Save gateway configuration
   const saveGatewayMutation = useMutation({
     mutationFn: async (data: any) => {
-      console.log("Saving gateway configuration:", { data, activeTab, currentGateway });
+      const hasExistingConfig = Object.keys(currentConfig).length > 0;
+      const endpoint = `/api/v1/finance/payment-gateways/${activeTab}`;
+      const method = hasExistingConfig ? "PUT" : "POST";
       
-      // Transform data for backend compatibility
-      let transformedData = { ...data };
-      if (activeTab === 'stripe') {
-        transformedData = {
-          secret_key: data.secretKey,
-          public_key: data.publicKey,
-          webhook_secret: data.webhookSecret,
-          currency: data.currency || 'USD'
-        };
-      }
-      
-      const payload = {
-        gatewayType: activeTab,
-        tenantId: user?.tenantId,
-        isEnabled: currentGateway?.isEnabled || false,
-        isTestMode: currentGateway?.isTestMode ?? true,
-        displayName: gateway.name,
-        description: gateway.description,
-        configData: JSON.stringify(transformedData),
-        supportedCurrencies: gateway.currencies.join(','),
-        transactionFeePercentage: '0',
-        transactionFeeFixed: '0',
-      };
-
-      console.log("API payload:", payload);
-
-      if (currentGateway) {
-        console.log("Updating existing gateway with ID:", currentGateway.id);
-        return apiRequest("PUT", `/api/v1/finance/payment-gateways/${currentGateway.id}`, payload);
-      } else {
-        console.log("Creating new gateway configuration");
-        return apiRequest("POST", "/api/v1/finance/payment-gateways", payload);
-      }
+      return apiRequest(method, endpoint, data);
     },
     onSuccess: (result) => {
-      console.log("Gateway configuration saved successfully:", result);
       queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/payment-gateways"] });
       toast({
         title: "Configuration Saved",
@@ -197,7 +172,6 @@ export function PaymentGatewaySettings() {
       });
     },
     onError: (error: any) => {
-      console.error("Gateway configuration save failed:", error);
       toast({
         title: "Save Failed",
         description: error.message || "Failed to save payment gateway configuration.",
@@ -209,23 +183,17 @@ export function PaymentGatewaySettings() {
   // Toggle gateway status
   const toggleGatewayMutation = useMutation({
     mutationFn: async ({ enabled, testMode }: { enabled: boolean; testMode: boolean }) => {
-      if (!currentGateway) {
-        throw new Error("Gateway configuration not found");
+      if (Object.keys(currentConfig).length === 0) {
+        throw new Error("Gateway configuration not found. Please configure the gateway first.");
       }
       
       const payload = {
-        gatewayType: activeTab,
+        ...currentConfig,
         isEnabled: enabled,
         isTestMode: testMode,
-        displayName: gateway.name,
-        description: gateway.description,
-        configData: currentGateway.configData,
-        supportedCurrencies: gateway.currencies.join(','),
-        transactionFeePercentage: currentGateway.transactionFeePercentage || '0',
-        transactionFeeFixed: currentGateway.transactionFeeFixed || '0',
       };
 
-      return apiRequest("PUT", `/api/v1/finance/payment-gateways/${currentGateway.id}`, payload);
+      return apiRequest("PUT", `/api/v1/finance/payment-gateways/${activeTab}`, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/payment-gateways"] });
@@ -296,13 +264,13 @@ export function PaymentGatewaySettings() {
   const handleToggleEnabled = (enabled: boolean) => {
     toggleGatewayMutation.mutate({ 
       enabled, 
-      testMode: currentGateway?.isTestMode ?? true 
+      testMode: currentConfig.isTestMode ?? true 
     });
   };
 
   const handleToggleTestMode = (testMode: boolean) => {
     toggleGatewayMutation.mutate({ 
-      enabled: currentGateway?.isEnabled ?? false, 
+      enabled: currentConfig.isEnabled ?? false, 
       testMode 
     });
   };
@@ -335,9 +303,9 @@ export function PaymentGatewaySettings() {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid grid-cols-4 w-full">
               {paymentGateways.map((gateway) => {
-                const setting = gatewaySettings.find(s => s.gatewayType === gateway.key);
-                const isConfigured = setting && setting.configData && setting.configData !== '{}';
-                const isEnabled = setting?.isEnabled;
+                const config = getCurrentConfig();
+                const isConfigured = Object.keys(config).length > 0;
+                const isEnabled = config.isEnabled;
                 
                 return (
                   <TabsTrigger key={gateway.key} value={gateway.key} className="flex items-center gap-2">
@@ -378,7 +346,7 @@ export function PaymentGatewaySettings() {
                         <Label htmlFor={`${gateway.key}-test-mode`} className="text-sm">Test Mode</Label>
                         <Switch
                           id={`${gateway.key}-test-mode`}
-                          checked={currentGateway?.isTestMode ?? true}
+                          checked={currentConfig.isTestMode ?? true}
                           onCheckedChange={handleToggleTestMode}
                           disabled={toggleGatewayMutation.isPending}
                         />
@@ -387,7 +355,7 @@ export function PaymentGatewaySettings() {
                         <Label htmlFor={`${gateway.key}-enabled`} className="text-sm">Enabled</Label>
                         <Switch
                           id={`${gateway.key}-enabled`}
-                          checked={currentGateway?.isEnabled ?? false}
+                          checked={currentConfig.isEnabled ?? false}
                           onCheckedChange={handleToggleEnabled}
                           disabled={toggleGatewayMutation.isPending}
                         />
@@ -417,7 +385,7 @@ export function PaymentGatewaySettings() {
                         type="button"
                         variant="outline"
                         onClick={handleTest}
-                        disabled={!currentGateway || testingGateway === gateway.key}
+                        disabled={Object.keys(currentConfig).length === 0 || testingGateway === gateway.key}
                       >
                         {testingGateway === gateway.key ? "Testing..." : "Test Connection"}
                       </Button>
