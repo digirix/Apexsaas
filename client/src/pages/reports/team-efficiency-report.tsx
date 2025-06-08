@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, LineChart, Line } from 'recharts';
 import { usePDFExport } from "@/utils/pdf-export";
+import { AIInsightsPanel } from "@/components/reports/ai-insights-panel";
 
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1', '#d084d0'];
 
@@ -33,13 +34,14 @@ export default function TeamEfficiencyReport() {
     status: "all"
   });
 
+  const [isAIInsightsOpen, setIsAIInsightsOpen] = useState(false);
   const { exportToPDF } = usePDFExport();
 
   // Fetch data
   const { data: tasks = [] } = useQuery({ queryKey: ["/api/v1/tasks"] });
   const { data: taskStatuses = [] } = useQuery({ queryKey: ["/api/v1/setup/task-statuses"] });
   const { data: users = [] } = useQuery({ queryKey: ["/api/v1/users"] });
-  const { data: departments = [] } = useQuery({ queryKey: ["/api/v1/setup/departments"] });
+  const { data: departments = [] } = useQuery({ queryKey: ["/api/v1/departments"] });
   const { data: countries = [] } = useQuery({ queryKey: ["/api/v1/setup/countries"] });
   const { data: taskCategories = [] } = useQuery({ queryKey: ["/api/v1/setup/task-categories"] });
 
@@ -245,6 +247,14 @@ export default function TeamEfficiencyReport() {
             <p className="text-muted-foreground">Monitor team performance and productivity metrics</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button 
+              onClick={() => setIsAIInsightsOpen(true)} 
+              variant="outline" 
+              className="flex items-center gap-2"
+            >
+              <Zap className="w-4 h-4" />
+              AI Insights
+            </Button>
             <Button onClick={handleExportPDF} className="flex items-center gap-2">
               <Download className="w-4 h-4" />
               Export PDF
@@ -547,6 +557,13 @@ export default function TeamEfficiencyReport() {
           </Card>
         </div>
       </div>
+      
+      {/* AI Insights Panel */}
+      <AIInsightsPanel
+        isOpen={isAIInsightsOpen}
+        onClose={() => setIsAIInsightsOpen(false)}
+        reportType="team-efficiency"
+      />
     </AppLayout>
   );
 }
