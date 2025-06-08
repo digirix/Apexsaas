@@ -40,6 +40,7 @@ export default function TaskPerformanceReport() {
     taskType: "all", 
     status: "all",
     client: "all",
+    entity: "all",
     dateFrom: null as Date | null,
     dateTo: null as Date | null,
     priority: "all"
@@ -52,7 +53,14 @@ export default function TaskPerformanceReport() {
   const { data: taskStatuses = [] } = useQuery({ queryKey: ["/api/v1/setup/task-statuses"] });
   const { data: users = [] } = useQuery({ queryKey: ["/api/v1/users"] });
   const { data: clients = [] } = useQuery({ queryKey: ["/api/v1/clients"] });
+  const { data: entities = [] } = useQuery({ queryKey: ["/api/v1/entities"] });
   const { data: taskCategories = [] } = useQuery({ queryKey: ["/api/v1/setup/task-categories"] });
+
+  // Filter entities based on selected client
+  const filteredEntities = useMemo(() => {
+    if (filters.client === "all") return entities;
+    return entities.filter((entity: any) => entity.clientId === parseInt(filters.client));
+  }, [entities, filters.client]);
 
   // Apply comprehensive filtering
   const filteredTasks = useMemo(() => {
@@ -87,6 +95,11 @@ export default function TaskPerformanceReport() {
 
       // Client filtering
       if (filters.client !== "all" && task.clientId !== parseInt(filters.client)) {
+        return false;
+      }
+
+      // Entity filtering
+      if (filters.entity !== "all" && task.entityId !== parseInt(filters.entity)) {
         return false;
       }
 
@@ -360,7 +373,9 @@ export default function TaskPerformanceReport() {
               {/* Client Filter */}
               <div className="flex items-center gap-1">
                 <span className="text-xs text-gray-500">Client:</span>
-                <Select value={filters.client} onValueChange={(value) => setFilters(prev => ({ ...prev, client: value }))}>
+                <Select value={filters.client} onValueChange={(value) => {
+                  setFilters(prev => ({ ...prev, client: value, entity: "all" }));
+                }}>
                   <SelectTrigger className="h-6 w-20 text-xs">
                     <SelectValue />
                   </SelectTrigger>
@@ -369,6 +384,24 @@ export default function TaskPerformanceReport() {
                     {clients.map((client: any) => (
                       <SelectItem key={client.id} value={client.id.toString()}>
                         {client.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Entity Filter */}
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-gray-500">Entity:</span>
+                <Select value={filters.entity} onValueChange={(value) => setFilters(prev => ({ ...prev, entity: value }))}>
+                  <SelectTrigger className="h-6 w-20 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    {filteredEntities.map((entity: any) => (
+                      <SelectItem key={entity.id} value={entity.id.toString()}>
+                        {entity.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -385,6 +418,7 @@ export default function TaskPerformanceReport() {
                   taskType: "all",
                   status: "all",
                   client: "all",
+                  entity: "all",
                   dateFrom: null,
                   dateTo: null,
                   priority: "all"
