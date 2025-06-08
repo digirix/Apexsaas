@@ -380,8 +380,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Country operations
-  async getCountries(): Promise<Country[]> {
-    return await db.select().from(countries).orderBy(asc(countries.name));
+  async getCountries(tenantId: number): Promise<Country[]> {
+    return await db.select().from(countries)
+      .where(eq(countries.tenantId, tenantId))
+      .orderBy(asc(countries.name));
   }
 
   async getCountry(id: number): Promise<Country | undefined> {
@@ -410,8 +412,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Currency operations
-  async getCurrencies(): Promise<Currency[]> {
-    return await db.select().from(currencies).orderBy(asc(currencies.code));
+  async getCurrencies(tenantId: number): Promise<Currency[]> {
+    return await db.select().from(currencies)
+      .where(eq(currencies.tenantId, tenantId))
+      .orderBy(asc(currencies.code));
   }
 
   async getCurrency(id: number): Promise<Currency | undefined> {
@@ -507,8 +511,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Entity Type operations
-  async getEntityTypes(): Promise<EntityType[]> {
-    return await db.select().from(entityTypes).orderBy(asc(entityTypes.name));
+  async getEntityTypes(tenantId: number, countryId?: number): Promise<EntityType[]> {
+    const conditions = [eq(entityTypes.tenantId, tenantId)];
+    
+    if (countryId) {
+      conditions.push(eq(entityTypes.countryId, countryId));
+    }
+    
+    return await db.select().from(entityTypes)
+      .where(and(...conditions))
+      .orderBy(asc(entityTypes.name));
   }
 
   async getEntityType(id: number): Promise<EntityType | undefined> {
