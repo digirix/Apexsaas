@@ -170,13 +170,14 @@ export default function PaymentPage() {
     enabled: !!invoice?.tenantId,
   });
 
-  // Extract firm branding from tenant settings
+  // Extract firm branding from tenant settings using correct keys
   const firmBranding = {
-    firmName: tenantSettings?.find(s => s.key === 'general-settings.firmName')?.value || 'AccFirm',
-    firmTagline: tenantSettings?.find(s => s.key === 'general-settings.firmTagline')?.value || '',
+    firmName: tenantSettings?.find(s => s.key === 'header_logo_text')?.value || 
+             tenantSettings?.find(s => s.key === 'general-settings.firmName')?.value || 'Accounting Firm',
+    firmTagline: tenantSettings?.find(s => s.key === 'header_subtitle')?.value || '',
     firmLogo: tenantSettings?.find(s => s.key === 'general-settings.firmLogo')?.value || '',
-    invoiceFooter: tenantSettings?.find(s => s.key === 'invoice-settings.footerText')?.value || '',
-    paymentTerms: tenantSettings?.find(s => s.key === 'invoice-settings.paymentTerms')?.value || ''
+    footerCopyright: tenantSettings?.find(s => s.key === 'footer_copyright')?.value || '',
+    supportEmail: tenantSettings?.find(s => s.key === 'footer_support_email')?.value || ''
   };
 
   useEffect(() => {
@@ -363,16 +364,17 @@ export default function PaymentPage() {
                   </div>
                 )}
               </div>
-              {invoice.description && (
-                <div>
-                  <span className="font-medium text-gray-500">Description:</span>
-                  <p className="text-gray-700 mt-1">{invoice.description}</p>
-                </div>
-              )}
-              {firmBranding.paymentTerms && (
+              
+              {/* Invoice Description */}
+              {(invoice.description || invoice.notes) && (
                 <div className="pt-4 border-t">
-                  <span className="font-medium text-gray-500">Payment Terms:</span>
-                  <p className="text-sm text-gray-600 mt-1">{firmBranding.paymentTerms}</p>
+                  <span className="font-medium text-gray-500 flex items-center gap-1">
+                    <FileText className="h-4 w-4" />
+                    Service Description:
+                  </span>
+                  <p className="text-gray-700 mt-2 p-3 bg-gray-50 rounded-lg">
+                    {invoice.description || invoice.notes}
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -387,11 +389,23 @@ export default function PaymentPage() {
         </div>
 
         {/* Footer Information */}
-        {firmBranding.invoiceFooter && (
-          <div className="mt-8 p-4 bg-white rounded-lg border border-gray-200">
-            <p className="text-sm text-gray-600 text-center">{firmBranding.invoiceFooter}</p>
+        <div className="mt-8 p-6 bg-white rounded-lg border border-gray-200">
+          <div className="text-center space-y-2">
+            {firmBranding.footerCopyright && (
+              <p className="text-sm text-gray-600">{firmBranding.footerCopyright}</p>
+            )}
+            {firmBranding.supportEmail && (
+              <p className="text-sm text-gray-600">
+                Support: <a href={`mailto:${firmBranding.supportEmail}`} className="text-blue-600 hover:underline">
+                  {firmBranding.supportEmail}
+                </a>
+              </p>
+            )}
+            <p className="text-xs text-gray-500">
+              Secure payment processing powered by Stripe
+            </p>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

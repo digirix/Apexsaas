@@ -2169,7 +2169,7 @@ export default function ClientPortalDashboardPage() {
                                         variant="default" 
                                         size="sm"
                                         onClick={() => {
-                                          window.open(`/payment?invoiceId=${invoice.id}`, '_blank');
+                                          window.open(`/pay/${invoice.id}`, '_blank');
                                         }}
                                         className="text-xs h-8 px-3 bg-blue-600 hover:bg-blue-700 text-white"
                                       >
