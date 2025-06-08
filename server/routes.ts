@@ -4037,45 +4037,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/v1/finance/payment-gateways/stripe/test", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
+      console.log("=== STRIPE CONNECTION TEST START ===");
       console.log("Testing Stripe connection for tenant:", tenantId);
       
       // Get Stripe configuration
+      console.log("Attempting to fetch Stripe configuration...");
       const stripeConfig = await storage.getStripeConfiguration(tenantId);
+      console.log("Stripe config result:", stripeConfig ? "Found" : "Not found");
       
       if (!stripeConfig) {
+        console.log("No Stripe configuration found for tenant:", tenantId);
         return res.status(404).json({ message: "No Stripe configuration found" });
       }
       
-      console.log("Found Stripe config, testing connection...");
+      console.log("Stripe config details:", {
+        id: stripeConfig.id,
+        tenantId: stripeConfig.tenantId,
+        hasSecretKey: !!stripeConfig.secretKey,
+        hasPublishableKey: !!stripeConfig.publishableKey,
+        isTestMode: stripeConfig.isTestMode,
+        isEnabled: stripeConfig.isEnabled
+      });
       
       // Test Stripe connection
       if (!stripeConfig.secretKey) {
+        console.log("Stripe secret key is missing");
         return res.status(400).json({ message: "Stripe secret key is missing" });
       }
       
+      console.log("Creating Stripe client with secret key...");
       const stripeClient = new Stripe(stripeConfig.secretKey, {
         apiVersion: '2023-10-16'
       });
       
       try {
+        console.log("Attempting to retrieve Stripe balance...");
         // Try to fetch balance to verify the API key works
         const balance = await stripeClient.balance.retrieve();
-        console.log("Stripe connection successful, balance retrieved");
+        console.log("Stripe connection successful! Balance retrieved:", balance.available?.length || 0, "currencies");
         res.json({ 
           success: true, 
           message: "Successfully connected to Stripe",
           balance: balance.available 
         });
       } catch (stripeError: any) {
-        console.error("Stripe connection failed:", stripeError.message);
+        console.error("Stripe API error:", {
+          message: stripeError.message,
+          type: stripeError.type,
+          code: stripeError.code,
+          statusCode: stripeError.statusCode
+        });
         return res.status(400).json({ 
           message: "Failed to connect to Stripe", 
           error: stripeError.message 
         });
       }
-    } catch (error) {
-      console.error("Error testing Stripe connection:", error);
-      res.status(500).json({ message: "Failed to test Stripe connection" });
+    } catch (error: any) {
+      console.error("=== STRIPE CONNECTION TEST ERROR ===");
+      console.error("Error details:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      res.status(500).json({ message: "Failed to test Stripe connection", error: error.message });
     }
   });
 
