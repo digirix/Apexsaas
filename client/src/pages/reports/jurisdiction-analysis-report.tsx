@@ -1,18 +1,13 @@
 import React, { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/app-layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AIInsightsPanel } from "@/components/reports/ai-insights-panel";
-import { format } from "date-fns";
-import { Calendar as CalendarIcon } from "lucide-react";
 import { 
   MapPin, 
   Globe, 
@@ -23,7 +18,9 @@ import {
   Filter,
   Download,
   BarChart3,
-  PieChart
+  PieChart,
+  Users,
+  FileText
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
 import { usePDFExport } from "@/utils/pdf-export";
@@ -32,13 +29,13 @@ const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1', '#d084d0'
 
 export default function JurisdictionAnalysisReport() {
   const [filters, setFilters] = useState({
-    jurisdiction: "all",
+    country: "all",
+    taxJurisdiction: "all",
     entityType: "all",
-    complianceType: "all",
-    timeFrame: "30",
-    riskLevel: "all",
-    dateFrom: null as Date | null,
-    dateTo: null as Date | null
+    client: "all",
+    entity: "all",
+    taskCategory: "all",
+    timeframe: "30"
   });
 
   const { exportToPDF } = usePDFExport();
@@ -47,8 +44,32 @@ export default function JurisdictionAnalysisReport() {
   const { data: tasks = [] } = useQuery({ queryKey: ["/api/v1/tasks"] });
   const { data: entities = [] } = useQuery({ queryKey: ["/api/v1/entities"] });
   const { data: clients = [] } = useQuery({ queryKey: ["/api/v1/clients"] });
-  const { data: taskStatuses = [] } = useQuery({ queryKey: ["/api/v1/setup/task-statuses"] });
   const { data: countries = [] } = useQuery({ queryKey: ["/api/v1/setup/countries"] });
+  const { data: taxJurisdictions = [] } = useQuery({ queryKey: ["/api/v1/setup/tax-jurisdictions"] });
+  const { data: entityTypes = [] } = useQuery({ queryKey: ["/api/v1/setup/entity-types"] });
+  const { data: taskCategories = [] } = useQuery({ queryKey: ["/api/v1/setup/task-categories"] });
+  const { data: taskStatuses = [] } = useQuery({ queryKey: ["/api/v1/setup/task-statuses"] });
+
+  // Filter dependent data
+  const filteredTaxJurisdictions = useMemo(() => {
+    if (filters.country === "all") return taxJurisdictions;
+    return (taxJurisdictions as any[]).filter((tj: any) => tj.countryId?.toString() === filters.country);
+  }, [taxJurisdictions, filters.country]);
+
+  const filteredEntityTypes = useMemo(() => {
+    if (filters.country === "all") return entityTypes;
+    return (entityTypes as any[]).filter((et: any) => et.countryId?.toString() === filters.country);
+  }, [entityTypes, filters.country]);
+
+  const filteredClients = useMemo(() => {
+    if (filters.country === "all") return clients;
+    return (clients as any[]).filter((c: any) => c.countryId?.toString() === filters.country);
+  }, [clients, filters.country]);
+
+  const filteredEntities = useMemo(() => {
+    if (filters.client === "all") return entities;
+    return (entities as any[]).filter((e: any) => e.clientId?.toString() === filters.client);
+  }, [entities, filters.client]);
 
   // Calculate jurisdiction analytics
   const jurisdictionAnalytics = useMemo(() => {
@@ -57,7 +78,7 @@ export default function JurisdictionAnalysisReport() {
         totalJurisdictions: 0,
         totalEntities: 0,
         totalTasks: 0,
-        totalRevenue: 0,
+        completedTasks: 0,
         jurisdictionBreakdown: [],
         complianceByJurisdiction: [],
         revenueByJurisdiction: [],
@@ -68,86 +89,67 @@ export default function JurisdictionAnalysisReport() {
     }
 
     const currentDate = new Date();
-    const completedStatusId = taskStatuses.find((s: any) => s.name === 'Completed')?.id;
+    const completedStatusId = (taskStatuses as any[]).find((s: any) => s.name === 'Completed')?.id;
 
     // Filter tasks based on criteria
-    const filteredTasks = tasks.filter((task: any) => {
-      // Date filtering
-      const taskDate = new Date(task.createdAt);
-      if (filters.dateFrom && filters.dateTo) {
-        if (taskDate < filters.dateFrom || taskDate > filters.dateTo) return false;
-      } else if (filters.timeFrame !== "all") {
-        const days = parseInt(filters.timeFrame);
+    const filteredTasks = (tasks as any[]).filter((task: any) => {
+      // Time filtering
+      if (filters.timeframe !== "all") {
+        const taskDate = new Date(task.createdAt);
+        const days = parseInt(filters.timeframe);
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - days);
         if (taskDate < cutoffDate) return false;
       }
 
-      // Jurisdiction filtering
-      if (filters.jurisdiction !== "all") {
-        const entity = entities.find((e: any) => e.id === task.entityId);
-        if (!entity || entity.taxJurisdiction !== filters.jurisdiction) return false;
-      }
+      // Entity filtering chain
+      const entity = (entities as any[]).find((e: any) => e.id === task.entityId);
+      if (!entity) return false;
 
-      // Entity type filtering
-      if (filters.entityType !== "all") {
-        const entity = entities.find((e: any) => e.id === task.entityId);
-        if (!entity || entity.entityType !== filters.entityType) return false;
-      }
+      if (filters.entity !== "all" && entity.id?.toString() !== filters.entity) return false;
+      if (filters.client !== "all" && entity.clientId?.toString() !== filters.client) return false;
+      if (filters.entityType !== "all" && entity.entityTypeId?.toString() !== filters.entityType) return false;
+      
+      // Country filtering through entity
+      const client = (clients as any[]).find((c: any) => c.id === entity.clientId);
+      if (filters.country !== "all" && client?.countryId?.toString() !== filters.country) return false;
 
-      // Compliance type filtering
-      if (filters.complianceType !== "all") {
-        const taskDetails = task.taskDetails?.toLowerCase() || '';
-        switch (filters.complianceType) {
-          case 'tax':
-            if (!taskDetails.includes('tax') && !taskDetails.includes('return')) return false;
-            break;
-          case 'audit':
-            if (!taskDetails.includes('audit')) return false;
-            break;
-          case 'filing':
-            if (!taskDetails.includes('filing')) return false;
-            break;
-          case 'regulatory':
-            if (!taskDetails.includes('regulatory') && !taskDetails.includes('compliance')) return false;
-            break;
-        }
-      }
+      // Tax jurisdiction filtering
+      if (filters.taxJurisdiction !== "all" && entity.taxJurisdictionId?.toString() !== filters.taxJurisdiction) return false;
+
+      // Task category filtering
+      if (filters.taskCategory !== "all" && task.taskCategoryId?.toString() !== filters.taskCategory) return false;
 
       return true;
     });
 
-    // Get unique jurisdictions from entities
-    const jurisdictions = [...new Set(entities.map((e: any) => e.taxJurisdiction))].filter(Boolean);
-    
+    // Get unique jurisdictions from filtered data
+    const uniqueJurisdictionIds = [...new Set(filteredTasks.map((task: any) => {
+      const entity = (entities as any[]).find((e: any) => e.id === task.entityId);
+      return entity?.taxJurisdictionId;
+    }))].filter(Boolean);
+
     // Jurisdiction breakdown analysis
-    const jurisdictionMap = new Map();
-    
-    jurisdictions.forEach(jurisdiction => {
-      const jurisdictionEntities = entities.filter((e: any) => e.taxJurisdiction === jurisdiction);
+    const jurisdictionBreakdown = uniqueJurisdictionIds.map(jurisdictionId => {
+      const jurisdiction = (taxJurisdictions as any[]).find((tj: any) => tj.id === jurisdictionId);
       const jurisdictionTasks = filteredTasks.filter((task: any) => {
-        const entity = entities.find((e: any) => e.id === task.entityId);
-        return entity?.taxJurisdiction === jurisdiction;
+        const entity = (entities as any[]).find((e: any) => e.id === task.entityId);
+        return entity?.taxJurisdictionId === jurisdictionId;
       });
 
+      const jurisdictionEntities = (entities as any[]).filter((e: any) => e.taxJurisdictionId === jurisdictionId);
       const completedTasks = jurisdictionTasks.filter((task: any) => task.statusId === completedStatusId);
       const overdueTasks = jurisdictionTasks.filter((task: any) => {
         if (task.statusId === completedStatusId || !task.dueDate) return false;
         return new Date(task.dueDate) < currentDate;
       });
 
-      const totalRevenue = jurisdictionTasks.reduce((sum, task) => {
-        return sum + (task.serviceRate || 0);
-      }, 0);
+      const totalRevenue = jurisdictionTasks.reduce((sum, task) => sum + (task.serviceRate || 0), 0);
+      const complianceTasks = jurisdictionTasks.filter((task: any) => task.complianceDeadline);
 
-      const complianceTasks = jurisdictionTasks.filter((task: any) => 
-        task.complianceDeadline || 
-        task.taskDetails?.toLowerCase().includes('compliance') ||
-        task.taskType === 'Compliance'
-      );
-
-      jurisdictionMap.set(jurisdiction, {
-        name: jurisdiction,
+      return {
+        id: jurisdictionId,
+        name: jurisdiction?.name || 'Unknown',
         entityCount: jurisdictionEntities.length,
         taskCount: jurisdictionTasks.length,
         completedTasks: completedTasks.length,
@@ -157,20 +159,17 @@ export default function JurisdictionAnalysisReport() {
         completionRate: jurisdictionTasks.length > 0 ? Math.round((completedTasks.length / jurisdictionTasks.length) * 100) : 0,
         complianceRate: complianceTasks.length > 0 ? Math.round((complianceTasks.filter(t => t.statusId === completedStatusId).length / complianceTasks.length) * 100) : 100,
         avgRevenue: jurisdictionTasks.length > 0 ? Math.round(totalRevenue / jurisdictionTasks.length) : 0
-      });
-    });
-
-    const jurisdictionBreakdown = Array.from(jurisdictionMap.values()).sort((a, b) => b.taskCount - a.taskCount);
+      };
+    }).sort((a, b) => b.taskCount - a.taskCount);
 
     // Compliance analysis by jurisdiction
     const complianceByJurisdiction = jurisdictionBreakdown.map(jurisdiction => ({
       name: jurisdiction.name,
       totalCompliance: jurisdiction.complianceTasks,
       completedCompliance: filteredTasks.filter((task: any) => {
-        const entity = entities.find((e: any) => e.id === task.entityId);
-        const isCompliance = task.complianceDeadline || task.taskDetails?.toLowerCase().includes('compliance');
-        return entity?.taxJurisdiction === jurisdiction.name && 
-               isCompliance && 
+        const entity = (entities as any[]).find((e: any) => e.id === task.entityId);
+        return entity?.taxJurisdictionId === jurisdiction.id && 
+               task.complianceDeadline && 
                task.statusId === completedStatusId;
       }).length,
       complianceRate: jurisdiction.complianceRate
@@ -186,18 +185,18 @@ export default function JurisdictionAnalysisReport() {
         percentage: Math.round((jurisdiction.totalRevenue / jurisdictionBreakdown.reduce((sum, j) => sum + j.totalRevenue, 0)) * 100)
       }));
 
-    // Task distribution by type across jurisdictions
-    const taskTypes = [...new Set(filteredTasks.map((task: any) => task.taskType))];
-    const taskDistribution = taskTypes.map(type => {
-      const typeData = { type };
-      jurisdictions.forEach(jurisdiction => {
+    // Task distribution by category across jurisdictions
+    const taskCategoryDistribution = (taskCategories as any[]).map(category => {
+      const categoryData = { category: category.name };
+      uniqueJurisdictionIds.forEach(jurisdictionId => {
+        const jurisdiction = (taxJurisdictions as any[]).find((tj: any) => tj.id === jurisdictionId);
         const count = filteredTasks.filter((task: any) => {
-          const entity = entities.find((e: any) => e.id === task.entityId);
-          return entity?.taxJurisdiction === jurisdiction && task.taskType === type;
+          const entity = (entities as any[]).find((e: any) => e.id === task.entityId);
+          return entity?.taxJurisdictionId === jurisdictionId && task.taskCategoryId === category.id;
         }).length;
-        typeData[jurisdiction] = count;
+        categoryData[jurisdiction?.name || 'Unknown'] = count;
       });
-      return typeData;
+      return categoryData;
     });
 
     // Risk analysis by jurisdiction
@@ -220,50 +219,43 @@ export default function JurisdictionAnalysisReport() {
     });
 
     // Entity distribution by type and jurisdiction
-    const entityTypes = [...new Set(entities.map((e: any) => e.entityType))].filter(Boolean);
-    const entityDistribution = entityTypes.map(type => {
-      const typeEntities = entities.filter((e: any) => e.entityType === type);
+    const entityDistribution = (entityTypes as any[]).map(type => {
+      const typeEntities = (entities as any[]).filter((e: any) => e.entityTypeId === type.id);
       const jurisdictionCounts = {};
       
-      jurisdictions.forEach(jurisdiction => {
-        jurisdictionCounts[jurisdiction] = typeEntities.filter((e: any) => e.taxJurisdiction === jurisdiction).length;
+      uniqueJurisdictionIds.forEach(jurisdictionId => {
+        const jurisdiction = (taxJurisdictions as any[]).find((tj: any) => tj.id === jurisdictionId);
+        jurisdictionCounts[jurisdiction?.name || 'Unknown'] = typeEntities.filter((e: any) => e.taxJurisdictionId === jurisdictionId).length;
       });
 
       return {
-        entityType: type,
+        entityType: type.name,
         total: typeEntities.length,
         ...jurisdictionCounts
       };
     });
 
     return {
-      totalJurisdictions: jurisdictions.length,
-      totalEntities: entities.length,
+      totalJurisdictions: uniqueJurisdictionIds.length,
+      totalEntities: filteredTasks.map(t => (entities as any[]).find(e => e.id === t.entityId)).filter(Boolean).length,
       totalTasks: filteredTasks.length,
-      totalRevenue: jurisdictionBreakdown.reduce((sum, j) => sum + j.totalRevenue, 0),
+      completedTasks: filteredTasks.filter(t => t.statusId === completedStatusId).length,
       jurisdictionBreakdown,
       complianceByJurisdiction,
       revenueByJurisdiction,
-      taskDistribution,
+      taskDistribution: taskCategoryDistribution,
       riskAnalysis,
       entityDistribution
     };
-  }, [tasks, entities, taskStatuses, filters]);
+  }, [tasks, entities, clients, taxJurisdictions, entityTypes, taskCategories, taskStatuses, filters]);
 
   const handleExportPDF = async () => {
     try {
       await exportToPDF('jurisdiction-analysis-report', {
-        title: 'Jurisdiction Analysis Report',
-        subtitle: `Generated for ${filters.timeFrame === 'all' ? 'All Time' : `Last ${filters.timeFrame} Days`}`,
+        title: 'Tax Jurisdiction Analysis Report',
+        subtitle: `Generated for ${filters.timeframe === 'all' ? 'All Time' : `Last ${filters.timeframe} Days`}`,
         reportType: 'JurisdictionAnalysis',
-        filters: {
-          timeFrame: filters.timeFrame,
-          jurisdiction: filters.jurisdiction,
-          entityType: filters.entityType,
-          complianceType: filters.complianceType,
-          riskLevel: filters.riskLevel,
-          dateRange: filters.dateFrom && filters.dateTo ? `${format(filters.dateFrom, 'MMM dd, yyyy')} - ${format(filters.dateTo, 'MMM dd, yyyy')}` : 'N/A'
-        }
+        filters
       });
     } catch (error) {
       console.error('Export failed:', error);
@@ -271,12 +263,12 @@ export default function JurisdictionAnalysisReport() {
   };
 
   return (
-    <AppLayout title="Jurisdiction Analysis Report">
+    <AppLayout title="Tax Jurisdiction Analysis Report">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Jurisdiction Analysis</h1>
+            <h1 className="text-3xl font-bold">Tax Jurisdiction Analysis</h1>
             <p className="text-muted-foreground">Analyze compliance and performance across tax jurisdictions</p>
           </div>
           <div className="flex items-center gap-2">
@@ -291,411 +283,384 @@ export default function JurisdictionAnalysisReport() {
           </div>
         </div>
 
-        {/* Enhanced Filters */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="w-5 h-5" />
-              Filters
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Time Frame Filter */}
-              <div className="space-y-2">
-                <Label>Time Frame</Label>
-                <Select value={filters.timeFrame} onValueChange={(value) => setFilters(prev => ({ ...prev, timeFrame: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select timeframe" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="7">Last 7 days</SelectItem>
-                    <SelectItem value="30">Last 30 days</SelectItem>
-                    <SelectItem value="90">Last 90 days</SelectItem>
-                    <SelectItem value="365">Last year</SelectItem>
-                    <SelectItem value="all">All time</SelectItem>
-                  </SelectContent>
-                </Select>
+        {/* Ultra-Compact Single Row Filters */}
+        <Card className="bg-gray-50/50">
+          <CardContent className="p-2">
+            <div className="flex items-center gap-1 flex-wrap">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground mr-2">
+                <Filter className="w-3 h-3" />
+                Filters:
               </div>
+              
+              {/* Timeframe Filter */}
+              <Select value={filters.timeframe} onValueChange={(value) => setFilters(prev => ({ ...prev, timeframe: value }))}>
+                <SelectTrigger className="h-6 w-20 text-xs border-gray-300">
+                  <SelectValue>
+                    {filters.timeframe === "7" ? "Last 7 days" :
+                     filters.timeframe === "30" ? "Last 30 days" :
+                     filters.timeframe === "90" ? "Last 90 days" :
+                     filters.timeframe === "365" ? "Last year" :
+                     filters.timeframe === "all" ? "All time" : "Timeframe"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">Last 7 days</SelectItem>
+                  <SelectItem value="30">Last 30 days</SelectItem>
+                  <SelectItem value="90">Last 90 days</SelectItem>
+                  <SelectItem value="365">Last year</SelectItem>
+                  <SelectItem value="all">All time</SelectItem>
+                </SelectContent>
+              </Select>
 
-              {/* Jurisdiction Filter */}
-              <div className="space-y-2">
-                <Label>Jurisdiction</Label>
-                <Select value={filters.jurisdiction} onValueChange={(value) => setFilters(prev => ({ ...prev, jurisdiction: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select jurisdiction" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Jurisdictions</SelectItem>
-                    {[...new Set(entities.map((e: any) => e.taxJurisdiction))].filter(Boolean).map((jurisdiction: string) => (
-                      <SelectItem key={jurisdiction} value={jurisdiction}>
-                        {jurisdiction}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Country Filter */}
+              <Select value={filters.country} onValueChange={(value) => setFilters(prev => ({ 
+                ...prev, 
+                country: value,
+                entityType: "all",
+                taxJurisdiction: "all",
+                client: "all",
+                entity: "all"
+              }))}>
+                <SelectTrigger className="h-6 w-20 text-xs border-gray-300">
+                  <SelectValue>
+                    {filters.country === "all" ? "Country" : 
+                     (countries as any[]).find((c: any) => c.id.toString() === filters.country)?.name || "Country"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Countries</SelectItem>
+                  {(countries as any[]).map((country: any) => (
+                    <SelectItem key={country.id} value={country.id.toString()}>
+                      {country.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Tax Jurisdiction Filter */}
+              <Select value={filters.taxJurisdiction} onValueChange={(value) => setFilters(prev => ({ ...prev, taxJurisdiction: value }))}>
+                <SelectTrigger className="h-6 w-20 text-xs border-gray-300">
+                  <SelectValue>
+                    {filters.taxJurisdiction === "all" ? "Tax Jurisdiction" : 
+                     (filteredTaxJurisdictions as any[]).find((tj: any) => tj.id.toString() === filters.taxJurisdiction)?.name || "Tax Jurisdiction"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Jurisdictions</SelectItem>
+                  {(filteredTaxJurisdictions as any[]).map((jurisdiction: any) => (
+                    <SelectItem key={jurisdiction.id} value={jurisdiction.id.toString()}>
+                      {jurisdiction.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
               {/* Entity Type Filter */}
-              <div className="space-y-2">
-                <Label>Entity Type</Label>
-                <Select value={filters.entityType} onValueChange={(value) => setFilters(prev => ({ ...prev, entityType: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select entity type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    {[...new Set(entities.map((e: any) => e.entityType))].filter(Boolean).map((type: string) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select value={filters.entityType} onValueChange={(value) => setFilters(prev => ({ ...prev, entityType: value }))}>
+                <SelectTrigger className="h-6 w-20 text-xs border-gray-300">
+                  <SelectValue>
+                    {filters.entityType === "all" ? "Entity Type" : 
+                     (filteredEntityTypes as any[]).find((et: any) => et.id.toString() === filters.entityType)?.name || "Entity Type"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  {(filteredEntityTypes as any[]).map((type: any) => (
+                    <SelectItem key={type.id} value={type.id.toString()}>
+                      {type.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-              {/* Compliance Type Filter */}
-              <div className="space-y-2">
-                <Label>Compliance Type</Label>
-                <Select value={filters.complianceType} onValueChange={(value) => setFilters(prev => ({ ...prev, complianceType: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="tax">Tax Compliance</SelectItem>
-                    <SelectItem value="audit">Audit</SelectItem>
-                    <SelectItem value="filing">Filing Requirements</SelectItem>
-                    <SelectItem value="regulatory">Regulatory</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Client Filter */}
+              <Select value={filters.client} onValueChange={(value) => setFilters(prev => ({ 
+                ...prev, 
+                client: value,
+                entity: "all"
+              }))}>
+                <SelectTrigger className="h-6 w-20 text-xs border-gray-300">
+                  <SelectValue>
+                    {filters.client === "all" ? "Client" : 
+                     (filteredClients as any[]).find((c: any) => c.id.toString() === filters.client)?.displayName || "Client"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Clients</SelectItem>
+                  {(filteredClients as any[]).map((client: any) => (
+                    <SelectItem key={client.id} value={client.id.toString()}>
+                      {client.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-              {/* Risk Level Filter */}
-              <div className="space-y-2">
-                <Label>Risk Level</Label>
-                <Select value={filters.riskLevel} onValueChange={(value) => setFilters(prev => ({ ...prev, riskLevel: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select risk level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Levels</SelectItem>
-                    <SelectItem value="high">High Risk</SelectItem>
-                    <SelectItem value="medium">Medium Risk</SelectItem>
-                    <SelectItem value="low">Low Risk</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Entity Filter */}
+              <Select value={filters.entity} onValueChange={(value) => setFilters(prev => ({ ...prev, entity: value }))}>
+                <SelectTrigger className="h-6 w-20 text-xs border-gray-300">
+                  <SelectValue>
+                    {filters.entity === "all" ? "Entity" : 
+                     (filteredEntities as any[]).find((e: any) => e.id.toString() === filters.entity)?.name || "Entity"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Entities</SelectItem>
+                  {(filteredEntities as any[]).map((entity: any) => (
+                    <SelectItem key={entity.id} value={entity.id.toString()}>
+                      {entity.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-              {/* Date From */}
-              <div className="space-y-2">
-                <Label>From Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {filters.dateFrom ? format(filters.dateFrom, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={filters.dateFrom || undefined}
-                      onSelect={(date) => setFilters(prev => ({ ...prev, dateFrom: date || null }))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              {/* Date To */}
-              <div className="space-y-2">
-                <Label>To Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {filters.dateTo ? format(filters.dateTo, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={filters.dateTo || undefined}
-                      onSelect={(date) => setFilters(prev => ({ ...prev, dateTo: date || null }))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+              {/* Task Category Filter */}
+              <Select value={filters.taskCategory} onValueChange={(value) => setFilters(prev => ({ ...prev, taskCategory: value }))}>
+                <SelectTrigger className="h-6 w-20 text-xs border-gray-300">
+                  <SelectValue>
+                    {filters.taskCategory === "all" ? "Task Category" : 
+                     (taskCategories as any[]).find((tc: any) => tc.id.toString() === filters.taskCategory)?.name || "Task Category"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {(taskCategories as any[]).map((category: any) => (
+                    <SelectItem key={category.id} value={category.id.toString()}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
               {/* Clear Filters */}
-              <div className="flex items-end">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setFilters({
-                    jurisdiction: "all",
-                    entityType: "all",
-                    complianceType: "all",
-                    timeFrame: "30",
-                    riskLevel: "all",
-                    dateFrom: null,
-                    dateTo: null
-                  })}
-                  className="w-full"
-                >
-                  Clear Filters
-                </Button>
-              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-6 px-2 text-xs border-gray-300"
+                onClick={() => setFilters({
+                  country: "all",
+                  taxJurisdiction: "all",
+                  entityType: "all",
+                  client: "all",
+                  entity: "all",
+                  taskCategory: "all",
+                  timeframe: "30"
+                })}
+              >
+                Clear
+              </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Report Content */}
-        <div id="jurisdiction-analysis-report" className="space-y-6">
-          {/* Score Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Jurisdictions</CardTitle>
-                <Globe className="w-4 h-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{jurisdictionAnalytics.totalJurisdictions}</div>
-                <p className="text-xs text-muted-foreground">
-                  Active tax jurisdictions
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Entities</CardTitle>
-                <Building className="w-4 h-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{jurisdictionAnalytics.totalEntities}</div>
-                <p className="text-xs text-muted-foreground">
-                  Across all jurisdictions
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
-                <BarChart3 className="w-4 h-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{jurisdictionAnalytics.totalTasks}</div>
-                <p className="text-xs text-muted-foreground">
-                  Compliance & operational
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                <DollarSign className="w-4 h-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">${jurisdictionAnalytics.totalRevenue.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">
-                  Service revenue generated
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Jurisdiction Overview Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="w-5 h-5" />
-                Jurisdiction Overview
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Jurisdiction</TableHead>
-                    <TableHead>Entities</TableHead>
-                    <TableHead>Total Tasks</TableHead>
-                    <TableHead>Completed</TableHead>
-                    <TableHead>Overdue</TableHead>
-                    <TableHead>Completion Rate</TableHead>
-                    <TableHead>Revenue</TableHead>
-                    <TableHead>Avg Revenue</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {jurisdictionAnalytics.jurisdictionBreakdown.map((jurisdiction: any, index: number) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">{jurisdiction.name}</TableCell>
-                      <TableCell>{jurisdiction.entityCount}</TableCell>
-                      <TableCell>{jurisdiction.taskCount}</TableCell>
-                      <TableCell>
-                        <Badge variant="default" className="bg-green-100 text-green-800">
-                          {jurisdiction.completedTasks}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {jurisdiction.overdueTasks > 0 ? (
-                          <Badge variant="destructive">
-                            {jurisdiction.overdueTasks}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">0</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Progress value={jurisdiction.completionRate} className="w-16" />
-                          <span className="text-sm">{jurisdiction.completionRate}%</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>${jurisdiction.totalRevenue.toLocaleString()}</TableCell>
-                      <TableCell>${jurisdiction.avgRevenue.toLocaleString()}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+        {/* Score Cards - Half Height */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="h-20">
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Total Jurisdictions</p>
+                  <p className="text-lg font-bold">{jurisdictionAnalytics.totalJurisdictions}</p>
+                </div>
+                <Globe className="h-4 w-4 text-muted-foreground" />
+              </div>
             </CardContent>
           </Card>
 
-          {/* Risk Analysis Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5" />
-                Risk Analysis by Jurisdiction
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Jurisdiction</TableHead>
-                    <TableHead>Risk Score</TableHead>
-                    <TableHead>Risk Level</TableHead>
-                    <TableHead>Overdue Tasks</TableHead>
-                    <TableHead>Compliance Gaps</TableHead>
-                    <TableHead>Action Required</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {jurisdictionAnalytics.riskAnalysis.map((risk: any, index: number) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">{risk.name}</TableCell>
-                      <TableCell>{risk.riskScore}</TableCell>
-                      <TableCell>
-                        <Badge variant={
-                          risk.riskLevel === 'High' ? 'destructive' : 
-                          risk.riskLevel === 'Medium' ? 'secondary' : 'default'
-                        }>
-                          {risk.riskLevel}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{risk.overdueTasks}</TableCell>
-                      <TableCell>{risk.complianceGaps}%</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {risk.riskLevel === 'High' ? 'Immediate attention required' :
-                         risk.riskLevel === 'Medium' ? 'Monitor and improve' :
-                         'Continue current approach'}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+          <Card className="h-20">
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Total Entities</p>
+                  <p className="text-lg font-bold">{jurisdictionAnalytics.totalEntities}</p>
+                </div>
+                <Building className="h-4 w-4 text-muted-foreground" />
+              </div>
             </CardContent>
           </Card>
 
-          {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Task Distribution by Jurisdiction */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Task Distribution by Jurisdiction</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={jurisdictionAnalytics.jurisdictionBreakdown}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="taskCount" fill="#8884d8" name="Total Tasks" />
-                    <Bar dataKey="completedTasks" fill="#82ca9d" name="Completed" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+          <Card className="h-20">
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Total Tasks</p>
+                  <p className="text-lg font-bold">{jurisdictionAnalytics.totalTasks}</p>
+                </div>
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Revenue Distribution */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Revenue by Jurisdiction</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <RechartsPieChart>
-                    <Pie
-                      data={jurisdictionAnalytics.revenueByJurisdiction}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="revenue"
-                      label={({ name, percentage }) => `${name}: ${percentage}%`}
-                    >
-                      {jurisdictionAnalytics.revenueByJurisdiction.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => `$${value.toLocaleString()}`} />
-                  </RechartsPieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+          <Card className="h-20">
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Completion Rate</p>
+                  <p className="text-lg font-bold">
+                    {jurisdictionAnalytics.totalTasks > 0 
+                      ? Math.round((jurisdictionAnalytics.completedTasks / jurisdictionAnalytics.totalTasks) * 100)
+                      : 0}%
+                  </p>
+                </div>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-            {/* Compliance Rate by Jurisdiction */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Compliance Performance</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={jurisdictionAnalytics.complianceByJurisdiction}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="complianceRate" fill="#82ca9d" name="Compliance Rate %" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+        {/* Jurisdiction Analysis Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="w-5 h-5" />
+              Jurisdiction Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Jurisdiction</TableHead>
+                  <TableHead>Entities</TableHead>
+                  <TableHead>Tasks</TableHead>
+                  <TableHead>Completed</TableHead>
+                  <TableHead>Overdue</TableHead>
+                  <TableHead>Completion Rate</TableHead>
+                  <TableHead>Compliance Rate</TableHead>
+                  <TableHead>Revenue</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {jurisdictionAnalytics.jurisdictionBreakdown.map((jurisdiction, index) => (
+                  <TableRow key={index}>
+                    <TableCell className="font-medium">{jurisdiction.name}</TableCell>
+                    <TableCell>{jurisdiction.entityCount}</TableCell>
+                    <TableCell>{jurisdiction.taskCount}</TableCell>
+                    <TableCell>{jurisdiction.completedTasks}</TableCell>
+                    <TableCell>
+                      {jurisdiction.overdueTasks > 0 && (
+                        <Badge variant="destructive">{jurisdiction.overdueTasks}</Badge>
+                      )}
+                      {jurisdiction.overdueTasks === 0 && <span className="text-muted-foreground">0</span>}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Progress value={jurisdiction.completionRate} className="h-2 w-16" />
+                        <span className="text-sm">{jurisdiction.completionRate}%</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Progress value={jurisdiction.complianceRate} className="h-2 w-16" />
+                        <span className="text-sm">{jurisdiction.complianceRate}%</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>${jurisdiction.totalRevenue.toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
 
-            {/* Risk Score Distribution */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Risk Score by Jurisdiction</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={jurisdictionAnalytics.riskAnalysis}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="riskScore" fill="#ff7300" name="Risk Score" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
+        {/* Risk Analysis Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" />
+              Risk Analysis by Jurisdiction
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Jurisdiction</TableHead>
+                  <TableHead>Risk Level</TableHead>
+                  <TableHead>Risk Score</TableHead>
+                  <TableHead>Overdue Tasks</TableHead>
+                  <TableHead>Compliance Gaps</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {jurisdictionAnalytics.riskAnalysis.map((risk, index) => (
+                  <TableRow key={index}>
+                    <TableCell className="font-medium">{risk.name}</TableCell>
+                    <TableCell>
+                      <Badge variant={
+                        risk.riskLevel === 'High' ? 'destructive' : 
+                        risk.riskLevel === 'Medium' ? 'secondary' : 'outline'
+                      }>
+                        {risk.riskLevel}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Progress value={risk.riskScore} className="h-2 w-16" />
+                        <span className="text-sm">{risk.riskScore}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{risk.overdueTasks}</TableCell>
+                    <TableCell>{risk.complianceGaps}%</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        {/* Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Revenue Distribution */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="w-5 h-5" />
+                Revenue by Jurisdiction
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={jurisdictionAnalytics.revenueByJurisdiction}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="revenue" fill="#8884d8" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Task Distribution */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PieChart className="w-5 h-5" />
+                Task Distribution
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <RechartsPieChart>
+                  <Pie
+                    data={jurisdictionAnalytics.jurisdictionBreakdown}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, value }) => `${name}: ${value}`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="taskCount"
+                  >
+                    {jurisdictionAnalytics.jurisdictionBreakdown.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </RechartsPieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </AppLayout>
