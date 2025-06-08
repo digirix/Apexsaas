@@ -4033,67 +4033,140 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Test payment gateway connection
-  app.post("/api/v1/finance/payment-gateways/:type/test", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
+  // Test Stripe connection
+  app.post("/api/v1/finance/payment-gateways/stripe/test", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
-      const gatewayType = req.params.type;
+      console.log("Testing Stripe connection for tenant:", tenantId);
       
-      // Get the gateway settings
-      const settings = await storage.getPaymentGatewaySettings(tenantId);
-      const gatewaySetting = settings.find(s => s.gatewayType === gatewayType);
+      // Get Stripe configuration
+      const stripeConfig = await storage.getStripeConfiguration(tenantId);
       
-      if (!gatewaySetting) {
-        return res.status(404).json({ message: `No ${gatewayType} gateway found` });
+      if (!stripeConfig) {
+        return res.status(404).json({ message: "No Stripe configuration found" });
       }
       
-      // Allow testing even if disabled for configuration validation
-      console.log("Testing gateway:", gatewayType, "enabled:", gatewaySetting.isEnabled);
+      console.log("Found Stripe config, testing connection...");
       
-      let configData;
+      // Test Stripe connection
+      if (!stripeConfig.secretKey) {
+        return res.status(400).json({ message: "Stripe secret key is missing" });
+      }
+      
+      const stripeClient = new Stripe(stripeConfig.secretKey, {
+        apiVersion: '2023-10-16'
+      });
+      
       try {
-        configData = typeof gatewaySetting.configData === 'string' 
-          ? JSON.parse(gatewaySetting.configData)
-          : gatewaySetting.configData;
-      } catch (e) {
-        return res.status(400).json({ message: "Invalid gateway configuration data" });
-      }
-      
-      // Test the connection based on gateway type
-      let testResult;
-      
-      if (gatewayType === 'stripe') {
-        // Test Stripe connection
-        if (!configData.secret_key) {
-          return res.status(400).json({ message: "Stripe secret key is missing" });
-        }
-        
-        const stripeClient = new Stripe(configData.secret_key, {
-          apiVersion: '2023-10-16'
+        // Try to fetch balance to verify the API key works
+        const balance = await stripeClient.balance.retrieve();
+        console.log("Stripe connection successful, balance retrieved");
+        res.json({ 
+          success: true, 
+          message: "Successfully connected to Stripe",
+          balance: balance.available 
         });
-        
-        try {
-          // Try to fetch balance to verify the API key works
-          await stripeClient.balance.retrieve();
-          testResult = { success: true };
-        } catch (stripeError: any) {
-          return res.status(400).json({ 
-            message: "Failed to connect to Stripe", 
-            error: stripeError.message 
-          });
-        }
-      } else if (gatewayType === 'paypal') {
-        // Mock successful connection for PayPal
-        // In a real implementation, you would use the PayPal SDK to verify credentials
-        testResult = { success: true };
-      } else {
-        return res.status(400).json({ message: `Unsupported gateway type: ${gatewayType}` });
+      } catch (stripeError: any) {
+        console.error("Stripe connection failed:", stripeError.message);
+        return res.status(400).json({ 
+          message: "Failed to connect to Stripe", 
+          error: stripeError.message 
+        });
+      }
+    } catch (error) {
+      console.error("Error testing Stripe connection:", error);
+      res.status(500).json({ message: "Failed to test Stripe connection" });
+    }
+  });
+
+  // Test PayPal connection
+  app.post("/api/v1/finance/payment-gateways/paypal/test", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      console.log("Testing PayPal connection for tenant:", tenantId);
+      
+      // Get PayPal configuration
+      const paypalConfig = await storage.getPaypalConfiguration(tenantId);
+      
+      if (!paypalConfig) {
+        return res.status(404).json({ message: "No PayPal configuration found" });
       }
       
-      res.json(testResult);
+      console.log("Found PayPal config, testing connection...");
+      
+      // Test PayPal connection - in a real implementation, use PayPal SDK
+      if (!paypalConfig.clientId || !paypalConfig.clientSecret) {
+        return res.status(400).json({ message: "PayPal client ID or secret is missing" });
+      }
+      
+      // For now, just validate the configuration exists
+      res.json({ 
+        success: true, 
+        message: "PayPal configuration validated successfully" 
+      });
     } catch (error) {
-      console.error("Error testing payment gateway:", error);
-      res.status(500).json({ message: "Failed to test payment gateway connection" });
+      console.error("Error testing PayPal connection:", error);
+      res.status(500).json({ message: "Failed to test PayPal connection" });
+    }
+  });
+
+  // Test Meezan Bank connection
+  app.post("/api/v1/finance/payment-gateways/meezan_bank/test", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      console.log("Testing Meezan Bank connection for tenant:", tenantId);
+      
+      // Get Meezan Bank configuration
+      const meezanConfig = await storage.getMeezanBankConfiguration(tenantId);
+      
+      if (!meezanConfig) {
+        return res.status(404).json({ message: "No Meezan Bank configuration found" });
+      }
+      
+      console.log("Found Meezan Bank config, testing connection...");
+      
+      // Test Meezan Bank connection - validate configuration exists
+      if (!meezanConfig.merchantId || !meezanConfig.apiKey) {
+        return res.status(400).json({ message: "Meezan Bank merchant ID or API key is missing" });
+      }
+      
+      res.json({ 
+        success: true, 
+        message: "Meezan Bank configuration validated successfully" 
+      });
+    } catch (error) {
+      console.error("Error testing Meezan Bank connection:", error);
+      res.status(500).json({ message: "Failed to test Meezan Bank connection" });
+    }
+  });
+
+  // Test Bank Alfalah connection
+  app.post("/api/v1/finance/payment-gateways/bank_alfalah/test", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      console.log("Testing Bank Alfalah connection for tenant:", tenantId);
+      
+      // Get Bank Alfalah configuration
+      const alfalahConfig = await storage.getBankAlfalahConfiguration(tenantId);
+      
+      if (!alfalahConfig) {
+        return res.status(404).json({ message: "No Bank Alfalah configuration found" });
+      }
+      
+      console.log("Found Bank Alfalah config, testing connection...");
+      
+      // Test Bank Alfalah connection - validate configuration exists
+      if (!alfalahConfig.merchantId || !alfalahConfig.apiKey) {
+        return res.status(400).json({ message: "Bank Alfalah merchant ID or API key is missing" });
+      }
+      
+      res.json({ 
+        success: true, 
+        message: "Bank Alfalah configuration validated successfully" 
+      });
+    } catch (error) {
+      console.error("Error testing Bank Alfalah connection:", error);
+      res.status(500).json({ message: "Failed to test Bank Alfalah connection" });
     }
   });
   
