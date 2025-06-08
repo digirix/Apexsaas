@@ -3952,22 +3952,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/v1/finance/payment-gateways", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
+      console.log("Creating payment gateway for tenant:", tenantId);
+      console.log("Request body:", req.body);
+      
       const data = {
         ...req.body,
         tenantId
       };
       
+      console.log("Gateway data to create:", data);
+      
       // Validate the gateway type doesn't already exist for this tenant
       const existingSettings = await storage.getPaymentGatewaySettings(tenantId);
+      console.log("Existing settings:", existingSettings);
+      
       const duplicate = existingSettings.find(s => s.gatewayType === data.gatewayType);
       
       if (duplicate) {
+        console.log("Duplicate gateway found:", duplicate);
         return res.status(400).json({
           message: `A payment gateway of type ${data.gatewayType} already exists for this tenant`
         });
       }
       
       const setting = await storage.createPaymentGatewaySetting(data);
+      console.log("Created payment gateway setting:", setting);
       res.status(201).json(setting);
     } catch (error) {
       console.error("Error creating payment gateway:", error);
@@ -3980,17 +3989,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
       
+      console.log("Updating payment gateway:", { id, tenantId });
+      console.log("Request body:", req.body);
+      
       // Check if setting exists and belongs to tenant
       const existingSetting = await storage.getPaymentGatewaySettingById(id, tenantId);
+      console.log("Existing setting found:", existingSetting);
+      
       if (!existingSetting) {
+        console.log("Gateway configuration not found for ID:", id, "tenant:", tenantId);
         return res.status(404).json({ message: "Gateway configuration not found" });
       }
       
       // Update the setting
-      const updatedSetting = await storage.updatePaymentGatewaySetting(id, {
+      const updateData = {
         ...req.body,
         updatedAt: new Date()
-      });
+      };
+      console.log("Update data:", updateData);
+      
+      const updatedSetting = await storage.updatePaymentGatewaySetting(id, updateData);
+      console.log("Updated setting:", updatedSetting);
       
       res.json(updatedSetting);
     } catch (error) {

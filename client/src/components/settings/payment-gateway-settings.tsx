@@ -140,8 +140,10 @@ export function PaymentGatewaySettings() {
   // Save gateway configuration
   const saveGatewayMutation = useMutation({
     mutationFn: async (data: any) => {
+      console.log("Saving gateway configuration:", { data, activeTab, currentGateway });
       const payload = {
         gatewayType: activeTab,
+        tenantId: user?.tenantId,
         isEnabled: currentGateway?.isEnabled || false,
         isTestMode: currentGateway?.isTestMode ?? true,
         displayName: gateway.name,
@@ -152,13 +154,18 @@ export function PaymentGatewaySettings() {
         transactionFeeFixed: '0',
       };
 
+      console.log("API payload:", payload);
+
       if (currentGateway) {
+        console.log("Updating existing gateway with ID:", currentGateway.id);
         return apiRequest("PUT", `/api/v1/finance/payment-gateways/${currentGateway.id}`, payload);
       } else {
+        console.log("Creating new gateway configuration");
         return apiRequest("POST", "/api/v1/finance/payment-gateways", payload);
       }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      console.log("Gateway configuration saved successfully:", result);
       queryClient.invalidateQueries({ queryKey: ["/api/v1/finance/payment-gateways"] });
       toast({
         title: "Configuration Saved",
@@ -166,6 +173,7 @@ export function PaymentGatewaySettings() {
       });
     },
     onError: (error: any) => {
+      console.error("Gateway configuration save failed:", error);
       toast({
         title: "Save Failed",
         description: error.message || "Failed to save payment gateway configuration.",
@@ -367,7 +375,7 @@ export function PaymentGatewaySettings() {
                         type="button"
                         variant="outline"
                         onClick={handleTest}
-                        disabled={!currentGateway || testingGateway === gateway.key}
+                        disabled={!currentGateway || !currentGateway.isEnabled || testingGateway === gateway.key}
                       >
                         {testingGateway === gateway.key ? "Testing..." : "Test Connection"}
                       </Button>
