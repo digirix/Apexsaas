@@ -87,16 +87,65 @@ export const enhancedPaymentSchema = createInsertSchema(payments)
     notes: z.string().optional().nullable(),
   });
 
-// Enhanced payment gateway settings schema
-export const enhancedPaymentGatewaySettingSchema = createInsertSchema(paymentGatewaySettings)
+// Enhanced payment gateway configuration schemas
+export const enhancedStripeConfigurationSchema = createInsertSchema(stripeConfigurations)
   .pick({
     tenantId: true,
-    gatewayType: true,
     isEnabled: true,
-    configData: true,
+    publicKey: true,
+    secretKey: true,
+    webhookSecret: true,
   })
   .extend({
-    isEnabled: z.boolean().default(false).optional(),
+    publicKey: z.string().min(1, "Stripe public key is required"),
+    secretKey: z.string().min(1, "Stripe secret key is required"),
+    isEnabled: z.boolean().default(true).optional(),
+  });
+
+export const enhancedPaypalConfigurationSchema = createInsertSchema(paypalConfigurations)
+  .pick({
+    tenantId: true,
+    isEnabled: true,
+    clientId: true,
+    clientSecret: true,
+    webhookId: true,
+    environment: true,
+  })
+  .extend({
+    clientId: z.string().min(1, "PayPal client ID is required"),
+    clientSecret: z.string().min(1, "PayPal client secret is required"),
+    environment: z.enum(["sandbox", "production"]),
+    isEnabled: z.boolean().default(true).optional(),
+  });
+
+export const enhancedMeezanBankConfigurationSchema = createInsertSchema(meezanBankConfigurations)
+  .pick({
+    tenantId: true,
+    isEnabled: true,
+    merchantId: true,
+    secretKey: true,
+    apiEndpoint: true,
+  })
+  .extend({
+    merchantId: z.string().min(1, "Meezan Bank merchant ID is required"),
+    secretKey: z.string().min(1, "Meezan Bank secret key is required"),
+    apiEndpoint: z.string().url("Valid API endpoint URL is required"),
+    isEnabled: z.boolean().default(true).optional(),
+  });
+
+export const enhancedBankAlfalahConfigurationSchema = createInsertSchema(bankAlfalahConfigurations)
+  .pick({
+    tenantId: true,
+    isEnabled: true,
+    merchantId: true,
+    secretKey: true,
+    apiEndpoint: true,
+  })
+  .extend({
+    merchantId: z.string().min(1, "Bank Alfalah merchant ID is required"),
+    secretKey: z.string().min(1, "Bank Alfalah secret key is required"),
+    apiEndpoint: z.string().url("Valid API endpoint URL is required"),
+    isEnabled: z.boolean().default(true).optional(),
   });
 
 // Enhanced chart of account schema
@@ -216,7 +265,10 @@ export const paymentGatewayConfigSchema = z.object({
 export type EnhancedInvoice = z.infer<typeof enhancedInvoiceSchema>;
 export type EnhancedInvoiceLineItem = z.infer<typeof enhancedInvoiceLineItemSchema>;
 export type EnhancedPayment = z.infer<typeof enhancedPaymentSchema>;
-export type EnhancedPaymentGatewaySetting = z.infer<typeof enhancedPaymentGatewaySettingSchema>;
+export type EnhancedStripeConfiguration = z.infer<typeof enhancedStripeConfigurationSchema>;
+export type EnhancedPaypalConfiguration = z.infer<typeof enhancedPaypalConfigurationSchema>;
+export type EnhancedMeezanBankConfiguration = z.infer<typeof enhancedMeezanBankConfigurationSchema>;
+export type EnhancedBankAlfalahConfiguration = z.infer<typeof enhancedBankAlfalahConfigurationSchema>;
 export type EnhancedPaymentTransaction = z.infer<typeof enhancedPaymentTransactionSchema>;
 export type PaymentGatewayConfig = z.infer<typeof paymentGatewayConfigSchema>;
 export type EnhancedChartOfAccount = z.infer<typeof enhancedChartOfAccountSchema>;

@@ -58,7 +58,10 @@ import {
   enhancedInvoiceSchema,
   enhancedInvoiceLineItemSchema,
   enhancedPaymentSchema,
-  enhancedPaymentGatewaySettingSchema,
+  enhancedStripeConfigurationSchema,
+  enhancedPaypalConfigurationSchema,
+  enhancedMeezanBankConfigurationSchema,
+  enhancedBankAlfalahConfigurationSchema,
   enhancedChartOfAccountSchema,
   enhancedJournalEntrySchema,
   enhancedJournalEntryLineSchema
@@ -6970,40 +6973,194 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // 6. Payment Gateway Settings
+  // 6. Payment Gateway Configurations
+  
+  // Get all payment gateway configurations for tenant
   app.get("/api/v1/finance/payment-gateways", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       
-      const settings = await storage.getPaymentGatewaySettings(tenantId);
-      res.json(settings);
+      const configurations = await storage.getAllPaymentGatewayConfigurations(tenantId);
+      res.json(configurations);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch payment gateway settings" });
+      res.status(500).json({ message: "Failed to fetch payment gateway configurations" });
     }
   });
-  
-  app.post("/api/v1/finance/payment-gateways", isAuthenticated, async (req, res) => {
+
+  // Stripe Configuration Routes
+  app.get("/api/v1/finance/payment-gateways/stripe", isAuthenticated, async (req, res) => {
     try {
       const tenantId = (req.user as any).tenantId;
       
-      // Add tenant info
-      const data = { ...req.body, tenantId };
-      
-      // Check for duplicate gateway
-      const existingGateway = await storage.getPaymentGatewaySetting(tenantId, data.gatewayType);
-      if (existingGateway) {
-        return res.status(400).json({ message: "A setting for this payment gateway already exists" });
+      const config = await storage.getStripeConfiguration(tenantId);
+      if (!config) {
+        return res.status(404).json({ message: "Stripe configuration not found" });
       }
       
-      const validatedData = enhancedPaymentGatewaySettingSchema.parse(data);
-      const setting = await storage.createPaymentGatewaySetting(validatedData);
+      // Sanitize sensitive data for response
+      const sanitizedConfig = {
+        ...config,
+        secretKey: config.secretKey ? "••••••••" + config.secretKey.slice(-4) : null,
+        webhookSecret: config.webhookSecret ? "••••••••" + config.webhookSecret.slice(-4) : null
+      };
       
-      res.status(201).json(setting);
+      res.json(sanitizedConfig);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch Stripe configuration" });
+    }
+  });
+
+  app.post("/api/v1/finance/payment-gateways/stripe", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      // Check if Stripe configuration already exists
+      const existing = await storage.getStripeConfiguration(tenantId);
+      if (existing) {
+        return res.status(400).json({ message: "Stripe configuration already exists. Use PUT to update." });
+      }
+      
+      const data = { ...req.body, tenantId };
+      const validatedData = enhancedStripeConfigurationSchema.parse(data);
+      const config = await storage.createStripeConfiguration(validatedData);
+      
+      // Sanitize response
+      const sanitizedConfig = {
+        ...config,
+        secretKey: config.secretKey ? "••••••••" + config.secretKey.slice(-4) : null,
+        webhookSecret: config.webhookSecret ? "••••••••" + config.webhookSecret.slice(-4) : null
+      };
+      
+      res.status(201).json(sanitizedConfig);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
       }
-      res.status(500).json({ message: "Failed to create payment gateway setting" });
+      res.status(500).json({ message: "Failed to create Stripe configuration" });
+    }
+  });
+
+  app.put("/api/v1/finance/payment-gateways/stripe", isAuthenticated, requirePermission(storage, "finance", "update"), async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      const config = await storage.updateStripeConfiguration(tenantId, req.body);
+      if (!config) {
+        return res.status(404).json({ message: "Stripe configuration not found" });
+      }
+      
+      // Sanitize response
+      const sanitizedConfig = {
+        ...config,
+        secretKey: config.secretKey ? "••••••••" + config.secretKey.slice(-4) : null,
+        webhookSecret: config.webhookSecret ? "••••••••" + config.webhookSecret.slice(-4) : null
+      };
+      
+      res.json(sanitizedConfig);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update Stripe configuration" });
+    }
+  });
+
+  app.delete("/api/v1/finance/payment-gateways/stripe", isAuthenticated, requirePermission(storage, "finance", "delete"), async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      const success = await storage.deleteStripeConfiguration(tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "Stripe configuration not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete Stripe configuration" });
+    }
+  });
+
+  // PayPal Configuration Routes
+  app.get("/api/v1/finance/payment-gateways/paypal", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      const config = await storage.getPaypalConfiguration(tenantId);
+      if (!config) {
+        return res.status(404).json({ message: "PayPal configuration not found" });
+      }
+      
+      // Sanitize sensitive data
+      const sanitizedConfig = {
+        ...config,
+        clientSecret: config.clientSecret ? "••••••••" + config.clientSecret.slice(-4) : null
+      };
+      
+      res.json(sanitizedConfig);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch PayPal configuration" });
+    }
+  });
+
+  app.post("/api/v1/finance/payment-gateways/paypal", isAuthenticated, requirePermission(storage, "finance", "create"), async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      // Check if PayPal configuration already exists
+      const existing = await storage.getPaypalConfiguration(tenantId);
+      if (existing) {
+        return res.status(400).json({ message: "PayPal configuration already exists. Use PUT to update." });
+      }
+      
+      const data = { ...req.body, tenantId };
+      const validatedData = enhancedPaypalConfigurationSchema.parse(data);
+      const config = await storage.createPaypalConfiguration(validatedData);
+      
+      // Sanitize response
+      const sanitizedConfig = {
+        ...config,
+        clientSecret: config.clientSecret ? "••••••••" + config.clientSecret.slice(-4) : null
+      };
+      
+      res.status(201).json(sanitizedConfig);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create PayPal configuration" });
+    }
+  });
+
+  app.put("/api/v1/finance/payment-gateways/paypal", isAuthenticated, requirePermission(storage, "finance", "update"), async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      const config = await storage.updatePaypalConfiguration(tenantId, req.body);
+      if (!config) {
+        return res.status(404).json({ message: "PayPal configuration not found" });
+      }
+      
+      // Sanitize response
+      const sanitizedConfig = {
+        ...config,
+        clientSecret: config.clientSecret ? "••••••••" + config.clientSecret.slice(-4) : null
+      };
+      
+      res.json(sanitizedConfig);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update PayPal configuration" });
+    }
+  });
+
+  app.delete("/api/v1/finance/payment-gateways/paypal", isAuthenticated, requirePermission(storage, "finance", "delete"), async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      
+      const success = await storage.deletePaypalConfiguration(tenantId);
+      if (!success) {
+        return res.status(404).json({ message: "PayPal configuration not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete PayPal configuration" });
     }
   });
 
