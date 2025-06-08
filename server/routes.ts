@@ -6978,7 +6978,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all payment gateway configurations for tenant
   app.get("/api/v1/finance/payment-gateways", isAuthenticated, async (req, res) => {
     try {
+      console.log("Payment Gateway API: User authenticated:", !!req.user);
+      console.log("Payment Gateway API: User data:", req.user ? { id: (req.user as any).id, tenantId: (req.user as any).tenantId } : 'No user');
+      
       const tenantId = (req.user as any).tenantId;
+      console.log("Payment Gateway API: Using tenant ID:", tenantId);
       
       const configurations: any = {};
       
