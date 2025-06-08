@@ -56,6 +56,8 @@ export default function TaskPerformanceReport() {
   const { data: entities = [] } = useQuery({ queryKey: ["/api/v1/entities"] });
   const { data: taskCategories = [] } = useQuery({ queryKey: ["/api/v1/setup/task-categories"] });
 
+
+
   // Filter entities based on selected client
   const filteredEntities = useMemo(() => {
     if (filters.client === "all") return entities;
@@ -383,7 +385,7 @@ export default function TaskPerformanceReport() {
                     <SelectItem value="all">All</SelectItem>
                     {clients.map((client: any) => (
                       <SelectItem key={client.id} value={client.id.toString()}>
-                        {client.name}
+                        {client.displayName}
                       </SelectItem>
                     ))}
                   </SelectContent>
