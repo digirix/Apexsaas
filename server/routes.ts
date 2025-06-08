@@ -7210,5 +7210,152 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Payment Processing API endpoints
+  
+  // Create payment intent for invoice payment
+  app.post("/api/v1/finance/payments/create-intent", isAuthenticated, async (req, res) => {
+    try {
+      const tenantId = (req.user as any).tenantId;
+      const { invoiceId, gatewayType, amount, currency = 'PKR' } = req.body;
+      
+      // Validate invoice exists and belongs to tenant
+      const invoice = await storage.getInvoice(invoiceId, tenantId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      // Check if invoice is payable
+      if (invoice.status === 'paid') {
+        return res.status(400).json({ message: "Invoice is already paid" });
+      }
+      
+      // Get gateway settings
+      const gatewaySetting = await storage.getPaymentGatewaySetting(tenantId, gatewayType);
+      if (!gatewaySetting || !gatewaySetting.isEnabled) {
+        return res.status(400).json({ message: `Payment gateway ${gatewayType} is not available` });
+      }
+      
+      // Calculate processing fee
+      const baseAmount = parseFloat(amount);
+      const feePercentage = parseFloat(gatewaySetting.transactionFeePercentage || '0');
+      const feeFixed = parseFloat(gatewaySetting.transactionFeeFixed || '0');
+      const processingFee = (baseAmount * feePercentage / 100) + feeFixed;
+      const totalAmount = baseAmount + processingFee;
+      
+      // Create payment intent record
+      const paymentIntent = {
+        id: `intent_${Date.now()}`,
+        invoiceId,
+        gatewayType,
+        amount: totalAmount.toString(),
+        currency,
+        status: 'pending',
+        processingFee: processingFee.toString(),
+        isTestMode: gatewaySetting.isTestMode,
+        createdAt: new Date()
+      };
+      
+      res.json({
+        success: true,
+        paymentIntent,
+        redirectUrl: gatewaySetting.isTestMode 
+          ? `/payment/test/${gatewayType}/${paymentIntent.id}`
+          : `/payment/${gatewayType}/${paymentIntent.id}`,
+        message: `Payment intent created for ${gatewayType}`
+      });
+    } catch (error) {
+      console.error("Error creating payment intent:", error);
+      res.status(500).json({ message: "Failed to create payment intent" });
+    }
+  });
+  
+  // Client portal payment gateway access
+  app.get("/api/v1/client-portal/payment-gateways", async (req, res) => {
+    try {
+      // Extract tenant ID from session or request
+      const tenantId = (req.user as any)?.tenantId || (req.session as any)?.clientPortalData?.tenantId;
+      
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // Get enabled payment gateways for this tenant
+      const gateways = await storage.getPaymentGatewaySettings(tenantId);
+      const enabledGateways = gateways.filter(g => g.isEnabled);
+      
+      // Remove sensitive configuration data for client-side
+      const publicGateways = enabledGateways.map(gateway => ({
+        id: gateway.id,
+        gatewayType: gateway.gatewayType,
+        displayName: gateway.displayName,
+        description: gateway.description,
+        isTestMode: gateway.isTestMode,
+        supportedCurrencies: gateway.supportedCurrencies,
+        transactionFeePercentage: gateway.transactionFeePercentage,
+        transactionFeeFixed: gateway.transactionFeeFixed
+      }));
+      
+      res.json(publicGateways);
+    } catch (error) {
+      console.error("Error fetching client payment gateways:", error);
+      res.status(500).json({ message: "Failed to fetch payment options" });
+    }
+  });
+
+  // Helper function to create payment journal entry
+  async function createPaymentJournalEntry(storage: any, tenantId: number, userId: number, invoice: any, payment: any) {
+    try {
+      // Get required accounts
+      const bankAccount = await storage.getChartOfAccountByCode("1100", tenantId); // Cash/Bank
+      const accountsReceivable = await storage.getChartOfAccountByCode("1200", tenantId); // A/R
+      
+      if (!bankAccount || !accountsReceivable) {
+        console.error("Required accounts not found for payment journal entry");
+        return;
+      }
+      
+      // Create journal entry for payment received
+      const journalEntry = await storage.createJournalEntry({
+        tenantId,
+        entryDate: payment.paymentDate,
+        reference: `PMT-${invoice.invoiceNumber}`,
+        entryType: "PMT",
+        description: `Payment received for Invoice ${invoice.invoiceNumber}`,
+        isPosted: true,
+        createdBy: userId,
+        sourceDocument: "payment",
+        sourceDocumentId: payment.id
+      });
+      
+      const paymentAmount = parseFloat(payment.amount);
+      
+      // Debit Bank Account (Asset increase)
+      await storage.createJournalEntryLine({
+        tenantId,
+        journalEntryId: journalEntry.id,
+        accountId: bankAccount.id,
+        description: `Payment received - ${payment.paymentMethod}`,
+        debitAmount: paymentAmount.toString(),
+        creditAmount: "0",
+        lineOrder: 1
+      });
+      
+      // Credit Accounts Receivable (Asset decrease)
+      await storage.createJournalEntryLine({
+        tenantId,
+        journalEntryId: journalEntry.id,
+        accountId: accountsReceivable.id,
+        description: `Payment for Invoice ${invoice.invoiceNumber}`,
+        debitAmount: "0",
+        creditAmount: paymentAmount.toString(),
+        lineOrder: 2
+      });
+      
+      console.log(`Created payment journal entry for invoice ${invoice.invoiceNumber}`);
+    } catch (error) {
+      console.error("Error creating payment journal entry:", error);
+    }
+  }
+
   return httpServer;
 }
