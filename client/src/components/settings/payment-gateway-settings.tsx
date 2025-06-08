@@ -267,6 +267,8 @@ export function PaymentGatewaySettings() {
 
   const onSubmit = (data: any) => {
     console.log("Form submitted with data:", data);
+    console.log("Form errors:", form.formState.errors);
+    console.log("Form validation state:", form.formState.isValid);
     saveGatewayMutation.mutate(data);
   };
 
@@ -403,7 +405,16 @@ export function PaymentGatewaySettings() {
                       >
                         {testingGateway === gateway.key ? "Testing..." : "Test Connection"}
                       </Button>
-                      <Button type="submit" disabled={saveGatewayMutation.isPending}>
+                      <Button 
+                        type="button"
+                        onClick={() => {
+                          console.log("Save button clicked");
+                          console.log("Form values:", form.getValues());
+                          console.log("Form errors:", form.formState.errors);
+                          form.handleSubmit(onSubmit)();
+                        }}
+                        disabled={saveGatewayMutation.isPending}
+                      >
                         {saveGatewayMutation.isPending ? "Saving..." : "Save Configuration"}
                       </Button>
                     </div>
