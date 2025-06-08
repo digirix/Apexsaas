@@ -225,16 +225,14 @@ export default function RiskAssessmentReport() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              Risk Assessment Report
-              <AIInsightsPanel 
-                reportType="risk-assessment" 
-                filters={filters}
-              />
-            </h1>
+            <h1 className="text-3xl font-bold">Risk Assessment Report</h1>
             <p className="text-muted-foreground">Identify and analyze potential compliance and operational risks</p>
           </div>
           <div className="flex items-center gap-2">
+            <AIInsightsPanel 
+              reportType="risk-assessment" 
+              filters={filters}
+            />
             <Button onClick={handleExportPDF} className="flex items-center gap-2">
               <Download className="w-4 h-4" />
               Export PDF
@@ -254,7 +252,13 @@ export default function RiskAssessmentReport() {
               {/* Timeframe Filter */}
               <Select value={filters.timeframe} onValueChange={(value) => setFilters(prev => ({ ...prev, timeframe: value }))}>
                 <SelectTrigger className="h-6 w-20 text-xs border-gray-300">
-                  <SelectValue placeholder="Timeframe" />
+                  <SelectValue>
+                    {filters.timeframe === "7" ? "Last 7 days" :
+                     filters.timeframe === "30" ? "Last 30 days" :
+                     filters.timeframe === "90" ? "Last 90 days" :
+                     filters.timeframe === "365" ? "Last year" :
+                     filters.timeframe === "all" ? "All time" : "Timeframe"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="7">Last 7 days</SelectItem>
@@ -268,7 +272,13 @@ export default function RiskAssessmentReport() {
               {/* Risk Level Filter */}
               <Select value={filters.riskLevel} onValueChange={(value) => setFilters(prev => ({ ...prev, riskLevel: value }))}>
                 <SelectTrigger className="h-6 w-20 text-xs border-gray-300">
-                  <SelectValue placeholder="Risk Level" />
+                  <SelectValue>
+                    {filters.riskLevel === "all" ? "All Levels" :
+                     filters.riskLevel === "critical" ? "Critical" :
+                     filters.riskLevel === "high" ? "High" :
+                     filters.riskLevel === "medium" ? "Medium" :
+                     filters.riskLevel === "low" ? "Low" : "Risk Level"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Levels</SelectItem>
@@ -289,7 +299,10 @@ export default function RiskAssessmentReport() {
                 entity: "all"
               }))}>
                 <SelectTrigger className="h-6 w-20 text-xs border-gray-300">
-                  <SelectValue placeholder="Country" />
+                  <SelectValue>
+                    {filters.country === "all" ? "Country" : 
+                     (countries as any[]).find((c: any) => c.id.toString() === filters.country)?.name || "Country"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Countries</SelectItem>
@@ -304,7 +317,10 @@ export default function RiskAssessmentReport() {
               {/* Entity Type Filter */}
               <Select value={filters.entityType} onValueChange={(value) => setFilters(prev => ({ ...prev, entityType: value }))}>
                 <SelectTrigger className="h-6 w-20 text-xs border-gray-300">
-                  <SelectValue placeholder="Entity Type" />
+                  <SelectValue>
+                    {filters.entityType === "all" ? "Entity Type" : 
+                     (filteredEntityTypes as any[]).find((et: any) => et.id.toString() === filters.entityType)?.name || "Entity Type"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
@@ -319,7 +335,10 @@ export default function RiskAssessmentReport() {
               {/* Tax Jurisdiction Filter */}
               <Select value={filters.taxJurisdiction} onValueChange={(value) => setFilters(prev => ({ ...prev, taxJurisdiction: value }))}>
                 <SelectTrigger className="h-6 w-20 text-xs border-gray-300">
-                  <SelectValue placeholder="Tax Jurisdiction" />
+                  <SelectValue>
+                    {filters.taxJurisdiction === "all" ? "Tax Jurisdiction" : 
+                     (filteredTaxJurisdictions as any[]).find((tj: any) => tj.id.toString() === filters.taxJurisdiction)?.name || "Tax Jurisdiction"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Jurisdictions</SelectItem>
@@ -338,7 +357,10 @@ export default function RiskAssessmentReport() {
                 entity: "all"
               }))}>
                 <SelectTrigger className="h-6 w-20 text-xs border-gray-300">
-                  <SelectValue placeholder="Client" />
+                  <SelectValue>
+                    {filters.client === "all" ? "Client" : 
+                     (filteredClients as any[]).find((c: any) => c.id.toString() === filters.client)?.displayName || "Client"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Clients</SelectItem>
@@ -353,7 +375,10 @@ export default function RiskAssessmentReport() {
               {/* Entity Filter */}
               <Select value={filters.entity} onValueChange={(value) => setFilters(prev => ({ ...prev, entity: value }))}>
                 <SelectTrigger className="h-6 w-20 text-xs border-gray-300">
-                  <SelectValue placeholder="Entity" />
+                  <SelectValue>
+                    {filters.entity === "all" ? "Entity" : 
+                     (filteredEntities as any[]).find((e: any) => e.id.toString() === filters.entity)?.name || "Entity"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Entities</SelectItem>
