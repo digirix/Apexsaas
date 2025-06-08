@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
+import Stripe from "stripe";
 
 // WebSocket connections map: tenantId -> userId -> Set<WebSocket>
 const wsConnections = new Map<number, Map<number, Set<WebSocket>>>();
