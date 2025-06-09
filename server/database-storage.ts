@@ -1173,20 +1173,26 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions))
       .orderBy(desc(invoices.createdAt));
     
-    // Get all clients and entities for this tenant
+    // Get all clients, entities, tasks, and service types for this tenant
     const allClients = await db.select().from(clients).where(eq(clients.tenantId, tenantId));
     const allEntities = await db.select().from(entities).where(eq(entities.tenantId, tenantId));
+    const allTasks = await db.select().from(tasks).where(eq(tasks.tenantId, tenantId));
+    const allServiceTypes = await db.select().from(serviceTypes).where(eq(serviceTypes.tenantId, tenantId));
     
     // Create lookup maps - clients use displayName field, not name
     const clientMap = new Map(allClients.map(c => [c.id, c.displayName]));
     const entityMap = new Map(allEntities.map(e => [e.id, e.name]));
+    const taskMap = new Map(allTasks.map(t => [t.id, t.serviceTypeId]));
+    const serviceTypeMap = new Map(allServiceTypes.map(s => [s.id, s.name]));
     
     // Enhance invoices with related data
     return invoiceResults.map(invoice => ({
       ...invoice,
       clientName: invoice.clientId ? clientMap.get(invoice.clientId) || null : null,
       entityName: invoice.entityId ? entityMap.get(invoice.entityId) || null : null,
-      serviceName: null // Will be null since we don't have task_id relationship
+      serviceName: invoice.taskId ? 
+        (taskMap.get(invoice.taskId) ? serviceTypeMap.get(taskMap.get(invoice.taskId)) || null : null) 
+        : null
     }));
   }
 

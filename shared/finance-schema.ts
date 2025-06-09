@@ -9,6 +9,7 @@ export const enhancedInvoiceSchema = createInsertSchema(invoices)
     invoiceNumber: true,
     clientId: true,
     entityId: true,
+    taskId: true,
     status: true,
     issueDate: true,
     dueDate: true,
