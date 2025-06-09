@@ -456,7 +456,7 @@ export function registerClientPortalRoutes(app: Express) {
   });
   
   // Get all client invoices or invoices for a specific entity
-  app.get("/api/client-portal/invoices", isClientAuthenticated, async (req, res) => {
+  app.get("/api/v1/client-portal/invoices", isClientAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
       const entityId = req.query.entityId ? parseInt(req.query.entityId as string) : null;
