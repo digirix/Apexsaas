@@ -1149,13 +1149,29 @@ export class DatabaseStorage implements IStorage {
 
   // Invoice operations
   async getInvoices(tenantId: number, clientId?: number, entityId?: number, status?: string): Promise<any[]> {
-    let query = db.select({
-      // Invoice fields
+    const conditions = [
+      eq(invoices.tenantId, tenantId),
+      eq(invoices.isDeleted, false)
+    ];
+    
+    if (clientId) {
+      conditions.push(eq(invoices.clientId, clientId));
+    }
+    
+    if (entityId) {
+      conditions.push(eq(invoices.entityId, entityId));
+    }
+    
+    if (status) {
+      conditions.push(eq(invoices.status, status));
+    }
+    
+    const query = db.select({
+      // Invoice fields - only fields that exist in the table
       id: invoices.id,
       tenantId: invoices.tenantId,
       clientId: invoices.clientId,
       entityId: invoices.entityId,
-      taskId: invoices.taskId,
       invoiceNumber: invoices.invoiceNumber,
       issueDate: invoices.issueDate,
       dueDate: invoices.dueDate,
@@ -1165,38 +1181,22 @@ export class DatabaseStorage implements IStorage {
       currencyCode: invoices.currencyCode,
       status: invoices.status,
       notes: invoices.notes,
-      paymentTerms: invoices.paymentTerms,
       isDeleted: invoices.isDeleted,
       createdAt: invoices.createdAt,
       updatedAt: invoices.updatedAt,
       // Related data
       clientName: clients.name,
       entityName: entities.name,
-      serviceName: serviceTypes.name
+      // For now, set serviceName to null since we don't have task_id link
+      serviceName: sql<string | null>`null`
     })
       .from(invoices)
       .leftJoin(clients, eq(invoices.clientId, clients.id))
       .leftJoin(entities, eq(invoices.entityId, entities.id))
-      .leftJoin(tasks, eq(invoices.taskId, tasks.id))
-      .leftJoin(serviceTypes, eq(tasks.serviceTypeId, serviceTypes.id))
-      .where(and(
-        eq(invoices.tenantId, tenantId),
-        eq(invoices.isDeleted, false)
-      ));
+      .where(and(...conditions))
+      .orderBy(desc(invoices.createdAt));
     
-    if (clientId) {
-      query = query.where(eq(invoices.clientId, clientId));
-    }
-    
-    if (entityId) {
-      query = query.where(eq(invoices.entityId, entityId));
-    }
-    
-    if (status) {
-      query = query.where(eq(invoices.status, status));
-    }
-    
-    return await query.orderBy(desc(invoices.createdAt));
+    return await query;
   }
 
   async getInvoiceById(id: number): Promise<Invoice | undefined> {

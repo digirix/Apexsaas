@@ -4392,9 +4392,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const entityId = req.query.entityId ? parseInt(req.query.entityId as string) : undefined;
       const status = req.query.status as string | undefined;
       
+      console.log(`DEBUG: Fetching invoices for tenant ${tenantId}, clientId: ${clientId}, entityId: ${entityId}, status: ${status}`);
+      
       const invoices = await storage.getInvoices(tenantId, clientId, entityId, status);
+      console.log(`DEBUG: Found ${invoices.length} invoices:`, invoices.slice(0, 2));
+      
       res.json(invoices);
     } catch (error) {
+      console.error('ERROR: Failed to fetch invoices:', error);
       res.status(500).json({ message: "Failed to fetch invoices" });
     }
   });
