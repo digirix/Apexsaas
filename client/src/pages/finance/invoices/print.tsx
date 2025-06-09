@@ -52,15 +52,6 @@ export default function InvoicePrintPage() {
     });
   }, [id, invoice, isLoading, error, tenantSettings, settingsLoading, settingsError]);
 
-  // Remove auto-print for debugging - users can manually print with Ctrl+P
-  // useEffect(() => {
-  //   if (invoice && !isLoading && tenantSettings) {
-  //     setTimeout(() => {
-  //       window.print();
-  //     }, 1000);
-  //   }
-  // }, [invoice, isLoading, tenantSettings]);
-
   // Helper function to get tenant setting
   const getSetting = (key: string) => {
     if (!tenantSettings || !Array.isArray(tenantSettings)) return '';
@@ -135,15 +126,43 @@ export default function InvoicePrintPage() {
 
   return (
     <>
-      {/* Print styles */}
-      <style>{`
+      {/* Optimized Print Styles for Single Page */}
+      <style jsx>{`
         @media print {
-          body { margin: 0; padding: 0; font-size: 12px; }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          body { 
+            margin: 0 !important; 
+            padding: 0 !important; 
+            font-size: 10px !important;
+            line-height: 1.2 !important;
+            font-family: 'Segoe UI', Arial, sans-serif !important;
+          }
           .no-print { display: none !important; }
           .print-container { 
             max-width: none !important; 
             margin: 0 !important; 
-            padding: 40px !important;
+            padding: 12px !important;
+            page-break-inside: avoid !important;
+          }
+          .compact-mb { margin-bottom: 8px !important; }
+          .compact-mb-sm { margin-bottom: 4px !important; }
+          .compact-mb-xs { margin-bottom: 2px !important; }
+          .compact-text-lg { font-size: 12px !important; font-weight: bold !important; }
+          .compact-text-xl { font-size: 14px !important; font-weight: bold !important; }
+          .compact-text-2xl { font-size: 16px !important; font-weight: bold !important; }
+          .compact-text-sm { font-size: 8px !important; }
+          .compact-text-xs { font-size: 7px !important; }
+          .compact-space-y > * + * { margin-top: 1px !important; }
+          .compact-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+          .compact-p { padding: 4px !important; }
+          .compact-px { padding-left: 4px !important; padding-right: 4px !important; }
+          .compact-py { padding-top: 2px !important; padding-bottom: 2px !important; }
+          @page {
+            margin: 0.4in !important;
+            size: A4 !important;
           }
         }
         @media screen {
@@ -159,20 +178,38 @@ export default function InvoicePrintPage() {
         .invoice-table {
           width: 100%;
           border-collapse: collapse;
-          margin: 20px 0;
+          margin: 16px 0;
         }
         .invoice-table th,
         .invoice-table td {
           border: 1px solid #e2e8f0;
-          padding: 12px;
+          padding: 8px;
           text-align: left;
+          vertical-align: top;
         }
         .invoice-table th {
           background-color: #f8fafc;
           font-weight: 600;
+          font-size: 11px;
         }
         .text-right {
           text-align: right;
+        }
+        @media print {
+          .invoice-table {
+            margin: 6px 0 !important;
+            font-size: 9px !important;
+          }
+          .invoice-table th,
+          .invoice-table td {
+            padding: 3px 4px !important;
+            border: 1px solid #333 !important;
+            font-size: 9px !important;
+          }
+          .invoice-table th {
+            background-color: #f5f5f5 !important;
+            font-weight: bold !important;
+          }
         }
       `}</style>
 
@@ -200,74 +237,73 @@ export default function InvoicePrintPage() {
               </Button>
             </div>
           </div>
-          
+          <div className="grid grid-cols-2 gap-4 text-sm text-yellow-700">
+            <div>
+              <p>Invoice ID: {id}</p>
+              <p>Invoice Number: {currentInvoice?.invoiceNumber || 'Not found'}</p>
+              <p>Client: {client?.displayName || 'Loading...'}</p>
+              <p>Entity: {entity?.name || 'Loading...'}</p>
+            </div>
+            <div>
+              <p>Firm: {firmName}</p>
+              <p>Bank: {bankName}</p>
+              <p>Settings: {tenantSettings ? `${tenantSettings.length} loaded` : 'Loading...'}</p>
+              <p>Task: {task?.taskType || 'None'}</p>
+            </div>
+          </div>
           {debugMode && (
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <h4 className="font-medium text-yellow-800 mb-2">Invoice Data:</h4>
-                <div className="bg-white p-2 rounded border text-xs">
-                  <p><strong>ID:</strong> {invoice?.id}</p>
-                  <p><strong>Number:</strong> {invoice?.invoiceNumber}</p>
-                  <p><strong>Client:</strong> {invoice?.clientName}</p>
-                  <p><strong>Entity:</strong> {invoice?.entityName}</p>
-                  <p><strong>Service:</strong> {invoice?.serviceName}</p>
-                  <p><strong>Amount:</strong> {invoice?.totalAmount}</p>
-                </div>
-              </div>
-              <div>
-                <h4 className="font-medium text-yellow-800 mb-2">Firm Settings:</h4>
-                <div className="bg-white p-2 rounded border text-xs">
-                  <p><strong>Firm Name:</strong> {getSetting('firm_name') || 'Not Set'}</p>
-                  <p><strong>Tagline:</strong> {getSetting('tagline') || 'Not Set'}</p>
-                  <p><strong>Address:</strong> {getSetting('address') || 'Not Set'}</p>
-                  <p><strong>Phone:</strong> {getSetting('phone') || 'Not Set'}</p>
-                  <p><strong>Email:</strong> {getSetting('email') || 'Not Set'}</p>
-                  <p><strong>Bank Name:</strong> {getSetting('bank_name') || 'Not Set'}</p>
-                </div>
-              </div>
+            <div className="mt-4 text-xs bg-yellow-100 p-3 rounded">
+              <p><strong>Raw Data:</strong></p>
+              <pre className="text-xs overflow-auto max-h-40">
+                {JSON.stringify({ invoice: currentInvoice, client, entity, task }, null, 2)}
+              </pre>
             </div>
           )}
         </div>
 
-        {/* Header */}
-        <div className="flex justify-between items-start mb-8 border-b pb-6">
+        {/* Invoice Header - Compact */}
+        <div className="compact-grid compact-mb">
+          {/* Firm Information */}
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">{firmName}</h1>
-            <p className="text-lg text-slate-600 mb-4">{firmTagline}</p>
-            <div className="text-sm text-slate-600 space-y-1">
-              {firmAddress && <p>{firmAddress}</p>}
-              {firmPhone && <p>Phone: {firmPhone}</p>}
-              {firmEmail && <p>Email: {firmEmail}</p>}
-              {firmWebsite && <p>Website: {firmWebsite}</p>}
+            <h1 className="compact-text-2xl text-slate-900 compact-mb-xs">{firmName}</h1>
+            <p className="compact-text-sm text-slate-600 compact-mb-sm">{firmTagline}</p>
+            <div className="compact-text-xs text-slate-700 compact-space-y">
+              <p>{firmAddress}</p>
+              <p>Phone: {firmPhone}</p>
+              <p>Email: {firmEmail}</p>
+              <p>Website: {firmWebsite}</p>
             </div>
           </div>
+          
+          {/* Invoice Details */}
           <div className="text-right">
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">INVOICE</h2>
-            <div className="text-sm text-slate-600 space-y-1">
-              <p><strong>Invoice #:</strong> {currentInvoice?.invoiceNumber || 'Loading...'}</p>
-              <p><strong>Date:</strong> {currentInvoice?.issueDate ? format(new Date(currentInvoice.issueDate), 'MMMM dd, yyyy') : 'Loading...'}</p>
-              <p><strong>Due Date:</strong> {currentInvoice?.dueDate ? format(new Date(currentInvoice.dueDate), 'MMMM dd, yyyy') : 'Loading...'}</p>
+            <h2 className="compact-text-xl text-slate-900 compact-mb-xs">INVOICE</h2>
+            <div className="compact-text-xs text-slate-700 compact-space-y">
+              <p><span className="font-medium">Invoice #:</span> {currentInvoice?.invoiceNumber || 'INV-001'}</p>
+              <p><span className="font-medium">Date:</span> {currentInvoice?.issueDate ? format(new Date(currentInvoice.issueDate), 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy')}</p>
+              <p><span className="font-medium">Due Date:</span> {currentInvoice?.dueDate ? format(new Date(currentInvoice.dueDate), 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy')}</p>
+              <p><span className="font-medium">Status:</span> <span className="capitalize">{currentInvoice?.status || 'draft'}</span></p>
             </div>
           </div>
         </div>
 
-        {/* Client Information */}
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold text-slate-900 mb-3">Bill To:</h3>
-          <div className="text-slate-700">
+        {/* Client Information - Compact */}
+        <div className="compact-mb">
+          <h3 className="compact-text-lg text-slate-900 compact-mb-xs">Bill To:</h3>
+          <div className="text-slate-700 compact-text-sm">
             <p className="font-medium">{client?.displayName || 'Client Name'}</p>
             <p>{entity?.name || 'Entity Name'}</p>
             {entity?.address && <p>{entity.address}</p>}
           </div>
         </div>
 
-        {/* Invoice Items Table */}
-        <div className="mb-8">
+        {/* Invoice Items Table - Compact */}
+        <div className="compact-mb">
           <table className="invoice-table">
             <thead>
               <tr>
                 <th style={{ width: '50%' }}>Description</th>
-                <th style={{ width: '15%' }} className="text-center">Quantity</th>
+                <th style={{ width: '15%' }} className="text-center">Qty</th>
                 <th style={{ width: '15%' }} className="text-right">Rate</th>
                 <th style={{ width: '20%' }} className="text-right">Amount</th>
               </tr>
@@ -277,7 +313,7 @@ export default function InvoicePrintPage() {
                 <td>
                   <div className="font-medium">{task?.taskType || 'Professional Services'}</div>
                   {task?.taskDetails && (
-                    <div className="text-sm text-slate-600 mt-1">{task.taskDetails}</div>
+                    <div className="compact-text-xs text-slate-600 mt-1">{task.taskDetails}</div>
                   )}
                 </td>
                 <td className="text-center">1</td>
@@ -288,45 +324,45 @@ export default function InvoicePrintPage() {
           </table>
         </div>
 
-        {/* Totals Section */}
-        <div className="flex justify-end mb-8">
-          <div className="w-80">
+        {/* Totals Section - Compact */}
+        <div className="flex justify-end compact-mb">
+          <div style={{ width: '280px' }}>
             <div className="border border-slate-200 rounded-lg overflow-hidden">
-              <div className="bg-slate-50 px-4 py-3 border-b">
-                <h4 className="font-semibold text-slate-900">Invoice Summary</h4>
+              <div className="bg-slate-50 compact-px compact-py border-b">
+                <h4 className="font-semibold text-slate-900 compact-text-sm">Invoice Summary</h4>
               </div>
-              <div className="p-4 space-y-3">
-                <div className="flex justify-between">
+              <div className="compact-p compact-space-y">
+                <div className="flex justify-between compact-text-xs">
                   <span className="text-slate-600">Subtotal:</span>
                   <span className="font-medium">{formatCurrency(currentInvoice?.subtotal || 0)}</span>
                 </div>
                 {parseFloat(currentInvoice?.taxAmount || '0') > 0 && (
-                  <div className="flex justify-between">
+                  <div className="flex justify-between compact-text-xs">
                     <span className="text-slate-600">Tax ({currentInvoice?.taxPercent || 0}%):</span>
                     <span className="font-medium">{formatCurrency(currentInvoice?.taxAmount || 0)}</span>
                   </div>
                 )}
                 {parseFloat(currentInvoice?.discountAmount || '0') > 0 && (
-                  <div className="flex justify-between">
+                  <div className="flex justify-between compact-text-xs">
                     <span className="text-slate-600">Discount:</span>
                     <span className="font-medium">-{formatCurrency(currentInvoice?.discountAmount || 0)}</span>
                   </div>
                 )}
-                <div className="border-t pt-3">
-                  <div className="flex justify-between">
+                <div className="border-t pt-1">
+                  <div className="flex justify-between compact-text-sm">
                     <span className="font-semibold text-slate-900">Total Amount:</span>
-                    <span className="font-bold text-lg">{formatCurrency(currentInvoice?.totalAmount || 0)}</span>
+                    <span className="font-bold">{formatCurrency(currentInvoice?.totalAmount || 0)}</span>
                   </div>
                 </div>
                 {parseFloat(currentInvoice?.amountPaid || '0') > 0 && (
-                  <div className="flex justify-between">
+                  <div className="flex justify-between compact-text-xs">
                     <span className="text-slate-600">Amount Paid:</span>
                     <span className="font-medium">{formatCurrency(currentInvoice?.amountPaid || 0)}</span>
                   </div>
                 )}
                 {parseFloat(currentInvoice?.amountDue || '0') > 0 && (
-                  <div className="border-t pt-3">
-                    <div className="flex justify-between">
+                  <div className="border-t pt-1">
+                    <div className="flex justify-between compact-text-xs">
                       <span className="font-semibold text-red-700">Amount Due:</span>
                       <span className="font-bold text-red-700">{formatCurrency(currentInvoice?.amountDue || 0)}</span>
                     </div>
@@ -337,12 +373,12 @@ export default function InvoicePrintPage() {
           </div>
         </div>
 
-        {/* Payment Information */}
+        {/* Payment Information - Compact */}
         {(bankName || accountTitle || accountNumber) && (
-          <div className="mb-8">
-            <h3 className="text-lg font-semibold text-slate-900 mb-3">Payment Information</h3>
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="compact-mb">
+            <h3 className="compact-text-lg font-semibold text-slate-900 compact-mb-xs">Payment Information</h3>
+            <div className="bg-slate-50 border border-slate-200 rounded-lg compact-p">
+              <div className="grid grid-cols-2 gap-2 compact-text-xs">
                 {bankName && (
                   <div>
                     <span className="font-medium text-slate-600">Bank Name:</span>
@@ -378,33 +414,28 @@ export default function InvoicePrintPage() {
           </div>
         )}
 
-        {/* Notes and Terms */}
-        <div className="space-y-6 mb-8">
+        {/* Notes and Terms - Compact */}
+        <div className="compact-space-y compact-mb">
           {currentInvoice?.notes && (
             <div>
-              <h4 className="font-semibold text-slate-900 mb-2">Notes:</h4>
-              <p className="text-slate-700 text-sm">{currentInvoice.notes}</p>
+              <h4 className="font-semibold text-slate-900 compact-mb-xs compact-text-sm">Notes:</h4>
+              <p className="text-slate-700 compact-text-xs">{currentInvoice.notes}</p>
             </div>
           )}
           
           {currentInvoice?.termsAndConditions && (
             <div>
-              <h4 className="font-semibold text-slate-900 mb-2">Terms and Conditions:</h4>
-              <p className="text-slate-700 text-sm">{currentInvoice.termsAndConditions}</p>
+              <h4 className="font-semibold text-slate-900 compact-mb-xs compact-text-sm">Terms and Conditions:</h4>
+              <p className="text-slate-700 compact-text-xs">{currentInvoice.termsAndConditions}</p>
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="border-t pt-6 mt-8">
-          <div className="text-center text-sm text-slate-500">
-            <p className="mb-2">Thank you for your business!</p>
-            <p>
-              {firmName} | Invoice #{invoice.invoiceNumber} | Generated on {format(new Date(), 'MMMM dd, yyyy')}
-            </p>
-            <div className="text-center text-xs text-gray-400 mt-4">
-              about:blank
-            </div>
+        {/* Footer - Compact */}
+        <div className="border-t pt-2 mt-4">
+          <div className="text-center compact-text-xs text-slate-500">
+            <p>Thank you for your business!</p>
+            <p>Generated on {format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
           </div>
         </div>
       </div>
