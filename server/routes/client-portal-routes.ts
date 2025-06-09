@@ -618,8 +618,8 @@ export function registerClientPortalRoutes(app: Express) {
           i.payment_terms as "paymentTerms",
           i.created_at as "createdAt",
           i.updated_at as "updatedAt",
-          t.name as "serviceName",
-          t.details as "taskDetails"
+          t.title as "serviceName",
+          t.description as "taskDetails"
         FROM invoices i
         LEFT JOIN entities e ON i.entity_id = e.id AND i.tenant_id = e.tenant_id
         LEFT JOIN tasks t ON i.task_id = t.id AND i.tenant_id = t.tenant_id
@@ -684,8 +684,8 @@ export function registerClientPortalRoutes(app: Express) {
         SELECT 
           i.*,
           e.name as "entityName",
-          t.name as "serviceName",
-          t.details as "taskDetails"
+          t.title as "serviceName",
+          t.description as "taskDetails"
         FROM invoices i
         LEFT JOIN entities e ON i.entity_id = e.id AND i.tenant_id = e.tenant_id
         LEFT JOIN tasks t ON i.task_id = t.id AND i.tenant_id = t.tenant_id
