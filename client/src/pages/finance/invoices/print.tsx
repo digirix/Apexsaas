@@ -156,25 +156,26 @@ export default function InvoicePrintPage() {
             flex-direction: column !important;
             justify-content: space-between !important;
           }
-          .header-section { margin-bottom: 30px !important; }
-          .body-section { flex: 1 !important; margin-bottom: 30px !important; }
+          .header-section { margin-bottom: 20px !important; }
+          .body-section { flex: 1 !important; margin-bottom: 20px !important; }
           .footer-section { margin-top: auto !important; }
-          .professional-mb { margin-bottom: 20px !important; }
-          .professional-mb-lg { margin-bottom: 30px !important; }
-          .professional-mb-sm { margin-bottom: 12px !important; }
-          .professional-mb-xs { margin-bottom: 8px !important; }
-          .professional-text-3xl { font-size: 24px !important; font-weight: bold !important; }
-          .professional-text-2xl { font-size: 20px !important; font-weight: bold !important; }
-          .professional-text-xl { font-size: 18px !important; font-weight: bold !important; }
-          .professional-text-lg { font-size: 16px !important; font-weight: 600 !important; }
-          .professional-text-base { font-size: 12px !important; }
-          .professional-text-sm { font-size: 11px !important; }
-          .professional-text-xs { font-size: 10px !important; }
-          .professional-space-y > * + * { margin-top: 4px !important; }
-          .professional-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 30px !important; }
-          .professional-p { padding: 12px !important; }
-          .professional-px { padding-left: 12px !important; padding-right: 12px !important; }
-          .professional-py { padding-top: 8px !important; padding-bottom: 8px !important; }
+          .professional-mb { margin-bottom: 12px !important; }
+          .professional-mb-lg { margin-bottom: 16px !important; }
+          .professional-mb-sm { margin-bottom: 8px !important; }
+          .professional-mb-xs { margin-bottom: 4px !important; }
+          .professional-text-4xl { font-size: 28px !important; font-weight: bold !important; }
+          .professional-text-3xl { font-size: 22px !important; font-weight: bold !important; }
+          .professional-text-2xl { font-size: 18px !important; font-weight: bold !important; }
+          .professional-text-xl { font-size: 16px !important; font-weight: bold !important; }
+          .professional-text-lg { font-size: 14px !important; font-weight: 600 !important; }
+          .professional-text-base { font-size: 11px !important; }
+          .professional-text-sm { font-size: 10px !important; }
+          .professional-text-xs { font-size: 9px !important; }
+          .professional-space-y > * + * { margin-top: 2px !important; }
+          .professional-grid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 20px !important; }
+          .professional-p { padding: 8px !important; }
+          .professional-px { padding-left: 8px !important; padding-right: 8px !important; }
+          .professional-py { padding-top: 4px !important; padding-bottom: 4px !important; }
           @page {
             margin: 0.5in !important;
             size: A4 !important;
@@ -212,19 +213,19 @@ export default function InvoicePrintPage() {
         }
         @media print {
           .invoice-table {
-            margin: 20px 0 !important;
-            font-size: 12px !important;
+            margin: 12px 0 !important;
+            font-size: 11px !important;
           }
           .invoice-table th,
           .invoice-table td {
-            padding: 10px 12px !important;
+            padding: 6px 8px !important;
             border: 1px solid #333 !important;
-            font-size: 12px !important;
+            font-size: 11px !important;
           }
           .invoice-table th {
             background-color: #f5f5f5 !important;
             font-weight: bold !important;
-            font-size: 13px !important;
+            font-size: 12px !important;
           }
         }
       `}</style>
@@ -282,10 +283,10 @@ export default function InvoicePrintPage() {
           {/* Header Section */}
           <div className="header-section">
             {/* Invoice Header */}
-            <div className="professional-grid professional-mb-lg">
+            <div className="professional-grid professional-mb">
               {/* Firm Information */}
               <div>
-                <h1 className="professional-text-3xl text-slate-900 professional-mb-xs">{firmName}</h1>
+                <h1 className="professional-text-4xl text-slate-900 professional-mb-xs font-black">{firmName}</h1>
                 <p className="professional-text-lg text-slate-600 professional-mb-sm">{firmTagline}</p>
                 <div className="professional-text-base text-slate-700 professional-space-y">
                   <p>{firmAddress}</p>
@@ -297,7 +298,7 @@ export default function InvoicePrintPage() {
               
               {/* Invoice Details */}
               <div className="text-right">
-                <h2 className="professional-text-2xl text-slate-900 professional-mb-sm">INVOICE</h2>
+                <h2 className="professional-text-2xl text-slate-900 professional-mb-xs">INVOICE</h2>
                 <div className="professional-text-base text-slate-700 professional-space-y">
                   <p><span className="font-semibold">Invoice #:</span> {currentInvoice?.invoiceNumber || 'INV-001'}</p>
                   <p><span className="font-semibold">Date:</span> {currentInvoice?.issueDate ? format(new Date(currentInvoice.issueDate), 'dd/MM/yyyy') : format(new Date(), 'dd/MM/yyyy')}</p>
@@ -308,7 +309,7 @@ export default function InvoicePrintPage() {
             </div>
 
             {/* Client Information */}
-            <div className="professional-mb">
+            <div className="professional-mb-sm">
               <h3 className="professional-text-xl text-slate-900 professional-mb-xs">Bill To:</h3>
               <div className="text-slate-700 professional-text-base professional-space-y">
                 <p className="font-semibold">{client?.displayName || 'Client Name'}</p>
@@ -348,44 +349,44 @@ export default function InvoicePrintPage() {
             </div>
 
             {/* Totals Section */}
-            <div className="flex justify-end professional-mb-lg">
-              <div style={{ width: '350px' }}>
-                <div className="border-2 border-slate-300 rounded-lg overflow-hidden">
-                  <div className="bg-slate-100 professional-px professional-py border-b-2 border-slate-300">
-                    <h4 className="font-bold text-slate-900 professional-text-lg">Invoice Summary</h4>
+            <div className="flex justify-end professional-mb">
+              <div style={{ width: '300px' }}>
+                <div className="border border-slate-300 rounded overflow-hidden">
+                  <div className="bg-slate-100 professional-px professional-py border-b border-slate-300">
+                    <h4 className="font-bold text-slate-900 professional-text-base">Invoice Summary</h4>
                   </div>
                   <div className="professional-p professional-space-y">
-                    <div className="flex justify-between professional-text-base">
+                    <div className="flex justify-between professional-text-sm">
                       <span className="text-slate-700">Subtotal:</span>
                       <span className="font-semibold">{formatCurrency(currentInvoice?.subtotal || 0)}</span>
                     </div>
                     {parseFloat(currentInvoice?.taxAmount || '0') > 0 && (
-                      <div className="flex justify-between professional-text-base">
+                      <div className="flex justify-between professional-text-sm">
                         <span className="text-slate-700">Tax ({currentInvoice?.taxPercent || 0}%):</span>
                         <span className="font-semibold">{formatCurrency(currentInvoice?.taxAmount || 0)}</span>
                       </div>
                     )}
                     {parseFloat(currentInvoice?.discountAmount || '0') > 0 && (
-                      <div className="flex justify-between professional-text-base">
+                      <div className="flex justify-between professional-text-sm">
                         <span className="text-slate-700">Discount:</span>
                         <span className="font-semibold">-{formatCurrency(currentInvoice?.discountAmount || 0)}</span>
                       </div>
                     )}
-                    <div className="border-t-2 border-slate-300 pt-2">
-                      <div className="flex justify-between professional-text-lg">
+                    <div className="border-t border-slate-300 pt-1">
+                      <div className="flex justify-between professional-text-base">
                         <span className="font-bold text-slate-900">Total Amount:</span>
                         <span className="font-bold text-slate-900">{formatCurrency(currentInvoice?.totalAmount || 0)}</span>
                       </div>
                     </div>
                     {parseFloat(currentInvoice?.amountPaid || '0') > 0 && (
-                      <div className="flex justify-between professional-text-base">
+                      <div className="flex justify-between professional-text-sm">
                         <span className="text-slate-700">Amount Paid:</span>
                         <span className="font-semibold">{formatCurrency(currentInvoice?.amountPaid || 0)}</span>
                       </div>
                     )}
                     {parseFloat(currentInvoice?.amountDue || '0') > 0 && (
-                      <div className="border-t border-red-200 pt-2">
-                        <div className="flex justify-between professional-text-base">
+                      <div className="border-t border-red-200 pt-1">
+                        <div className="flex justify-between professional-text-sm">
                           <span className="font-bold text-red-700">Amount Due:</span>
                           <span className="font-bold text-red-700">{formatCurrency(currentInvoice?.amountDue || 0)}</span>
                         </div>
@@ -401,38 +402,38 @@ export default function InvoicePrintPage() {
           <div className="footer-section">
             {/* Payment Information */}
             {(bankName || accountTitle || accountNumber) && (
-              <div className="professional-mb-lg">
-                <h3 className="professional-text-xl font-bold text-slate-900 professional-mb-sm">Payment Information</h3>
-                <div className="bg-slate-50 border-2 border-slate-200 rounded-lg professional-p">
-                  <div className="grid grid-cols-2 gap-6 professional-text-base">
+              <div className="professional-mb-sm">
+                <h3 className="professional-text-base font-bold text-slate-900 professional-mb-xs">Payment Information</h3>
+                <div className="bg-slate-50 border border-slate-200 rounded professional-p-sm">
+                  <div className="grid grid-cols-2 gap-3 professional-text-xs">
                     {bankName && (
                       <div>
-                        <span className="font-semibold text-slate-700">Bank Name:</span>
-                        <p className="text-slate-900 font-medium">{bankName}</p>
+                        <span className="font-semibold text-slate-700">Bank:</span>
+                        <span className="text-slate-900 ml-1">{bankName}</span>
                       </div>
                     )}
                     {accountTitle && (
                       <div>
-                        <span className="font-semibold text-slate-700">Account Title:</span>
-                        <p className="text-slate-900 font-medium">{accountTitle}</p>
+                        <span className="font-semibold text-slate-700">Account:</span>
+                        <span className="text-slate-900 ml-1">{accountTitle}</span>
                       </div>
                     )}
                     {accountNumber && (
                       <div>
-                        <span className="font-semibold text-slate-700">Account Number:</span>
-                        <p className="text-slate-900 font-medium">{accountNumber}</p>
+                        <span className="font-semibold text-slate-700">Number:</span>
+                        <span className="text-slate-900 ml-1">{accountNumber}</span>
                       </div>
                     )}
                     {routingNumber && (
                       <div>
-                        <span className="font-semibold text-slate-700">Routing Number:</span>
-                        <p className="text-slate-900 font-medium">{routingNumber}</p>
+                        <span className="font-semibold text-slate-700">Routing:</span>
+                        <span className="text-slate-900 ml-1">{routingNumber}</span>
                       </div>
                     )}
                     {swiftCode && (
                       <div>
-                        <span className="font-semibold text-slate-700">SWIFT Code:</span>
-                        <p className="text-slate-900 font-medium">{swiftCode}</p>
+                        <span className="font-semibold text-slate-700">SWIFT:</span>
+                        <span className="text-slate-900 ml-1">{swiftCode}</span>
                       </div>
                     )}
                   </div>
@@ -441,27 +442,27 @@ export default function InvoicePrintPage() {
             )}
 
             {/* Notes and Terms */}
-            <div className="professional-space-y professional-mb">
+            <div className="professional-space-y-xs professional-mb-sm">
               {currentInvoice?.notes && (
-                <div className="professional-mb-sm">
-                  <h4 className="font-bold text-slate-900 professional-mb-xs professional-text-lg">Notes:</h4>
-                  <p className="text-slate-700 professional-text-base">{currentInvoice.notes}</p>
+                <div className="professional-mb-xs">
+                  <h4 className="font-bold text-slate-900 professional-mb-xs professional-text-sm">Notes:</h4>
+                  <p className="text-slate-700 professional-text-xs">{currentInvoice.notes}</p>
                 </div>
               )}
               
               {currentInvoice?.termsAndConditions && (
-                <div className="professional-mb-sm">
-                  <h4 className="font-bold text-slate-900 professional-mb-xs professional-text-lg">Terms and Conditions:</h4>
-                  <p className="text-slate-700 professional-text-base">{currentInvoice.termsAndConditions}</p>
+                <div className="professional-mb-xs">
+                  <h4 className="font-bold text-slate-900 professional-mb-xs professional-text-sm">Terms and Conditions:</h4>
+                  <p className="text-slate-700 professional-text-xs">{currentInvoice.termsAndConditions}</p>
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="border-t-2 border-slate-300 pt-4">
-              <div className="text-center professional-text-base text-slate-600">
+            <div className="border-t border-slate-300 pt-2">
+              <div className="text-center professional-text-xs text-slate-600">
                 <p className="font-semibold">Thank you for your business!</p>
-                <p className="professional-text-sm">Generated on {format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
+                <p className="professional-text-xs">Generated on {format(new Date(), 'dd/MM/yyyy HH:mm')}</p>
               </div>
             </div>
           </div>
