@@ -1,19 +1,27 @@
-import { useParams } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useParams, useLocation } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/app-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { FileText, Download, Share, Calendar, DollarSign, Building2, User } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { FileText, Download, Share, Calendar, DollarSign, Building2, User, Copy, CheckCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
+import { useState } from "react";
 import type { Invoice } from "@shared/schema";
 
 export default function InvoiceDetailPage() {
   const params = useParams();
   const tenantId = params.tenantId ? parseInt(params.tenantId) : null;
   const invoiceNumber = params.invoiceNumber || null;
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Fetch invoice by tenant ID and invoice number
   const { data: invoice, isLoading } = useQuery<Invoice>({
@@ -55,6 +63,75 @@ export default function InvoiceDetailPage() {
       return response.json();
     }
   });
+
+  // Download PDF handler
+  const handleDownloadPDF = async () => {
+    if (!invoice) return;
+    
+    try {
+      const response = await fetch(`/api/v1/finance/invoices/${invoice.id}/pdf`);
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+      
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Invoice_${invoice.invoiceNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "PDF Downloaded",
+        description: `Invoice ${invoice.invoiceNumber} has been downloaded successfully.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: "Failed to download the PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Share link generator
+  const handleGenerateShareLink = async () => {
+    if (!invoice) return;
+    
+    setIsSharing(true);
+    try {
+      // Generate a public share URL for this invoice
+      const baseUrl = window.location.origin;
+      const shareLink = `${baseUrl}/pay/${invoice.id}`;
+      setShareUrl(shareLink);
+      
+      // Copy to clipboard
+      await navigator.clipboard.writeText(shareLink);
+      
+      toast({
+        title: "Share Link Generated",
+        description: "Payment link copied to clipboard successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Share Failed",
+        description: "Failed to generate share link. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  // Process payment handler
+  const handleProcessPayment = () => {
+    if (!invoice) return;
+    setLocation(`/pay/${invoice.id}`);
+  };
 
   if (isLoading) {
     return (
@@ -108,13 +185,17 @@ export default function InvoiceDetailPage() {
             <Badge variant={getStatusBadgeVariant(invoice.status)}>
               {invoice.status?.toUpperCase()}
             </Badge>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
               <Download className="h-4 w-4 mr-2" />
               Download PDF
             </Button>
-            <Button variant="outline" size="sm">
-              <Share className="h-4 w-4 mr-2" />
-              Share
+            <Button variant="outline" size="sm" onClick={handleGenerateShareLink} disabled={isSharing}>
+              {isSharing ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-600 mr-2"></div>
+              ) : (
+                <Share className="h-4 w-4 mr-2" />
+              )}
+              {isSharing ? "Generating..." : "Share"}
             </Button>
           </div>
         </div>
@@ -295,19 +376,44 @@ export default function InvoiceDetailPage() {
                 <CardTitle>Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <Button className="w-full" variant="outline">
+                <Button className="w-full" variant="outline" onClick={handleDownloadPDF}>
                   <Download className="h-4 w-4 mr-2" />
                   Download PDF
                 </Button>
-                <Button className="w-full" variant="outline">
-                  <Share className="h-4 w-4 mr-2" />
-                  Generate Share Link
+                <Button className="w-full" variant="outline" onClick={handleGenerateShareLink} disabled={isSharing}>
+                  {isSharing ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-slate-600 mr-2"></div>
+                  ) : (
+                    <Share className="h-4 w-4 mr-2" />
+                  )}
+                  {isSharing ? "Generating..." : "Generate Share Link"}
                 </Button>
                 {invoice.status !== 'paid' && (
-                  <Button className="w-full">
+                  <Button 
+                    className="w-full" 
+                    onClick={handleProcessPayment}
+                    disabled={isProcessingPayment}
+                  >
                     <DollarSign className="h-4 w-4 mr-2" />
                     Process Payment
                   </Button>
+                )}
+                
+                {/* Show share URL if generated */}
+                {shareUrl && (
+                  <div className="mt-4 p-3 bg-slate-50 rounded-md">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-slate-600">Share Link:</span>
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        onClick={() => navigator.clipboard.writeText(shareUrl)}
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-slate-500 break-all mt-1">{shareUrl}</p>
+                  </div>
                 )}
               </CardContent>
             </Card>
