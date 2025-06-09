@@ -4499,9 +4499,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!tenant) {
         return res.status(404).json({ message: "Tenant not found" });
       }
+
+      // Get tenant settings for firm branding
+      const tenantSettings = await storage.getTenantSettings(tenantId);
       
-      // Import PDF generator
-      const { generateInvoicePdf } = await import('./utils/pdf-generator');
+      // Import enhanced PDF generator
+      const { generateEnhancedInvoicePdf } = await import('./utils/enhanced-pdf-generator');
       
       // Generate PDF with enhanced invoice data including service names
       const enhancedInvoice = {
@@ -4510,7 +4513,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         taskDetails: taskDetails
       } as typeof invoice & { serviceName?: string; taskDetails?: string };
       
-      const pdfContent = await generateInvoicePdf(enhancedInvoice, lineItems, client, entity, tenant);
+      const pdfContent = await generateEnhancedInvoicePdf(enhancedInvoice, lineItems, client, entity, tenant, tenantSettings);
       
       // Send the PDF to client
       res.setHeader('Content-Type', 'application/pdf');

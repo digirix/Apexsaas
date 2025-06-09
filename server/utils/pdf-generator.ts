@@ -3,12 +3,13 @@ import { Invoice, InvoiceLineItem, Client, Entity, Tenant } from '@shared/schema
 import { format } from 'date-fns';
 
 /**
- * Generates a professional, single-page PDF invoice with optimized layout
+ * Generates a professional PDF invoice with detailed layout matching client portal format
  * @param invoice The invoice data
  * @param lineItems Line items for the invoice
  * @param client The client data
  * @param entity The entity data
  * @param tenant The tenant data
+ * @param tenantSettings Optional tenant settings for firm information
  * @returns Buffer containing the PDF document
  */
 export async function generateInvoicePdf(
@@ -16,7 +17,8 @@ export async function generateInvoicePdf(
   lineItems: InvoiceLineItem[],
   client: Client,
   entity: Entity,
-  tenant: Tenant
+  tenant: Tenant,
+  tenantSettings?: any[]
 ): Promise<Buffer> {
   return new Promise((resolve) => {
     // Create a document that strictly enforces a single-page output

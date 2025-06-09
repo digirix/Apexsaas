@@ -739,8 +739,15 @@ export function registerClientPortalRoutes(app: Express) {
         return res.status(404).json({ message: 'Tenant not found' });
       }
       
-      // Import PDF generator
-      const { generateInvoicePdf } = await import('../utils/pdf-generator');
+      // Get tenant settings for firm branding
+      const tenantSettingsResults = await db.execute(sql`
+        SELECT key, value FROM tenant_settings 
+        WHERE tenant_id = ${user.tenantId}
+      `);
+      const tenantSettings = tenantSettingsResults.rows;
+
+      // Import enhanced PDF generator
+      const { generateEnhancedInvoicePdf } = await import('../utils/enhanced-pdf-generator');
       
       // Generate PDF with enhanced invoice data
       const enhancedInvoice = {
@@ -749,12 +756,13 @@ export function registerClientPortalRoutes(app: Express) {
         taskDetails: invoice.taskDetails
       };
       
-      const pdfContent = await generateInvoicePdf(
+      const pdfContent = await generateEnhancedInvoicePdf(
         enhancedInvoice,
         lineItemsResults.rows || [],
         clientResults.rows[0],
         entityResults.rows[0],
-        tenantResults.rows[0]
+        tenantResults.rows[0],
+        tenantSettings
       );
       
       // Send the PDF to client
