@@ -12,7 +12,7 @@ import { format } from 'date-fns';
  * @returns Buffer containing the PDF document
  */
 export async function generateInvoicePdf(
-  invoice: Invoice,
+  invoice: Invoice & { serviceName?: string; taskDetails?: string },
   lineItems: InvoiceLineItem[],
   client: Client,
   entity: Entity,

@@ -1182,7 +1182,7 @@ export class DatabaseStorage implements IStorage {
     // Create lookup maps - clients use displayName field, not name
     const clientMap = new Map(allClients.map(c => [c.id, c.displayName]));
     const entityMap = new Map(allEntities.map(e => [e.id, e.name]));
-    const taskMap = new Map(allTasks.map(t => [t.id, t.serviceTypeId]));
+    const taskMap = new Map(allTasks.map(t => [t.id, { serviceTypeId: t.serviceTypeId, taskDetails: t.taskDetails }]));
     const serviceTypeMap = new Map(allServiceTypes.map(s => [s.id, s.name]));
     
     // Enhance invoices with related data
@@ -1191,7 +1191,10 @@ export class DatabaseStorage implements IStorage {
       clientName: invoice.clientId ? clientMap.get(invoice.clientId) || null : null,
       entityName: invoice.entityId ? entityMap.get(invoice.entityId) || null : null,
       serviceName: invoice.taskId ? 
-        (taskMap.get(invoice.taskId) ? serviceTypeMap.get(taskMap.get(invoice.taskId)) || null : null) 
+        (taskMap.get(invoice.taskId) ? serviceTypeMap.get(taskMap.get(invoice.taskId)?.serviceTypeId) || null : null) 
+        : null,
+      taskDetails: invoice.taskId ? 
+        (taskMap.get(invoice.taskId)?.taskDetails || null) 
         : null
     }));
   }
@@ -1202,7 +1205,46 @@ export class DatabaseStorage implements IStorage {
         eq(invoices.id, id),
         eq(invoices.isDeleted, false)
       ));
-    return invoice;
+    
+    if (!invoice) return undefined;
+    
+    // Get task details if taskId exists
+    let taskDetails = null;
+    let serviceName = null;
+    let clientName = null;
+    let entityName = null;
+    
+    if (invoice.taskId) {
+      const [task] = await db.select().from(tasks).where(eq(tasks.id, invoice.taskId));
+      if (task) {
+        taskDetails = task.taskDetails;
+        
+        // Get service name
+        const [serviceType] = await db.select().from(serviceTypes)
+          .where(eq(serviceTypes.id, task.serviceTypeId));
+        serviceName = serviceType?.name || null;
+      }
+    }
+    
+    // Get client name
+    if (invoice.clientId) {
+      const [client] = await db.select().from(clients).where(eq(clients.id, invoice.clientId));
+      clientName = client?.displayName || null;
+    }
+    
+    // Get entity name
+    if (invoice.entityId) {
+      const [entity] = await db.select().from(entities).where(eq(entities.id, invoice.entityId));
+      entityName = entity?.name || null;
+    }
+    
+    return {
+      ...invoice,
+      taskDetails,
+      serviceName,
+      clientName,
+      entityName
+    };
   }
 
   async getInvoice(id: number, tenantId: number): Promise<Invoice | undefined> {
