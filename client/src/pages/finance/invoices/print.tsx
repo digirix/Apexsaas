@@ -52,7 +52,8 @@ export default function InvoicePrintPage() {
 
   const formatCurrency = (amount: string | number) => {
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-    const currencyCode = invoice?.currencyCode || 'PKR';
+    if (isNaN(num)) return 'PKR 0.00';
+    const currencyCode = currentInvoice?.currencyCode || 'PKR';
     return `${currencyCode} ${num.toFixed(2)}`;
   };
 
@@ -225,9 +226,9 @@ export default function InvoicePrintPage() {
           <div className="text-right">
             <h2 className="text-2xl font-bold text-slate-900 mb-2">INVOICE</h2>
             <div className="text-sm text-slate-600 space-y-1">
-              <p><strong>Invoice #:</strong> {invoice.invoiceNumber}</p>
-              <p><strong>Date:</strong> {format(new Date(invoice.issueDate), 'MMMM dd, yyyy')}</p>
-              <p><strong>Due Date:</strong> {format(new Date(invoice.dueDate), 'MMMM dd, yyyy')}</p>
+              <p><strong>Invoice #:</strong> {currentInvoice?.invoiceNumber || 'Loading...'}</p>
+              <p><strong>Date:</strong> {currentInvoice?.issueDate ? format(new Date(currentInvoice.issueDate), 'MMMM dd, yyyy') : 'Loading...'}</p>
+              <p><strong>Due Date:</strong> {currentInvoice?.dueDate ? format(new Date(currentInvoice.dueDate), 'MMMM dd, yyyy') : 'Loading...'}</p>
             </div>
           </div>
         </div>
@@ -236,8 +237,8 @@ export default function InvoicePrintPage() {
         <div className="mb-8">
           <h3 className="text-lg font-semibold text-slate-900 mb-3">Bill To:</h3>
           <div className="text-slate-700">
-            <p className="font-medium">{invoice.clientName}</p>
-            <p>{invoice.entityName}</p>
+            <p className="font-medium">{currentInvoice?.clientName || 'Client Name'}</p>
+            <p>{currentInvoice?.entityName || 'Entity Name'}</p>
           </div>
         </div>
 
@@ -255,14 +256,14 @@ export default function InvoicePrintPage() {
             <tbody>
               <tr>
                 <td>
-                  <div className="font-medium">{invoice.serviceName}</div>
-                  {invoice.taskDetails && (
-                    <div className="text-sm text-slate-600 mt-1">{invoice.taskDetails}</div>
+                  <div className="font-medium">{currentInvoice?.serviceName || 'Professional Services'}</div>
+                  {currentInvoice?.taskDetails && (
+                    <div className="text-sm text-slate-600 mt-1">{currentInvoice.taskDetails}</div>
                   )}
                 </td>
                 <td className="text-center">1</td>
-                <td className="text-right">{formatCurrency(invoice.subtotal)}</td>
-                <td className="text-right font-medium">{formatCurrency(invoice.subtotal)}</td>
+                <td className="text-right">{formatCurrency(currentInvoice?.subtotal || 0)}</td>
+                <td className="text-right font-medium">{formatCurrency(currentInvoice?.subtotal || 0)}</td>
               </tr>
             </tbody>
           </table>
@@ -278,37 +279,37 @@ export default function InvoicePrintPage() {
               <div className="p-4 space-y-3">
                 <div className="flex justify-between">
                   <span className="text-slate-600">Subtotal:</span>
-                  <span className="font-medium">{formatCurrency(invoice.subtotal)}</span>
+                  <span className="font-medium">{formatCurrency(currentInvoice?.subtotal || 0)}</span>
                 </div>
-                {parseFloat(invoice.taxAmount || '0') > 0 && (
+                {parseFloat(currentInvoice?.taxAmount || '0') > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-slate-600">Tax ({invoice.taxPercent}%):</span>
-                    <span className="font-medium">{formatCurrency(invoice.taxAmount)}</span>
+                    <span className="text-slate-600">Tax ({currentInvoice?.taxPercent || 0}%):</span>
+                    <span className="font-medium">{formatCurrency(currentInvoice?.taxAmount || 0)}</span>
                   </div>
                 )}
-                {parseFloat(invoice.discountAmount || '0') > 0 && (
+                {parseFloat(currentInvoice?.discountAmount || '0') > 0 && (
                   <div className="flex justify-between">
                     <span className="text-slate-600">Discount:</span>
-                    <span className="font-medium">-{formatCurrency(invoice.discountAmount)}</span>
+                    <span className="font-medium">-{formatCurrency(currentInvoice?.discountAmount || 0)}</span>
                   </div>
                 )}
                 <div className="border-t pt-3">
                   <div className="flex justify-between">
                     <span className="font-semibold text-slate-900">Total Amount:</span>
-                    <span className="font-bold text-lg">{formatCurrency(invoice.totalAmount)}</span>
+                    <span className="font-bold text-lg">{formatCurrency(currentInvoice?.totalAmount || 0)}</span>
                   </div>
                 </div>
-                {parseFloat(invoice.amountPaid || '0') > 0 && (
+                {parseFloat(currentInvoice?.amountPaid || '0') > 0 && (
                   <div className="flex justify-between">
                     <span className="text-slate-600">Amount Paid:</span>
-                    <span className="font-medium">{formatCurrency(invoice.amountPaid)}</span>
+                    <span className="font-medium">{formatCurrency(currentInvoice?.amountPaid || 0)}</span>
                   </div>
                 )}
-                {parseFloat(invoice.amountDue || '0') > 0 && (
+                {parseFloat(currentInvoice?.amountDue || '0') > 0 && (
                   <div className="border-t pt-3">
                     <div className="flex justify-between">
                       <span className="font-semibold text-red-700">Amount Due:</span>
-                      <span className="font-bold text-red-700">{formatCurrency(invoice.amountDue)}</span>
+                      <span className="font-bold text-red-700">{formatCurrency(currentInvoice?.amountDue || 0)}</span>
                     </div>
                   </div>
                 )}
@@ -360,17 +361,17 @@ export default function InvoicePrintPage() {
 
         {/* Notes and Terms */}
         <div className="space-y-6 mb-8">
-          {invoice.notes && (
+          {currentInvoice?.notes && (
             <div>
               <h4 className="font-semibold text-slate-900 mb-2">Notes:</h4>
-              <p className="text-slate-700 text-sm">{invoice.notes}</p>
+              <p className="text-slate-700 text-sm">{currentInvoice.notes}</p>
             </div>
           )}
           
-          {invoice.termsAndConditions && (
+          {currentInvoice?.termsAndConditions && (
             <div>
               <h4 className="font-semibold text-slate-900 mb-2">Terms and Conditions:</h4>
-              <p className="text-slate-700 text-sm">{invoice.termsAndConditions}</p>
+              <p className="text-slate-700 text-sm">{currentInvoice.termsAndConditions}</p>
             </div>
           )}
         </div>
