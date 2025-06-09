@@ -1177,8 +1177,8 @@ export class DatabaseStorage implements IStorage {
     const allClients = await db.select().from(clients).where(eq(clients.tenantId, tenantId));
     const allEntities = await db.select().from(entities).where(eq(entities.tenantId, tenantId));
     
-    // Create lookup maps
-    const clientMap = new Map(allClients.map(c => [c.id, c.name]));
+    // Create lookup maps - clients use displayName field, not name
+    const clientMap = new Map(allClients.map(c => [c.id, c.displayName]));
     const entityMap = new Map(allEntities.map(e => [e.id, e.name]));
     
     // Enhance invoices with related data
