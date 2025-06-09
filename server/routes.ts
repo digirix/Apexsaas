@@ -4421,6 +4421,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch invoice details" });
     }
   });
+
+  // GET invoice by tenant ID and invoice number
+  app.get("/api/v1/finance/invoices/by-number/:tenantId/:invoiceNumber", isAuthenticated, async (req, res) => {
+    try {
+      const userTenantId = (req.user as any).tenantId;
+      const tenantId = parseInt(req.params.tenantId);
+      const invoiceNumber = req.params.invoiceNumber;
+      
+      // Security check: ensure user can only access their own tenant's invoices
+      if (userTenantId !== tenantId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Find invoice by tenant ID and invoice number
+      const invoices = await storage.getInvoices(tenantId);
+      const invoice = invoices.find(inv => inv.invoiceNumber === invoiceNumber);
+      
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      
+      res.json(invoice);
+    } catch (error) {
+      console.error("Error fetching invoice by number:", error);
+      res.status(500).json({ message: "Failed to fetch invoice" });
+    }
+  });
   
   // GET invoice PDF by ID
   app.get("/api/v1/finance/invoices/:id/pdf", isAuthenticated, async (req, res) => {

@@ -654,38 +654,28 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
         termsAndConditions: "Standard terms and conditions apply."
       };
       
-      // Check if invoice exists for this task
+      // Check if this task already has an invoice linked to it
       let existingInvoice = null;
       
-      // First check if we already know the invoice ID from the task
+      // Only check for existing invoice if the task already has an invoiceId
+      // This ensures we only update when there's a direct link, not when creating new invoices
       if (task?.invoiceId) {
         try {
           const invoiceResponse = await fetch(`/api/v1/finance/invoices/${task.invoiceId}`);
           if (invoiceResponse.ok) {
             existingInvoice = await invoiceResponse.json();
+            console.log("Found existing linked invoice:", existingInvoice.id);
           }
         } catch (err) {
-          console.error("Error fetching invoice by ID:", err);
-        }
-      }
-      
-      // If not found by ID, try finding by task ID
-      if (!existingInvoice) {
-        try {
-          const checkResponse = await fetch(`/api/v1/finance/invoices?taskId=${data.taskId}`);
-          const existingInvoices = await checkResponse.json();
-          if (existingInvoices.length > 0) {
-            existingInvoice = existingInvoices[0];
-          }
-        } catch (err) {
-          console.error("Error fetching invoice by task ID:", err);
+          console.error("Error fetching linked invoice:", err);
+          // If we can't fetch the linked invoice, we'll create a new one
         }
       }
       
       let response;
-      if (existingInvoice) {
-        console.log("Updating existing invoice:", existingInvoice.id);
-        // Update existing invoice
+      if (existingInvoice && task?.invoiceId) {
+        console.log("Updating existing linked invoice:", existingInvoice.id);
+        // Update existing invoice only if task has a direct link to it
         response = await apiRequest(
           "PUT", 
           `/api/v1/finance/invoices/${existingInvoice.id}`, 
@@ -693,7 +683,12 @@ export function TaskDetails({ isOpen, onClose, taskId, initialTab = "details", i
         );
       } else {
         console.log("Creating new invoice for task:", data.taskId);
-        // Create new invoice
+        // Always create new invoice if no direct link exists
+        // Generate unique invoice number with timestamp to avoid conflicts
+        const timestamp = Date.now();
+        const uniqueInvoiceNumber = `INV-${payload.invoiceNumber.split('-').slice(1).join('-')}-${timestamp}`;
+        payload.invoiceNumber = uniqueInvoiceNumber;
+        
         response = await apiRequest(
           "POST", 
           "/api/v1/finance/invoices", 

@@ -26,6 +26,7 @@ import AiReportingPage from "@/pages/ai-reporting-page";
 import FinancePage from "@/pages/finance/index";
 import CreateInvoicePage from "@/pages/finance/invoices/create";
 import CreateInvoiceFromTaskPage from "@/pages/finance/invoices/from-task";
+import InvoiceDetailPage from "@/pages/finance/invoices/detail";
 import CreatePaymentPage from "@/pages/finance/payments/create";
 import CreateChartOfAccountPage from "@/pages/finance/chart-of-accounts/create";
 import CreateJournalEntryPage from "@/pages/finance/journal-entries/create";
@@ -97,6 +98,7 @@ function Router() {
       {/* Direct invoice creation disabled - invoices are now created only through tasks */}
       {/* <ProtectedRoute path="/finance/invoices/create" component={CreateInvoicePage} /> */}
       <ProtectedRoute path="/finance/invoices/from-task" component={CreateInvoiceFromTaskPage} />
+      <ProtectedRoute path="/finance/invoices/:tenantId/:invoiceNumber" component={InvoiceDetailPage} />
       <ProtectedRoute path="/finance/payments/create" component={CreatePaymentPage} />
       <ProtectedRoute path="/finance/account-heads" component={AccountHeadsManagementPage} />
       <ProtectedRoute path="/finance/chart-of-accounts/create" component={CreateChartOfAccountPage} />
