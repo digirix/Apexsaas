@@ -104,7 +104,7 @@ export default function ClientPortalDashboardPage() {
 
   // Fetch invoices (all or filtered by entity)
   const { data: clientInvoicesData, isLoading: isInvoicesLoading, error: invoicesError, refetch: refetchInvoices } = useQuery({
-    queryKey: ['/api/client-portal/invoices', selectedEntityId]
+    queryKey: ['/api/v1/client-portal/invoices', selectedEntityId]
   });
   const clientInvoices = Array.isArray(clientInvoicesData) ? clientInvoicesData : [];
 

@@ -42,9 +42,22 @@ async function comparePasswords(supplied: string, stored: string) {
 
 // Check if client is authenticated
 function isClientAuthenticated(req: Request, res: Response, next: Function) {
-  if (req.isAuthenticated() && (req.user as any).isClientPortalUser) {
-    return next();
+  // Check if user is authenticated and has client portal access
+  if (req.isAuthenticated() && req.user) {
+    const user = req.user as any;
+    
+    // Check if this is a client portal user (has clientId property)
+    if (user.isClientPortalUser === true || user.clientId) {
+      return next();
+    }
   }
+  
+  console.log('Client portal authentication failed:', {
+    isAuthenticated: req.isAuthenticated(),
+    user: req.user ? 'User exists' : 'No user',
+    userType: req.user ? (req.user as any).isClientPortalUser : 'N/A'
+  });
+  
   res.status(401).json({ message: 'Unauthorized' });
 }
 
