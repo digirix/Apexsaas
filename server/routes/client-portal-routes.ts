@@ -20,24 +20,15 @@ import { DatabaseStorage } from '../database-storage';
 
 // Use the same DatabaseStorage instance that works in admin portal
 const storage = new DatabaseStorage();
-import { scrypt, randomBytes, timingSafeEqual } from "crypto";
-import { promisify } from "util";
-
-// Promisify scrypt
-const scryptAsync = promisify(scrypt);
+import bcrypt from "bcrypt";
 
 // Helper functions for password management
 async function hashPassword(password: string) {
-  const salt = randomBytes(16).toString("hex");
-  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `${buf.toString("hex")}.${salt}`;
+  return await bcrypt.hash(password, 12);
 }
 
 async function comparePasswords(supplied: string, stored: string) {
-  const [hashed, salt] = stored.split(".");
-  const hashedBuf = Buffer.from(hashed, "hex");
-  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-  return timingSafeEqual(hashedBuf, suppliedBuf);
+  return await bcrypt.compare(supplied, stored);
 }
 
 // Check if client is authenticated
@@ -99,8 +90,9 @@ export function registerClientPortalRoutes(app: Express) {
       }
       
       // Verify password
+      console.log('Comparing passwords - provided:', password.length, 'stored:', accessRecord.password.length);
       const passwordMatch = await comparePasswords(password, accessRecord.password);
-      console.log('Password match:', passwordMatch);
+      console.log('Password match result:', passwordMatch);
       
       if (!passwordMatch) {
         console.log('Client portal login failed: Invalid password');
