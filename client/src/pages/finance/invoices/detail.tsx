@@ -369,7 +369,7 @@ export default function InvoiceDetailPage() {
               <CardContent className="space-y-2">
                 <Button className="w-full" variant="outline" onClick={handleDownloadPDF}>
                   <Download className="h-4 w-4 mr-2" />
-                  Download PDF
+                  Print Invoice
                 </Button>
                 <Button className="w-full" variant="outline" onClick={handleGenerateShareLink} disabled={isSharing}>
                   {isSharing ? (

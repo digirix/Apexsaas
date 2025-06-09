@@ -122,7 +122,7 @@ export default function InvoiceDetailPage() {
             </Badge>
             <Button variant="outline" onClick={downloadPDF}>
               <Download className="h-4 w-4 mr-2" />
-              Download PDF
+              Print Invoice
             </Button>
           </div>
         </div>
