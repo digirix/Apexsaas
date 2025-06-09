@@ -287,7 +287,7 @@ function FinancePage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {paymentsLoading ? "..." : formatCurrencySymbol(financialMetrics.totalReceived, invoices?.[0]?.currencyCode || "USD")}
+                {paymentsLoading ? "..." : formatCurrencySymbol(financialMetrics.totalReceived, primaryCurrency)}
               </div>
               <p className="text-xs text-muted-foreground">
                 All payments received
@@ -302,7 +302,7 @@ function FinancePage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {invoicesLoading ? "..." : formatCurrency(financialMetrics.totalOutstanding)}
+                {invoicesLoading ? "..." : formatCurrencySymbol(financialMetrics.totalOutstanding, primaryCurrency)}
               </div>
               <p className="text-xs text-muted-foreground">
                 Unpaid invoice amounts
