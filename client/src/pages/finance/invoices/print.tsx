@@ -43,23 +43,48 @@ export default function InvoicePrintPage() {
     return `${currencyCode} ${num.toFixed(2)}`;
   };
 
-  if (isLoading) {
+  // Loading state
+  if (isLoading || settingsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
           <p className="text-slate-600">Loading invoice...</p>
+          <div className="mt-4 text-xs text-slate-500">
+            <p>Invoice: {isLoading ? 'Loading...' : 'Loaded'}</p>
+            <p>Settings: {settingsLoading ? 'Loading...' : 'Loaded'}</p>
+            <p>Invoice ID: {id}</p>
+          </div>
         </div>
       </div>
     );
   }
 
+  // Error state
   if (error || !invoice) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
           <p className="text-red-600">Failed to load invoice</p>
           <p className="text-slate-600 text-sm mt-2">Invoice ID: {id}</p>
+          <div className="mt-4 text-xs text-slate-500">
+            <p>Error: {error ? String(error) : 'Invoice not found'}</p>
+            <Button 
+              onClick={() => setDebugMode(!debugMode)}
+              variant="outline"
+              size="sm"
+              className="mt-2"
+            >
+              {debugMode ? 'Hide' : 'Show'} Debug Info
+            </Button>
+            {debugMode && (
+              <div className="mt-2 text-left bg-slate-100 p-3 rounded">
+                <p><strong>Invoice Data:</strong> {invoice ? 'Available' : 'Missing'}</p>
+                <p><strong>Settings Data:</strong> {tenantSettings ? 'Available' : 'Missing'}</p>
+                <p><strong>Error:</strong> {error ? JSON.stringify(error) : 'None'}</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -124,6 +149,58 @@ export default function InvoicePrintPage() {
       `}</style>
 
       <div className="print-container bg-white">
+        {/* Debug Panel - Only visible on screen */}
+        <div className="no-print bg-yellow-50 border border-yellow-200 p-4 mb-6 rounded-lg">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="font-semibold text-yellow-800">Invoice Print Debug Panel</h3>
+            <div className="space-x-2">
+              <Button 
+                onClick={() => window.print()}
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Printer className="w-4 h-4 mr-2" />
+                Print Invoice
+              </Button>
+              <Button 
+                onClick={() => setDebugMode(!debugMode)}
+                variant="outline"
+                size="sm"
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                {debugMode ? 'Hide' : 'Show'} Data
+              </Button>
+            </div>
+          </div>
+          
+          {debugMode && (
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <h4 className="font-medium text-yellow-800 mb-2">Invoice Data:</h4>
+                <div className="bg-white p-2 rounded border text-xs">
+                  <p><strong>ID:</strong> {invoice?.id}</p>
+                  <p><strong>Number:</strong> {invoice?.invoiceNumber}</p>
+                  <p><strong>Client:</strong> {invoice?.clientName}</p>
+                  <p><strong>Entity:</strong> {invoice?.entityName}</p>
+                  <p><strong>Service:</strong> {invoice?.serviceName}</p>
+                  <p><strong>Amount:</strong> {invoice?.totalAmount}</p>
+                </div>
+              </div>
+              <div>
+                <h4 className="font-medium text-yellow-800 mb-2">Firm Settings:</h4>
+                <div className="bg-white p-2 rounded border text-xs">
+                  <p><strong>Firm Name:</strong> {getSetting('firm_name') || 'Not Set'}</p>
+                  <p><strong>Tagline:</strong> {getSetting('tagline') || 'Not Set'}</p>
+                  <p><strong>Address:</strong> {getSetting('address') || 'Not Set'}</p>
+                  <p><strong>Phone:</strong> {getSetting('phone') || 'Not Set'}</p>
+                  <p><strong>Email:</strong> {getSetting('email') || 'Not Set'}</p>
+                  <p><strong>Bank Name:</strong> {getSetting('bank_name') || 'Not Set'}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Header */}
         <div className="flex justify-between items-start mb-8 border-b pb-6">
           <div>
