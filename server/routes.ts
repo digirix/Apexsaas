@@ -4462,25 +4462,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Generating PDF for invoice ${id} in tenant ${tenantId}`);
       
-      // Get invoice data with task information for service names
-      const invoiceResults = await db.execute(sql`
-        SELECT 
-          i.*,
-          t.name as "serviceName",
-          t.details as "taskDetails"
-        FROM invoices i
-        LEFT JOIN tasks t ON i.task_id = t.id AND i.tenant_id = t.tenant_id
-        WHERE 
-          i.id = ${id}
-          AND i.tenant_id = ${tenantId}
-          AND i.is_deleted = FALSE
-      `);
-      
-      if (!invoiceResults.rows || invoiceResults.rows.length === 0) {
+      // Get invoice data
+      const invoice = await storage.getInvoice(id, tenantId);
+      if (!invoice) {
         return res.status(404).json({ message: "Invoice not found" });
       }
       
-      const invoice = invoiceResults.rows[0];
+      // Get task information for service names if taskId exists
+      let serviceName = '';
+      let taskDetails = '';
+      
+      if (invoice.taskId) {
+        const task = await storage.getTask(invoice.taskId, tenantId);
+        if (task) {
+          // Get service type name
+          const serviceType = await storage.getServiceType(task.serviceTypeId, tenantId);
+          serviceName = serviceType?.name || '';
+          taskDetails = task.taskDetails || '';
+        }
+      }
       
       // Get line items for this invoice
       const lineItems = await storage.getInvoiceLineItems(tenantId, id);
@@ -4509,9 +4509,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate PDF with enhanced invoice data including service names
       const enhancedInvoice = {
         ...invoice,
-        serviceName: invoice.serviceName,
-        taskDetails: invoice.taskDetails
-      };
+        serviceName: serviceName,
+        taskDetails: taskDetails
+      } as typeof invoice & { serviceName?: string; taskDetails?: string };
       
       const pdfContent = await generateInvoicePdf(enhancedInvoice, lineItems, client, entity, tenant);
       
