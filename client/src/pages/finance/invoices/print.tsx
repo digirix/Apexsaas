@@ -20,12 +20,6 @@ export default function InvoicePrintPage() {
     enabled: !!id,
   });
 
-  // Fetch line items
-  const { data: lineItems = [] } = useQuery({
-    queryKey: ["/api/v1/finance/invoices", parseInt(id!), "line-items"],
-    enabled: !!id,
-  });
-
   // Auto-focus print dialog when page loads
   useEffect(() => {
     if (invoice && !isLoading) {
@@ -45,7 +39,7 @@ export default function InvoicePrintPage() {
 
   const formatCurrency = (amount: string | number) => {
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return `${invoice?.currencyCode || 'USD'} ${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return num.toFixed(2);
   };
 
   if (isLoading) {
@@ -69,21 +63,25 @@ export default function InvoicePrintPage() {
     );
   }
 
-  const firmName = getSetting('firm_name') || getSetting('name') || 'Your Firm';
-  const taskDetails = invoice.serviceName || invoice.taskDetails || 'Professional Services';
+  const firmName = getSetting('firm_name') || getSetting('name') || 'Apex Financial Advisory';
+  const firmTagline = getSetting('tagline') || 'Your Personal Accountant';
+  const firmAddress = getSetting('address') || '30 N Gould St, Ste R';
+  const firmPhone = getSetting('phone') || '+92 31 35661968';
+  const firmEmail = getSetting('email') || 'super@gmail.com';
 
   return (
     <>
       {/* Print styles */}
-      <style jsx>{`
+      <style>{`
         @media print {
-          body { margin: 0; }
+          body { margin: 0; padding: 0; }
           .no-print { display: none !important; }
           .print-container { 
             max-width: none !important; 
             margin: 0 !important; 
             padding: 20px !important;
           }
+          .page-break { page-break-before: always; }
         }
         @media screen {
           .print-container {
@@ -95,9 +93,28 @@ export default function InvoicePrintPage() {
             box-shadow: 0 0 20px rgba(0,0,0,0.1);
           }
         }
+        .invoice-table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+        .invoice-table th,
+        .invoice-table td {
+          border: 1px solid #ddd;
+          padding: 8px;
+          text-align: left;
+        }
+        .invoice-table th {
+          background-color: #f5f5f5;
+          font-weight: bold;
+        }
+        .amount-due {
+          background-color: #ffebee;
+          font-weight: bold;
+          color: #d32f2f;
+        }
       `}</style>
 
-      <div className="min-h-screen bg-slate-50 py-8">
+      <div className="min-h-screen bg-white py-8">
         {/* Print button - hidden in print mode */}
         <div className="no-print fixed top-4 right-4 z-10">
           <Button onClick={() => window.print()} className="gap-2">
@@ -107,168 +124,155 @@ export default function InvoicePrintPage() {
         </div>
 
         <div className="print-container">
-          {/* Invoice Header with Gradient Background */}
-          <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100 mb-8">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900 mb-2">INVOICE</h1>
-                <div className="flex items-center space-x-3">
-                  <span className={`px-3 py-1 text-sm font-medium rounded-full ${
-                    invoice.status === 'paid' ? 'bg-green-100 text-green-700' :
-                    invoice.status === 'overdue' ? 'bg-red-100 text-red-700' :
-                    invoice.status === 'sent' ? 'bg-blue-100 text-blue-700' :
-                    'bg-gray-100 text-gray-700'
-                  }`}>
-                    {invoice.status?.toUpperCase()}
-                  </span>
-                  {invoice.issueDate && (
-                    <span className="text-sm text-slate-600">
-                      Issued: {format(new Date(invoice.issueDate), 'MMM dd, yyyy')}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Invoice Number</p>
-                <p className="text-xl font-bold text-slate-900">#{invoice.invoiceNumber || invoice.id}</p>
-              </div>
+          {/* Date and Invoice Number Header */}
+          <div className="flex justify-between items-center mb-4">
+            <div className="text-sm text-gray-600">
+              {format(new Date(), 'M/d/yy, h:mm a')}
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-sm text-gray-600">
+              Invoice #{invoice.invoiceNumber}
+            </div>
+          </div>
+
+          {/* Company Header - Blue */}
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold text-blue-600 mb-1">{firmName}</h1>
+            <p className="text-sm text-gray-600 mb-2">{firmTagline}</p>
+            <p className="text-sm text-gray-600">{firmAddress} | {firmPhone} | {firmEmail}</p>
+          </div>
+
+          <hr className="border-gray-400 mb-6" />
+
+          {/* Invoice Title and Details */}
+          <div className="text-center mb-6">
+            <h2 className="text-xl font-bold mb-2">INVOICE</h2>
+            <p className="text-sm text-gray-600">#{invoice.invoiceNumber}</p>
+            <div className="inline-block bg-gray-200 px-4 py-1 mt-2">
+              <span className="text-sm font-medium">{invoice.status?.toUpperCase()}</span>
+            </div>
+          </div>
+
+          {/* Bill To and Invoice Details */}
+          <div className="grid grid-cols-2 gap-8 mb-6">
+            <div>
+              <h3 className="font-bold mb-2">Bill To:</h3>
+              <p className="font-medium">{invoice.clientName}</p>
+              <p className="text-sm text-gray-600">{invoice.entityName}</p>
+              <p className="text-sm text-gray-600">Pakistan</p>
+              <p className="text-sm text-gray-600">Tax ID: 123123</p>
+            </div>
+            <div>
+              <h3 className="font-bold mb-2">Invoice Details:</h3>
+              <p className="text-sm"><span className="font-medium">Issue Date:</span> {format(new Date(invoice.issueDate), 'M/d/yyyy')}</p>
+              <p className="text-sm"><span className="font-medium">Due Date:</span> {format(new Date(invoice.dueDate), 'M/d/yyyy')}</p>
+              <p className="text-sm"><span className="font-medium">Currency:</span> {invoice.currencyCode}</p>
+              <p className="text-sm"><span className="font-medium">Client:</span> {invoice.clientName}</p>
+            </div>
+          </div>
+
+          {/* Services Table */}
+          <table className="invoice-table mb-6">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th style={{textAlign: 'center'}}>Quantity</th>
+                <th style={{textAlign: 'right'}}>Rate</th>
+                <th style={{textAlign: 'right'}}>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{invoice.taskDetails || invoice.serviceName || 'Professional Services'}</td>
+                <td style={{textAlign: 'center'}}>1</td>
+                <td style={{textAlign: 'right'}}>{formatCurrency(invoice.subtotal)}</td>
+                <td style={{textAlign: 'right'}}>{formatCurrency(invoice.subtotal)}</td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td style={{textAlign: 'right'}}><strong>Subtotal:</strong></td>
+                <td style={{textAlign: 'right'}}><strong>{formatCurrency(invoice.subtotal)}</strong></td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td style={{textAlign: 'right'}}>Tax:</td>
+                <td style={{textAlign: 'right'}}>{formatCurrency(invoice.taxAmount || '0.00')}</td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td style={{textAlign: 'right'}}>Discount:</td>
+                <td style={{textAlign: 'right'}}>-{formatCurrency(invoice.discountAmount || '0.00')}</td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td style={{textAlign: 'right'}}><strong>Total:</strong></td>
+                <td style={{textAlign: 'right'}}><strong>{formatCurrency(invoice.totalAmount)}</strong></td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td style={{textAlign: 'right'}}>Amount Paid:</td>
+                <td style={{textAlign: 'right'}}>{formatCurrency(invoice.amountPaid || '0.00')}</td>
+              </tr>
+              <tr className="amount-due">
+                <td></td>
+                <td></td>
+                <td style={{textAlign: 'right'}}><strong>Amount Due:</strong></td>
+                <td style={{textAlign: 'right'}}><strong>{formatCurrency(invoice.amountDue)}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+
+          {/* Notes */}
+          <div className="mb-6">
+            <h3 className="font-bold mb-2">Notes:</h3>
+            <p className="text-sm">{invoice.notes || `Invoice for task #${invoice.taskId}`}</p>
+          </div>
+
+          <hr className="border-blue-600 mb-6" />
+
+          {/* Payment Information */}
+          <div className="mb-6">
+            <h3 className="font-bold text-blue-600 mb-3">Payment Information</h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">From</p>
-                <div className="space-y-1">
-                  <p className="font-semibold text-slate-900">{firmName}</p>
-                  {getSetting('address') && <p className="text-sm text-slate-600">{getSetting('address')}</p>}
-                  {getSetting('email') && <p className="text-sm text-slate-600">{getSetting('email')}</p>}
-                  {getSetting('phone') && <p className="text-sm text-slate-600">{getSetting('phone')}</p>}
-                </div>
+                <p><strong>Bank Name:</strong></p>
+                <p><strong>Account Title:</strong></p>
+                <p><strong>Account Number:</strong></p>
+                <p><strong>Routing Number:</strong></p>
+                <p><strong>SWIFT Code:</strong></p>
+                <p><strong>IBAN:</strong></p>
               </div>
-              
               <div>
-                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Bill To</p>
-                <div className="space-y-1">
-                  <p className="font-semibold text-slate-900">{invoice.clientName || "Client"}</p>
-                  <p className="text-sm text-slate-600">{invoice.entityName || "Entity"}</p>
-                </div>
-              </div>
-              
-              <div>
-                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Amount</p>
-                <p className="text-xl font-bold text-slate-900">
-                  {formatCurrency(invoice.totalAmount || 0)}
-                </p>
-                {invoice.amountDue && parseFloat(invoice.amountDue) > 0 && (
-                  <p className="text-sm text-red-600">
-                    Due: {formatCurrency(invoice.amountDue)}
-                  </p>
-                )}
+                <p>Meezan Bank</p>
+                <p>Apex Financial Advisory</p>
+                <p>787878747</p>
+                <p>7878</p>
+                <p>sedfsadf</p>
+                <p>sdjaakfjfap7878798777</p>
               </div>
             </div>
           </div>
 
-          {/* Services Provided Section */}
-          <div className="bg-white border rounded-lg overflow-hidden mb-8">
-            <div className="bg-slate-50 px-4 py-3 border-b">
-              <h3 className="font-semibold text-slate-900">Services Provided</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Description</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Qty</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Rate</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lineItems && lineItems.length > 0 ? (
-                    lineItems.map((item: any, idx: number) => (
-                      <tr key={idx} className="border-b border-slate-100">
-                        <td className="py-3 px-4 text-slate-700">{item.description || taskDetails}</td>
-                        <td className="py-3 px-4 text-center text-slate-700">{item.quantity || 1}</td>
-                        <td className="py-3 px-4 text-right text-slate-700">
-                          {formatCurrency(item.unitPrice || 0)}
-                        </td>
-                        <td className="py-3 px-4 text-right font-medium text-slate-900">
-                          {formatCurrency(item.lineTotal || 0)}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr className="border-b border-slate-100">
-                      <td className="py-3 px-4 text-slate-700">{taskDetails}</td>
-                      <td className="py-3 px-4 text-center text-slate-700">1</td>
-                      <td className="py-3 px-4 text-right text-slate-700">
-                        {formatCurrency(invoice.totalAmount || 0)}
-                      </td>
-                      <td className="py-3 px-4 text-right font-medium text-slate-900">
-                        {formatCurrency(invoice.totalAmount || 0)}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            
-            {/* Totals */}
-            <div className="bg-slate-50 px-4 py-3 border-t">
-              <div className="flex justify-end">
-                <div className="w-64">
-                  <div className="flex justify-between py-2">
-                    <span className="font-medium text-slate-700">Total Amount:</span>
-                    <span className="font-bold text-slate-900">
-                      {formatCurrency(invoice.totalAmount || 0)}
-                    </span>
-                  </div>
-                  {invoice.amountDue && parseFloat(invoice.amountDue) > 0 && (
-                    <div className="flex justify-between py-2 border-t">
-                      <span className="font-medium text-red-700">Amount Due:</span>
-                      <span className="font-bold text-red-700">
-                        {formatCurrency(invoice.amountDue)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Payment Terms and Notes */}
-          <div className="space-y-4 mb-8">
-            {invoice.dueDate && (
-              <div>
-                <p className="font-medium text-slate-900 mb-1">Payment Due Date:</p>
-                <p className="text-slate-700">{format(new Date(invoice.dueDate), 'MMMM dd, yyyy')}</p>
-              </div>
-            )}
-
-            {invoice.notes && (
-              <div>
-                <p className="font-medium text-slate-900 mb-1">Notes:</p>
-                <p className="text-slate-700">{invoice.notes}</p>
-              </div>
-            )}
-
-            {invoice.termsAndConditions && (
-              <div>
-                <p className="font-medium text-slate-900 mb-1">Terms and Conditions:</p>
-                <p className="text-slate-700 text-sm">{invoice.termsAndConditions}</p>
-              </div>
-            )}
+          {/* Payment Instructions */}
+          <div className="mb-6">
+            <h3 className="font-bold mb-2">Payment Instructions:</h3>
+            <p className="text-sm">Please reference these details to make the payment</p>
+            <p className="text-sm text-center mt-4">This is the text description</p>
           </div>
 
           {/* Footer */}
-          <div className="border-t pt-4 mt-8">
-            <div className="text-center text-sm text-slate-500">
-              <p>Invoice #{invoice.invoiceNumber} | {firmName} | Generated on {format(new Date(), 'MMMM dd, yyyy')}</p>
-              {(getSetting('email') || getSetting('phone') || getSetting('website')) && (
-                <p className="mt-1">
-                  {[getSetting('email'), getSetting('phone'), getSetting('website')].filter(Boolean).join(' | ')}
-                </p>
-              )}
-            </div>
+          <div className="text-center text-xs text-gray-500 mt-8">
+            <p>© 2025 Apex Financial Advisory. All rights reserved.</p>
+            <p>30 N Gould St, Ste R | Phone: +92 31 35661968 | Email: super@gmail.com</p>
+            <p>Website: www.test.com</p>
+          </div>
+
+          <div className="text-center text-xs text-gray-400 mt-4">
+            about:blank
           </div>
         </div>
       </div>
