@@ -188,6 +188,8 @@ function FinancePage() {
               <tr className="border-b bg-slate-50">
                 <th className="p-2 text-left font-medium">Invoice #</th>
                 <th className="p-2 text-left font-medium">Client</th>
+                <th className="p-2 text-left font-medium">Entity</th>
+                <th className="p-2 text-left font-medium">Service</th>
                 <th className="p-2 text-left font-medium">Issue Date</th>
                 <th className="p-2 text-left font-medium">Due Date</th>
                 <th className="p-2 text-left font-medium">Amount</th>
@@ -206,6 +208,8 @@ function FinancePage() {
                     </button>
                   </td>
                   <td className="p-2">{invoice.clientName || "Client"}</td>
+                  <td className="p-2">{invoice.entityName || "Entity"}</td>
+                  <td className="p-2">{invoice.serviceName || "Service"}</td>
                   <td className="p-2">{new Date(invoice.issueDate).toLocaleDateString()}</td>
                   <td className="p-2">{new Date(invoice.dueDate).toLocaleDateString()}</td>
                   <td className="p-2">{formatCurrencySymbol(parseFloat(invoice.totalAmount), invoice.currencyCode)}</td>
