@@ -971,12 +971,22 @@ export class DatabaseStorage implements IStorage {
     }
   }
   
-  async updateServiceSubscription(id: number, subscription: Partial<InsertEntityServiceSubscription>): Promise<EntityServiceSubscription | undefined> {
+  async updateServiceSubscription(tenantId: number, entityId: number, serviceTypeId: number, isRequired: boolean, isSubscribed: boolean): Promise<EntityServiceSubscription | undefined> {
     try {
-      console.log("DB: Updating service subscription with ID:", id, "with data:", subscription);
+      console.log("DB: Updating service subscription for entity:", entityId, "service:", serviceTypeId, "required:", isRequired, "subscribed:", isSubscribed);
+      
+      // Business rule: To set isSubscribed to true, isRequired must also be true
+      if (isSubscribed && !isRequired) {
+        isRequired = true;
+      }
+      
       const [updatedSubscription] = await db.update(entityServiceSubscriptions)
-        .set(subscription)
-        .where(eq(entityServiceSubscriptions.id, id))
+        .set({ isRequired, isSubscribed })
+        .where(and(
+          eq(entityServiceSubscriptions.tenantId, tenantId),
+          eq(entityServiceSubscriptions.entityId, entityId),
+          eq(entityServiceSubscriptions.serviceTypeId, serviceTypeId)
+        ))
         .returning();
       console.log("DB: Service subscription updated successfully:", updatedSubscription);
       return updatedSubscription;

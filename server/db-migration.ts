@@ -5,7 +5,13 @@ export async function runDatabaseMigrations() {
   console.log('Running database migrations...');
   
   try {
+    // Test database connection first
+    console.log('Testing database connection...');
+    await db.execute(sql`SELECT 1 as test`);
+    console.log('Database connection successful');
+
     // Simple table existence check and creation
+    console.log('Creating tenants table...');
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS tenants (
         id SERIAL PRIMARY KEY,
@@ -14,6 +20,7 @@ export async function runDatabaseMigrations() {
       )
     `);
 
+    console.log('Creating users table...');
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,

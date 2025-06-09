@@ -1838,10 +1838,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (existingSub) {
           // Update existing subscription
-          subscription = await storage.updateServiceSubscription(existingSub.id, {
-            isRequired,
-            isSubscribed
-          });
+          subscription = await storage.updateServiceSubscription(tenantId, entityId, serviceTypeId, isRequired, isSubscribed);
         } else {
           // Create new subscription
           subscription = await storage.createServiceSubscription({
