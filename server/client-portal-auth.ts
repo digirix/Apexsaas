@@ -149,45 +149,9 @@ export function setupClientPortalAuth(app: Express) {
     }
   }));
   
-  // Client portal login endpoint
-  app.post('/api/client-portal/login', (req, res, next) => {
-    passport.authenticate('client-portal-local', (err, user, info) => {
-      if (err) {
-        return next(err);
-      }
-      
-      if (!user) {
-        return res.status(401).json({ message: info.message || 'Invalid username or password' });
-      }
-      
-      req.login(user, (loginErr) => {
-        if (loginErr) {
-          return next(loginErr);
-        }
-        
-        return res.status(200).json({
-          message: 'Login successful',
-          user: {
-            clientId: user.clientId,
-            displayName: user.displayName,
-            email: user.email,
-            tenantId: user.tenantId,
-            passwordResetRequired: user.passwordResetRequired,
-          }
-        });
-      });
-    })(req, res, next);
-  });
+  // Note: Login route is handled in client-portal-routes.ts to avoid conflicts
   
-  // Client portal logout endpoint
-  app.post('/api/client-portal/logout', (req, res) => {
-    req.logout((err) => {
-      if (err) {
-        return res.status(500).json({ message: 'Error during logout' });
-      }
-      return res.status(200).json({ message: 'Logout successful' });
-    });
-  });
+  // Note: Logout route is handled in client-portal-routes.ts to avoid conflicts
   
   // Client profile endpoint
   app.get('/api/client-portal/profile', isClientAuthenticated, async (req, res) => {
