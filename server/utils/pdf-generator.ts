@@ -253,8 +253,8 @@ export async function generateInvoicePdf(
     
     // Table data - Enforce maximum height
     if (!lineItems || lineItems.length === 0) {
-      // Single line item from invoice itself
-      const description = invoice.notes || 'Professional Services';
+      // Single line item from invoice itself - prioritize service name
+      const description = invoice.serviceName || invoice.notes || 'Professional Services';
       
       doc
         .fillColor(textColor)
@@ -361,11 +361,57 @@ export async function generateInvoicePdf(
       .text('TOTAL:', summaryColX, summaryY + 24 + discountY)
       .text(formatCurrency(invoice.totalAmount), valueColX, summaryY + 24 + discountY);
     
+    // SERVICE DESCRIPTION SECTION - For task-based invoices
+    // =================================================================
+    
+    let serviceDescriptionY = summaryY + 48 + discountY;
+    
+    // Service Description section - prominently display service name and task details
+    if (invoice.serviceName || invoice.taskDetails) {
+      doc
+        .fillColor(primaryColor)
+        .fontSize(8)
+        .font('Helvetica-Bold')
+        .text('Service Description:', 40, serviceDescriptionY);
+      
+      serviceDescriptionY += 12;
+      
+      // Service Name
+      if (invoice.serviceName) {
+        doc
+          .fillColor(textColor)
+          .fontSize(8)
+          .font('Helvetica-Bold')
+          .text('Service:', 40, serviceDescriptionY)
+          .font('Helvetica')
+          .text(invoice.serviceName, 80, serviceDescriptionY, { width: 470 });
+        
+        serviceDescriptionY += 12;
+      }
+      
+      // Task Details
+      if (invoice.taskDetails && invoice.taskDetails.trim() !== '') {
+        doc
+          .fillColor(textColor)
+          .fontSize(7)
+          .font('Helvetica-Bold')
+          .text('Details:', 40, serviceDescriptionY)
+          .font('Helvetica')
+          .text(
+            invoice.taskDetails.length > 200 ? invoice.taskDetails.substring(0, 200) + '...' : invoice.taskDetails,
+            80, serviceDescriptionY, 
+            { width: 470 }
+          );
+        
+        serviceDescriptionY += 20;
+      }
+    }
+    
     // NOTES/TERMS SECTION - Optional with truncation
     // =================================================================
     
     // Notes and terms in a single row to save space
-    const notesY = summaryY + 48 + discountY;
+    const notesY = serviceDescriptionY + 10;
     
     // Notes section (left column)
     if (invoice.notes && invoice.notes.trim() !== '') {

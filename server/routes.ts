@@ -4460,11 +4460,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = (req.user as any).tenantId;
       const id = parseInt(req.params.id);
       
-      // Get invoice data
-      const invoice = await storage.getInvoice(id, tenantId);
-      if (!invoice) {
+      console.log(`Generating PDF for invoice ${id} in tenant ${tenantId}`);
+      
+      // Get invoice data with task information for service names
+      const invoiceResults = await db.execute(sql`
+        SELECT 
+          i.*,
+          t.name as "serviceName",
+          t.details as "taskDetails"
+        FROM invoices i
+        LEFT JOIN tasks t ON i.task_id = t.id AND i.tenant_id = t.tenant_id
+        WHERE 
+          i.id = ${id}
+          AND i.tenant_id = ${tenantId}
+          AND i.is_deleted = FALSE
+      `);
+      
+      if (!invoiceResults.rows || invoiceResults.rows.length === 0) {
         return res.status(404).json({ message: "Invoice not found" });
       }
+      
+      const invoice = invoiceResults.rows[0];
       
       // Get line items for this invoice
       const lineItems = await storage.getInvoiceLineItems(tenantId, id);
@@ -4490,8 +4506,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Import PDF generator
       const { generateInvoicePdf } = await import('./utils/pdf-generator');
       
-      // Generate beautifully formatted PDF
-      const pdfContent = await generateInvoicePdf(invoice, lineItems, client, entity, tenant);
+      // Generate PDF with enhanced invoice data including service names
+      const enhancedInvoice = {
+        ...invoice,
+        serviceName: invoice.serviceName,
+        taskDetails: invoice.taskDetails
+      };
+      
+      const pdfContent = await generateInvoicePdf(enhancedInvoice, lineItems, client, entity, tenant);
       
       // Send the PDF to client
       res.setHeader('Content-Type', 'application/pdf');

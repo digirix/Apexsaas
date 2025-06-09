@@ -662,6 +662,107 @@ export function registerClientPortalRoutes(app: Express) {
     }
   });
   
+  // Generate PDF for client portal invoice
+  app.get("/api/v1/client-portal/invoices/:id/pdf", isClientAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const invoiceId = parseInt(req.params.id);
+      
+      if (!invoiceId || isNaN(invoiceId)) {
+        return res.status(400).json({ message: 'Invalid invoice ID' });
+      }
+      
+      console.log(`Generating PDF for invoice ${invoiceId} for client ${user.clientId} in tenant ${user.tenantId}`);
+      
+      // Get invoice with comprehensive details
+      const invoiceResults = await db.execute(sql`
+        SELECT 
+          i.*,
+          e.name as "entityName",
+          t.name as "serviceName",
+          t.details as "taskDetails"
+        FROM invoices i
+        LEFT JOIN entities e ON i.entity_id = e.id AND i.tenant_id = e.tenant_id
+        LEFT JOIN tasks t ON i.task_id = t.id AND i.tenant_id = t.tenant_id
+        WHERE 
+          i.id = ${invoiceId}
+          AND i.client_id = ${user.clientId}
+          AND i.tenant_id = ${user.tenantId}
+          AND i.is_deleted = FALSE
+      `);
+      
+      if (!invoiceResults.rows || invoiceResults.rows.length === 0) {
+        return res.status(404).json({ message: 'Invoice not found' });
+      }
+      
+      const invoice = invoiceResults.rows[0];
+      
+      // Get line items
+      const lineItemsResults = await db.execute(sql`
+        SELECT * FROM invoice_line_items 
+        WHERE invoice_id = ${invoiceId}
+        ORDER BY id
+      `);
+      
+      // Get client data
+      const clientResults = await db.execute(sql`
+        SELECT * FROM clients 
+        WHERE id = ${user.clientId} AND tenant_id = ${user.tenantId}
+      `);
+      
+      if (!clientResults.rows || clientResults.rows.length === 0) {
+        return res.status(404).json({ message: 'Client not found' });
+      }
+      
+      // Get entity data
+      const entityResults = await db.execute(sql`
+        SELECT * FROM entities 
+        WHERE id = ${invoice.entity_id} AND tenant_id = ${user.tenantId}
+      `);
+      
+      if (!entityResults.rows || entityResults.rows.length === 0) {
+        return res.status(404).json({ message: 'Entity not found' });
+      }
+      
+      // Get tenant data
+      const tenantResults = await db.execute(sql`
+        SELECT * FROM tenants 
+        WHERE id = ${user.tenantId}
+      `);
+      
+      if (!tenantResults.rows || tenantResults.rows.length === 0) {
+        return res.status(404).json({ message: 'Tenant not found' });
+      }
+      
+      // Import PDF generator
+      const { generateInvoicePdf } = await import('../utils/pdf-generator');
+      
+      // Generate PDF with enhanced invoice data
+      const enhancedInvoice = {
+        ...invoice,
+        serviceName: invoice.serviceName,
+        taskDetails: invoice.taskDetails
+      };
+      
+      const pdfContent = await generateInvoicePdf(
+        enhancedInvoice,
+        lineItemsResults.rows || [],
+        clientResults.rows[0],
+        entityResults.rows[0],
+        tenantResults.rows[0]
+      );
+      
+      // Send the PDF to client
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=Invoice_${invoice.invoice_number}.pdf`);
+      res.send(pdfContent);
+      
+    } catch (error) {
+      console.error("Error generating client portal invoice PDF:", error);
+      res.status(500).json({ message: "Error generating invoice PDF" });
+    }
+  });
+  
   // Get client documents
   app.get("/api/client-portal/documents", isClientAuthenticated, async (req, res) => {
     try {
