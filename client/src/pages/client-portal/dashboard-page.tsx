@@ -157,7 +157,7 @@ export default function ClientPortalDashboardPage() {
     // Find the related task to get actual task details
     // Check multiple possible fields for task information
     const relatedTask = clientTasks.find((task: any) => task.invoiceId === invoice.id);
-    const taskDetails = relatedTask?.taskDetails || 
+    const taskDetails = invoice.serviceName || invoice.taskDetails || relatedTask?.taskDetails || 
                        relatedTask?.title || 
                        relatedTask?.description || 
                        relatedTask?.serviceName ||
@@ -1792,7 +1792,7 @@ export default function ClientPortalDashboardPage() {
                   
                   // Get task details for this invoice
                   const relatedTask = clientTasks.find((task: any) => task.invoiceId === invoice.id);
-                  const taskDetails = relatedTask?.taskDetails || 
+                  const taskDetails = invoice.serviceName || invoice.taskDetails || relatedTask?.taskDetails || 
                                      relatedTask?.title || 
                                      relatedTask?.description || 
                                      relatedTask?.serviceName ||
@@ -2141,7 +2141,7 @@ export default function ClientPortalDashboardPage() {
                                     <div className="text-xs text-slate-600 bg-slate-50 rounded px-2 py-1">
                                       {(() => {
                                         const relatedTask = clientTasks.find((task: any) => task.invoiceId === invoice.id);
-                                        const taskDetails = relatedTask?.taskDetails || 
+                                        const taskDetails = invoice.serviceName || invoice.taskDetails || relatedTask?.taskDetails || 
                                                            relatedTask?.title || 
                                                            relatedTask?.description || 
                                                            relatedTask?.serviceName ||
@@ -2315,7 +2315,7 @@ export default function ClientPortalDashboardPage() {
             if (!invoice) return <div>Invoice not found</div>;
             
             const relatedTask = clientTasks.find((task: any) => task.invoiceId === invoice.id);
-            const taskDetails = relatedTask?.taskDetails || 
+            const taskDetails = invoice.serviceName || invoice.taskDetails || relatedTask?.taskDetails || 
                                relatedTask?.title || 
                                relatedTask?.description || 
                                relatedTask?.serviceName ||
@@ -2501,7 +2501,7 @@ export default function ClientPortalDashboardPage() {
             if (!invoice) return <div>Invoice not found</div>;
             
             const relatedTask = clientTasks.find((task: any) => task.invoiceId === invoice.id);
-            const taskDetails = relatedTask?.taskDetails || 
+            const taskDetails = invoice.serviceName || invoice.taskDetails || relatedTask?.taskDetails || 
                                relatedTask?.title || 
                                relatedTask?.description || 
                                relatedTask?.serviceName ||
