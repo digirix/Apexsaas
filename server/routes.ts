@@ -4216,22 +4216,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         apiVersion: '2023-10-16'
       });
 
+      // Stripe supported currencies
+      const stripeSupportedCurrencies = [
+        'usd', 'eur', 'gbp', 'aud', 'cad', 'jpy', 'cny', 'sgd', 'hkd', 'nzd',
+        'sek', 'nok', 'dkk', 'chf', 'pln', 'czk', 'huf', 'bgn', 'ron', 'hrk',
+        'ils', 'krw', 'myr', 'php', 'thb', 'vnd', 'inr', 'aed', 'sar'
+      ];
+
+      // Use invoice currency if supported by Stripe, otherwise fall back to Stripe config currency or USD
+      let paymentCurrency = invoice.currencyCode?.toLowerCase() || 'usd';
+      if (!stripeSupportedCurrencies.includes(paymentCurrency)) {
+        console.log(`Currency ${paymentCurrency} not supported by Stripe, using ${stripeConfig.currency || 'usd'}`);
+        paymentCurrency = stripeConfig.currency?.toLowerCase() || 'usd';
+      }
+
       // Convert amount to cents (Stripe requires amount in smallest currency unit)
-      const amountInCents = Math.round(parseFloat(invoice.amountDue) * 100);
+      let amountInCents = Math.round(parseFloat(invoice.amountDue) * 100);
+      
+      // For zero-decimal currencies (JPY, KRW, etc.), don't multiply by 100
+      const zeroDecimalCurrencies = ['jpy', 'krw', 'pyg', 'vnd', 'xaf', 'xof', 'bif', 'clp', 'djf', 'gnf', 'jpx', 'kmf', 'krw', 'mga', 'pyg', 'rwf', 'vnd', 'vuv', 'xaf', 'xof', 'xpf'];
+      if (zeroDecimalCurrencies.includes(paymentCurrency)) {
+        amountInCents = Math.round(parseFloat(invoice.amountDue));
+      }
 
       console.log("Creating payment intent:", {
         amount: amountInCents,
-        currency: invoice.currencyCode?.toLowerCase() || 'usd'
+        currency: paymentCurrency,
+        originalCurrency: invoice.currencyCode
       });
 
       // Create payment intent
       const paymentIntent = await stripeClient.paymentIntents.create({
         amount: amountInCents,
-        currency: invoice.currencyCode?.toLowerCase() || 'usd',
+        currency: paymentCurrency,
         metadata: {
           invoiceId: invoice.id.toString(),
           tenantId: invoice.tenantId.toString(),
           clientId: invoice.clientId?.toString() || '',
+          originalCurrency: invoice.currencyCode || '',
+          originalAmount: invoice.amountDue,
         },
         description: `Payment for Invoice #${invoice.invoiceNumber}`,
       });
@@ -4243,7 +4266,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         clientSecret: paymentIntent.client_secret,
         paymentIntentId: paymentIntent.id,
         amount: amountInCents,
-        currency: invoice.currencyCode?.toLowerCase() || 'usd',
+        currency: paymentCurrency,
+        originalCurrency: invoice.currencyCode,
         publicKey: stripeConfig.publicKey,
       });
 

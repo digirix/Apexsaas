@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Header } from "@/components/ui/header";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatCurrencySymbol } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { AppLayout } from "@/components/layout/app-layout";
 import JournalEntriesList from "@/components/finance/journal-entries-list";
@@ -183,7 +183,7 @@ function FinancePage() {
                   <td className="p-2">{invoice.clientName || "Client"}</td>
                   <td className="p-2">{new Date(invoice.issueDate).toLocaleDateString()}</td>
                   <td className="p-2">{new Date(invoice.dueDate).toLocaleDateString()}</td>
-                  <td className="p-2">{formatCurrency(parseFloat(invoice.totalAmount))}</td>
+                  <td className="p-2">{formatCurrencySymbol(parseFloat(invoice.totalAmount), invoice.currencyCode)}</td>
                   <td className="p-2">
                     <div className="flex items-center justify-between">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
@@ -250,7 +250,7 @@ function FinancePage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {invoicesLoading ? "..." : formatCurrency(financialMetrics.totalInvoiced)}
+                {invoicesLoading ? "..." : formatCurrencySymbol(financialMetrics.totalInvoiced, invoices?.[0]?.currencyCode || "USD")}
               </div>
               <p className="text-xs text-muted-foreground">
                 From all active invoices
@@ -265,7 +265,7 @@ function FinancePage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {paymentsLoading ? "..." : formatCurrency(financialMetrics.totalReceived)}
+                {paymentsLoading ? "..." : formatCurrencySymbol(financialMetrics.totalReceived, invoices?.[0]?.currencyCode || "USD")}
               </div>
               <p className="text-xs text-muted-foreground">
                 All payments received
