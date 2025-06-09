@@ -189,9 +189,22 @@ export default function InvoiceDetailPage() {
                   </div>
                 </div>
 
+                {/* Service Description Section */}
+                {((invoice as any).serviceName || (invoice as any).taskDetails) && (
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <p className="text-sm font-medium text-blue-900 mb-2">Service Description</p>
+                    {(invoice as any).serviceName && (
+                      <p className="font-semibold text-blue-800 mb-2">{(invoice as any).serviceName}</p>
+                    )}
+                    {(invoice as any).taskDetails && (
+                      <p className="text-blue-700 leading-relaxed">{(invoice as any).taskDetails}</p>
+                    )}
+                  </div>
+                )}
+
                 {invoice.description && (
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Description</p>
+                    <p className="text-sm font-medium text-muted-foreground">Additional Notes</p>
                     <p className="mt-1">{invoice.description}</p>
                   </div>
                 )}

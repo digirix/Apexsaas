@@ -149,7 +149,67 @@ export async function generateInvoicePdf(
       .text('TOTAL DUE:', totalsX, currentY)
       .text(formatCurrency(invoice.amountDue), totalsX, currentY + 10);
     
-    currentY += 40;
+    currentY += 30;
+    
+    // SERVICE DESCRIPTION SECTION - Display task details prominently
+    // =================================================================
+    
+    if (invoice.serviceName || invoice.taskDetails) {
+      // Section header
+      doc
+        .fillColor(primaryColor)
+        .fontSize(9)
+        .font('Helvetica-Bold')
+        .text('SERVICE DESCRIPTION', 40, currentY);
+      
+      currentY += 15;
+      
+      // Service name (if available)
+      if (invoice.serviceName) {
+        doc
+          .fillColor(headerColor)
+          .fontSize(8.5)
+          .font('Helvetica-Bold')
+          .text(invoice.serviceName, 40, currentY);
+        
+        currentY += 12;
+      }
+      
+      // Task details description
+      if (invoice.taskDetails) {
+        const taskDetails = invoice.taskDetails.length > 300 ? 
+          invoice.taskDetails.substring(0, 300) + '...' : 
+          invoice.taskDetails;
+        
+        doc
+          .fillColor(textColor)
+          .fontSize(8)
+          .font('Helvetica')
+          .text(taskDetails, 40, currentY, { 
+            width: 515, 
+            align: 'left',
+            lineGap: 2
+          });
+        
+        // Calculate height used by text to adjust currentY
+        const textHeight = doc.heightOfString(taskDetails, { 
+          width: 515, 
+          lineGap: 2 
+        });
+        
+        currentY += textHeight + 8;
+      }
+      
+      // Add separator line
+      doc
+        .moveTo(40, currentY)
+        .lineTo(555, currentY)
+        .strokeColor(mutedColor)
+        .lineWidth(0.25)
+        .stroke();
+      
+      currentY += 15;
+    }
     
     // LINE ITEMS TABLE - More compact with fixed height rows
     // =================================================================

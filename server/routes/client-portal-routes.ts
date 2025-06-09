@@ -478,7 +478,7 @@ export function registerClientPortalRoutes(app: Express) {
         whereClause += ` AND i.entity_id = ${entityId}`;
       }
       
-      // Query the invoices table with joins to get detailed information
+      // Query the invoices table with joins to get detailed information including task details
       const invoiceResults = await db.execute(sql`
         SELECT 
           i.id,
@@ -499,9 +499,12 @@ export function registerClientPortalRoutes(app: Express) {
           i.status,
           i.notes,
           i.created_at as "createdAt",
-          i.updated_at as "updatedAt" 
+          i.updated_at as "updatedAt",
+          t.name as "serviceName",
+          t.details as "taskDetails"
         FROM invoices i
         LEFT JOIN entities e ON i.entity_id = e.id AND i.tenant_id = e.tenant_id
+        LEFT JOIN tasks t ON i.task_id = t.id AND i.tenant_id = t.tenant_id
         WHERE 
           ${sql.raw(whereClause)}
         ORDER BY i.issue_date DESC
@@ -570,6 +573,92 @@ export function registerClientPortalRoutes(app: Express) {
     } catch (error) {
       console.error('Error fetching client invoices:', error);
       res.status(500).json({ message: 'Failed to fetch invoices' });
+    }
+  });
+  
+  // Get specific client invoice by ID with comprehensive details
+  app.get("/api/v1/client-portal/invoices/:id", isClientAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const invoiceId = parseInt(req.params.id);
+      
+      if (!invoiceId || isNaN(invoiceId)) {
+        return res.status(400).json({ message: 'Invalid invoice ID' });
+      }
+      
+      console.log(`Fetching invoice ${invoiceId} for client ${user.clientId} in tenant ${user.tenantId}`);
+      
+      // Query the specific invoice with comprehensive details including task information
+      const invoiceResults = await db.execute(sql`
+        SELECT 
+          i.id,
+          i.tenant_id as "tenantId",
+          i.client_id as "clientId",
+          i.entity_id as "entityId",
+          e.name as "entityName",
+          i.invoice_number as "invoiceNumber",
+          i.issue_date as "issueDate",
+          i.due_date as "dueDate",
+          i.currency_code as "currencyCode",
+          i.subtotal,
+          i.tax_amount as "taxAmount",
+          i.discount_amount as "discountAmount",
+          i.total_amount as "totalAmount",
+          i.amount_paid as "amountPaid",
+          i.amount_due as "amountDue",
+          i.status,
+          i.notes,
+          i.description,
+          i.terms_and_conditions as "termsAndConditions",
+          i.payment_terms as "paymentTerms",
+          i.created_at as "createdAt",
+          i.updated_at as "updatedAt",
+          t.name as "serviceName",
+          t.details as "taskDetails"
+        FROM invoices i
+        LEFT JOIN entities e ON i.entity_id = e.id AND i.tenant_id = e.tenant_id
+        LEFT JOIN tasks t ON i.task_id = t.id AND i.tenant_id = t.tenant_id
+        WHERE 
+          i.id = ${invoiceId}
+          AND i.client_id = ${user.clientId}
+          AND i.tenant_id = ${user.tenantId}
+          AND i.is_deleted = FALSE
+      `);
+      
+      if (!invoiceResults.rows || invoiceResults.rows.length === 0) {
+        return res.status(404).json({ message: 'Invoice not found' });
+      }
+      
+      const invoice = invoiceResults.rows[0];
+      
+      // Get line items for this invoice
+      const lineItemsResults = await db.execute(sql`
+        SELECT 
+          il.id,
+          il.description,
+          il.quantity,
+          il.unit_price as "unitPrice",
+          il.tax_rate as "taxRate",
+          il.tax_amount as "taxAmount",
+          il.discount_amount as "discountAmount",
+          (il.quantity * il.unit_price - COALESCE(il.discount_amount, 0) + COALESCE(il.tax_amount, 0)) as "lineTotal"
+        FROM invoice_line_items il
+        WHERE il.invoice_id = ${invoiceId}
+        ORDER BY il.id
+      `);
+      
+      // Attach line items to invoice
+      const enrichedInvoice = {
+        ...invoice,
+        lineItems: lineItemsResults.rows || []
+      };
+      
+      console.log(`Found invoice ${invoiceId} with ${lineItemsResults.rows?.length || 0} line items`);
+      
+      res.json(enrichedInvoice);
+    } catch (error) {
+      console.error('Error fetching client invoice details:', error);
+      res.status(500).json({ message: 'Failed to fetch invoice details' });
     }
   });
   
