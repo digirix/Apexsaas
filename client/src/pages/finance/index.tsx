@@ -83,12 +83,12 @@ function FinancePage() {
   }, [activeTab, location]);
   
   // Fetch invoices
-  const { data: invoices = [], isLoading: invoicesLoading } = useQuery({
+  const { data: invoices = [], isLoading: invoicesLoading } = useQuery<any[]>({
     queryKey: ["/api/v1/finance/invoices"],
   });
   
   // Fetch payments
-  const { data: payments = [], isLoading: paymentsLoading } = useQuery({
+  const { data: payments = [], isLoading: paymentsLoading } = useQuery<any[]>({
     queryKey: ["/api/v1/finance/payments"],
   });
 
@@ -107,6 +107,28 @@ function FinancePage() {
 
   const firmBranding = getFirmBranding();
   
+  // Get primary currency from invoices (use most common currency or first one)
+  const getPrimaryCurrency = (): string => {
+    if (!Array.isArray(invoices) || invoices.length === 0) return "USD";
+    
+    // Count currency usage
+    const currencyCount: Record<string, number> = {};
+    invoices.forEach((invoice: any) => {
+      const currency = invoice.currencyCode || "USD";
+      currencyCount[currency] = (currencyCount[currency] || 0) + 1;
+    });
+    
+    // Return most used currency
+    const currencies = Object.keys(currencyCount);
+    if (currencies.length === 0) return "USD";
+    
+    return currencies.reduce((a, b) => 
+      currencyCount[a] > currencyCount[b] ? a : b
+    );
+  };
+
+  const primaryCurrency = getPrimaryCurrency();
+
   // Calculate financial metrics
   const financialMetrics = {
     totalInvoiced: !invoicesLoading ? (invoices as any[]).reduce((sum: number, invoice: any) => 
@@ -250,7 +272,7 @@ function FinancePage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {invoicesLoading ? "..." : formatCurrencySymbol(financialMetrics.totalInvoiced, invoices?.[0]?.currencyCode || "USD")}
+                {invoicesLoading ? "..." : formatCurrencySymbol(financialMetrics.totalInvoiced, primaryCurrency)}
               </div>
               <p className="text-xs text-muted-foreground">
                 From all active invoices
