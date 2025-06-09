@@ -196,7 +196,7 @@ export interface IStorage {
   // Finance Module Operations
   
   // Invoice operations
-  getInvoices(tenantId: number, clientId?: number, entityId?: number, status?: string): Promise<Invoice[]>;
+  getInvoices(tenantId: number, clientId?: number, entityId?: number, status?: string): Promise<any[]>;
   getInvoice(id: number, tenantId: number): Promise<Invoice | undefined>;
   getInvoiceByNumber(invoiceNumber: string, tenantId: number): Promise<Invoice | undefined>;
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
@@ -1585,7 +1585,7 @@ export class MemStorage implements IStorage {
 
   // Finance Module Operations - Invoice methods
   
-  async getInvoices(tenantId: number, clientId?: number, entityId?: number, status?: string): Promise<Invoice[]> {
+  async getInvoices(tenantId: number, clientId?: number, entityId?: number, status?: string): Promise<any[]> {
     let invoices = Array.from(this.invoices.values()).filter(invoice => invoice.tenantId === tenantId && !invoice.isDeleted);
     
     if (clientId) {
@@ -1600,7 +1600,22 @@ export class MemStorage implements IStorage {
       invoices = invoices.filter(invoice => invoice.status === status);
     }
     
-    return invoices;
+    // Enhance invoices with related data
+    const enhancedInvoices = invoices.map(invoice => {
+      const client = invoice.clientId ? Array.from(this.clients.values()).find(c => c.id === invoice.clientId) : null;
+      const entity = invoice.entityId ? Array.from(this.entities.values()).find(e => e.id === invoice.entityId) : null;
+      const task = invoice.taskId ? Array.from(this.tasks.values()).find(t => t.id === invoice.taskId) : null;
+      const serviceType = task?.serviceTypeId ? Array.from(this.serviceTypes.values()).find(s => s.id === task.serviceTypeId) : null;
+      
+      return {
+        ...invoice,
+        clientName: client?.name || null,
+        entityName: entity?.name || null,
+        serviceName: serviceType?.name || null
+      };
+    });
+    
+    return enhancedInvoices;
   }
   
   async getInvoice(id: number, tenantId: number): Promise<Invoice | undefined> {

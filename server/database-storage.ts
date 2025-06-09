@@ -1148,8 +1148,37 @@ export class DatabaseStorage implements IStorage {
   // Finance Module Implementation
 
   // Invoice operations
-  async getInvoices(tenantId: number, clientId?: number, entityId?: number, status?: string): Promise<Invoice[]> {
-    let query = db.select().from(invoices)
+  async getInvoices(tenantId: number, clientId?: number, entityId?: number, status?: string): Promise<any[]> {
+    let query = db.select({
+      // Invoice fields
+      id: invoices.id,
+      tenantId: invoices.tenantId,
+      clientId: invoices.clientId,
+      entityId: invoices.entityId,
+      taskId: invoices.taskId,
+      invoiceNumber: invoices.invoiceNumber,
+      issueDate: invoices.issueDate,
+      dueDate: invoices.dueDate,
+      subtotal: invoices.subtotal,
+      taxAmount: invoices.taxAmount,
+      totalAmount: invoices.totalAmount,
+      currencyCode: invoices.currencyCode,
+      status: invoices.status,
+      notes: invoices.notes,
+      paymentTerms: invoices.paymentTerms,
+      isDeleted: invoices.isDeleted,
+      createdAt: invoices.createdAt,
+      updatedAt: invoices.updatedAt,
+      // Related data
+      clientName: clients.name,
+      entityName: entities.name,
+      serviceName: serviceTypes.name
+    })
+      .from(invoices)
+      .leftJoin(clients, eq(invoices.clientId, clients.id))
+      .leftJoin(entities, eq(invoices.entityId, entities.id))
+      .leftJoin(tasks, eq(invoices.taskId, tasks.id))
+      .leftJoin(serviceTypes, eq(tasks.serviceTypeId, serviceTypes.id))
       .where(and(
         eq(invoices.tenantId, tenantId),
         eq(invoices.isDeleted, false)
