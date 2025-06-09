@@ -33,6 +33,7 @@ export default function InvoiceDetailPage() {
     queryKey: ["/api/v1/clients", invoice?.clientId],
     enabled: !!invoice?.clientId,
     queryFn: async () => {
+      if (!invoice?.clientId) throw new Error("No client ID available");
       const response = await fetch(`/api/v1/clients/${invoice.clientId}`);
       if (!response.ok) {
         throw new Error("Failed to fetch client details");
@@ -46,6 +47,7 @@ export default function InvoiceDetailPage() {
     queryKey: ["/api/v1/entities", invoice?.entityId],
     enabled: !!invoice?.entityId,
     queryFn: async () => {
+      if (!invoice?.entityId) throw new Error("No entity ID available");
       const response = await fetch(`/api/v1/entities/${invoice.entityId}`);
       if (!response.ok) {
         throw new Error("Failed to fetch entity details");
@@ -164,18 +166,18 @@ export default function InvoiceDetailPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-slate-600">Subtotal:</span>
-                    <span>{formatCurrency(invoice.subtotal, invoice.currencyCode)}</span>
+                    <span>{formatCurrency(Number(invoice.subtotal || 0), invoice.currencyCode)}</span>
                   </div>
-                  {invoice.taxAmount > 0 && (
+                  {Number(invoice.taxAmount || 0) > 0 && (
                     <div className="flex justify-between">
                       <span className="text-slate-600">Tax:</span>
-                      <span>{formatCurrency(invoice.taxAmount, invoice.currencyCode)}</span>
+                      <span>{formatCurrency(Number(invoice.taxAmount || 0), invoice.currencyCode)}</span>
                     </div>
                   )}
-                  {invoice.discountAmount > 0 && (
+                  {Number(invoice.discountAmount || 0) > 0 && (
                     <div className="flex justify-between">
                       <span className="text-slate-600">Discount:</span>
-                      <span className="text-red-600">-{formatCurrency(invoice.discountAmount, invoice.currencyCode)}</span>
+                      <span className="text-red-600">-{formatCurrency(Number(invoice.discountAmount || 0), invoice.currencyCode)}</span>
                     </div>
                   )}
                   <Separator />
@@ -183,16 +185,16 @@ export default function InvoiceDetailPage() {
                     <span>Total Amount:</span>
                     <span className="flex items-center gap-1">
                       <DollarSign className="h-4 w-4" />
-                      {formatCurrency(invoice.totalAmount, invoice.currencyCode)}
+                      {formatCurrency(Number(invoice.totalAmount || 0), invoice.currencyCode)}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-600">Amount Paid:</span>
-                    <span className="text-green-600">{formatCurrency(invoice.amountPaid, invoice.currencyCode)}</span>
+                    <span className="text-green-600">{formatCurrency(Number(invoice.amountPaid || 0), invoice.currencyCode)}</span>
                   </div>
                   <div className="flex justify-between text-lg font-semibold">
                     <span>Amount Due:</span>
-                    <span className="text-orange-600">{formatCurrency(invoice.amountDue, invoice.currencyCode)}</span>
+                    <span className="text-orange-600">{formatCurrency(Number(invoice.amountDue || 0), invoice.currencyCode)}</span>
                   </div>
                 </div>
 

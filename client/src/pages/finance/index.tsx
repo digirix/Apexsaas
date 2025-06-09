@@ -198,9 +198,12 @@ function FinancePage() {
               {currentInvoices.map((invoice: any) => (
                 <tr key={invoice.id} className="border-b hover:bg-slate-50">
                   <td className="p-2">
-                    <a href="#" className="font-medium hover:underline">
+                    <button 
+                      onClick={() => setLocation(`/finance/invoices/${invoice.tenantId}/${invoice.invoiceNumber}`)} 
+                      className="font-medium hover:underline text-blue-600 hover:text-blue-800 bg-transparent border-none p-0 cursor-pointer"
+                    >
                       {invoice.invoiceNumber}
-                    </a>
+                    </button>
                   </td>
                   <td className="p-2">{invoice.clientName || "Client"}</td>
                   <td className="p-2">{new Date(invoice.issueDate).toLocaleDateString()}</td>
