@@ -1149,6 +1149,7 @@ export class DatabaseStorage implements IStorage {
 
   // Invoice operations
   async getInvoices(tenantId: number, clientId?: number, entityId?: number, status?: string): Promise<any[]> {
+    // Build base query with simple select all from invoices
     const conditions = [
       eq(invoices.tenantId, tenantId),
       eq(invoices.isDeleted, false)
@@ -1166,37 +1167,27 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(invoices.status, status));
     }
     
-    const query = db.select({
-      // Invoice fields - only fields that exist in the table
-      id: invoices.id,
-      tenantId: invoices.tenantId,
-      clientId: invoices.clientId,
-      entityId: invoices.entityId,
-      invoiceNumber: invoices.invoiceNumber,
-      issueDate: invoices.issueDate,
-      dueDate: invoices.dueDate,
-      subtotal: invoices.subtotal,
-      taxAmount: invoices.taxAmount,
-      totalAmount: invoices.totalAmount,
-      currencyCode: invoices.currencyCode,
-      status: invoices.status,
-      notes: invoices.notes,
-      isDeleted: invoices.isDeleted,
-      createdAt: invoices.createdAt,
-      updatedAt: invoices.updatedAt,
-      // Related data
-      clientName: clients.name,
-      entityName: entities.name,
-      // For now, set serviceName to null since we don't have task_id link
-      serviceName: sql<string | null>`null`
-    })
+    // Get invoices first
+    const invoiceResults = await db.select()
       .from(invoices)
-      .leftJoin(clients, eq(invoices.clientId, clients.id))
-      .leftJoin(entities, eq(invoices.entityId, entities.id))
       .where(and(...conditions))
       .orderBy(desc(invoices.createdAt));
     
-    return await query;
+    // Get all clients and entities for this tenant
+    const allClients = await db.select().from(clients).where(eq(clients.tenantId, tenantId));
+    const allEntities = await db.select().from(entities).where(eq(entities.tenantId, tenantId));
+    
+    // Create lookup maps
+    const clientMap = new Map(allClients.map(c => [c.id, c.name]));
+    const entityMap = new Map(allEntities.map(e => [e.id, e.name]));
+    
+    // Enhance invoices with related data
+    return invoiceResults.map(invoice => ({
+      ...invoice,
+      clientName: invoice.clientId ? clientMap.get(invoice.clientId) || null : null,
+      entityName: invoice.entityId ? entityMap.get(invoice.entityId) || null : null,
+      serviceName: null // Will be null since we don't have task_id relationship
+    }));
   }
 
   async getInvoiceById(id: number): Promise<Invoice | undefined> {
