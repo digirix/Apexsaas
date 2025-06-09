@@ -9,7 +9,7 @@ export default function InvoicePrintPage() {
   const { id } = useParams<{ id: string }>();
   const [debugMode, setDebugMode] = useState(false);
 
-  // Fetch invoice data
+  // Fetch invoice data with client and task information
   const { data: invoice, isLoading, error } = useQuery({
     queryKey: [`/api/v1/finance/invoices/${id}`],
     enabled: !!id,
@@ -19,6 +19,24 @@ export default function InvoicePrintPage() {
   const { data: tenantSettings, isLoading: settingsLoading, error: settingsError } = useQuery({
     queryKey: ["/api/v1/tenant/settings"],
     enabled: !!id,
+  });
+
+  // Fetch client data if invoice has clientId
+  const { data: client } = useQuery({
+    queryKey: [`/api/v1/clients/${invoice?.clientId}`],
+    enabled: !!invoice?.clientId,
+  });
+
+  // Fetch entity data if invoice has entityId
+  const { data: entity } = useQuery({
+    queryKey: [`/api/v1/entities/${invoice?.entityId}`],
+    enabled: !!invoice?.entityId,
+  });
+
+  // Fetch task data if invoice has taskId
+  const { data: task } = useQuery({
+    queryKey: [`/api/v1/tasks/${invoice?.taskId}`],
+    enabled: !!invoice?.taskId,
   });
 
   // Debug logging
@@ -237,8 +255,9 @@ export default function InvoicePrintPage() {
         <div className="mb-8">
           <h3 className="text-lg font-semibold text-slate-900 mb-3">Bill To:</h3>
           <div className="text-slate-700">
-            <p className="font-medium">{currentInvoice?.clientName || 'Client Name'}</p>
-            <p>{currentInvoice?.entityName || 'Entity Name'}</p>
+            <p className="font-medium">{client?.displayName || 'Client Name'}</p>
+            <p>{entity?.name || 'Entity Name'}</p>
+            {entity?.address && <p>{entity.address}</p>}
           </div>
         </div>
 
@@ -256,9 +275,9 @@ export default function InvoicePrintPage() {
             <tbody>
               <tr>
                 <td>
-                  <div className="font-medium">{currentInvoice?.serviceName || 'Professional Services'}</div>
-                  {currentInvoice?.taskDetails && (
-                    <div className="text-sm text-slate-600 mt-1">{currentInvoice.taskDetails}</div>
+                  <div className="font-medium">{task?.taskType || 'Professional Services'}</div>
+                  {task?.taskDetails && (
+                    <div className="text-sm text-slate-600 mt-1">{task.taskDetails}</div>
                   )}
                 </td>
                 <td className="text-center">1</td>
