@@ -32,6 +32,7 @@ import CreateChartOfAccountPage from "@/pages/finance/chart-of-accounts/create";
 import CreateJournalEntryPage from "@/pages/finance/journal-entries/create";
 import EditJournalEntryPage from "@/pages/finance/journal-entries/edit";
 import ViewJournalEntryPage from "@/pages/finance/journal-entries/view";
+import InvoicePrintPage from "@/pages/finance/invoices/print";
 import AccountHeadsManagementPage from "@/pages/finance/account-heads";
 import COAConfigurationPage from "@/pages/setup/coa-configuration";
 import AiCustomizationPage from "@/pages/setup/ai-customization";
@@ -98,6 +99,7 @@ function Router() {
       {/* Direct invoice creation disabled - invoices are now created only through tasks */}
       {/* <ProtectedRoute path="/finance/invoices/create" component={CreateInvoicePage} /> */}
       <ProtectedRoute path="/finance/invoices/from-task" component={CreateInvoiceFromTaskPage} />
+      <ProtectedRoute path="/finance/invoices/:id/print" component={InvoicePrintPage} />
       <ProtectedRoute path="/finance/invoices/:tenantId/:invoiceNumber" component={InvoiceDetailPage} />
       <ProtectedRoute path="/finance/payments/create" component={CreatePaymentPage} />
       <ProtectedRoute path="/finance/account-heads" component={AccountHeadsManagementPage} />

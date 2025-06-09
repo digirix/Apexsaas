@@ -64,38 +64,13 @@ export default function InvoiceDetailPage() {
     }
   });
 
-  // Download PDF handler
-  const handleDownloadPDF = async () => {
+  // Open print view instead of downloading PDF
+  const handleDownloadPDF = () => {
     if (!invoice) return;
     
-    try {
-      const response = await fetch(`/api/v1/finance/invoices/${invoice.id}/pdf`);
-      if (!response.ok) {
-        throw new Error('Failed to generate PDF');
-      }
-      
-      // Create blob and download
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Invoice_${invoice.invoiceNumber}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      
-      toast({
-        title: "PDF Downloaded",
-        description: `Invoice ${invoice.invoiceNumber} has been downloaded successfully.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Download Failed",
-        description: "Failed to download the PDF. Please try again.",
-        variant: "destructive",
-      });
-    }
+    // Open the print view in a new window
+    const printUrl = `/finance/invoices/${invoice.id}/print`;
+    window.open(printUrl, '_blank', 'width=800,height=600');
   };
 
   // Share link generator
@@ -187,7 +162,7 @@ export default function InvoiceDetailPage() {
             </Badge>
             <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
               <Download className="h-4 w-4 mr-2" />
-              Download PDF
+              Print Invoice
             </Button>
             <Button variant="outline" size="sm" onClick={handleGenerateShareLink} disabled={isSharing}>
               {isSharing ? (

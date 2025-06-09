@@ -30,28 +30,10 @@ export default function InvoiceDetailPage() {
     refetch(); // Refresh invoice data
   };
 
-  const downloadPDF = async () => {
-    try {
-      const response = await fetch(`/api/v1/finance/invoices/${invoiceId}/pdf`, {
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to download PDF');
-      }
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `invoice-${invoice?.invoiceNumber || invoiceId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('Error downloading PDF:', error);
-    }
+  const downloadPDF = () => {
+    // Open the print view in a new window
+    const printUrl = `/finance/invoices/${invoiceId}/print`;
+    window.open(printUrl, '_blank', 'width=800,height=600');
   };
 
   const getStatusColor = (status: string) => {
