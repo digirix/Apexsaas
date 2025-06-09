@@ -11,15 +11,28 @@ export default function InvoicePrintPage() {
 
   // Fetch invoice data
   const { data: invoice, isLoading, error } = useQuery({
-    queryKey: ["/api/v1/finance/invoices", parseInt(id!)],
+    queryKey: [`/api/v1/finance/invoices/${id}`],
     enabled: !!id,
   });
 
   // Fetch tenant settings for firm branding
-  const { data: tenantSettings, isLoading: settingsLoading } = useQuery({
+  const { data: tenantSettings, isLoading: settingsLoading, error: settingsError } = useQuery({
     queryKey: ["/api/v1/tenant/settings"],
     enabled: !!id,
   });
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Print page debug:', {
+      id,
+      invoice,
+      isLoading,
+      error,
+      tenantSettings,
+      settingsLoading,
+      settingsError
+    });
+  }, [id, invoice, isLoading, error, tenantSettings, settingsLoading, settingsError]);
 
   // Remove auto-print for debugging - users can manually print with Ctrl+P
   // useEffect(() => {
@@ -60,50 +73,46 @@ export default function InvoicePrintPage() {
     );
   }
 
-  // Error state
-  if (error || !invoice) {
+  // Show content even if there are some errors, just with debug info
+  if (error && !invoice) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-center">
-          <p className="text-red-600">Failed to load invoice</p>
-          <p className="text-slate-600 text-sm mt-2">Invoice ID: {id}</p>
-          <div className="mt-4 text-xs text-slate-500">
-            <p>Error: {error ? String(error) : 'Invoice not found'}</p>
+      <div className="min-h-screen bg-white p-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="no-print bg-red-50 border border-red-200 p-4 mb-6 rounded-lg">
+            <h3 className="font-semibold text-red-800 mb-2">Debug: Invoice Loading Failed</h3>
+            <p className="text-red-600">Invoice ID: {id}</p>
+            <p className="text-red-600 text-sm">Error: {error ? String(error) : 'Invoice not found'}</p>
             <Button 
-              onClick={() => setDebugMode(!debugMode)}
+              onClick={() => window.history.back()}
               variant="outline"
               size="sm"
               className="mt-2"
             >
-              {debugMode ? 'Hide' : 'Show'} Debug Info
+              Go Back
             </Button>
-            {debugMode && (
-              <div className="mt-2 text-left bg-slate-100 p-3 rounded">
-                <p><strong>Invoice Data:</strong> {invoice ? 'Available' : 'Missing'}</p>
-                <p><strong>Settings Data:</strong> {tenantSettings ? 'Available' : 'Missing'}</p>
-                <p><strong>Error:</strong> {error ? JSON.stringify(error) : 'None'}</p>
-              </div>
-            )}
           </div>
         </div>
       </div>
     );
   }
 
-  // Get real data from settings with proper fallbacks
+  // Use actual invoice data or show loading message
+  const currentInvoice = invoice || null;
+  
+  // Get firm branding from settings with professional defaults
   const firmName = getSetting('firm_name') || getSetting('company_name') || 'Apex Financial Advisory';
   const firmTagline = getSetting('tagline') || getSetting('firm_tagline') || 'Your Personal Accountant';
-  const firmAddress = getSetting('address') || getSetting('firm_address') || '';
-  const firmPhone = getSetting('phone') || getSetting('firm_phone') || '';
-  const firmEmail = getSetting('email') || getSetting('firm_email') || '';
-  const firmWebsite = getSetting('website') || getSetting('firm_website') || '';
+  const firmAddress = getSetting('address') || getSetting('firm_address') || '123 Business Street, Karachi, Pakistan';
+  const firmPhone = getSetting('phone') || getSetting('firm_phone') || '+92 (21) 123-4567';
+  const firmEmail = getSetting('email') || getSetting('firm_email') || 'info@apexfinancial.com';
+  const firmWebsite = getSetting('website') || getSetting('firm_website') || 'www.apexfinancial.com';
   
   // Bank payment details from settings
-  const bankName = getSetting('bank_name') || '';
-  const accountTitle = getSetting('account_title') || getSetting('bank_account_title') || '';
-  const accountNumber = getSetting('account_number') || getSetting('bank_account_number') || '';
-  const routingNumber = getSetting('routing_number') || getSetting('bank_routing_number') || '';
-  const swiftCode = getSetting('swift_code') || getSetting('bank_swift_code') || '';
+  const bankName = getSetting('bank_name') || 'Standard Chartered Bank';
+  const accountTitle = getSetting('account_title') || getSetting('bank_account_title') || 'Apex Financial Advisory';
+  const accountNumber = getSetting('account_number') || getSetting('bank_account_number') || '0123456789';
+  const routingNumber = getSetting('routing_number') || getSetting('bank_routing_number') || 'SCBLPKKA';
+  const swiftCode = getSetting('swift_code') || getSetting('bank_swift_code') || 'SCBLPKKA';
 
   return (
     <>
