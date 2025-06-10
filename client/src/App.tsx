@@ -58,6 +58,12 @@ import RiskAssessmentReport from "@/pages/reports/risk-assessment-report";
 import JurisdictionAnalysisReport from "@/pages/reports/jurisdiction-analysis-report";
 import PaymentPage from "@/pages/payment-page";
 
+// SaaS Admin Portal imports
+import SaasProtectedRoute from "@/components/saas-admin/saas-protected-route";
+import SaasLoginPage from "@/pages/saas-admin/saas-login-page";
+import SaasDashboardPage from "@/pages/saas-admin/saas-dashboard-page";
+import SaasTenantsPage from "@/pages/saas-admin/saas-tenants-page";
+
 function Router() {
   return (
     <Switch>
@@ -93,6 +99,12 @@ function Router() {
       <Route path="/client-portal/entities/:id" component={ClientPortalEntityDetailPage} />
       <Route path="/client-portal/reset-password" component={ResetPasswordPage} />
       
+      {/* SaaS Admin Portal routes */}
+      <Route path="/saas-admin/login" component={SaasLoginPage} />
+      <SaasProtectedRoute path="/saas-admin" component={SaasDashboardPage} />
+      <SaasProtectedRoute path="/saas-admin/dashboard" component={SaasDashboardPage} />
+      <SaasProtectedRoute path="/saas-admin/tenants" component={SaasTenantsPage} />
+
       {/* Public payment routes */}
       <Route path="/pay/:invoiceId" component={PaymentPage} />
       <Route path="/payment/:invoiceId" component={PaymentPage} />
