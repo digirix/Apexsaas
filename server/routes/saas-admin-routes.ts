@@ -1,6 +1,6 @@
 import { Express, Request, Response } from 'express';
 import { db } from '../db';
-import { tenants, subscriptions, packages, saasAdmins, users } from '../../shared/schema';
+import { tenants, subscriptions, packages, saasAdmins, users, entities, tasks, invoices } from '../../shared/schema';
 import { eq, desc, count, sql } from 'drizzle-orm';
 
 export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, requireSaasAdminRole }: any) {
@@ -114,7 +114,91 @@ export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, r
     try {
       const tenantId = parseInt(req.params.tenantId);
 
-      // Get tenant info
+      // Get tenant info with primary admin
+      const tenantData = await db
+        .select({
+          id: tenants.id,
+          companyName: tenants.companyName,
+          status: tenants.status,
+          createdAt: tenants.createdAt,
+          trialEndsAt: tenants.trialEndsAt,
+          primaryAdminUserId: tenants.primaryAdminUserId,
+        })
+        .from(tenants)
+        .where(eq(tenants.id, tenantId))
+        .limit(1);
+
+      if (!tenantData.length) {
+        return res.status(404).json({ message: 'Tenant not found' });
+      }
+
+      const tenant = tenantData[0];
+
+      // Get primary admin user details
+      let primaryAdmin = null;
+      if (tenant.primaryAdminUserId) {
+        const adminResult = await db
+          .select({
+            id: users.id,
+            email: users.email,
+            displayName: users.displayName,
+          })
+          .from(users)
+          .where(eq(users.id, tenant.primaryAdminUserId))
+          .limit(1);
+        primaryAdmin = adminResult[0] || null;
+      }
+
+      // Get usage metrics
+      const [userCount, entityCount, taskCount, invoiceCount] = await Promise.all([
+        db.select({ count: count() }).from(users).where(eq(users.tenantId, tenantId)),
+        db.select({ count: count() }).from(entities).where(eq(entities.tenantId, tenantId)),
+        db.select({ count: count() }).from(tasks).where(eq(tasks.tenantId, tenantId)),
+        db.select({ count: count() }).from(invoices).where(eq(invoices.tenantId, tenantId)),
+      ]);
+
+      // Get subscription info
+      const subscription = await db
+        .select({
+          id: subscriptions.id,
+          status: subscriptions.status,
+          currentPeriodEnd: subscriptions.currentPeriodEnd,
+          stripeSubscriptionId: subscriptions.stripeSubscriptionId,
+          packageName: packages.name,
+        })
+        .from(subscriptions)
+        .leftJoin(packages, eq(subscriptions.packageId, packages.id))
+        .where(eq(subscriptions.tenantId, tenantId))
+        .limit(1);
+
+      res.json({
+        id: tenant.id,
+        companyName: tenant.companyName,
+        status: tenant.status,
+        createdAt: tenant.createdAt,
+        trialEndsAt: tenant.trialEndsAt,
+        primaryAdminUser: primaryAdmin,
+        stats: {
+          userCount: userCount[0]?.count || 0,
+          entityCount: entityCount[0]?.count || 0,
+          taskCount: taskCount[0]?.count || 0,
+          invoiceCount: invoiceCount[0]?.count || 0,
+        },
+        subscription: subscription[0] || null,
+      });
+    } catch (error) {
+      console.error('Tenant details error:', error);
+      res.status(500).json({ message: 'Failed to fetch tenant details' });
+    }
+  });
+
+  // Tenant impersonation
+  app.post('/api/saas-admin/tenants/:tenantId/impersonate', isSaasAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const tenantId = parseInt(req.params.tenantId);
+      const saasAdminId = req.user?.id;
+
+      // Verify tenant exists
       const tenant = await db
         .select()
         .from(tenants)
@@ -125,63 +209,84 @@ export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, r
         return res.status(404).json({ message: 'Tenant not found' });
       }
 
-      // Get usage metrics
-      const userCount = await db
-        .select({ count: count() })
-        .from(users)
-        .where(eq(users.tenantId, tenantId));
+      if (tenant[0].status === 'suspended') {
+        return res.status(400).json({ message: 'Cannot impersonate suspended tenant' });
+      }
 
-      // Get subscription info
-      const subscription = await db
-        .select({
-          id: subscriptions.id,
-          status: subscriptions.status,
-          currentPeriodEnd: subscriptions.currentPeriodEnd,
-          stripeSubscriptionId: subscriptions.stripeSubscriptionId,
-          packageName: packages.name,
-          monthlyPrice: packages.monthlyPrice,
-        })
-        .from(subscriptions)
-        .leftJoin(packages, eq(subscriptions.packageId, packages.id))
-        .where(eq(subscriptions.tenantId, tenantId))
-        .limit(1);
-
-      res.json({
-        tenant: tenant[0],
-        metrics: {
-          userCount: userCount[0]?.count || 0,
-          // Additional metrics can be added here
-        },
-        subscription: subscription[0] || null,
+      // Generate a short-lived impersonation token
+      const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      
+      // TODO: Store impersonation session in Redis or database with expiration
+      // For now, we'll create a simple token that expires in 5 minutes
+      
+      res.json({ 
+        token,
+        tenantId,
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000) // 5 minutes
       });
     } catch (error) {
-      console.error('Tenant details error:', error);
-      res.status(500).json({ message: 'Failed to fetch tenant details' });
+      console.error('Impersonation error:', error);
+      res.status(500).json({ message: 'Failed to start impersonation' });
     }
   });
 
-  // Update tenant status
-  app.put('/api/saas-admin/tenants/:tenantId/status', requireSaasAdminRole(['owner', 'support']), async (req: Request, res: Response) => {
+  // Suspend tenant
+  app.post('/api/saas-admin/tenants/:tenantId/suspend', isSaasAdminAuthenticated, async (req: Request, res: Response) => {
     try {
       const tenantId = parseInt(req.params.tenantId);
-      const { status } = req.body;
-
-      if (!['trial', 'active', 'suspended', 'cancelled'].includes(status)) {
-        return res.status(400).json({ message: 'Invalid status' });
-      }
 
       await db
         .update(tenants)
         .set({ 
-          status,
+          status: 'suspended',
           updatedAt: new Date(),
         })
         .where(eq(tenants.id, tenantId));
 
-      res.json({ message: 'Tenant status updated successfully' });
+      res.json({ message: 'Tenant suspended successfully' });
     } catch (error) {
-      console.error('Update tenant status error:', error);
-      res.status(500).json({ message: 'Failed to update tenant status' });
+      console.error('Suspend tenant error:', error);
+      res.status(500).json({ message: 'Failed to suspend tenant' });
+    }
+  });
+
+  // Unsuspend tenant
+  app.post('/api/saas-admin/tenants/:tenantId/unsuspend', isSaasAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const tenantId = parseInt(req.params.tenantId);
+
+      await db
+        .update(tenants)
+        .set({ 
+          status: 'active',
+          updatedAt: new Date(),
+        })
+        .where(eq(tenants.id, tenantId));
+
+      res.json({ message: 'Tenant unsuspended successfully' });
+    } catch (error) {
+      console.error('Unsuspend tenant error:', error);
+      res.status(500).json({ message: 'Failed to unsuspend tenant' });
+    }
+  });
+
+  // Cancel tenant subscription
+  app.post('/api/saas-admin/tenants/:tenantId/cancel', isSaasAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const tenantId = parseInt(req.params.tenantId);
+
+      await db
+        .update(tenants)
+        .set({ 
+          status: 'cancelled',
+          updatedAt: new Date(),
+        })
+        .where(eq(tenants.id, tenantId));
+
+      res.json({ message: 'Tenant subscription cancelled successfully' });
+    } catch (error) {
+      console.error('Cancel tenant error:', error);
+      res.status(500).json({ message: 'Failed to cancel tenant subscription' });
     }
   });
 
