@@ -21,6 +21,9 @@ export function broadcastToUser(tenantId: number, userId: number, message: any) 
   }
 }
 import { setupAuth } from "./auth";
+import { setupSaasAdminAuth } from "./saas-admin-auth";
+import { setupSaasAdminRoutes } from "./routes/saas-admin-routes";
+import { setupPublicApiRoutes } from "./routes/public-api-routes";
 import { storage } from "./storage";
 import { DatabaseStorage } from "./database-storage";
 import { TaskScheduler } from "./task-scheduler";
@@ -116,6 +119,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Client portal routes registered successfully");
     } catch (routesError) {
       console.error("Error registering client portal routes:", routesError);
+    }
+    
+    // Set up SaaS Admin authentication
+    try {
+      const saasAdminMiddleware = setupSaasAdminAuth(app);
+      console.log("SaaS Admin authentication setup successful");
+      
+      // Set up SaaS Admin routes
+      setupSaasAdminRoutes(app, saasAdminMiddleware);
+      console.log("SaaS Admin routes registered successfully");
+    } catch (saasError) {
+      console.error("Error setting up SaaS Admin infrastructure:", saasError);
+    }
+    
+    // Set up Public API routes
+    try {
+      setupPublicApiRoutes(app);
+      console.log("Public API routes registered successfully");
+    } catch (publicApiError) {
+      console.error("Error setting up Public API routes:", publicApiError);
     }
     
     console.log("Authentication setup successful");

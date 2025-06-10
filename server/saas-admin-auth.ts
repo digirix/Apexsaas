@@ -40,7 +40,7 @@ async function comparePasswords(supplied: string, stored: string) {
   return await bcrypt.compare(supplied, stored);
 }
 
-export interface SaasAdminUser {
+export interface SaasAdminUser extends Express.User {
   id: number;
   email: string;
   role: string;
@@ -97,14 +97,14 @@ export function setupSaasAdminAuth(app: Express) {
           .set({ lastLoginAt: new Date() })
           .where(eq(saasAdmins.id, adminUser.id));
 
-        const saasAdminUser: SaasAdminUser = {
+        const saasAdminUser = {
           id: adminUser.id,
           email: adminUser.email,
           role: adminUser.role,
           displayName: adminUser.displayName,
           isActive: adminUser.isActive,
           isSaasAdmin: true,
-        };
+        } as SaasAdminUser;
 
         console.log('SaaS Admin authentication successful:', email);
         return done(null, saasAdminUser);
@@ -150,7 +150,7 @@ export function setupSaasAdminAuth(app: Express) {
         return res.status(401).json({ message: info?.message || 'Authentication failed' });
       }
 
-      req.logIn(user, (err) => {
+      req.logIn(user as any, (err) => {
         if (err) {
           console.error('SaaS Admin session error:', err);
           return res.status(500).json({ message: 'Session error' });
@@ -182,16 +182,20 @@ export function setupSaasAdminAuth(app: Express) {
 
   // SaaS Admin profile endpoint
   app.get('/api/saas-admin/auth/me', isSaasAdminAuthenticated, (req, res) => {
-    const user = req.user as SaasAdminUser;
-    res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        displayName: user.displayName,
-        isSaasAdmin: true,
-      }
-    });
+    const user = req.user!;
+    if (isSaasAdminUser(user)) {
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          displayName: user.displayName,
+          isSaasAdmin: true,
+        }
+      });
+    } else {
+      res.status(401).json({ message: 'Invalid SaaS admin session' });
+    }
   });
 
   console.log('SaaS Admin authentication setup successful');
