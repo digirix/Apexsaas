@@ -23,6 +23,7 @@ export function broadcastToUser(tenantId: number, userId: number, message: any) 
 import { setupAuth } from "./auth";
 import { setupSaasAdminAuth } from "./saas-admin-auth";
 import { setupSaasAdminRoutes } from "./routes/saas-admin-routes";
+import { setupSaasBlogRoutes } from "./routes/saas-blog-routes";
 import { setupPublicApiRoutes } from "./routes/public-api-routes";
 import { storage } from "./storage";
 import { DatabaseStorage } from "./database-storage";
@@ -129,6 +130,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set up SaaS Admin routes
       setupSaasAdminRoutes(app, saasAdminMiddleware);
       console.log("SaaS Admin routes registered successfully");
+      
+      // Set up SaaS Blog Management routes
+      setupSaasBlogRoutes(app, saasAdminMiddleware);
+      console.log("SaaS Blog Management routes registered successfully");
     } catch (saasError) {
       console.error("Error setting up SaaS Admin infrastructure:", saasError);
     }

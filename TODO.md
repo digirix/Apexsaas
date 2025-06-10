@@ -1,52 +1,92 @@
-# Platform Admin Panel - Development TODO
+# SaaS Platform Development - Next Phase TODO
 
 ## Overview
-Development plan for implementing the Platform Admin Panel - a cross-tenant management system that provides system oversight, analytics, and administration capabilities across all tenants in the multi-tenant accounting platform.
+Development roadmap for completing the SaaS platform features as defined in SaaSScope.md. The initial SaaS infrastructure has been established, now building the user interface and advanced features.
 
-## Phase 1: Platform Admin Panel Foundation
+## Phase 1: SaaS Admin Portal User Interface
 
-### 1.1 Platform Admin Authentication System
-- [ ] **Platform Admin Schema Design**
-  - Create platform_admins table (separate from tenant users)
-  - Implement platform-level permission system
-  - Design cross-tenant access controls
+### 1.1 Tenant Directory Implementation
+- [ ] **Build Tenant Directory API Integration**
+  - Implement `/api/saas-admin/tenants` endpoint integration
+  - Add pagination, search, and filtering capabilities
+  - Create tenant status management interface
 
-- [ ] **Platform Admin Authentication**
-  - Separate authentication flow for platform admins
-  - Platform-level session management
-  - Multi-factor authentication for enhanced security
+- [ ] **Tenant Directory UI Components**
+  - Build TanStack Table component for tenant listing
+  - Add "View Details" action buttons
+  - Implement search and filter controls
+  - Create responsive tenant cards for mobile view
 
-- [ ] **Authorization Framework**
-  - Platform admin role definitions (Super Platform Admin, Platform Admin, Support Admin)
-  - Cross-tenant access permissions
-  - Audit trail for platform admin actions
+### 1.2 Package Manager Implementation
+- [ ] **Implement Package Manager CRUD**
+  - Build package creation and editing forms
+  - Add JSON editor for limits configuration
+  - Implement "Visible on Pricing Page" toggle
+  - Create package deletion with usage validation
 
-### 1.2 Platform Admin UI Framework
-- [ ] **Admin Dashboard Layout**
-  - Dedicated platform admin interface (separate from tenant UI)
-  - Multi-tenant navigation and switching
-  - Global search across all tenants
+- [ ] **Package Manager UI**
+  - Design package list interface
+  - Build dynamic form fields for limits
+  - Add pricing calculator components
+  - Implement package preview functionality
 
-- [ ] **Platform Admin Components**
-  - Tenant selector component
-  - Cross-tenant data tables
-  - Platform-wide analytics widgets
-  - System health indicators
+### 1.3 Blog Post Management System
+- [ ] **Develop Public API for Blog Posts**
+  - Enhance `/api/public/blog-posts` endpoints
+  - Add SEO optimization features
+  - Implement slug generation and validation
+  - Create content preview functionality
 
-## Phase 2: Cross-Tenant Management
+- [ ] **Blog Management Interface**
+  - Build rich-text editor (TipTap/TinyMCE)
+  - Add SEO fields (title, meta description)
+  - Implement draft/publish workflow
+  - Create bulk operations interface
 
-### 2.1 Tenant Management Module
-- [ ] **Tenant CRUD Operations**
-  - Create new tenants with initial setup
-  - Modify tenant configurations and settings
-  - Deactivate/suspend tenants
-  - Tenant deletion with data archival
+## Phase 2: Marketing Website Integration
 
-- [ ] **Tenant Analytics Dashboard**
-  - Tenant usage statistics
-  - Active user counts per tenant
-  - Revenue metrics per tenant
-  - Storage and resource utilization
+### 2.1 Public API Enhancement
+- [ ] **Pricing Page API**
+  - Enhance package visibility controls
+  - Add annual savings calculations
+  - Implement feature comparison data
+  - Create trial signup integration
+
+- [ ] **Blog Content API**
+  - Add blog post categorization
+  - Implement content pagination
+  - Create featured posts system
+  - Add author management
+
+### 2.2 SEO and Content Features
+- [ ] **SEO Infrastructure**
+  - Implement sitemap generation
+  - Add meta tag management
+  - Create canonical URL handling
+  - Build structured data markup
+
+## Phase 3: Advanced SaaS Features
+
+### 3.1 Tenant Impersonation System
+- [ ] **Secure Impersonation Implementation**
+  - Build short-lived token generation
+  - Create impersonation audit logging
+  - Implement visible impersonation banner
+  - Add impersonation session management
+
+### 3.2 Usage-Based Pricing
+- [ ] **Billing Logic Implementation**
+  - Build usage tracking system
+  - Implement billing calculation engine
+  - Create Stripe invoice generation
+  - Add usage limit enforcement
+
+### 3.3 Advanced Analytics
+- [ ] **Business Intelligence Dashboard**
+  - Implement MRR calculation
+  - Build churn rate analytics
+  - Create tenant growth visualization
+  - Add usage pattern analysis
 
 - [ ] **Tenant Health Monitoring**
   - System performance per tenant
