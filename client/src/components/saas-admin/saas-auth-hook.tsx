@@ -15,7 +15,7 @@ export function useSaasAuth() {
   const queryClient = useQueryClient();
 
   // Query to check current SaaS admin authentication
-  const { data: authData, error } = useQuery({
+  const { data: authData, error } = useQuery<{user: SaasAdminUser}>({
     queryKey: ['/api/saas-admin/auth/me'],
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
