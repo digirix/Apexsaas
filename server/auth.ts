@@ -121,9 +121,11 @@ export function setupAuth(app: Express) {
   ));
 
   passport.serializeUser((user, done) => {
-    // Add user type to prevent conflicts between regular users and client portal users
+    // Add user type to prevent conflicts between different user types
     if ((user as any).isClientPortalUser) {
       done(null, { id: user.id, type: 'client-portal' });
+    } else if ((user as any).isSaasAdmin) {
+      done(null, { id: user.id, type: 'saas-admin' });
     } else {
       done(null, { id: user.id, type: 'staff' });
     }
