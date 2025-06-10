@@ -6,9 +6,29 @@ import { saasAdmins, SelectSaasAdmin } from '../shared/schema';
 import { eq } from 'drizzle-orm';
 import { db } from './db';
 
+// Extend Express User interface to support both tenant users and SaaS admins
 declare global {
   namespace Express {
-    interface User extends SelectSaasAdmin {}
+    interface User {
+      id: number;
+      email: string;
+      displayName: string;
+      // Tenant user properties (optional for SaaS admins)
+      tenantId?: number;
+      username?: string;
+      password?: string;
+      designationId?: number | null;
+      departmentId?: number | null;
+      isSuperAdmin?: boolean;
+      isAdmin?: boolean;
+      isActive?: boolean;
+      createdAt?: Date;
+      // SaaS admin properties (optional for tenant users)
+      role?: string;
+      lastLoginAt?: Date | null;
+      // Discriminator fields
+      isSaasAdmin?: boolean;
+    }
   }
 }
 
