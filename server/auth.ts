@@ -6,7 +6,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import bcrypt from "bcrypt";
 import { storage } from "./storage";
-import { User as SelectUser, clientPortalAccess, clients } from "@shared/schema";
+import { User as SelectUser, clientPortalAccess, clients, saasAdmins } from "@shared/schema";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
 
@@ -191,6 +191,45 @@ export function setupAuth(app: Express) {
           return done(null, user);
         } catch (error) {
           console.error('Error deserializing client portal user:', error);
+          return done(error);
+        }
+      } else if (serialized.type === 'saas-admin') {
+        // For SaaS admin users
+        try {
+          console.log(`Deserializing SaaS admin user with ID: ${serialized.id}`);
+          
+          const adminRecords = await db
+            .select()
+            .from(saasAdmins)
+            .where(eq(saasAdmins.id, serialized.id));
+            
+          if (!adminRecords || adminRecords.length === 0) {
+            console.log(`No SaaS admin found for ID: ${serialized.id}`);
+            return done(null, false);
+          }
+          
+          const admin = adminRecords[0];
+          console.log(`Found SaaS admin: ${admin.displayName}`);
+          
+          if (!admin.isActive) {
+            console.log(`SaaS admin account disabled: ${admin.email}`);
+            return done(null, false);
+          }
+          
+          // Create SaaS admin user object
+          const saasAdminUser = {
+            id: admin.id,
+            email: admin.email,
+            role: admin.role,
+            displayName: admin.displayName,
+            isActive: admin.isActive,
+            isSaasAdmin: true,
+          };
+          
+          console.log(`Deserialized SaaS admin user: ${admin.email}`);
+          return done(null, saasAdminUser);
+        } catch (error) {
+          console.error('Error deserializing SaaS admin user:', error);
           return done(error);
         }
       } else {
