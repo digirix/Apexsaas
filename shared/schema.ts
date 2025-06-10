@@ -1,6 +1,91 @@
-import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, varchar, unique, pgEnum, decimal, foreignKey } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, varchar, unique, pgEnum, decimal, foreignKey, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+// =============================================================================
+// SaaS-Level Tables (No tenant_id - these manage the SaaS business itself)
+// =============================================================================
+
+// SaaS Admin users table - separate from tenant users
+export const saasAdmins = pgTable("saas_admins", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  role: text("role").notNull().default("owner"), // owner, support, finance
+  displayName: text("display_name").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  lastLoginAt: timestamp("last_login_at"),
+});
+
+export const insertSaasAdminSchema = createInsertSchema(saasAdmins).pick({
+  email: true,
+  passwordHash: true,
+  role: true,
+  displayName: true,
+  isActive: true,
+});
+
+// SaaS Packages/Plans table
+export const packages = pgTable("packages", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  monthlyPrice: decimal("monthly_price", { precision: 10, scale: 2 }),
+  annualPrice: decimal("annual_price", { precision: 10, scale: 2 }),
+  limitsJson: json("limits_json").$type<{
+    maxUsers?: number;
+    maxEntities?: number;
+    modules?: string[];
+    aiAccess?: boolean;
+    [key: string]: any;
+  }>(),
+  isActive: boolean("is_active").default(true).notNull(),
+  isPubliclyVisible: boolean("is_publicly_visible").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertPackageSchema = createInsertSchema(packages).pick({
+  name: true,
+  description: true,
+  monthlyPrice: true,
+  annualPrice: true,
+  limitsJson: true,
+  isActive: true,
+  isPubliclyVisible: true,
+});
+
+// Blog posts table for marketing website
+export const blogPosts = pgTable("blog_posts", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  slug: text("slug").notNull().unique(),
+  content: text("content").notNull(),
+  authorId: integer("author_id").notNull().references(() => saasAdmins.id),
+  status: text("status").notNull().default("draft"), // draft, published, archived
+  featuredImageUrl: text("featured_image_url"),
+  seoTitle: text("seo_title"),
+  seoDescription: text("seo_description"),
+  publishedAt: timestamp("published_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertBlogPostSchema = createInsertSchema(blogPosts).pick({
+  title: true,
+  slug: true,
+  content: true,
+  authorId: true,
+  status: true,
+  featuredImageUrl: true,
+  seoTitle: true,
+  seoDescription: true,
+  publishedAt: true,
+});
+
+// =============================================================================
+// Updated Tenant-Level Tables
+// =============================================================================
 
 // Module permissions access level enum
 export const accessLevelEnum = pgEnum('access_level', ['full', 'partial', 'restricted']);
@@ -34,16 +119,57 @@ export const insertUserPermissionSchema = createInsertSchema(userPermissions).pi
   canDelete: true,
 });
 
-// Tenants table
+// Enhanced Tenants table - central link between SaaS and tenant data
 export const tenants = pgTable("tenants", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
+  companyName: text("company_name").notNull(),
+  primaryAdminUserId: integer("primary_admin_user_id"), // References users.id
+  status: text("status").notNull().default("trial"), // trial, active, suspended, cancelled
+  trialEndsAt: timestamp("trial_ends_at"),
+  subscriptionId: integer("subscription_id"), // References subscriptions.id
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const insertTenantSchema = createInsertSchema(tenants).pick({
-  name: true,
+// Subscriptions table linking tenants to packages
+export const subscriptions = pgTable("subscriptions", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id),
+  packageId: integer("package_id").notNull().references(() => packages.id),
+  status: text("status").notNull().default("active"), // active, cancelled, past_due, unpaid
+  currentPeriodStart: timestamp("current_period_start").notNull(),
+  currentPeriodEnd: timestamp("current_period_end").notNull(),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  stripeCustomerId: text("stripe_customer_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).pick({
+  tenantId: true,
+  packageId: true,
+  status: true,
+  currentPeriodStart: true,
+  currentPeriodEnd: true,
+  stripeSubscriptionId: true,
+  stripeCustomerId: true,
+});
+
+export const insertTenantSchema = createInsertSchema(tenants).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Type definitions for SaaS tables
+export type SelectSaasAdmin = typeof saasAdmins.$inferSelect;
+export type InsertSaasAdmin = typeof insertSaasAdminSchema._type;
+export type SelectPackage = typeof packages.$inferSelect;
+export type InsertPackage = typeof insertPackageSchema._type;
+export type SelectBlogPost = typeof blogPosts.$inferSelect;
+export type InsertBlogPost = typeof insertBlogPostSchema._type;
+export type SelectSubscription = typeof subscriptions.$inferSelect;
+export type InsertSubscription = typeof insertSubscriptionSchema._type;
 
 // Tenant Settings table
 export const tenantSettings = pgTable("tenant_settings", {
@@ -1225,9 +1351,8 @@ export const insertChartOfAccountSchema = createInsertSchema(chartOfAccounts)
     updatedAt: z.union([z.date(), z.string().transform(str => new Date(str))]).optional(),
   });
 
-// Export types
+// Export types (avoiding duplicate with SaaS types above)
 export type Tenant = typeof tenants.$inferSelect;
-export type InsertTenant = z.infer<typeof insertTenantSchema>;
 
 export type TenantSetting = typeof tenantSettings.$inferSelect;
 export type InsertTenantSetting = z.infer<typeof insertTenantSettingSchema>;
