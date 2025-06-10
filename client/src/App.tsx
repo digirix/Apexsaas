@@ -101,9 +101,21 @@ function Router() {
       
       {/* SaaS Admin Portal routes */}
       <Route path="/saas-admin/login" component={SaasLoginPage} />
-      <SaasProtectedRoute path="/saas-admin" component={SaasDashboardPage} />
-      <SaasProtectedRoute path="/saas-admin/dashboard" component={SaasDashboardPage} />
-      <SaasProtectedRoute path="/saas-admin/tenants" component={SaasTenantsPage} />
+      <Route path="/saas-admin">
+        <SaasProtectedRoute>
+          <SaasDashboardPage />
+        </SaasProtectedRoute>
+      </Route>
+      <Route path="/saas-admin/dashboard">
+        <SaasProtectedRoute>
+          <SaasDashboardPage />
+        </SaasProtectedRoute>
+      </Route>
+      <Route path="/saas-admin/tenants">
+        <SaasProtectedRoute>
+          <SaasTenantsPage />
+        </SaasProtectedRoute>
+      </Route>
 
       {/* Public payment routes */}
       <Route path="/pay/:invoiceId" component={PaymentPage} />

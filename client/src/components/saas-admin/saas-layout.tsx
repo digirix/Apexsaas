@@ -95,7 +95,7 @@ export default function SaasLayout({ children }: SaasLayoutProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={logout}
+            onClick={() => logout()}
             className="w-full"
           >
             <LogOut className="w-4 h-4 mr-2" />
