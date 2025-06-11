@@ -1,6 +1,6 @@
 import { Express, Request, Response } from 'express';
 import { db } from '../db';
-import { tenants, subscriptions, packages, saasAdmins, users, entities, tasks, invoices } from '../../shared/schema';
+import { tenants, subscriptions, packages, saasAdmins, users, entities, tasks, invoices, blogPosts } from '../../shared/schema';
 import { eq, desc, count, sql } from 'drizzle-orm';
 
 export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, requireSaasAdminRole }: any) {
@@ -395,7 +395,7 @@ export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, r
       const allPosts = await db
         .select()
         .from(blogPosts)
-        .orderBy(blogPosts.createdAt.desc());
+        .orderBy(desc(blogPosts.createdAt));
 
       res.json({ posts: allPosts });
     } catch (error) {
@@ -431,14 +431,12 @@ export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, r
           title,
           slug: finalSlug,
           content,
-          excerpt: excerpt || null,
-          authorName,
+          authorId: 1, // SaaS admin ID
           status: status || 'draft',
           featuredImageUrl: featuredImageUrl || null,
           seoTitle: seoTitle || null,
           seoDescription: seoDescription || null,
           publishedAt: status === 'published' ? new Date() : null,
-          createdAt: new Date(),
         })
         .returning();
 
