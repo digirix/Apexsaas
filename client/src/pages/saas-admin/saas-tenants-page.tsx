@@ -46,6 +46,9 @@ export default function SaasTenantsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState('overview');
+  const [selectedTenants, setSelectedTenants] = useState<number[]>([]);
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const limit = 10;
 
   const { data, isLoading } = useQuery<TenantsResponse>({
@@ -73,6 +76,27 @@ export default function SaasTenantsPage() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
+  };
+
+  const handleSelectAll = () => {
+    if (selectedTenants.length === data?.tenants.length) {
+      setSelectedTenants([]);
+    } else {
+      setSelectedTenants(data?.tenants.map(t => t.id) || []);
+    }
+  };
+
+  const handleBulkAction = async (action: string) => {
+    if (selectedTenants.length === 0) return;
+    
+    try {
+      // Implement bulk actions here
+      console.log(`Performing ${action} on tenants:`, selectedTenants);
+      // Add actual API calls for bulk operations
+      setSelectedTenants([]);
+    } catch (error) {
+      console.error('Bulk action failed:', error);
+    }
   };
 
   const totalPages = Math.ceil((data?.pagination?.total || 0) / limit);

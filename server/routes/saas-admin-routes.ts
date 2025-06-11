@@ -311,6 +311,53 @@ export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, r
   // Tenant Management
   // =============================================================================
 
+  // Get tenant statistics overview
+  app.get('/api/saas-admin/tenants/stats', isSaasAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      // Get basic tenant counts
+      const [totalTenantsResult, activeTenantsResult, trialTenantsResult] = await Promise.all([
+        db.select({ count: count() }).from(tenants),
+        db.select({ count: count() }).from(tenants).where(eq(tenants.status, 'active')),
+        db.select({ count: count() }).from(tenants).where(eq(tenants.status, 'trial')),
+      ]);
+
+      // Calculate total revenue from active subscriptions
+      const revenueResult = await db
+        .select({ 
+          total: sql<number>`COALESCE(SUM(${packages.monthlyPrice}), 0)` 
+        })
+        .from(subscriptions)
+        .innerJoin(packages, eq(subscriptions.packageId, packages.id))
+        .where(sql`${subscriptions.status} = 'active'`);
+
+      // Calculate average users per tenant
+      const avgUsersResult = await db
+        .select({ 
+          avg: sql<number>`COALESCE(AVG(user_count.count), 0)` 
+        })
+        .from(
+          db.select({ 
+            tenantId: users.tenantId, 
+            count: count().as('count') 
+          })
+          .from(users)
+          .groupBy(users.tenantId)
+          .as('user_count')
+        );
+
+      res.json({
+        totalTenants: totalTenantsResult[0]?.count || 0,
+        activeTenants: activeTenantsResult[0]?.count || 0,
+        trialTenants: trialTenantsResult[0]?.count || 0,
+        totalRevenue: Number(revenueResult[0]?.total || 0),
+        avgUsersPerTenant: Number(avgUsersResult[0]?.avg || 0),
+      });
+    } catch (error) {
+      console.error('Tenant stats error:', error);
+      res.status(500).json({ message: 'Failed to fetch tenant statistics' });
+    }
+  });
+
   // Get all tenants with pagination and filtering
   app.get('/api/saas-admin/tenants', isSaasAdminAuthenticated, async (req: Request, res: Response) => {
     try {
