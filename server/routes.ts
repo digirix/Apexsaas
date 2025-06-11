@@ -25,6 +25,7 @@ import { setupSaasAdminAuth } from "./saas-admin-auth";
 import { setupSaasAdminRoutes } from "./routes/saas-admin-routes";
 import { setupSaasBlogRoutes } from "./routes/saas-blog-routes";
 import { setupPublicApiRoutes } from "./routes/public-api-routes";
+import { setupTenantRegistrationRoutes } from "./routes/tenant-registration-routes";
 import { storage } from "./storage";
 import { DatabaseStorage } from "./database-storage";
 import { TaskScheduler } from "./task-scheduler";

@@ -4,8 +4,7 @@ import {
   subscriptions, 
   packages, 
   users, 
-  entities, 
-  saasSettings 
+  entities
 } from '../../shared/schema';
 import { eq, and, count, sql } from 'drizzle-orm';
 
