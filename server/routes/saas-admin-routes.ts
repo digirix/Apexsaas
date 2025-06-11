@@ -479,8 +479,7 @@ export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, r
           title,
           slug,
           content,
-          excerpt: excerpt || null,
-          authorName,
+          authorId: 1, // SaaS admin ID
           status,
           featuredImageUrl: featuredImageUrl || null,
           seoTitle: seoTitle || null,
