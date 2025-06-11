@@ -7,7 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Eye, Building2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Search, Eye, Building2, Filter, Download, Users, DollarSign, Calendar, TrendingUp } from 'lucide-react';
 
 interface Tenant {
   id: number;
@@ -23,18 +25,35 @@ interface Tenant {
 
 interface TenantsResponse {
   tenants: Tenant[];
-  total: number;
-  page: number;
-  limit: number;
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+  };
+}
+
+interface TenantStats {
+  totalTenants: number;
+  activeTenants: number;
+  trialTenants: number;
+  totalRevenue: number;
+  avgUsersPerTenant: number;
 }
 
 export default function SaasTenantsPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeTab, setActiveTab] = useState('overview');
   const limit = 10;
 
   const { data, isLoading } = useQuery<TenantsResponse>({
-    queryKey: ['/api/saas-admin/tenants', { search: searchTerm, page: currentPage, limit }],
+    queryKey: ['/api/saas-admin/tenants', { search: searchTerm, status: statusFilter, page: currentPage, limit }],
+  });
+
+  const { data: stats } = useQuery<TenantStats>({
+    queryKey: ['/api/saas-admin/tenants/stats'],
   });
 
   const getStatusBadge = (status: string) => {
@@ -56,25 +75,94 @@ export default function SaasTenantsPage() {
     return new Date(dateString).toLocaleDateString();
   };
 
-  const totalPages = Math.ceil((data?.total || 0) / limit);
+  const totalPages = Math.ceil((data?.pagination?.total || 0) / limit);
 
   return (
     <SaasLayout>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Tenant Directory</h1>
-            <p className="text-slate-600">Manage all accounting firms on the platform</p>
+            <h1 className="text-3xl font-bold text-slate-900">Tenant Management</h1>
+            <p className="text-slate-600">Comprehensive oversight of all accounting firms on the platform</p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Button variant="outline" size="sm">
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
           </div>
         </div>
 
-        {/* Search and Filters */}
+        {/* Analytics Overview */}
+        {stats && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Tenants</CardTitle>
+                <Building2 className="h-4 w-4 text-slate-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalTenants}</div>
+                <p className="text-xs text-slate-600">All registered firms</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active Tenants</CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{stats.activeTenants}</div>
+                <p className="text-xs text-slate-600">Currently active</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Trial Tenants</CardTitle>
+                <Calendar className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">{stats.trialTenants}</div>
+                <p className="text-xs text-slate-600">On trial period</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
+                <DollarSign className="h-4 w-4 text-purple-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-purple-600">${stats.totalRevenue?.toLocaleString() || 0}</div>
+                <p className="text-xs text-slate-600">Recurring revenue</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Avg Users</CardTitle>
+                <Users className="h-4 w-4 text-orange-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-orange-600">{stats.avgUsersPerTenant?.toFixed(1) || 0}</div>
+                <p className="text-xs text-slate-600">Per tenant</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Enhanced Search and Filters */}
         <Card>
           <CardHeader>
-            <CardTitle>Search Tenants</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="w-5 h-5" />
+              Search & Filter Tenants
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-col lg:flex-row items-center space-y-4 lg:space-y-0 lg:space-x-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <Input
@@ -84,9 +172,30 @@ export default function SaasTenantsPage() {
                   className="pl-10"
                 />
               </div>
-              <Button variant="outline">
-                Filter by Status
-              </Button>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Statuses</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="trial">Trial</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem>
+                  <SelectItem value="canceled">Canceled</SelectItem>
+                </SelectContent>
+              </Select>
+              {(searchTerm || statusFilter) && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setStatusFilter('');
+                  }}
+                  size="sm"
+                >
+                  Clear Filters
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -95,7 +204,7 @@ export default function SaasTenantsPage() {
         <Card>
           <CardHeader>
             <CardTitle>
-              All Tenants ({data?.total || 0})
+              All Tenants ({data?.pagination?.total || 0})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -175,7 +284,7 @@ export default function SaasTenantsPage() {
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-slate-600">
-                      Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, data?.total || 0)} of {data?.total || 0} tenants
+                      Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, data?.pagination?.total || 0)} of {data?.pagination?.total || 0} tenants
                     </p>
                     <div className="flex items-center space-x-2">
                       <Button
