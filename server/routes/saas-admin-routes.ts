@@ -183,7 +183,7 @@ export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, r
         growthData.map(async (month) => {
           const revenueResult = await db
             .select({ 
-              revenue: sql<number>`COALESCE(SUM(${packages.price}), 0)` 
+              revenue: sql<number>`COALESCE(SUM(${packages.monthlyPrice}), 0)` 
             })
             .from(subscriptions)
             .innerJoin(packages, eq(subscriptions.packageId, packages.id))
@@ -211,19 +211,19 @@ export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, r
       const revenueData = await db
         .select({
           packageName: packages.name,
-          price: packages.price,
+          monthlyPrice: packages.monthlyPrice,
           tenantCount: count(),
         })
         .from(subscriptions)
         .innerJoin(packages, eq(subscriptions.packageId, packages.id))
         .where(sql`${subscriptions.status} = 'active'`)
-        .groupBy(packages.id, packages.name, packages.price);
+        .groupBy(packages.id, packages.name, packages.monthlyPrice);
 
       const colors = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
       
       const enrichedData = revenueData.map((item, index) => ({
         packageName: item.packageName,
-        revenue: Number(item.price) * item.tenantCount,
+        revenue: Number(item.monthlyPrice) * item.tenantCount,
         tenantCount: item.tenantCount,
         color: colors[index % colors.length]
       }));
