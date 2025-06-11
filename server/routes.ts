@@ -147,6 +147,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error setting up Public API routes:", publicApiError);
     }
     
+    // Set up Tenant Registration routes
+    try {
+      setupTenantRegistrationRoutes(app);
+      console.log("Tenant Registration routes registered successfully");
+    } catch (registrationError) {
+      console.error("Error setting up Tenant Registration routes:", registrationError);
+    }
+    
     console.log("Authentication setup successful");
   } catch (error) {
     console.error("Error setting up authentication:", error);
