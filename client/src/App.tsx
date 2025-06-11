@@ -7,6 +7,7 @@ import { TenantProvider } from "@/hooks/use-tenant";
 import { ProtectedRoute } from "@/lib/protected-route";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { ChatWidget } from "@/components/chatbot/chat-widget";
+import { ImpersonationBanner } from "@/components/impersonation-banner";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import DashboardPage from "@/pages/dashboard-page";
@@ -182,6 +183,7 @@ function AppContent() {
   
   return (
     <>
+      <ImpersonationBanner />
       <Router />
       <ChatWidget />
       <Toaster />

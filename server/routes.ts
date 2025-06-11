@@ -183,11 +183,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create impersonation session
-      req.session.userId = validation.superAdminUserId;
-      req.session.tenantId = validation.tenantId;
-      req.session.impersonatedBy = validation.saasAdminId;
-      req.session.impersonationToken = token;
-      req.session.isImpersonated = true;
+      (req.session as any).userId = validation.superAdminUserId;
+      (req.session as any).tenantId = validation.tenantId;
+      (req.session as any).impersonatedBy = validation.saasAdminId;
+      (req.session as any).impersonationToken = token;
+      (req.session as any).isImpersonated = true;
 
       // Redirect to dashboard with impersonation active
       res.redirect('/dashboard?impersonated=true');
@@ -201,7 +201,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // End impersonation route
   app.post("/api/v1/end-impersonation", async (req, res) => {
     try {
-      const token = req.session.impersonationToken;
+      const token = (req.session as any).impersonationToken;
       
       if (token) {
         const { impersonationService } = await import('./services/impersonation-service');
@@ -209,9 +209,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Clear impersonation session
-      req.session.impersonatedBy = undefined;
-      req.session.impersonationToken = undefined;
-      req.session.isImpersonated = false;
+      (req.session as any).impersonatedBy = undefined;
+      (req.session as any).impersonationToken = undefined;
+      (req.session as any).isImpersonated = false;
       
       // Destroy session to force re-login
       req.session.destroy((err) => {
@@ -224,6 +224,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('End impersonation error:', error);
       res.status(500).json({ message: 'Failed to end impersonation' });
+    }
+  });
+
+  // Impersonation status endpoint
+  app.get("/api/v1/impersonation/status", async (req, res) => {
+    try {
+      const isImpersonated = (req.session as any).isImpersonated || false;
+      const tenantId = (req.session as any).tenantId;
+      
+      if (isImpersonated && tenantId) {
+        // Get tenant name
+        const { db } = await import('./db');
+        const { tenants } = await import('../shared/schema');
+        const { eq } = await import('drizzle-orm');
+        
+        const tenant = await db
+          .select({ companyName: tenants.companyName })
+          .from(tenants)
+          .where(eq(tenants.id, tenantId))
+          .limit(1);
+
+        res.json({
+          isImpersonated: true,
+          tenantName: tenant[0]?.companyName || 'Unknown Tenant',
+          saasAdminName: 'SaaS Administrator'
+        });
+      } else {
+        res.json({ isImpersonated: false });
+      }
+
+    } catch (error) {
+      console.error('Impersonation status error:', error);
+      res.json({ isImpersonated: false });
     }
   });
 

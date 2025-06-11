@@ -70,11 +70,11 @@ export default function SaasTenantDetailPage() {
       return response.json();
     },
     onSuccess: (data) => {
-      // Open tenant app in new tab with impersonation token
-      window.open(`/?impersonate_token=${data.token}`, '_blank');
+      // Open tenant application with impersonation token
+      window.open(data.loginUrl, '_blank');
       toast({
         title: 'Impersonation Started',
-        description: 'You are now impersonating this tenant. Check the new tab.',
+        description: `Tenant access granted. Session expires at ${new Date(data.expiresAt).toLocaleTimeString()}.`,
       });
     },
     onError: (error: any) => {
