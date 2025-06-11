@@ -43,7 +43,7 @@ interface TenantStats {
 
 export default function SaasTenantsPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedTenants, setSelectedTenants] = useState<number[]>([]);
@@ -201,19 +201,19 @@ export default function SaasTenantsPage() {
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Statuses</SelectItem>
+                  <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="trial">Trial</SelectItem>
                   <SelectItem value="suspended">Suspended</SelectItem>
                   <SelectItem value="canceled">Canceled</SelectItem>
                 </SelectContent>
               </Select>
-              {(searchTerm || statusFilter) && (
+              {(searchTerm || (statusFilter && statusFilter !== 'all')) && (
                 <Button
                   variant="outline"
                   onClick={() => {
                     setSearchTerm('');
-                    setStatusFilter('');
+                    setStatusFilter('all');
                   }}
                   size="sm"
                 >

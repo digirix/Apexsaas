@@ -63,7 +63,7 @@ import PaymentPage from "@/pages/payment-page";
 import SaasProtectedRoute from "@/components/saas-admin/saas-protected-route";
 import SaasLoginPage from "@/pages/saas-admin/saas-login-page";
 import SaasDashboardPage from "@/pages/saas-admin/saas-dashboard-page";
-import SaasTenantsPage from "@/pages/saas-admin/saas-tenants-page";
+import SaasTenantsPage from "@/pages/saas-admin/saas-tenants-simple";
 import SaasTenantDetailPage from "@/pages/saas-admin/saas-tenant-detail-page";
 import SaasPackagesPage from "@/pages/saas-admin/saas-packages-page";
 import SaasBlogPage from "@/pages/saas-admin/saas-blog-page";

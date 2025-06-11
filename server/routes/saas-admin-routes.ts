@@ -372,13 +372,17 @@ export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, r
         status: tenants.status,
         createdAt: tenants.createdAt,
         trialEndsAt: tenants.trialEndsAt,
+        subscriptionId: sql<number>`1`,
+        userCount: sql<number>`1`,
+        entityCount: sql<number>`1`,
+        packageName: sql<string>`'Standard'`,
       }).from(tenants);
 
       // Apply filters
       if (search) {
         query = query.where(sql`company_name ILIKE ${'%' + search + '%'}`);
       }
-      if (status) {
+      if (status && status !== 'all') {
         query = query.where(eq(tenants.status, status));
       }
 
