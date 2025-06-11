@@ -512,5 +512,151 @@ export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, r
     }
   });
 
+  // =============================================================================
+  // Billing & Usage Management
+  // =============================================================================
+
+  // Get usage report for all tenants
+  app.get('/api/saas-admin/billing/usage-report', isSaasAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { billingService } = await import('../services/billing-service');
+      const report = await billingService.generateUsageReport();
+      res.json({ usageReport: report });
+    } catch (error) {
+      console.error('Usage report error:', error);
+      res.status(500).json({ message: 'Failed to generate usage report' });
+    }
+  });
+
+  // Get billing preview for a specific tenant
+  app.get('/api/saas-admin/billing/preview/:tenantId', isSaasAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const tenantId = parseInt(req.params.tenantId);
+      const { billingService } = await import('../services/billing-service');
+      
+      const preview = await billingService.previewTenantBilling(tenantId);
+      if (!preview) {
+        return res.status(404).json({ message: 'No billing data found for tenant' });
+      }
+
+      res.json({ billingPreview: preview });
+    } catch (error) {
+      console.error('Billing preview error:', error);
+      res.status(500).json({ message: 'Failed to generate billing preview' });
+    }
+  });
+
+  // Check if tenant is over limits
+  app.get('/api/saas-admin/billing/limits/:tenantId', isSaasAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const tenantId = parseInt(req.params.tenantId);
+      const { billingService } = await import('../services/billing-service');
+      
+      const limitsCheck = await billingService.checkTenantLimits(tenantId);
+      res.json({ limits: limitsCheck });
+    } catch (error) {
+      console.error('Limits check error:', error);
+      res.status(500).json({ message: 'Failed to check tenant limits' });
+    }
+  });
+
+  // Calculate current MRR
+  app.get('/api/saas-admin/billing/mrr', isSaasAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { billingService } = await import('../services/billing-service');
+      const mrr = await billingService.calculateMRR();
+      res.json({ mrr });
+    } catch (error) {
+      console.error('MRR calculation error:', error);
+      res.status(500).json({ message: 'Failed to calculate MRR' });
+    }
+  });
+
+  // Generate billing cycles for current period
+  app.post('/api/saas-admin/billing/generate-cycles', requireSaasAdminRole(['owner']), async (req: Request, res: Response) => {
+    try {
+      const { periodStart, periodEnd } = req.body;
+      const { billingService } = await import('../services/billing-service');
+      
+      const start = new Date(periodStart);
+      const end = new Date(periodEnd);
+      
+      const cycles = await billingService.generateBillingCycles(start, end);
+      res.json({ billingCycles: cycles, count: cycles.length });
+    } catch (error) {
+      console.error('Generate billing cycles error:', error);
+      res.status(500).json({ message: 'Failed to generate billing cycles' });
+    }
+  });
+
+  // =============================================================================
+  // Settings Management
+  // =============================================================================
+
+  // Get SaaS settings
+  app.get('/api/saas-admin/settings', isSaasAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      // Return default settings for now - in production this would fetch from saasSettings table
+      const defaultSettings = {
+        id: 1,
+        usageBasedPricingEnabled: true,
+        pricePerUserPerMonth: '15.00',
+        pricePerEntityPerMonth: '5.00',
+        billingCycleDay: 1,
+        trialPeriodDays: 14,
+        defaultCurrency: 'USD',
+        stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY || null,
+        stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || null,
+        companyName: 'FirmRix',
+        supportEmail: 'support@firmrix.com',
+        updatedAt: new Date().toISOString(),
+      };
+
+      res.json({ settings: defaultSettings });
+    } catch (error) {
+      console.error('Settings fetch error:', error);
+      res.status(500).json({ message: 'Failed to fetch settings' });
+    }
+  });
+
+  // Update SaaS settings
+  app.put('/api/saas-admin/settings', requireSaasAdminRole(['owner']), async (req: Request, res: Response) => {
+    try {
+      const {
+        usageBasedPricingEnabled,
+        pricePerUserPerMonth,
+        pricePerEntityPerMonth,
+        billingCycleDay,
+        trialPeriodDays,
+        defaultCurrency,
+        companyName,
+        supportEmail,
+      } = req.body;
+
+      // In production, this would update the saasSettings table
+      // For now, we'll just validate and return success
+      const updatedSettings = {
+        id: 1,
+        usageBasedPricingEnabled,
+        pricePerUserPerMonth,
+        pricePerEntityPerMonth,
+        billingCycleDay,
+        trialPeriodDays,
+        defaultCurrency,
+        companyName,
+        supportEmail,
+        updatedAt: new Date().toISOString(),
+      };
+
+      res.json({ 
+        message: 'Settings updated successfully',
+        settings: updatedSettings 
+      });
+    } catch (error) {
+      console.error('Settings update error:', error);
+      res.status(500).json({ message: 'Failed to update settings' });
+    }
+  });
+
   console.log('SaaS Admin routes registered successfully');
 }

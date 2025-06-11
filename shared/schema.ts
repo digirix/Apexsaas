@@ -2200,3 +2200,29 @@ export const insertTaskNoteSchema = createInsertSchema(taskNotes).pick({
 
 export type TaskNote = typeof taskNotes.$inferSelect;
 export type InsertTaskNote = z.infer<typeof insertTaskNoteSchema>;
+
+// =============================================================================
+// Audit Logs Table
+// =============================================================================
+
+// Audit logs for tracking SaaS admin actions and security events
+export const auditLogs = pgTable("audit_logs", {
+  id: serial("id").primaryKey(),
+  saasAdminId: integer("saas_admin_id").notNull().references(() => saasAdmins.id),
+  tenantId: integer("tenant_id").references(() => tenants.id),
+  action: text("action").notNull(), // LOGIN_SUCCESS, IMPERSONATION_START, etc.
+  resourceType: text("resource_type").notNull(), // tenant, package, blog_post, etc.
+  resourceId: text("resource_id"), // ID of the resource being acted upon
+  details: json("details"), // Additional context and metadata
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
