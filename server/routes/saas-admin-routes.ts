@@ -315,43 +315,126 @@ export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, r
   app.get('/api/saas-admin/tenants', isSaasAdminAuthenticated, async (req: Request, res: Response) => {
     try {
       const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 20;
+      const limit = parseInt(req.query.limit as string) || 10;
       const search = req.query.search as string;
       const status = req.query.status as string;
+      const sortBy = req.query.sortBy as string || 'createdAt';
+      const offset = (page - 1) * limit;
 
-      let query = db.select({
-        id: tenants.id,
-        companyName: tenants.companyName,
-        status: tenants.status,
-        createdAt: tenants.createdAt,
-        trialEndsAt: tenants.trialEndsAt,
-      }).from(tenants);
+      // Build the base query with joins for package information
+      let baseQuery = db
+        .select({
+          id: tenants.id,
+          companyName: tenants.companyName,
+          status: tenants.status,
+          createdAt: tenants.createdAt,
+          trialEndsAt: tenants.trialEndsAt,
+          packageName: packages.name,
+          monthlyPrice: packages.monthlyPrice,
+        })
+        .from(tenants)
+        .leftJoin(subscriptions, eq(tenants.id, subscriptions.tenantId))
+        .leftJoin(packages, eq(subscriptions.packageId, packages.id));
 
-      // Apply filters
+      // Apply search filter
       if (search) {
-        query = query.where(sql`company_name ILIKE ${'%' + search + '%'}`);
-      }
-      if (status) {
-        query = query.where(eq(tenants.status, status));
+        baseQuery = baseQuery.where(
+          sql`LOWER(${tenants.companyName}) LIKE LOWER(${'%' + search + '%'})`
+        );
       }
 
-      const results = await query
-        .orderBy(desc(tenants.createdAt))
-        .limit(limit)
-        .offset((page - 1) * limit);
+      // Apply status filter
+      if (status) {
+        baseQuery = baseQuery.where(eq(tenants.status, status));
+      }
+
+      // Add sorting
+      let orderByClause;
+      switch (sortBy) {
+        case 'companyName':
+          orderByClause = tenants.companyName;
+          break;
+        case 'mrr':
+          orderByClause = desc(packages.monthlyPrice);
+          break;
+        case 'userCount':
+          // Will be handled in post-processing
+          orderByClause = desc(tenants.createdAt);
+          break;
+        default:
+          orderByClause = desc(tenants.createdAt);
+      }
 
       // Get total count for pagination
-      const totalQuery = db.select({ count: count() }).from(tenants);
-      const total = await totalQuery;
+      let countQuery = db.select({ count: count() }).from(tenants);
+      if (search) {
+        countQuery = countQuery.where(
+          sql`LOWER(${tenants.companyName}) LIKE LOWER(${'%' + search + '%'})`
+        );
+      }
+      if (status) {
+        countQuery = countQuery.where(eq(tenants.status, status));
+      }
+
+      const [totalResult] = await countQuery;
+      const total = Number(totalResult.count);
+
+      // Get paginated results
+      const tenantsData = await baseQuery
+        .orderBy(orderByClause)
+        .limit(limit)
+        .offset(offset);
+
+      // Enrich with usage metrics for each tenant
+      const enrichedTenants = await Promise.all(
+        tenantsData.map(async (tenant) => {
+          // Get user count
+          const userCountResult = await db
+            .select({ count: count() })
+            .from(users)
+            .where(eq(users.tenantId, tenant.id));
+
+          // Get entity count
+          const entityCountResult = await db
+            .select({ count: count() })
+            .from(entities)
+            .where(eq(entities.tenantId, tenant.id));
+
+          // Get task count
+          const taskCountResult = await db
+            .select({ count: count() })
+            .from(tasks)
+            .where(eq(tasks.tenantId, tenant.id));
+
+          return {
+            id: tenant.id,
+            companyName: tenant.companyName,
+            status: tenant.status,
+            createdAt: tenant.createdAt.toISOString(),
+            trialEndsAt: tenant.trialEndsAt?.toISOString(),
+            packageName: tenant.packageName,
+            userCount: Number(userCountResult[0]?.count || 0),
+            entityCount: Number(entityCountResult[0]?.count || 0),
+            taskCount: Number(taskCountResult[0]?.count || 0),
+            mrr: Number(tenant.monthlyPrice || 0),
+          };
+        })
+      );
+
+      // Sort by user count if requested (post-processing sort)
+      if (sortBy === 'userCount') {
+        enrichedTenants.sort((a, b) => b.userCount - a.userCount);
+      }
+
+      const totalPages = Math.ceil(total / limit);
 
       res.json({
-        tenants: results,
-        pagination: {
-          page,
-          limit,
-          total: total[0]?.count || 0,
-          pages: Math.ceil((total[0]?.count || 0) / limit),
-        }
+        tenants: enrichedTenants,
+        total,
+        page,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
       });
     } catch (error) {
       console.error('Tenants list error:', error);

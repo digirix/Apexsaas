@@ -84,6 +84,7 @@ interface TenantData {
   trialEndsAt?: string;
 }
 
+// Define TenantManagementSection as a separate component
 function TenantManagementSection() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
