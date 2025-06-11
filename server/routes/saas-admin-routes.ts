@@ -385,5 +385,135 @@ export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, r
     }
   });
 
+  // =============================================================================
+  // Blog Management
+  // =============================================================================
+
+  // Get all blog posts
+  app.get('/api/saas-admin/blog-posts', isSaasAdminAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const allPosts = await db
+        .select()
+        .from(blogPosts)
+        .orderBy(blogPosts.createdAt.desc());
+
+      res.json({ posts: allPosts });
+    } catch (error) {
+      console.error('Blog posts list error:', error);
+      res.status(500).json({ message: 'Failed to fetch blog posts' });
+    }
+  });
+
+  // Create new blog post
+  app.post('/api/saas-admin/blog-posts', requireSaasAdminRole(['owner']), async (req: Request, res: Response) => {
+    try {
+      const { 
+        title, 
+        slug, 
+        content, 
+        excerpt, 
+        authorName, 
+        status, 
+        featuredImageUrl, 
+        seoTitle, 
+        seoDescription 
+      } = req.body;
+
+      // Auto-generate slug if not provided
+      const finalSlug = slug || title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+      const newPost = await db
+        .insert(blogPosts)
+        .values({
+          title,
+          slug: finalSlug,
+          content,
+          excerpt: excerpt || null,
+          authorName,
+          status: status || 'draft',
+          featuredImageUrl: featuredImageUrl || null,
+          seoTitle: seoTitle || null,
+          seoDescription: seoDescription || null,
+          publishedAt: status === 'published' ? new Date() : null,
+          createdAt: new Date(),
+        })
+        .returning();
+
+      res.status(201).json({ post: newPost[0] });
+    } catch (error) {
+      console.error('Create blog post error:', error);
+      res.status(500).json({ message: 'Failed to create blog post' });
+    }
+  });
+
+  // Update blog post
+  app.put('/api/saas-admin/blog-posts/:postId', requireSaasAdminRole(['owner']), async (req: Request, res: Response) => {
+    try {
+      const postId = parseInt(req.params.postId);
+      const { 
+        title, 
+        slug, 
+        content, 
+        excerpt, 
+        authorName, 
+        status, 
+        featuredImageUrl, 
+        seoTitle, 
+        seoDescription 
+      } = req.body;
+
+      // Check if status changed to published and set publishedAt
+      const currentPost = await db
+        .select()
+        .from(blogPosts)
+        .where(eq(blogPosts.id, postId))
+        .limit(1);
+
+      const shouldSetPublishedAt = status === 'published' && 
+        currentPost[0]?.status !== 'published';
+
+      await db
+        .update(blogPosts)
+        .set({
+          title,
+          slug,
+          content,
+          excerpt: excerpt || null,
+          authorName,
+          status,
+          featuredImageUrl: featuredImageUrl || null,
+          seoTitle: seoTitle || null,
+          seoDescription: seoDescription || null,
+          publishedAt: shouldSetPublishedAt ? new Date() : currentPost[0]?.publishedAt,
+          updatedAt: new Date(),
+        })
+        .where(eq(blogPosts.id, postId));
+
+      res.json({ message: 'Blog post updated successfully' });
+    } catch (error) {
+      console.error('Update blog post error:', error);
+      res.status(500).json({ message: 'Failed to update blog post' });
+    }
+  });
+
+  // Delete blog post
+  app.delete('/api/saas-admin/blog-posts/:postId', requireSaasAdminRole(['owner']), async (req: Request, res: Response) => {
+    try {
+      const postId = parseInt(req.params.postId);
+
+      await db
+        .delete(blogPosts)
+        .where(eq(blogPosts.id, postId));
+
+      res.json({ message: 'Blog post deleted successfully' });
+    } catch (error) {
+      console.error('Delete blog post error:', error);
+      res.status(500).json({ message: 'Failed to delete blog post' });
+    }
+  });
+
   console.log('SaaS Admin routes registered successfully');
 }

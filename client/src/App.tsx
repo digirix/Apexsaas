@@ -65,6 +65,7 @@ import SaasDashboardPage from "@/pages/saas-admin/saas-dashboard-page";
 import SaasTenantsPage from "@/pages/saas-admin/saas-tenants-page";
 import SaasTenantDetailPage from "@/pages/saas-admin/saas-tenant-detail-page";
 import SaasPackagesPage from "@/pages/saas-admin/saas-packages-page";
+import SaasBlogPage from "@/pages/saas-admin/saas-blog-page";
 
 function Router() {
   return (
@@ -126,6 +127,11 @@ function Router() {
       <Route path="/saas-admin/packages">
         <SaasProtectedRoute>
           <SaasPackagesPage />
+        </SaasProtectedRoute>
+      </Route>
+      <Route path="/saas-admin/blog">
+        <SaasProtectedRoute>
+          <SaasBlogPage />
         </SaasProtectedRoute>
       </Route>
 
