@@ -1,17 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import SaasLayout from '@/components/saas-admin/saas-layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, Users, DollarSign, TrendingUp, TrendingDown, Calendar, AlertTriangle, Activity, Clock, CreditCard, UserPlus, Search, Filter, Eye, Play, Pause, Ban, Trash2, MoreHorizontal, ExternalLink } from 'lucide-react';
+import { Building2, Users, DollarSign, TrendingUp, TrendingDown, Calendar, AlertTriangle, Activity, Clock, CreditCard, UserPlus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
-import { useState } from 'react';
-import { Link } from 'wouter';
 
 interface DashboardKPIs {
   totalTenants: number;
@@ -70,298 +64,6 @@ interface SystemAlert {
   resolved: boolean;
 }
 
-interface TenantData {
-  id: number;
-  companyName: string;
-  status: string;
-  createdAt: string;
-  packageName?: string;
-  userCount?: number;
-  entityCount?: number;
-  taskCount?: number;
-  mrr?: number;
-  lastLoginAt?: string;
-  trialEndsAt?: string;
-}
-
-// Define TenantManagementSection as a separate component
-function TenantManagementSection() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [page, setPage] = useState(1);
-  const pageSize = 10;
-
-  // Build query parameters for API call
-  const queryParams = new URLSearchParams({
-    page: page.toString(),
-    limit: pageSize.toString(),
-    search: searchTerm,
-    status: statusFilter === 'all' ? '' : statusFilter,
-    sortBy,
-  }).toString();
-
-  const { data: tenantsResponse, isLoading } = useQuery<{
-    tenants: TenantData[];
-    total: number;
-    page: number;
-    totalPages: number;
-  }>({
-    queryKey: ['/api/saas-admin/tenants', queryParams],
-  });
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'trial': return 'bg-blue-100 text-blue-800';
-      case 'suspended': return 'bg-red-100 text-red-800';
-      case 'cancelled': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Tenant Directory Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">Tenant Directory</h2>
-          <p className="text-slate-600">
-            {isLoading ? 'Loading...' : `${tenantsResponse?.total || 0} total tenants`}
-          </p>
-        </div>
-        
-        {/* Search and Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-            <Input
-              placeholder="Search tenants..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-full sm:w-64"
-            />
-          </div>
-          
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-40">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="trial">Trial</SelectItem>
-              <SelectItem value="suspended">Suspended</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-full sm:w-40">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="createdAt">Created Date</SelectItem>
-              <SelectItem value="companyName">Company Name</SelectItem>
-              <SelectItem value="mrr">MRR</SelectItem>
-              <SelectItem value="userCount">User Count</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Tenants Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="w-5 h-5" />
-            Tenants Overview
-          </CardTitle>
-          <CardDescription>
-            Comprehensive tenant management with usage metrics and billing information
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center space-x-4 p-4 border rounded-lg">
-                  <div className="w-12 h-12 bg-slate-200 rounded-lg animate-pulse" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-slate-200 rounded animate-pulse w-1/4" />
-                    <div className="h-3 bg-slate-200 rounded animate-pulse w-1/2" />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="h-6 bg-slate-200 rounded animate-pulse w-16" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : tenantsResponse?.tenants && tenantsResponse.tenants.length > 0 ? (
-            <div className="space-y-4">
-              {tenantsResponse.tenants.map((tenant) => (
-                <div key={tenant.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
-                      <Building2 className="w-6 h-6 text-white" />
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-3">
-                        <h3 className="font-semibold text-slate-900">{tenant.companyName}</h3>
-                        <Badge className={`text-xs ${getStatusColor(tenant.status)}`}>
-                          {tenant.status}
-                        </Badge>
-                      </div>
-                      
-                      <div className="flex items-center gap-4 text-sm text-slate-600">
-                        <span>Created: {formatDate(tenant.createdAt)}</span>
-                        {tenant.packageName && (
-                          <span>Package: {tenant.packageName}</span>
-                        )}
-                        {tenant.trialEndsAt && tenant.status === 'trial' && (
-                          <span className="text-amber-600">
-                            Trial ends: {formatDate(tenant.trialEndsAt)}
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center gap-4 text-sm text-slate-500">
-                        <span>{tenant.userCount || 0} users</span>
-                        <span>{tenant.entityCount || 0} entities</span>
-                        <span>{tenant.taskCount || 0} tasks</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-4">
-                    {tenant.mrr && (
-                      <div className="text-right">
-                        <div className="font-semibold text-green-600">
-                          {formatCurrency(tenant.mrr)}
-                        </div>
-                        <div className="text-xs text-slate-500">MRR</div>
-                      </div>
-                    )}
-                    
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          <Link href={`/saas-admin/tenants/${tenant.id}`}>
-                            <Eye className="w-4 h-4 mr-2" />
-                            View Details
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <ExternalLink className="w-4 h-4 mr-2" />
-                          Impersonate
-                        </DropdownMenuItem>
-                        {tenant.status === 'active' && (
-                          <DropdownMenuItem className="text-amber-600">
-                            <Pause className="w-4 h-4 mr-2" />
-                            Suspend
-                          </DropdownMenuItem>
-                        )}
-                        {tenant.status === 'suspended' && (
-                          <DropdownMenuItem className="text-green-600">
-                            <Play className="w-4 h-4 mr-2" />
-                            Reactivate
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem className="text-red-600">
-                          <Ban className="w-4 h-4 mr-2" />
-                          Cancel Subscription
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              ))}
-              
-              {/* Pagination */}
-              {tenantsResponse.totalPages > 1 && (
-                <div className="flex items-center justify-between pt-4 border-t">
-                  <div className="text-sm text-slate-600">
-                    Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, tenantsResponse.total)} of {tenantsResponse.total} tenants
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(page - 1)}
-                      disabled={page === 1}
-                    >
-                      Previous
-                    </Button>
-                    
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.min(5, tenantsResponse.totalPages) }, (_, i) => {
-                        const pageNum = Math.max(1, Math.min(tenantsResponse.totalPages - 4, page - 2)) + i;
-                        return (
-                          <Button
-                            key={pageNum}
-                            variant={page === pageNum ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setPage(pageNum)}
-                            className="w-10"
-                          >
-                            {pageNum}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(page + 1)}
-                      disabled={page === tenantsResponse.totalPages}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <Building2 className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-slate-900 mb-2">No tenants found</h3>
-              <p className="text-slate-600">
-                {searchTerm || statusFilter !== 'all' 
-                  ? 'Try adjusting your search or filter criteria.' 
-                  : 'No tenants have been registered yet.'}
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 export default function SaasDashboardPage() {
   const { data: kpis, isLoading } = useQuery<DashboardKPIs>({
     queryKey: ['/api/saas-admin/dashboard/kpis'],
@@ -403,9 +105,8 @@ export default function SaasDashboardPage() {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="tenants">Tenants</TabsTrigger>
             <TabsTrigger value="growth">Growth Analytics</TabsTrigger>
             <TabsTrigger value="revenue">Revenue Insights</TabsTrigger>
             <TabsTrigger value="system">System Health</TabsTrigger>
@@ -672,10 +373,6 @@ export default function SaasDashboardPage() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
-
-          <TabsContent value="tenants" className="space-y-6">
-            <TenantManagementSection />
           </TabsContent>
 
           <TabsContent value="growth" className="space-y-6">
