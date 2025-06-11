@@ -236,8 +236,8 @@ export default function SaasTenantDetailPage() {
                     <Users className="w-5 h-5 text-slate-600" />
                   </div>
                   <div>
-                    <p className="font-medium">{tenant.primaryAdminUser.displayName}</p>
-                    <p className="text-sm text-slate-600">{tenant.primaryAdminUser.email}</p>
+                    <p className="font-medium">{tenant.primaryAdminUser?.displayName || 'No admin assigned'}</p>
+                    <p className="text-sm text-slate-600">{tenant.primaryAdminUser?.email || 'N/A'}</p>
                   </div>
                 </div>
               </CardContent>

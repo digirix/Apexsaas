@@ -166,6 +166,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ status: "ok" });
   });
 
+  // Impersonation route for SaaS admin access
+  app.get("/impersonate", async (req, res) => {
+    try {
+      const token = req.query.token as string;
+      
+      if (!token) {
+        return res.redirect('/login?error=invalid_impersonation_token');
+      }
+
+      const { impersonationService } = await import('./services/impersonation-service');
+      const validation = await impersonationService.validateImpersonationToken(token);
+
+      if (!validation.isValid || !validation.tenantId || !validation.superAdminUserId) {
+        return res.redirect('/login?error=expired_impersonation_token');
+      }
+
+      // Create impersonation session
+      req.session.userId = validation.superAdminUserId;
+      req.session.tenantId = validation.tenantId;
+      req.session.impersonatedBy = validation.saasAdminId;
+      req.session.impersonationToken = token;
+      req.session.isImpersonated = true;
+
+      // Redirect to dashboard with impersonation active
+      res.redirect('/dashboard?impersonated=true');
+
+    } catch (error) {
+      console.error('Impersonation error:', error);
+      res.redirect('/login?error=impersonation_failed');
+    }
+  });
+
+  // End impersonation route
+  app.post("/api/v1/end-impersonation", async (req, res) => {
+    try {
+      const token = req.session.impersonationToken;
+      
+      if (token) {
+        const { impersonationService } = await import('./services/impersonation-service');
+        await impersonationService.endImpersonation(token, req.ip, req.get('User-Agent'));
+      }
+
+      // Clear impersonation session
+      req.session.impersonatedBy = undefined;
+      req.session.impersonationToken = undefined;
+      req.session.isImpersonated = false;
+      
+      // Destroy session to force re-login
+      req.session.destroy((err) => {
+        if (err) {
+          console.error('Session destruction error:', err);
+        }
+        res.json({ success: true, message: 'Impersonation ended successfully' });
+      });
+
+    } catch (error) {
+      console.error('End impersonation error:', error);
+      res.status(500).json({ message: 'Failed to end impersonation' });
+    }
+  });
+
   // Setup Module Routes
   
   // 1. Countries

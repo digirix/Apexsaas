@@ -197,36 +197,28 @@ export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, r
     try {
       const tenantId = parseInt(req.params.tenantId);
       const saasAdminId = req.user?.id;
+      const ipAddress = req.ip;
+      const userAgent = req.get('User-Agent');
 
-      // Verify tenant exists
-      const tenant = await db
-        .select()
-        .from(tenants)
-        .where(eq(tenants.id, tenantId))
-        .limit(1);
-
-      if (!tenant.length) {
-        return res.status(404).json({ message: 'Tenant not found' });
+      if (!saasAdminId) {
+        return res.status(401).json({ message: 'SaaS admin authentication required' });
       }
 
-      if (tenant[0].status === 'suspended') {
-        return res.status(400).json({ message: 'Cannot impersonate suspended tenant' });
-      }
-
-      // Generate a short-lived impersonation token
-      const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      const { impersonationService } = await import('../services/impersonation-service');
       
-      // TODO: Store impersonation session in Redis or database with expiration
-      // For now, we'll create a simple token that expires in 5 minutes
-      
-      res.json({ 
-        token,
+      const result = await impersonationService.startImpersonation(
+        saasAdminId,
         tenantId,
-        expiresAt: new Date(Date.now() + 5 * 60 * 1000) // 5 minutes
-      });
+        ipAddress,
+        userAgent
+      );
+      
+      res.json(result);
     } catch (error) {
       console.error('Impersonation error:', error);
-      res.status(500).json({ message: 'Failed to start impersonation' });
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : 'Failed to start impersonation' 
+      });
     }
   });
 
