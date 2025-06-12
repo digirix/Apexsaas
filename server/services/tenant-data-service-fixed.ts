@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { tenants, subscriptions, packages, users, entities, tasks, invoices } from '../../shared/schema';
-import { eq, desc, count, sql } from 'drizzle-orm';
+import { eq, desc, count, sql, and, ilike } from 'drizzle-orm';
 
 // Retry wrapper for database operations
 async function withRetry<T>(operation: () => Promise<T>, maxRetries = 3): Promise<T> {
@@ -40,6 +40,82 @@ export class TenantDataService {
     } catch (error) {
       console.error('Error fetching tenant list:', error);
       return [];
+    }
+  }
+
+  static async getTenantListPaginated(page: number = 1, limit: number = 10, search: string = '', status: string = 'all') {
+    try {
+      console.log(`Fetching paginated tenant list - Page: ${page}, Limit: ${limit}, Search: '${search}', Status: '${status}'`);
+      
+      const offset = (page - 1) * limit;
+      
+      // Build the base query
+      let query = db.select({
+        id: tenants.id,
+        companyName: tenants.companyName,
+        status: tenants.status,
+        createdAt: tenants.createdAt,
+        trialEndsAt: tenants.trialEndsAt,
+        subscriptionId: tenants.subscriptionId,
+        userCount: sql<number>`0`, // Placeholder for now
+        entityCount: sql<number>`0`, // Placeholder for now
+        packageName: sql<string>`null` // Placeholder for now
+      }).from(tenants);
+
+      // Apply filters
+      const conditions = [];
+      
+      if (search) {
+        conditions.push(ilike(tenants.companyName, `%${search}%`));
+      }
+      
+      if (status !== 'all') {
+        conditions.push(eq(tenants.status, status));
+      }
+
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+
+      // Get total count for pagination
+      const countQuery = db.select({ count: count() }).from(tenants);
+      if (conditions.length > 0) {
+        countQuery.where(and(...conditions));
+      }
+      
+      const [totalResult] = await countQuery;
+      const total = totalResult?.count || 0;
+      
+      // Get paginated results
+      const tenantList = await query
+        .orderBy(desc(tenants.createdAt))
+        .limit(limit)
+        .offset(offset);
+      
+      const totalPages = Math.ceil(total / limit);
+      
+      console.log(`Successfully fetched ${tenantList.length} tenants (page ${page}/${totalPages})`);
+      
+      return {
+        tenants: tenantList,
+        pagination: {
+          total,
+          page,
+          limit,
+          pages: totalPages
+        }
+      };
+    } catch (error) {
+      console.error('Error fetching paginated tenant list:', error);
+      return {
+        tenants: [],
+        pagination: {
+          total: 0,
+          page: 1,
+          limit: 10,
+          pages: 0
+        }
+      };
     }
   }
   

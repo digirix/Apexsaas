@@ -68,8 +68,13 @@ export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, r
   // Get all tenants
   app.get('/api/saas-admin/tenants', isSaasAdminAuthenticated, async (req: Request, res: Response) => {
     try {
-      const tenants = await TenantDataService.getTenantList();
-      res.json(tenants);
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const search = req.query.search as string || '';
+      const status = req.query.status as string || 'all';
+      
+      const tenantList = await TenantDataService.getTenantListPaginated(page, limit, search, status);
+      res.json(tenantList);
     } catch (error) {
       console.error('Error fetching tenants:', error);
       res.status(500).json({ message: 'Failed to fetch tenants' });
