@@ -1,5 +1,5 @@
 import { Express, Request, Response } from 'express';
-import { TenantDataService } from '../services/tenant-data-service';
+import { TenantDataService } from '../services/tenant-data-service-fixed';
 
 export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, requireSaasAdminRole }: any) {
   console.log('Setting up SaaS Admin routes...');

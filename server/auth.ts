@@ -121,13 +121,33 @@ export function setupAuth(app: Express) {
   ));
 
   passport.serializeUser((user, done) => {
-    // Add user type to prevent conflicts between different user types
+    // Add user type and essential data to prevent database queries during deserialization
     if ((user as any).isClientPortalUser) {
-      done(null, { id: user.id, type: 'client-portal' });
+      done(null, { 
+        id: user.id, 
+        type: 'client-portal',
+        clientId: (user as any).clientId,
+        tenantId: (user as any).tenantId,
+        username: (user as any).username,
+        displayName: (user as any).displayName,
+        email: (user as any).email
+      });
     } else if ((user as any).isSaasAdmin) {
-      done(null, { id: user.id, type: 'saas-admin' });
+      done(null, { 
+        id: user.id, 
+        type: 'saas-admin',
+        email: (user as any).email,
+        role: (user as any).role,
+        displayName: (user as any).displayName
+      });
     } else {
-      done(null, { id: user.id, type: 'staff' });
+      done(null, { 
+        id: user.id, 
+        type: 'staff',
+        tenantId: (user as any).tenantId,
+        username: (user as any).username,
+        displayName: (user as any).displayName
+      });
     }
   });
 
@@ -198,6 +218,22 @@ export function setupAuth(app: Express) {
         try {
           console.log(`Deserializing SaaS admin user with ID: ${serialized.id}`);
           
+          // Use cached user data from session when possible to avoid DB queries
+          if (serialized.email && serialized.role && serialized.displayName) {
+            const saasAdminUser = {
+              id: serialized.id,
+              email: serialized.email,
+              role: serialized.role,
+              displayName: serialized.displayName,
+              isActive: true,
+              isSaasAdmin: true,
+            } as SaasAdminUser;
+            
+            console.log(`Using cached SaaS admin data: ${saasAdminUser.email}`);
+            return done(null, saasAdminUser);
+          }
+          
+          // Fallback to database query only if cached data is not available
           const adminRecords = await db
             .select()
             .from(saasAdmins)
