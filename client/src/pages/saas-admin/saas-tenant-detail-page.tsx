@@ -31,8 +31,8 @@ interface TenantDetails {
     id: number;
     email: string;
     displayName: string;
-  };
-  stats: {
+  } | null;
+  stats?: {
     userCount: number;
     entityCount: number;
     taskCount: number;
@@ -251,7 +251,7 @@ export default function SaasTenantDetailPage() {
                   <Users className="h-4 w-4 text-slate-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{tenant.stats.userCount}</div>
+                  <div className="text-2xl font-bold">{tenant.stats?.userCount || 0}</div>
                   <p className="text-xs text-slate-600">Active users</p>
                 </CardContent>
               </Card>
@@ -262,7 +262,7 @@ export default function SaasTenantDetailPage() {
                   <Briefcase className="h-4 w-4 text-slate-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{tenant.stats.entityCount}</div>
+                  <div className="text-2xl font-bold">{tenant.stats?.entityCount || 0}</div>
                   <p className="text-xs text-slate-600">Client entities</p>
                 </CardContent>
               </Card>
@@ -273,7 +273,7 @@ export default function SaasTenantDetailPage() {
                   <Calendar className="h-4 w-4 text-slate-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{tenant.stats.taskCount}</div>
+                  <div className="text-2xl font-bold">{tenant.stats?.taskCount || 0}</div>
                   <p className="text-xs text-slate-600">Total tasks</p>
                 </CardContent>
               </Card>
@@ -284,7 +284,7 @@ export default function SaasTenantDetailPage() {
                   <CreditCard className="h-4 w-4 text-slate-600" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{tenant.stats.invoiceCount}</div>
+                  <div className="text-2xl font-bold">{tenant.stats?.invoiceCount || 0}</div>
                   <p className="text-xs text-slate-600">Generated invoices</p>
                 </CardContent>
               </Card>
