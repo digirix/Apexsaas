@@ -182,15 +182,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.redirect('/login?error=expired_impersonation_token');
       }
 
-      // Create impersonation session
-      (req.session as any).userId = validation.superAdminUserId;
-      (req.session as any).tenantId = validation.tenantId;
-      (req.session as any).impersonatedBy = validation.saasAdminId;
-      (req.session as any).impersonationToken = token;
-      (req.session as any).isImpersonated = true;
-
-      // Redirect to main app with impersonation active
-      res.redirect('/?impersonated=true');
+      // Destroy current session and create new one for impersonated tenant user
+      req.session.destroy((err) => {
+        if (err) {
+          console.error('Session destruction error during impersonation:', err);
+          return res.redirect('/login?error=impersonation_failed');
+        }
+        
+        // Create new session with tenant user
+        req.session.regenerate((err) => {
+          if (err) {
+            console.error('Session regeneration error during impersonation:', err);
+            return res.redirect('/login?error=impersonation_failed');
+          }
+          
+          // Set up new session for tenant user
+          (req.session as any).userId = validation.superAdminUserId;
+          (req.session as any).tenantId = validation.tenantId;
+          (req.session as any).impersonatedBy = validation.saasAdminId;
+          (req.session as any).impersonationToken = token;
+          (req.session as any).isImpersonated = true;
+          
+          // Set passport user data for tenant user
+          (req.session as any).passport = {
+            user: { id: validation.superAdminUserId, type: 'staff' }
+          };
+          
+          // Save session and redirect
+          req.session.save((err) => {
+            if (err) {
+              console.error('Session save error during impersonation:', err);
+              return res.redirect('/login?error=impersonation_failed');
+            }
+            
+            res.redirect('/?impersonated=true');
+          });
+        });
+      });
 
     } catch (error) {
       console.error('Impersonation error:', error);
