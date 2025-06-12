@@ -5,10 +5,26 @@ export async function runDatabaseMigrations() {
   console.log('Running database migrations...');
   
   try {
-    // Test database connection first
+    // Test database connection with retry logic
     console.log('Testing database connection...');
-    await db.execute(sql`SELECT 1 as test`);
-    console.log('Database connection successful');
+    let retries = 3;
+    let connected = false;
+    
+    while (retries > 0 && !connected) {
+      try {
+        await db.execute(sql`SELECT 1 as test`);
+        console.log('Database connection successful');
+        connected = true;
+      } catch (error) {
+        console.log(`Database connection attempt failed. Retries left: ${retries - 1}`);
+        if (retries === 1) {
+          throw error;
+        }
+        retries--;
+        // Wait 2 seconds before retry
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
 
     // Simple table existence check and creation
     console.log('Creating tenants table...');

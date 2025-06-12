@@ -17,9 +17,24 @@ if (!process.env.DATABASE_URL) {
 // Create pool with better configuration for reliability
 export const pool = new Pool({ 
   connectionString: process.env.DATABASE_URL,
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
+  max: 5,
+  idleTimeoutMillis: 20000,
+  connectionTimeoutMillis: 15000,
+  maxUses: 50,
+  allowExitOnIdle: true
 });
 
 export const db = drizzle(pool, { schema });
+
+// Add graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('Closing database connection pool...');
+  await pool.end();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('Closing database connection pool...');
+  await pool.end();
+  process.exit(0);
+});
