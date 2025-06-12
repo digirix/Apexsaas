@@ -12,8 +12,12 @@ if (!process.env.DATABASE_URL) {
 const sql = neon(process.env.DATABASE_URL, {
   fetchOptions: {
     cache: 'no-store',
-    timeout: 30000
+    timeout: 10000
   }
 });
-export const db = drizzle(sql, { schema });
+
+export const db = drizzle(sql, { 
+  schema,
+  logger: false
+});
 

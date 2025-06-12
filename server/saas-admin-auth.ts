@@ -93,18 +93,6 @@ export function setupSaasAdminAuth(app: Express) {
         
         console.log('Invalid credentials for SaaS Admin:', email);
         return done(null, false, { message: 'Invalid credentials' });
-
-        const saasAdminUser = {
-          id: adminUser.id,
-          email: adminUser.email,
-          role: adminUser.role,
-          displayName: adminUser.displayName,
-          isActive: adminUser.isActive,
-          isSaasAdmin: true,
-        } as SaasAdminUser;
-
-        console.log('SaaS Admin authentication successful:', email);
-        return done(null, saasAdminUser);
       } catch (error) {
         console.error('SaaS Admin authentication error:', error);
         return done(error);

@@ -85,7 +85,7 @@ export class TenantDataService {
   }
 
   static async getTenantStats() {
-    try {
+    return withRetry(async () => {
       // Get tenant statuses
       const statusStats = await db
         .select({
@@ -95,64 +95,44 @@ export class TenantDataService {
         .from(tenants)
         .groupBy(tenants.status);
 
-      // Get growth data for last 12 months
-      const growthData = await db
-        .select({
-          month: sql<string>`TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM')`,
-          count: count()
-        })
-        .from(tenants)
-        .where(sql`created_at >= NOW() - INTERVAL '12 months'`)
-        .groupBy(sql`DATE_TRUNC('month', created_at)`)
-        .orderBy(sql`DATE_TRUNC('month', created_at)`);
-
       return {
-        statusStats,
-        growthData
+        byStatus: statusStats,
+        totalActive: statusStats.find(s => s.status === 'active')?.count || 0,
+        totalTrial: statusStats.find(s => s.status === 'trial')?.count || 0
       };
-    } catch (error) {
+    }).catch(error => {
       console.error('Error fetching tenant stats:', error);
       return {
-        statusStats: [],
-        growthData: []
+        byStatus: [],
+        totalActive: 0,
+        totalTrial: 0
       };
-    }
+    });
   }
 
   static async getSystemAlerts() {
-    try {
-      const alerts = [];
-      
-      // Check for trials expiring soon
-      const expiringTrials = await db
-        .select({ count: count() })
+    return withRetry(async () => {
+      // Check for trials ending soon
+      const trialAlerts = await db
+        .select({
+          id: tenants.id,
+          companyName: tenants.companyName,
+          trialEndsAt: tenants.trialEndsAt
+        })
         .from(tenants)
         .where(sql`status = 'trial' AND trial_ends_at <= NOW() + INTERVAL '7 days'`);
-      
-      if (expiringTrials[0]?.count > 0) {
-        alerts.push({
-          type: 'warning',
-          message: `${expiringTrials[0].count} trial${expiringTrials[0].count > 1 ? 's' : ''} expiring within 7 days`
-        });
-      }
 
-      // Check for failed payments
-      const failedPayments = await db
-        .select({ count: count() })
-        .from(subscriptions)
-        .where(eq(subscriptions.status, 'past_due'));
-      
-      if (failedPayments[0]?.count > 0) {
-        alerts.push({
-          type: 'error',
-          message: `${failedPayments[0].count} subscription${failedPayments[0].count > 1 ? 's' : ''} with failed payments`
-        });
-      }
+      const alerts = trialAlerts.map(tenant => ({
+        type: 'trial_ending',
+        message: `Trial ending soon for ${tenant.companyName}`,
+        tenantId: tenant.id,
+        severity: 'warning'
+      }));
 
       return alerts;
-    } catch (error) {
+    }).catch(error => {
       console.error('Error fetching system alerts:', error);
       return [];
-    }
+    });
   }
 }
