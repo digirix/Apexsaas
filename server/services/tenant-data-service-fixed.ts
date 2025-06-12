@@ -47,57 +47,40 @@ export class TenantDataService {
     try {
       console.log(`Fetching paginated tenant list - Page: ${page}, Limit: ${limit}, Search: '${search}', Status: '${status}'`);
       
-      const offset = (page - 1) * limit;
+      // For now, let's use the simple getTenantList and format it for the frontend
+      const allTenants = await this.getTenantList();
       
-      // Build the base query
-      let query = db.select({
-        id: tenants.id,
-        companyName: tenants.companyName,
-        status: tenants.status,
-        createdAt: tenants.createdAt,
-        trialEndsAt: tenants.trialEndsAt,
-        subscriptionId: tenants.subscriptionId,
-        userCount: sql<number>`0`, // Placeholder for now
-        entityCount: sql<number>`0`, // Placeholder for now
-        packageName: sql<string>`null` // Placeholder for now
-      }).from(tenants);
-
-      // Apply filters
-      const conditions = [];
+      // Apply basic filtering on the client side for now
+      let filteredTenants = allTenants;
       
       if (search) {
-        conditions.push(ilike(tenants.companyName, `%${search}%`));
+        filteredTenants = filteredTenants.filter(tenant => 
+          tenant.companyName.toLowerCase().includes(search.toLowerCase())
+        );
       }
       
       if (status !== 'all') {
-        conditions.push(eq(tenants.status, status));
-      }
-
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions));
-      }
-
-      // Get total count for pagination
-      const countQuery = db.select({ count: count() }).from(tenants);
-      if (conditions.length > 0) {
-        countQuery.where(and(...conditions));
+        filteredTenants = filteredTenants.filter(tenant => tenant.status === status);
       }
       
-      const [totalResult] = await countQuery;
-      const total = totalResult?.count || 0;
+      const total = filteredTenants.length;
+      const offset = (page - 1) * limit;
+      const paginatedTenants = filteredTenants.slice(offset, offset + limit);
       
-      // Get paginated results
-      const tenantList = await query
-        .orderBy(desc(tenants.createdAt))
-        .limit(limit)
-        .offset(offset);
+      // Add required fields for frontend compatibility
+      const tenantsWithExtraFields = paginatedTenants.map(tenant => ({
+        ...tenant,
+        userCount: 0, // Placeholder for now
+        entityCount: 0, // Placeholder for now 
+        packageName: null // Placeholder for now
+      }));
       
       const totalPages = Math.ceil(total / limit);
       
-      console.log(`Successfully fetched ${tenantList.length} tenants (page ${page}/${totalPages})`);
+      console.log(`Successfully fetched ${tenantsWithExtraFields.length} tenants (page ${page}/${totalPages})`);
       
       return {
-        tenants: tenantList,
+        tenants: tenantsWithExtraFields,
         pagination: {
           total,
           page,
@@ -155,18 +138,23 @@ export class TenantDataService {
     try {
       console.log('Fetching tenant stats...');
       
-      const statusStats = await db
-        .select({
-          status: tenants.status,
-          count: count()
-        })
-        .from(tenants)
-        .groupBy(tenants.status);
+      // Get all tenants and calculate stats in memory to avoid complex queries
+      const allTenants = await this.getTenantList();
+      
+      const statusCounts = allTenants.reduce((acc, tenant) => {
+        acc[tenant.status] = (acc[tenant.status] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const byStatus = Object.entries(statusCounts).map(([status, count]) => ({
+        status,
+        count
+      }));
 
       return {
-        byStatus: statusStats,
-        totalActive: statusStats.find(s => s.status === 'active')?.count || 0,
-        totalTrial: statusStats.find(s => s.status === 'trial')?.count || 0
+        byStatus,
+        totalActive: statusCounts.active || 0,
+        totalTrial: statusCounts.trial || 0
       };
     } catch (error) {
       console.error('Error fetching tenant stats:', error);
