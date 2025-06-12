@@ -92,5 +92,42 @@ export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, r
     }
   });
 
+  // Tenant impersonation
+  app.post('/api/saas-admin/tenants/:tenantId/impersonate', isSaasAdminAuthenticated, async (req: Request, res: Response) => {
+    console.log('IMPERSONATION ROUTE HIT:', req.path, req.params);
+    try {
+      const tenantId = parseInt(req.params.tenantId);
+      const saasAdminId = req.user?.id;
+      const ipAddress = req.ip;
+      const userAgent = req.get('User-Agent');
+
+      console.log(`Impersonation request - tenantId: ${tenantId}, saasAdminId: ${saasAdminId}`);
+
+      if (!saasAdminId) {
+        console.log('No SaaS admin ID found in request');
+        return res.status(401).json({ message: 'SaaS admin authentication required' });
+      }
+
+      console.log(`Starting impersonation for tenant ${tenantId} by SaaS admin ${saasAdminId}`);
+
+      const { impersonationService } = await import('../services/impersonation-service');
+      
+      const result = await impersonationService.startImpersonation(
+        saasAdminId,
+        tenantId,
+        ipAddress,
+        userAgent
+      );
+      
+      console.log('Impersonation result:', result);
+      res.json(result);
+    } catch (error) {
+      console.error('Impersonation error:', error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : 'Failed to start impersonation' 
+      });
+    }
+  });
+
   console.log('SaaS Admin routes registered successfully');
 }
