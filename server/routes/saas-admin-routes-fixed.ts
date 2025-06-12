@@ -129,5 +129,53 @@ export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, r
     }
   });
 
+  // Suspend tenant
+  app.post('/api/saas-admin/tenants/:tenantId/suspend', isSaasAdminAuthenticated, async (req: Request, res: Response) => {
+    console.log('SUSPEND ROUTE HIT:', req.path, req.params);
+    try {
+      const tenantId = parseInt(req.params.tenantId);
+
+      console.log(`Suspending tenant ${tenantId}`);
+
+      // Update tenant status to suspended
+      const result = await TenantDataService.updateTenantStatus(tenantId, 'suspended');
+      
+      if (result.success) {
+        console.log(`Tenant ${tenantId} suspended successfully`);
+        res.json({ message: 'Tenant suspended successfully' });
+      } else {
+        console.error(`Failed to suspend tenant ${tenantId}:`, result.error);
+        res.status(500).json({ message: result.error || 'Failed to suspend tenant' });
+      }
+    } catch (error) {
+      console.error('Suspend tenant error:', error);
+      res.status(500).json({ message: 'Failed to suspend tenant' });
+    }
+  });
+
+  // Unsuspend tenant
+  app.post('/api/saas-admin/tenants/:tenantId/unsuspend', isSaasAdminAuthenticated, async (req: Request, res: Response) => {
+    console.log('UNSUSPEND ROUTE HIT:', req.path, req.params);
+    try {
+      const tenantId = parseInt(req.params.tenantId);
+
+      console.log(`Unsuspending tenant ${tenantId}`);
+
+      // Update tenant status to active
+      const result = await TenantDataService.updateTenantStatus(tenantId, 'active');
+      
+      if (result.success) {
+        console.log(`Tenant ${tenantId} unsuspended successfully`);
+        res.json({ message: 'Tenant unsuspended successfully' });
+      } else {
+        console.error(`Failed to unsuspend tenant ${tenantId}:`, result.error);
+        res.status(500).json({ message: result.error || 'Failed to unsuspend tenant' });
+      }
+    } catch (error) {
+      console.error('Unsuspend tenant error:', error);
+      res.status(500).json({ message: 'Failed to unsuspend tenant' });
+    }
+  });
+
   console.log('SaaS Admin routes registered successfully');
 }

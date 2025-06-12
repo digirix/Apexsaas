@@ -177,4 +177,29 @@ export class TenantDataService {
       return [];
     }
   }
+
+  static async updateTenantStatus(tenantId: number, status: string) {
+    try {
+      console.log(`Updating tenant ${tenantId} status to ${status}`);
+      
+      const result = await withRetry(async () => {
+        return await db
+          .update(tenants)
+          .set({ 
+            status: status,
+            updatedAt: new Date()
+          })
+          .where(eq(tenants.id, tenantId));
+      });
+
+      console.log(`Tenant ${tenantId} status updated successfully`);
+      return { success: true };
+    } catch (error) {
+      console.error(`Error updating tenant ${tenantId} status:`, error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to update tenant status' 
+      };
+    }
+  }
 }
