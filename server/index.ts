@@ -3,7 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
 import { TaskScheduler } from "./task-scheduler";
-import { runDatabaseMigrations, seedDefaultData } from "./db-migration";
+import { runDatabaseMigrations, seedDefaultData } from "./db-migration-simple";
 
 function startTaskScheduler() {
   // Initialize task scheduler

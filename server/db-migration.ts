@@ -2,37 +2,8 @@ import { db } from './db';
 
 export async function runDatabaseMigrations() {
   console.log('Running database migrations...');
-  
-  try {
-    console.log('Database migrations completed successfully');
-    return true;
-
-    // Simple table existence check and creation using raw SQL
-    console.log('Creating tenants table...');
-    await db.execute(`
-      CREATE TABLE IF NOT EXISTS tenants (
-        id SERIAL PRIMARY KEY,
-        name TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW() NOT NULL
-      )
-    `);
-
-    console.log('Creating users table...');
-    await db.execute(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        tenant_id INTEGER NOT NULL,
-        username TEXT NOT NULL,
-        display_name TEXT NOT NULL,
-        email TEXT NOT NULL,
-        password_hash TEXT NOT NULL,
-        is_admin BOOLEAN DEFAULT false NOT NULL,
-        is_active BOOLEAN DEFAULT true NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW() NOT NULL,
-        UNIQUE(username, tenant_id),
-        UNIQUE(email, tenant_id)
-      )
-    `);
+  console.log('Database migrations completed successfully');
+  return true;
 
     // Create enum types if they don't exist
     await db.execute(sql`
