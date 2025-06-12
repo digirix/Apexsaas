@@ -39,7 +39,7 @@ export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, r
       const mrr = Number(mrrResult[0]?.total || 0);
 
       // Calculate ARPU (Average Revenue Per User)
-      const arpu = totalTenants > 0 ? mrr / totalTenants : 0;
+      const arpu = kpis.totalTenants > 0 ? mrr / kpis.totalTenants : 0;
 
       // Calculate churn rate (cancelled in last 30 days / total active at start of period)
       const cancelledLast30Result = await db

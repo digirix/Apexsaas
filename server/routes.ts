@@ -22,7 +22,7 @@ export function broadcastToUser(tenantId: number, userId: number, message: any) 
 }
 import { setupAuth } from "./auth";
 import { setupSaasAdminAuth } from "./saas-admin-auth";
-import { setupSaasAdminRoutes } from "./routes/saas-admin-routes";
+import { setupSaasAdminRoutes } from "./routes/saas-admin-routes-fixed";
 import { setupSaasBlogRoutes } from "./routes/saas-blog-routes";
 import { setupPublicApiRoutes } from "./routes/public-api-routes";
 import { setupTenantRegistrationRoutes } from "./routes/tenant-registration-routes";
