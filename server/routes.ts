@@ -189,8 +189,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       (req.session as any).impersonationToken = token;
       (req.session as any).isImpersonated = true;
 
-      // Redirect to dashboard with impersonation active
-      res.redirect('/dashboard?impersonated=true');
+      // Redirect to main app with impersonation active
+      res.redirect('/?impersonated=true');
 
     } catch (error) {
       console.error('Impersonation error:', error);
