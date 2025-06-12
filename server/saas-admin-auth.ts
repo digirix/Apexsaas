@@ -149,6 +149,10 @@ export function setupSaasAdminAuth(app: Express) {
 
   // SaaS Admin authentication middleware
   function isSaasAdminAuthenticated(req: Request, res: Response, next: NextFunction) {
+    console.log('SaaS Admin auth check - isAuthenticated:', req.isAuthenticated());
+    console.log('SaaS Admin auth check - user:', req.user);
+    console.log('SaaS Admin auth check - isSaasAdminUser result:', req.user ? isSaasAdminUser(req.user) : false);
+    
     if (req.isAuthenticated() && isSaasAdminUser(req.user)) {
       return next();
     }

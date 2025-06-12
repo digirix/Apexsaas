@@ -71,7 +71,7 @@ app.use((req, res, next) => {
 (async () => {
   console.log("Starting server...");
   try {
-    // Run database migrations first
+    // Run database migrations
     console.log("Initializing database...");
     const migrationSuccess = await runDatabaseMigrations();
     if (!migrationSuccess) {
