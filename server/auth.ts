@@ -10,6 +10,28 @@ import { User as SelectUser, clientPortalAccess, clients, saasAdmins } from "@sh
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
 
+// Define extended serialized user type with additional fields
+interface SerializedUser {
+  id: number;
+  type: string;
+  email?: string;
+  role?: string;
+  displayName?: string;
+  clientId?: number;
+  tenantId?: number;
+  username?: string;
+}
+
+// SaaS Admin User type (simplified to avoid circular imports)
+interface SaasAdminUser {
+  id: number;
+  email: string;
+  role: string;
+  displayName: string;
+  isActive: boolean;
+  isSaasAdmin: true;
+}
+
 declare global {
   namespace Express {
     // Extend the User interface to include our User type
@@ -151,7 +173,7 @@ export function setupAuth(app: Express) {
     }
   });
 
-  passport.deserializeUser(async (serialized: { id: number, type: string }, done) => {
+  passport.deserializeUser(async (serialized: SerializedUser, done) => {
     try {
       console.log(`DEBUG DESERIALIZE: Starting deserialization for user ID ${serialized.id}, type: ${serialized.type}`);
       if (serialized.type === 'client-portal') {
