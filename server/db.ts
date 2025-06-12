@@ -8,7 +8,12 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// Use HTTP connection instead of WebSocket to avoid timeout issues
-const sql = neon(process.env.DATABASE_URL);
+// Use HTTP connection with optimized settings
+const sql = neon(process.env.DATABASE_URL, {
+  fetchOptions: {
+    cache: 'no-store',
+    timeout: 30000
+  }
+});
 export const db = drizzle(sql, { schema });
 

@@ -2,6 +2,7 @@ import { Express, Request, Response } from 'express';
 import { db } from '../db';
 import { tenants, subscriptions, packages, saasAdmins, users, entities, tasks, invoices, blogPosts } from '../../shared/schema';
 import { eq, desc, count, sql } from 'drizzle-orm';
+import { TenantDataService } from '../services/tenant-data-service';
 
 export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, requireSaasAdminRole }: any) {
   console.log('Setting up SaaS Admin routes...');
@@ -13,25 +14,7 @@ export function setupSaasAdminRoutes(app: Express, { isSaasAdminAuthenticated, r
   // Dashboard KPIs
   app.get('/api/saas-admin/dashboard/kpis', isSaasAdminAuthenticated, async (req: Request, res: Response) => {
     try {
-      // Total tenants
-      const totalTenantsResult = await db
-        .select({ count: count() })
-        .from(tenants);
-      const totalTenants = totalTenantsResult[0]?.count || 0;
-
-      // Active trials (trial status and trial_ends_at in future)
-      const activeTrialsResult = await db
-        .select({ count: count() })
-        .from(tenants)
-        .where(sql`status = 'trial' AND trial_ends_at > NOW()`);
-      const activeTrials = activeTrialsResult[0]?.count || 0;
-
-      // New sign-ups last 30 days
-      const newSignupsResult = await db
-        .select({ count: count() })
-        .from(tenants)
-        .where(sql`created_at >= NOW() - INTERVAL '30 days'`);
-      const newSignups = newSignupsResult[0]?.count || 0;
+      const kpis = await TenantDataService.getDashboardKPIs();
 
       // Recent tenants
       const recentTenants = await db
