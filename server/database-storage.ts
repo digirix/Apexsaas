@@ -84,6 +84,11 @@ export class DatabaseStorage implements IStorage {
     return tenant;
   }
 
+  async getTenantStatus(id: number): Promise<string | undefined> {
+    const [tenant] = await db.select({ status: tenants.status }).from(tenants).where(eq(tenants.id, id));
+    return tenant?.status;
+  }
+
   async getTenantByName(name: string): Promise<Tenant | undefined> {
     const [tenant] = await db.select().from(tenants).where(eq(tenants.name, name));
     return tenant;

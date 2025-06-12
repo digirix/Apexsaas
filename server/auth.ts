@@ -133,6 +133,22 @@ export function setupAuth(app: Express) {
         if (!passwordMatch) {
           return done(null, false, { message: 'Invalid email or password' });
         }
+
+        // Check if the user's tenant is suspended
+        if (user.tenantId) {
+          try {
+            const tenantStatus = await storage.getTenantStatus(user.tenantId);
+            console.log(`Tenant ${user.tenantId} status: ${tenantStatus}`);
+            
+            if (tenantStatus === 'suspended') {
+              console.log(`Login denied: Tenant ${user.tenantId} is suspended`);
+              return done(null, false, { message: 'Account access has been temporarily suspended. Please contact support.' });
+            }
+          } catch (tenantCheckError) {
+            console.error('Error checking tenant status:', tenantCheckError);
+            // Allow login if tenant check fails to avoid blocking legitimate users
+          }
+        }
         
         return done(null, user);
       } catch (err) {

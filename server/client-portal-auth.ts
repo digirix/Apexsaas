@@ -106,6 +106,22 @@ export function setupClientPortalAuth(app: Express) {
       if (!passwordMatch) {
         return done(null, false, { message: 'Invalid username or password' });
       }
+
+      // Check if the tenant is suspended
+      try {
+        const { DatabaseStorage } = await import('./database-storage');
+        const storage = new DatabaseStorage();
+        const tenantStatus = await storage.getTenantStatus(tenantId);
+        console.log(`Client portal login - Tenant ${tenantId} status: ${tenantStatus}`);
+        
+        if (tenantStatus === 'suspended') {
+          console.log(`Client portal login denied: Tenant ${tenantId} is suspended`);
+          return done(null, false, { message: 'Account access has been temporarily suspended. Please contact your accountant.' });
+        }
+      } catch (tenantCheckError) {
+        console.error('Error checking tenant status for client portal:', tenantCheckError);
+        // Allow login if tenant check fails to avoid blocking legitimate users
+      }
       
       // Get client information
       const clientResults = await db

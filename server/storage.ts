@@ -51,6 +51,7 @@ export interface IStorage {
   
   // Tenant operations
   getTenant(id: number): Promise<Tenant | undefined>;
+  getTenantStatus(id: number): Promise<string | undefined>;
   createTenant(tenant: InsertTenant): Promise<Tenant>;
   
   // Tenant Settings operations
